@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desafio Q4 2026 · Painel de acompanhamento</title>
+<style>
+/*__FONTS__*/
+:root{
+  --red:#E4002B; --red2:#ff1f45; --blue:#1d7bff; --blued:#0a2a6e; --gold:#ffc84a;
+  --green:#22b14c; --greend:#0d5a24; --panel:rgba(14,12,16,.88); --line:rgba(255,255,255,.12);
+  --muted:#b9bcc4; --ink:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:var(--ink);overflow:hidden;font-family:Barlow,'Arial Narrow',Arial,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;transform:scale(var(--s,1));overflow:hidden;background:#050507}
+
+/* fundo: estádio em duas luzes */
+.bg{position:absolute;inset:0;background:
+  radial-gradient(1100px 700px at 6% 4%,rgba(228,0,43,.38),transparent 62%),
+  radial-gradient(1100px 700px at 96% 8%,rgba(29,123,255,.30),transparent 62%),
+  radial-gradient(1400px 500px at 50% 112%,rgba(228,0,43,.22),transparent 70%),#050507}
+.bg i{position:absolute;border-radius:50%;opacity:.5}
+.arcs{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+
+/* cabeçalho */
+.logo{position:absolute;left:60px;top:30px;width:190px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+.logo svg{width:100%;height:auto;display:block}
+.hd{position:absolute;left:0;right:0;top:14px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ttl{font-family:Anton,Impact,sans-serif;font-size:92px;line-height:96px;letter-spacing:.01em;transform:skewX(-9deg);display:flex;gap:22px;filter:drop-shadow(0 0 16px rgba(228,0,43,.6));position:relative}
+.ttl .m{background:linear-gradient(180deg,#fff 0%,#eceff5 36%,#9aa0ad 52%,#f4f6fa 70%,#c7ccd6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ttl .r{background:linear-gradient(180deg,#ff5c78 0%,#E4002B 55%,#8a0016 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ttl::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%);background-size:300% 100%;background-position:120% 0;-webkit-mask:linear-gradient(#000,#000);mix-blend-mode:overlay;animation:shine 1.8s ease .6s 1 both}
+@keyframes shine{from{background-position:120% 0}to{background-position:-20% 0}}
+@media (prefers-reduced-motion:reduce){.ttl::after{animation:none}}
+.ribbon{margin-top:-6px;padding:4px 46px 6px;background:linear-gradient(90deg,#8a0016,var(--red) 18%,var(--red2) 50%,var(--red) 82%,#8a0016);transform:skewX(-14deg);box-shadow:0 8px 28px rgba(228,0,43,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:26px;letter-spacing:.14em;text-transform:uppercase}
+.info{position:absolute;right:60px;top:34px;text-align:right;line-height:1.1}
+.info small{display:block;font-size:16px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.info b{display:block;font-size:30px;font-weight:700;margin-bottom:10px}
+
+/* navegação */
+.nav{position:absolute;left:60px;right:60px;top:170px;height:54px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg button{padding:8px 26px;border-radius:999px;font-size:22px;font-weight:700;color:var(--muted);min-height:44px}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(228,0,43,.5)}
+.seg button:not([aria-pressed="true"]):not([aria-selected="true"]):hover{color:#fff}
+.nav .grp{display:flex;align-items:center;gap:12px}
+.fld{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;color:var(--muted)}
+.fld select{min-width:150px}
+.fld select,.fld input{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.28);border-radius:12px;height:46px;padding:0 14px;font-size:22px;font-weight:600;color:#fff;min-width:170px}
+.fld select option{background:#14121a;color:#fff}
+.fld input{min-width:210px}
+.fld input::placeholder{color:#9aa0ad}
+
+/* vistas */
+.view{position:absolute;left:60px;right:60px;top:240px;bottom:58px;display:none;flex-direction:column;gap:14px}
+.view.on{display:flex}
+.kpis{display:flex;gap:0;height:58px;align-items:center}
+.kpi{display:flex;align-items:baseline;gap:12px;padding:0 34px;border-left:1px solid var(--line)}
+.kpi:first-child{padding-left:4px;border-left:0}
+.kpi b{font-family:Anton;font-weight:400;font-size:42px;line-height:1;letter-spacing:.02em}
+.kpi span{font-size:20px;font-weight:600;color:var(--muted);line-height:1.1}
+.kpi.g b{color:#7dffa0}.kpi.o b{color:var(--gold)}
+.panel{flex:1;min-height:0;background:var(--panel);border:1.5px solid rgba(228,0,43,.55);border-radius:22px;box-shadow:0 0 0 1px rgba(255,255,255,.04),0 18px 50px rgba(0,0,0,.5),0 0 40px rgba(228,0,43,.14);display:flex;flex-direction:column;overflow:hidden}
+.ptitle{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);font-size:22px;font-weight:700}
+.tag{display:inline-flex;align-items:center;gap:8px;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;font-size:17px;font-weight:600;padding:2px 12px}
+.cols{display:grid;grid-template-columns:80px 250px 170px repeat(5,148px) 120px 1fr;align-items:center}
+.thead{height:50px;flex:none;border-bottom:2px solid rgba(255,255,255,.22);font-size:17px;font-weight:700;color:#d8dbe2;line-height:1.1;background:rgba(255,255,255,.03)}
+.thead>div{padding:0 10px}
+.thead .c{text-align:center}.thead .rt{text-align:right}
+.thead small{display:block;font-size:14px;font-weight:600;color:var(--muted)}
+.thead small.am{color:#ffd978}
+.rows{flex:1;min-height:0;overflow:hidden}
+.row{height:56px;border-bottom:1px solid rgba(255,255,255,.08);font-size:24px;font-weight:600}
+.row.tot{background:rgba(34,177,76,.12)}.row.bat{background:rgba(255,200,74,.09)}
+.row>div{padding:0 10px}
+.pos{text-align:center;font-weight:800;font-size:26px}
+.rota b{display:block;font-weight:700;line-height:1.05}
+.rota small{display:block;font-size:16px;font-weight:500;color:var(--muted);line-height:1.1}
+.refri{text-align:right;font-weight:700}
+.pc{display:flex;align-items:center;justify-content:center;gap:8px;padding:0 4px}
+.pv-wrap{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.pv{font-size:22px;font-weight:700;line-height:1}
+.pv.low{color:#b4b9c4}.pv.na{font-size:17px;font-weight:600;color:var(--muted)}
+.bar{display:block;width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
+.bar b{display:block;height:100%}
+.bar .t0{background:#7b8090}.bar .t2{background:#8fb8ff}.bar .t3{background:#1d7bff}.bar .t5{background:var(--gold)}
+.chip{min-width:28px;text-align:center;border-radius:7px;font-size:17px;font-weight:800;padding:1px 6px;line-height:22px}
+.chip.t0{background:#2a2d36;color:#d5d8df}.chip.t2{background:#17366f;color:#d6e5ff}.chip.t3{background:var(--blue);color:#fff}.chip.t5{background:var(--gold);color:#3a2800}
+.pts{text-align:right;font-family:Anton;font-weight:400;font-size:32px;letter-spacing:.02em}
+.pts.dash{color:#9aa0ad}
+.st{display:flex;flex-direction:column;justify-content:center;gap:2px}
+.pill{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;border-radius:8px;font-size:19px;font-weight:700;line-height:24px;padding:0 12px 0 9px;border:1px solid}
+.pill.tot{background:var(--greend);border-color:var(--green);color:#c4ffd3}
+.pill.bat{background:#4a3500;border-color:var(--gold);color:#ffe29a}
+.pill.no{background:#23262e;border-color:#454a56;color:#e4e6ea;padding:0 16px}
+.micro{font-size:16px;font-weight:500;color:var(--muted);line-height:1.1}
+.pager{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-top:1px solid var(--line);font-size:20px;color:var(--muted);font-weight:600}
+.pager .btns{display:flex;gap:6px}
+.pager button{min-width:44px;height:40px;border-radius:10px;font-size:20px;font-weight:700;color:#e4e6ea;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18)}
+.pager button[aria-current="page"]{background:var(--red);border-color:var(--red);color:#fff}
+.pager button:disabled{opacity:.35;cursor:default}
+.vazio{padding:60px;text-align:center;font-size:26px;color:var(--muted)}
+
+/* regras */
+.rg{flex:1;min-height:0;display:flex}
+.rg nav{width:300px;flex:none;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
+.rg nav button{text-align:left;padding:12px 18px;border-radius:12px;font-size:23px;font-weight:700;color:var(--muted);min-height:48px}
+.rg nav button[aria-selected="true"]{background:rgba(228,0,43,.9);color:#fff}
+.rg nav button:not([aria-selected="true"]):hover{background:rgba(255,255,255,.07);color:#fff}
+.rg .bd{flex:1;min-width:0;overflow:auto;padding:26px 36px 30px;font-size:22px;line-height:1.35;font-weight:500;color:#e9ebef}
+.rg h2{font-family:Anton;font-weight:400;font-size:40px;letter-spacing:.02em;margin-bottom:6px}
+.rg h3{font-size:24px;font-weight:800;margin:22px 0 8px;color:#fff}
+.rg p{margin:8px 0;max-width:1180px;color:#dfe2e8}
+.rg .sub{color:var(--muted);font-size:20px;margin-bottom:12px}
+.rg table{border-collapse:collapse;width:100%;max-width:1300px;margin:10px 0 4px}
+.rg th{text-align:left;font-size:18px;font-weight:700;color:var(--muted);padding:8px 14px;border-bottom:2px solid rgba(255,255,255,.2)}
+.rg td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);vertical-align:top;font-size:21px}
+.rg td b{font-weight:800}
+.pend{display:inline-block;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:7px;font-size:16px;font-weight:700;padding:1px 10px}
+.okk{display:inline-block;background:var(--greend);color:#c4ffd3;border:1px solid var(--green);border-radius:7px;font-size:16px;font-weight:700;padding:1px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chips span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:2px 12px;font-size:19px;font-weight:600}
+.bd::-webkit-scrollbar{width:12px}.bd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:8px}
+.nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
+
+.foot{position:absolute;left:60px;right:60px;bottom:16px;font-size:17px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
+
+.rbtn{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:24px;text-align:left;padding:0;line-height:1.05;color:#fff;min-height:30px}
+.rbtn svg{opacity:.55;flex:none}.rbtn:hover svg,.rbtn:focus-visible svg{opacity:1}
+.dh{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between}
+.dh b{font-size:30px;font-weight:800}.dh span{font-size:21px;font-weight:600;color:var(--muted)}.dh span b{font-size:26px;color:#fff;margin:0 8px}
+.cards{height:232px;flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px}
+.card{background:var(--panel);border:1.5px solid rgba(228,0,43,.45);border-radius:18px;padding:14px 20px;display:flex;flex-direction:column;box-shadow:0 12px 34px rgba(0,0,0,.45)}
+.card .n{display:flex;align-items:baseline;justify-content:space-between;font-size:25px;font-weight:800}
+.card .n small{font-size:16px;font-weight:600;color:var(--muted)}
+.card .big{font-family:Anton;font-size:52px;line-height:1.12;letter-spacing:.02em}
+.card .bar{width:100%;height:7px;margin:2px 0 10px}
+.card .txt{font-size:19px;font-weight:500;color:var(--muted);line-height:1.25}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.mg small{display:block;font-size:15px;font-weight:600;color:var(--muted)}.mg b{font-size:23px;font-weight:700}
+.dsplit{flex:1;min-height:0;display:flex}
+.dlist{width:640px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.lh{height:38px;flex:none;display:grid;grid-template-columns:1fr 150px 230px;align-items:center;font-size:17px;font-weight:700;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03);padding:0 6px}
+.lr{overflow:auto;flex:1;min-height:0}
+.dl{display:grid;grid-template-columns:1fr 150px 230px;align-items:center;width:100%;height:52px;padding:0 6px;border-bottom:1px solid rgba(255,255,255,.08);font-size:22px;font-weight:600;text-align:left;color:#fff}
+.dl.on{background:rgba(228,0,43,.16);box-shadow:inset 0 0 0 2px var(--red)}
+.dl small{display:block;font-size:15px;font-weight:500;color:var(--muted)}
+.dl .pill{font-size:17px;line-height:22px}
+.dd{flex:1;min-width:0;display:flex;flex-direction:column}
+.sumr{display:flex;align-items:center;height:74px;flex:none;padding:0 24px;border-bottom:1px solid var(--line)}
+.sumr .s{padding:0 30px;border-left:1px solid var(--line)}.sumr .s:first-child{padding-left:0;border:0}
+.sumr small{display:block;font-size:16px;font-weight:600;color:var(--muted)}
+.sumr b{font-family:Anton;font-weight:400;font-size:38px;line-height:1.1}
+.dcols{display:grid;grid-template-columns:200px 112px 112px 100px 112px 122px 110px 60px;align-items:center;padding:0 24px}
+.dt{height:38px;flex:none;font-size:17px;font-weight:700;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
+.dr{height:48px;flex:none;font-size:22px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
+.dr.rf{background:rgba(255,200,74,.06);border-top:2px solid rgba(255,255,255,.22)}
+.dcols .n{text-align:right}.dcols .c{text-align:center}
+.dcols small{display:block;font-size:14px;font-weight:600;color:var(--muted)}
+
+.view.wide{left:12px;right:12px}
+.g0{--gc:#0f7a37;--gt:rgba(34,177,76,.09)}.g1{--gc:#1a5fd0;--gt:rgba(29,123,255,.10)}.g2{--gc:#4b5265;--gt:rgba(150,160,185,.09)}
+.g3{--gc:#ffc84a;--gf:#3a2800;--gt:rgba(255,200,74,.09)}.g4{--gc:#c4001f;--gt:rgba(228,0,43,.11)}
+.tt{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);font-size:22px;font-weight:700}
+.kp{display:flex;gap:22px;font-size:18px;font-weight:600;color:var(--muted)}.kp b{font-family:Anton;font-weight:400;font-size:26px;color:#fff;margin-right:6px;letter-spacing:.02em}.kp .g b{color:#7dffa0}
+.th{display:grid;flex:none;grid-template-rows:38px 34px;border-bottom:2px solid rgba(255,255,255,.3)}
+.hh{grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:17px;font-weight:800;line-height:1.1;background:rgba(255,255,255,.05);text-align:center;padding:0 4px}
+.hh small{font-size:13px;font-weight:600;color:var(--muted)}.hh small.am{color:#ffd978}
+.hh.lf{align-items:flex-start;padding-left:10px}
+.gh{grid-row:1;display:flex;align-items:center;justify-content:center;background:var(--gc);color:var(--gf,#fff);font-size:16px;font-weight:800;letter-spacing:.05em;border-left:1px solid rgba(0,0,0,.35)}
+.sl{grid-row:2;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:14px;font-weight:700;color:#e4e6ea;background:var(--gt)}
+.sl.c{justify-content:center;padding:0}
+.gs{border-left:1px solid rgba(255,255,255,.22)}
+.trow{display:grid;height:36px;flex:none;align-items:stretch;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px;font-weight:600}
+.trow.tot{background:rgba(34,177,76,.14)}.trow.bat{background:rgba(255,200,74,.10)}
+.trow>div{display:flex;align-items:center;justify-content:flex-end;padding:0 6px;min-width:0;white-space:nowrap}
+.trow>div[class^="g"]{background:var(--gt)}
+.trow .c{justify-content:center;padding:0}
+.trow .rk{justify-content:center;font-weight:800;font-size:19px;padding:0}
+.trow .rt{justify-content:flex-start;padding-left:8px}
+.trow .rt .rbtn{font-size:19px;min-height:0;gap:3px}.trow .rt .rbtn svg{width:12px;height:12px}
+.trow .rf{font-weight:800;font-size:18px}.trow .rf.ok{color:#7dffa0}
+.trow .b{font-weight:800}.trow .m{color:var(--muted)}
+.trow .na{font-size:13px;font-weight:600;color:var(--muted)}
+.trow .tp{font-family:Anton;font-weight:400;font-size:24px;letter-spacing:.02em;justify-content:center;padding:0}.trow .tp.dash{color:#9aa0ad}
+.trow .stc{justify-content:flex-start;padding-left:8px}
+.trow .chip{min-width:26px;padding:0 4px;font-size:16px;line-height:20px}
+.trow .stc .pill{font-size:16px;line-height:22px;padding:0 10px 0 7px}
+.trow .stc .pill.no{padding:0 14px}
+.trow .stc .pill{align-self:center}
+.trow{font-size:16px}.trow>div{padding:0 4px}.sl{padding:0 4px;font-size:13px}.trow .stc .pill{font-size:15px;line-height:17px;padding:2px 8px 2px 6px;white-space:normal}.trow .stc .pill svg{flex:none}.trow .stc .pill.no{padding:2px 12px}.trow .stc .pill.no,.trow .stc .pill{line-height:17px}
+.trow .stc .pill{line-height:16px;padding:1px 8px 1px 6px}.trow .stc .pill.no{padding:1px 12px}
+.grow{height:36px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;background:rgba(255,255,255,.09);border-bottom:1px solid rgba(255,255,255,.14);font-size:19px;font-weight:800}.grow span{font-size:16px;font-weight:600;color:var(--muted)}
+.dd{overflow:auto}
+.short .cards{height:196px}.short .card{padding:10px 18px}.short .card .big{font-size:40px;line-height:1.05}.short .card .n{font-size:22px}.short .mg b{font-size:20px}.short .mg small{font-size:14px}.short .card .txt{font-size:17px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg" id="bg"></div>
+  <svg class="arcs" viewBox="0 0 1920 260" width="1920" height="260" aria-hidden="true"><ellipse cx="960" cy="330" rx="900" ry="170" fill="none" stroke="rgba(228,0,43,.30)" stroke-width="2"/><ellipse cx="960" cy="350" rx="780" ry="150" fill="none" stroke="rgba(228,0,43,.22)" stroke-width="2"/><ellipse cx="960" cy="370" rx="640" ry="130" fill="none" stroke="rgba(228,0,43,.16)" stroke-width="2"/></svg>
+
+  <div class="logo" role="img" aria-label="Coca-Cola Bandeirantes">/*__LOGO__*/</div>
+  <div class="hd"><div class="ttl"><span class="m">DESAFIO</span><span class="r">Q4</span></div><div class="ribbon"><span id="rib">Rota</span></div></div>
+  <div class="info"><small>Dados de</small><b id="corte"></b><small>Mês de referência</small><b id="mesref" style="margin-bottom:0"></b></div>
+
+  <div class="nav">
+    <div class="seg" role="tablist" aria-label="Seções">
+      <button role="tab" id="tab-ranking" aria-selected="true">Rota</button>
+      <button role="tab" id="tab-sup" aria-selected="false">Supervisão</button>
+      <button role="tab" id="tab-detalhe" aria-selected="false">Detalhe</button>
+      <button role="tab" id="tab-regras" aria-selected="false">Regras</button>
+    </div>
+    <div class="grp" id="filtros">
+      <div class="seg" role="group" aria-label="Canal">
+        <button id="c-Mista" aria-pressed="true">Mista</button>
+        <button id="c-Segmentada" aria-pressed="false">Segmentada</button>
+      </div>
+      <label class="fld" id="lblsv">Supervisão <select id="sv"></select></label>
+      <label class="fld">Gerência <select id="gc"></select></label>
+      <label class="fld" id="lblbusca">Rota <input id="busca" type="search" placeholder="Buscar" autocomplete="off" style="min-width:150px;width:150px"></label>
+    </div>
+  </div>
+
+  <section class="view on wide" id="v-ranking" aria-label="Rota">
+    <div class="panel">
+      <div class="tt"><span id="ptitulo"></span><span class="tag refri-prov">Refrigerantes: base provisória (ver Regras)</span></div>
+      <div class="th" id="thead"></div>
+      <div class="rows" id="rows"></div>
+      <div class="pager"><span id="pinfo"></span><div class="btns" id="pbtns"></div></div>
+    </div>
+  </section>
+
+  <section class="view wide" id="v-sup" aria-label="Supervisão">
+    <div class="panel">
+      <div class="tt"><span id="sptitulo"></span><span id="saviso"></span><span class="tag refri-prov">Refrigerantes: base provisória (ver Regras)</span></div>
+      <div class="th" id="sthead"></div>
+      <div class="rows" id="srows"></div>
+      <div class="pager"><span id="spinfo"></span><div class="btns" id="spbtns"></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-detalhe" aria-label="Detalhe por pilar">
+    <div class="dh"><b id="dtitulo"></b><span id="dsub"></span></div>
+    <div class="cards" id="cards"></div>
+    <div class="panel">
+      <div class="ptitle"><span id="dptitulo">Rotas do grupo e detalhe da rota selecionada</span><span style="font-size:18px;font-weight:600;color:var(--muted)">Real: vendido até ontem · Online: venda de hoje</span></div>
+      <div class="dsplit">
+        <div class="dlist"><div class="lh"><div style="padding-left:6px">Rota</div><div style="text-align:right;padding-right:14px">Refrigerantes</div><div>Status</div></div><div class="lr" id="dlist"></div></div>
+        <div class="dd" id="ddet"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-regras" aria-label="Regras e informações">
+    <div class="panel"><div class="rg">
+      <nav id="rgnav" role="tablist" aria-label="Tópicos das regras" aria-orientation="vertical"></nav>
+      <div class="bd" id="rgbd" tabindex="0"></div>
+    </div></div>
+  </section>
+
+  <div class="foot"><span>Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rod"></span></div>
+</div>
+
+<script>/*__MOTOR__*/</script>
+<script>/*__ADAPTER__*/</script>
+<script>const BASE_EMBUTIDA=/*__DATA__*/;</script>
+<script>
+carregarDados(BASE_EMBUTIDA).then(function(DADOS){
+'use strict';
+const M = window.MotorQ4;
+const R = M.REGRAS;
+const {entrada, notasRefri} = montarEntrada(DADOS, CONFIG);
+const RES = M.calcular(entrada);
+const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
+if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
+let PAGE = 17;
+const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/36));
+const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null };
+const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
+const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
+const MESA = {}; DADOS.rotas.forEach(r=>{ (MESA[svKey(r)]=MESA[svKey(r)]||[]).push(r); });
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const tier = (p)=> p>=5?5 : p>=3?3 : p>=2?2 : 0;
+
+/* palco ajustado à janela */
+function fit(){ const s=Math.min(innerWidth/1920, innerHeight/720), sg=$('stage'); sg.style.setProperty('--s', s); sg.style.width=(innerWidth/s)+'px'; sg.style.height=(innerHeight/s)+'px'; sg.classList.toggle('short', innerHeight/s<1000); }
+fit();
+
+/* bokeh estático */
+(function(){ let seed=7; const rnd=()=> (seed=(seed*16807)%2147483647)/2147483647; let h='';
+  for(let i=0;i<70;i++){ const x=rnd()*100,y=rnd()*100,s=2+rnd()*5,c=rnd()<.4?'228,0,43':rnd()<.5?'29,123,255':'255,255,255';
+    h+=`<i style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;background:rgba(${c},${(.25+rnd()*.4).toFixed(2)})"></i>`; }
+  $('bg').innerHTML=h; })();
+
+$('corte').textContent = DADOS.meta.corte.replace(' ', ' · ');
+$('mesref').textContent = MESES[DADOS.meta.mes] + '/' + DADOS.meta.ano;
+$('rod').textContent = 'Fonte: ' + DADOS.meta.fonte;
+
+/* ---------- ranking ---------- */
+function pilaresDo(canal){ return CONFIG.pilaresConfig.find(c=>c.mes===CONFIG.mes && c.canal===canal).pilares; }
+function lista(){
+  const base = RTS.filter(p=>p.canal===st.canal);
+  base.sort((a,b)=>{
+    if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
+    if(a.elegivel) return a.posicao-b.posicao;
+    if(a.volume.atingido!==b.volume.atingido) return a.volume.atingido?-1:1;
+    if(a.volume.atingido && a.pontosMes!==b.pontosMes) return b.pontosMes-a.pontosMes;
+    return (b.volume.pct??-1)-(a.volume.pct??-1) || (a.id<b.id?-1:1);
+  });
+  return base;
+}
+function escopo(){ return lista().filter(p=>(st.gc==='Todas'||p.unidade===st.gc) && (st.sv==='Todas'||INFO[p.id].sv===st.sv)); }
+function filtrada(){
+  const b = st.busca.trim().toLowerCase();
+  return escopo().filter(p=>!b || p.id.toLowerCase().includes(b));
+}
+const numF = (n)=> String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+const sgn = (n)=> n===0 ? '0' : (n<0?'-':'+') + numF(Math.abs(n));
+const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
+const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
+const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
+function statusDe(r){
+  const vol = r.volume.atingido, lim = R.premiadas[r.cargo][r.canal], min = R.gatilhoPontos[r.cargo];
+  if(!vol) return { pill:`<span class="pill no">-</span>`, cls:'', micro: r.volume.pct===null ? 'Refrigerantes sem dado para calcular' : `Refrigerantes em ${r.volume.pctTexto}: precisa de 95%` };
+  if(!r.gatilhoPontos.atingido) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Faltam ${min-r.gatilhoPontos.valor} pontos para o mínimo de ${min}` };
+  if(r.premiada) return { pill:`<span class="pill tot">${CK}No total</span>`, cls:'tot', micro:`Dentro das ${lim} premiadas` };
+  const f=r.posicao-lim;
+  return { pill:`<span class="pill bat">${UP}Bateu, mas não está no total</span>`, cls:'bat', micro:`Suba ${f} ${f===1?'posição':'posições'} para entrar` };
+}
+const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
+const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
+const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(CONFIG.mes);
+let GRID = '';
+function gridCols(pil, sv){
+  const c=['44px',sv?'96px':'68px',sv?'70px':'72px'];
+  pil.forEach(pl=>{ if(compacta(pl)) c.push('58px','34px'); else c.push('52px','52px','52px','36px','58px','58px','32px'); });
+  c.push('52px','minmax(170px,1fr)'); return c.join(' ');
+}
+function cabecalho(pil, lim, min, nomeCol, alvo){
+  nomeCol = nomeCol||'Rota'; alvo = alvo||'thead';
+  GRID = gridCols(pil, nomeCol!=='Rota');
+  let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh" style="grid-column:3">% Refri<small>mín. 95%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
+  let col = 4;
+  pil.forEach(pl=>{
+    const g='g'+GCOL[pl.nome], comp=compacta(pl), n=comp?2:7;
+    h += `<div class="gh ${g}" style="grid-column:${col} / span ${n}">${esc(pl.nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase())}</div>`;
+    const labs = comp ? ['%','Pts'] : ['Meta','M. dia','Real','Hoje','Dif','%','Pts'];
+    labs.forEach((l,i)=>{ const ctr = l==='Pts'; h += `<div class="sl ${g} ${ctr?'c':''} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
+    col += n;
+  });
+  h += `<div class="hh" style="grid-column:${col}">Total<small>mín. ${min}</small></div><div class="hh lf" style="grid-column:${col+1}">Status</div>`;
+  $(alvo).style.gridTemplateColumns = GRID;
+  $(alvo).innerHTML = h;
+}
+function rawMesa(r, fonte){
+  const out=[null,null,null,null,null];
+  (MESA[r.id]||[]).forEach(x=>{ const v=x.v[fonte]; if(!v) return; [2,4].forEach(i=>{ if(v[i]!=null) out[i]=(out[i]||0)+v[i]; }); });
+  return out;
+}
+function celulas(r){
+  const vol = r.volume.atingido, inf = r.cargo==='RT' ? INFO[r.id] : null, pil = pilaresDo(r.canal); let h='';
+  r.pilares.forEach(p=>{
+    const g='g'+GCOL[p.nome], pl = pil.find(x=>x.nome===p.nome);
+    if(compacta(pl)){ h += `<div class="${g} n b gs">100,0%</div><div class="${g} c">${chip(vol?3:'-', vol?3:0)}</div>`; return; }
+    const raw = inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome)), ok = p.pct!==null;
+    const mot = p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const dc = !ok ? '' : p.diferenca<0 ? 'color:#b4b9c4' : 'color:#7dffa0';
+    h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div><div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div><div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
+       + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n b" style="${ok&&p.pct<90?'color:#b4b9c4':''}">${ok?p.pctTexto:'<span class="na">'+mot+'</span>'}</div>`
+       + `<div class="${g} c">${chip(vol&&ok?p.pontos:'-', vol&&ok?tier(p.pontos):0)}</div>`;
+  });
+  return h;
+}
+function linha(r){
+  const vol = r.volume.atingido, s = statusDe(r), sv = r.cargo==='SV';
+  const nome = sv ? `<button class="rbtn" data-sv="${esc(r.nome)}" aria-label="Ver a mesa do ${esc(r.nome)}">${esc(r.nome)}${CHEV}</button>` : `<button class="rbtn" data-rota="${esc(r.id)}" aria-label="Ver detalhe da ${esc(r.nome)}">${esc(r.id)}${CHEV}</button>`;
+  const tot = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
+  return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk">${r.posicao||'–'}</div>
+    <div class="rt">${nome}</div>
+    <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
+    <div class="tp ${vol?'':'dash'}">${tot}</div><div class="stc">${s.pill}</div></div>`;
+}
+/* ---------- supervisão por gerência ---------- */
+const SPAG = { n:1 };
+function renderSup(){
+  const pil = pilaresDo(st.canal), lim = R.premiadas.SV[st.canal], min = R.gatilhoPontos.SV;
+  cabecalho(pil, lim, min, 'Supervisão', 'sthead');
+  const base = SVS.filter(p=>p.canal===st.canal && (st.gc==='Todas'||p.unidade===st.gc));
+  base.sort((a,b)=>{
+    if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
+    if(a.elegivel) return a.posicao-b.posicao;
+    return a.unidade.localeCompare(b.unidade,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR',{numeric:true});
+  });
+  PAGE = capac('srows');
+  const pages = Math.max(1, Math.ceil(base.length/PAGE)); if(SPAG.n>pages) SPAG.n=pages;
+  const ini=(SPAG.n-1)*PAGE, fatia=base.slice(ini,ini+PAGE);
+  $('sptitulo').textContent = `Supervisão · ${st.canal}`;
+  $('saviso').innerHTML = CONFIG.mes===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é 30 pontos e o gatilho do SV é 60 acumulados</span>` : '';
+  $('srows').innerHTML = fatia.length ? fatia.map(linha).join('') : `<div class="vazio">Nenhuma supervisão encontrada neste filtro.</div>`;
+  $('spinfo').textContent = base.length ? `${ini+1} a ${ini+fatia.length} de ${base.length} supervisões` : '0 supervisões';
+  let nums=[]; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-SPAG.n)<=1) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
+  $('spbtns').innerHTML = `<button data-p="${SPAG.n-1}" ${SPAG.n===1?'disabled':''} aria-label="Página anterior">‹</button>` +
+    nums.map(k=> k==='…' ? `<span style="padding:0 6px;align-self:center">…</span>` : `<button data-p="${k}" ${k===SPAG.n?'aria-current="page"':''}>${k}</button>`).join('') +
+    `<button data-p="${SPAG.n+1}" ${SPAG.n===pages?'disabled':''} aria-label="Próxima página">›</button>`;
+}
+$('spbtns').addEventListener('click',e=>{ const b=e.target.closest('button[data-p]'); if(!b||b.disabled) return; SPAG.n=+b.dataset.p; renderSup(); });
+$('srows').addEventListener('click',e=>{ const b=e.target.closest('button[data-sv]'); if(!b) return; st.sv=b.dataset.sv; st.gc='Todas'; st.pag=1; st.sel=null; popularFiltros(); setTab('detalhe'); });
+function renderRanking(){
+  const pil = pilaresDo(st.canal), lim = R.premiadas.RT[st.canal], min = R.gatilhoPontos.RT;
+  cabecalho(pil, lim, min);
+  PAGE = capac('rows');
+  const f = filtrada();
+  $('ptitulo').textContent = `Rotas · ${st.canal}${st.sv!=='Todas'?' · '+st.sv:''}`;
+  const pages = Math.max(1, Math.ceil(f.length/PAGE)); if(st.pag>pages) st.pag=pages;
+  const ini=(st.pag-1)*PAGE, fatia=f.slice(ini,ini+PAGE);
+  $('rows').innerHTML = fatia.length ? fatia.map(linha).join('') : `<div class="vazio">Nenhuma rota encontrada. Ajuste a supervisão, a gerência ou a busca.</div>`;
+  $('pinfo').textContent = f.length ? `${ini+1} a ${ini+fatia.length} de ${f.length} rotas` : '0 rotas';
+  let nums=[]; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-st.pag)<=1) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
+  $('pbtns').innerHTML = `<button data-p="${st.pag-1}" ${st.pag===1?'disabled':''} aria-label="Página anterior">‹</button>` +
+    nums.map(n=> n==='…' ? `<span style="padding:0 6px;align-self:center">…</span>` : `<button data-p="${n}" ${n===st.pag?'aria-current="page"':''}>${n}</button>`).join('') +
+    `<button data-p="${st.pag+1}" ${st.pag===pages?'disabled':''} aria-label="Próxima página">›</button>`;
+}
+$('rows').addEventListener('click',e=>{ const b=e.target.closest('button[data-rota]'); if(!b) return; st.sel=b.dataset.rota; setTab('detalhe'); });
+$('pbtns').addEventListener('click',e=>{ const b=e.target.closest('button[data-p]'); if(!b||b.disabled) return; st.pag=+b.dataset.p; renderRanking(); });
+
+function popularFiltros(){
+  const base=RTS.filter(p=>p.canal===st.canal);
+  const gcs=[...new Set(base.map(p=>p.unidade))].sort();
+  if(!gcs.includes(st.gc)) st.gc='Todas';
+  $('gc').innerHTML=['Todas',...gcs].map(g=>`<option ${g===st.gc?'selected':''}>${esc(g)}</option>`).join('');
+  const svs=[...new Set(base.filter(p=>st.gc==='Todas'||p.unidade===st.gc).map(p=>INFO[p.id].sv))].sort((x,y)=>x.localeCompare(y,'pt-BR',{numeric:true}));
+  if(!svs.includes(st.sv)) st.sv='Todas';
+  $('sv').innerHTML=['Todas',...svs].map(g=>`<option ${g===st.sv?'selected':''}>${esc(g)}</option>`).join('');
+}
+function render(){ if(st.tab==='ranking') renderRanking(); else if(st.tab==='sup') renderSup(); else if(st.tab==='detalhe') renderDetalhe(); }
+['Mista','Segmentada'].forEach(c=>$('c-'+c).addEventListener('click',()=>{ st.canal=c; st.gc='Todas'; st.sv='Todas'; st.pag=1; st.sel=null; SPAG.n=1;
+  ['Mista','Segmentada'].forEach(x=>$('c-'+x).setAttribute('aria-pressed', x===c)); popularFiltros(); render(); }));
+$('gc').addEventListener('change',e=>{ st.gc=e.target.value; st.pag=1; SPAG.n=1; popularFiltros(); render(); });
+$('sv').addEventListener('change',e=>{ st.sv=e.target.value; st.pag=1; render(); });
+$('busca').addEventListener('input',e=>{ st.busca=e.target.value; st.pag=1; render(); });
+
+/* ---------- detalhe: totais do grupo + rota selecionada ---------- */
+function fonteDe(nome){ return CONFIG.fonteDoPilar[nome]; }
+function renderDetalhe(){
+  const sc = filtrada(), pil = pilaresDo(st.canal);
+  const nome = st.sv!=='Todas' ? 'Mesa '+st.sv : st.gc!=='Todas' ? 'Gerência '+st.gc : 'Todas as rotas';
+  $('dtitulo').textContent = `${nome} · ${st.canal} · ${sc.length} ${sc.length===1?'rota':'rotas'}`;
+  const agg = (get)=>{ let m=0,r=0,o=0; sc.forEach(p=>{ const x=get(p); if(x && x.pct!==null){ m+=x.meta; r+=x.real; o+=x.online; } }); return {m,r,o,pct:m>0?(r+o)/m*100:null,tf:m>0?M.faixaPontos(r+o,m):0}; };
+  const dia = (fonte)=>{ let s=0,any=false; sc.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
+  const ar = agg(p=>p.refri);
+  $('dsub').innerHTML = `Refrigerantes do grupo<b>${ar.pct===null?'-':M.fmtPct(ar.pct)}</b>${REFRI_CAT?'':'<span class="tag">provisório</span>'}`;
+  $('cards').innerHTML = pil.map((pl,i)=>{
+    const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
+    if(pl.tipo==='missao') return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale 3 pontos. Sem meta e real neste mês.</div></div>`;
+    const a = agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
+    const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
+    return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
+      <div class="mg"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div><div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div></div></div>`;
+  }).join('');
+  if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
+  $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
+    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${inf.sub?' · Seg. '+esc(inf.sub):''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
+    : `<div class="vazio">Nenhuma rota no filtro.</div>`;
+  const r = sc.find(p=>p.id===st.sel);
+  if(!r){ $('ddet').innerHTML=`<div class="vazio">Selecione uma rota.</div>`; return; }
+  const s = statusDe(r), vol = r.volume.atingido, inf = INFO[r.id];
+  const ch = (p,t)=> chip(p,t);
+  const linhaP = (nome, sub, x, diaTxt, isRf)=>{
+    if(x && x.validada) return `<div class="dcols dr"><div>${esc(nome)}<small>${sub}</small></div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">100,0%</div><div class="c">${ch(vol?3:'-',vol?3:0)}</div></div>`;
+    const ok = x && x.pct!==null;
+    const mot = !x ? '' : x.alertas.includes('REAL_AUSENTE')?'sem real':x.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const dif = ok ? `<span style="color:${x.diferenca<0?'#ffb3bd':'#7dffa0'}">${sgn(x.diferenca)}</span>` : '–';
+    return `<div class="dcols dr ${isRf?'rf':''}"><div>${esc(nome)}<small${isRf?' style="color:#ffd978"':''}>${sub}</small></div>
+      <div class="n">${x&&x.meta!=null?numF(x.meta):'–'}</div><div class="n">${x&&x.real!=null?numF(x.real):'–'}</div><div class="n">${x&&x.online!=null?numF(x.online):'–'}</div><div class="n" style="color:var(--muted)">${diaTxt}</div>
+      <div class="n">${dif}</div><div class="n" style="font-weight:700;${ok&&x.pct<90?'color:#b4b9c4':''}">${ok?x.pctTexto:`<span style="font-size:17px;color:var(--muted)">${mot}</span>`}</div>
+      <div class="c">${isRf?'<small>95%</small>':ch(vol&&ok?x.pontos:'-', vol&&ok?tier(x.pontos):0)}</div></div>`;
+  };
+  const diaDe = (fonte)=>{ const v=inf.v[fonte]; return v && v[4]!=null ? numF(v[4]) : '–'; };
+  const diaRf = (()=>{ let s=0,any=false; REFRI_COMP.forEach(g=>{ const v=inf.v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; })();
+  $('ddet').innerHTML = `<div class="sumr">
+    <div class="s"><small>${esc(r.nome)} · ${esc(inf.sv)}</small><b>${r.volume.pctTexto}</b> <span class="micro">Refrigerantes${REFRI_CAT?'':' <span style="color:#ffd978">provisório</span>'}</span></div>
+    <div class="s"><small>Pontos no mês</small><b style="${vol?'':'color:#9aa0ad'}">${r.pontosAtuaisExibidos}</b></div>
+    <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
+    <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
+    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.tipo==='missao'?'validada em outubro':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'?'–':diaDe(fonteDe(p.nome)), false)).join('')}
+    ${linhaP('Refrigerantes', REFRI_CAT?'categoria · gatilho':'provisório · gatilho', r.refri, diaRf, true)}`;
+}
+$('dlist').addEventListener('click',e=>{ const b=e.target.closest('button[data-sel]'); if(!b) return; st.sel=b.dataset.sel; renderDetalhe(); });
+
+/* ---------- abas ---------- */
+function setTab(t){
+  st.tab=t;
+  ['ranking','sup','detalhe','regras'].forEach(x=>{ $('tab-'+x).setAttribute('aria-selected', x===t); $('v-'+x).classList.toggle('on', x===t); });
+  $('filtros').style.visibility = t==='regras' ? 'hidden' : 'visible';
+  $('lblsv').style.display = $('lblbusca').style.display = t==='sup' ? 'none' : '';
+  $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',detalhe:'Detalhe por pilar',regras:'Regras e informações'})[t];
+  if(t==='regras') renderRegras(); else render();
+}
+['ranking','sup','detalhe','regras'].forEach(x=>$('tab-'+x).addEventListener('click',()=>setTab(x)));
+
+/* ---------- regras (informações extras ficam aqui) ---------- */
+const alertaTxt = { META_ZERO:'meta zero', META_AUSENTE:'sem meta', REAL_AUSENTE:'sem real' };
+function alertasDados(){
+  const out=[];
+  RTS.forEach(p=>p.pilares.forEach(pl=>pl.alertas.forEach(a=>out.push(`${p.nome} · ${pl.nome.replace('Volume ','')}: ${alertaTxt[a]||a}`))));
+  return out;
+}
+const T = (head, rows)=>`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+const SEC = [
+ { id:'pontuacao', t:'Pontuação', html:()=>`<h2>Pontuação por pilar</h2><div class="sub">Cada rota pontua todo mês em 5 pilares, sempre em % do total do mês sobre a meta.</div>
+  ${T(['% do pilar sobre a meta','Pontos'],[['Menos de 90%',chip('0',0)],['90% até 99,99999%',chip('2',2)],['100% até 104,99999%',chip('3',3)],['105% ou mais',chip('5',5)]])}
+  <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b>: 99,96% aparece como 99,9% e vale 2 pontos.</p>
+  <p><b>Missões Guiadas</b> entra validada em 100% em outubro (3 pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
+  <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
+  <p>Confronto entre Supervisores: o SV vencedor ganha +5 no mês e toda a mesa dele ganha +5 também. Quem perde não perde pontos. Teto mensal da rota: 25 dos pilares + 5 do confronto.</p>` },
+ { id:'gatilhos', t:'Gatilhos e status', html:()=>`<h2>Gatilhos e status</h2><div class="sub">Dois gatilhos precisam ser batidos para a rota entrar no ranking e na premiação.</div>
+  ${T(['Gatilho','Consultor (Rota)','Supervisor'],[
+    ['Volume: Refrigerantes em 95% ou mais','% do mês vigente','% acumulado do trimestre'],
+    ['Pontos','20 no mês (zera todo mês)','60 no trimestre (acumulado)']])}
+  <p>Sem o gatilho de volume os pontos não contam: status e pontos aparecem como <b>-</b> e a rota fica fora do ranking e da premiação.</p>
+  <h3>Como o status é definido</h3>
+  ${T(['Situação','Status'],[
+    ['Refrigerantes abaixo de 95%','<span class="pill no">-</span>'],
+    ['Volume atingido, pontos abaixo do mínimo','<span class="pill no">-</span>'],
+    ['Volume e pontos atingidos, fora das posições premiadas',`<span class="pill bat">${UP}Bateu, mas não está no total</span>`],
+    ['Volume e pontos atingidos, dentro das posições premiadas',`<span class="pill tot">${CK}No total</span>`]])}
+  <p>Rankings separados por cargo e canal. Desempate (confronto e ranking): maior % de Refrigerantes.</p>` },
+ { id:'pilares', t:'Pilares do mês', html:()=>`<h2>Pilares de outubro</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
+  ${T(['Pilar','Mista','Segmentada','Coluna na base SAP'],[
+    ['Sabores','1º','1º','Sabores Tt'],
+    ['Retornáveis','2º','–','Refrigerantes Retornavel'],
+    ['Refri Single','–','2º','Refrigerantes Individual <span class="pend">a confirmar</span>'],
+    ['Missões Guiadas','3º','5º (coringa)','Sem dado: validada em 100% em outubro'],
+    ['Sucos','4º (coringa)','4º (coringa)','Sucos'],
+    ['Powerade','5º (coringa)','3º','Powerade']])}
+  <p>Só os pilares de volume valem em confronto (todos, menos Missões Guiadas).</p>` },
+ { id:'premiacao', t:'Premiação', html:()=>`<h2>Premiação dos Consultores</h2><div class="sub">Mensal (out, nov e dez). Exige 20 pontos no mês e o gatilho de volume.</div>
+  ${T(['Canal','Premiados','Prêmio'],[['Mista','1º ao 40º do ranking','R$ 1.000 em produtos (cada)'],['Segmentada','1º ao 10º do ranking','R$ 1.000 em produtos (cada)']])}
+  <p>Supervisores: ranking do trimestre, mínimo de 60 pontos, 12 posições na Mista e 2 na Segmentada. A aba Supervisão usa, por enquanto, a soma das rotas da mesa (no canal) como meta e realizado do Supervisor. A confirmar.</p>` },
+ { id:'dados', t:'Dados e alertas', html:()=>{
+    const sc=DADOS.semCanal, du=DADOS.duplicadas, al=alertasDados();
+    const exc={}; notasRefri.forEach(n=>n.excluidos.forEach(e=>exc[e]=(exc[e]||0)+1));
+    const api = DADOS.meta.origem==='api';
+    return `<h2>Dados e alertas</h2><div class="sub">${esc(DADOS.meta.fonteLonga)}</div>
+    ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api?'':'. O painel está usando a base embutida.'}</p>` : ''}
+    ${api ? T(['Medida da API','Uso no painel'],[
+      ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
+      ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês, inclusive o faturado de hoje'],
+      ['online_hoje (pedidos de hoje no WF Online)','Online: pedidos de hoje ainda não faturados'],
+      ['meta_dia (META_RECUPERAVEL_ROTA de hoje)','Meta dia, pronta, sem recalcular'],
+      ['refrigerantes (agrupador Refrigerantes: todos os itens de refri)', REFRI_CAT?'Categoria Refrigerantes do gatilho de 95% e do desempate':'Ainda não vem na API: gatilho pela soma provisória de Individual + Retornável'],
+      ['Gerência · Supervisão · Rota (API) · Segmentação (base de '+esc(DADOS.meta.corteSeg)+')','Filtros do painel e canal da rota. O canal ainda não vem da API']])
+    : T(['Medida da base SAP','Uso no painel'],[
+      ['Meta','Meta do mês do pilar'],
+      ['Volume Padrão (Realizado)','Real (vendido até ontem)'],
+      ['Volume Padrão (WF Online)','Online (venda de hoje). Preenchido em poucas rotas nesta base'],
+      ['volume hoje · meta dia','Vazios nesta base. A meta dia virá pronta da API, sem recalcular: por enquanto aparece como –'],
+      ['Gerência · Supervisão · Rota · Segmentação (base)','Filtros do painel e canal da rota']])}
+    <h3>Cobertura da base</h3>
+    ${T(['Item','Qtde'],[
+      [api?'Rotas na API (sem as eventuais)':'Rotas no modelo de metas',DADOS.meta.totalRotasModelo],
+      ['Supervisões com rotas no painel',new Set(DADOS.rotas.map(r=>r.sv)).size],
+      ['Rotas com canal definido (Mista '+RTS.filter(p=>p.canal==='Mista').length+' · Segmentada '+RTS.filter(p=>p.canal==='Segmentada').length+')',RTS.length],
+      ['Rotas sem canal na base de segmentação (ficam fora do ranking)',sc.length],
+      ['Rotas em dois segmentos (vale o de maior volume realizado)',du.length],
+      [api?'Rota com segmento que não está na API':'Rota com segmento e sem meta no modelo',DADOS.segSemInfos.map(r=>'Rota '+esc(r)).join(', ')||'0']])}
+    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o subtipo aparece na linha da rota.</p>
+    <h3>Rotas sem canal (${sc.length})</h3>
+    <div class="chips">${sc.map(x=>`<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small></span>`).join('')}</div>
+    <h3>Rotas em dois segmentos (${du.length})</h3>
+    ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${Math.round(o.vol).toLocaleString('pt-BR')}`).join(' · ')]))}
+    <h3>Pilares sem meta ou sem real (${al.length})</h3>
+    <div class="chips">${al.map(a=>`<span>${esc(a)}</span>`).join('')||'<span>Nenhum</span>'}</div>
+    <p>Esses pilares ficam com 0 ponto e sem % na tela; nada é preenchido por suposição.</p>
+    <h3>Gatilho de Refrigerantes: componentes fora da soma (${notasRefri.length} rotas)</h3>
+    <p>${Object.keys(exc).map(k=>`${esc(k)} sem meta ou meta zero: ${exc[k]} rotas`).join(' · ')||'Nenhum'}. Componente sem meta sai da soma, para não inflar o %.</p>`; } },
+ { id:'pend', t:'Pendências', html:()=>{
+    const mix={}; DADOS.rotas.forEach(r=>{ const m=(mix[r.sv]=mix[r.sv]||{}); m[r.canal]=(m[r.canal]||0)+1; });
+    const mistos=Object.keys(mix).filter(k=>mix[k].Mista&&mix[k].Segmentada);
+    const P='<span class="pend">pendente</span>', OK='<span class="okk">resolvido</span>';
+    const bo = R.notasPendentes.map((n,i)=>['B'+(i+1),esc(n),'Back Office',P]);
+    return `<h2>Pendências</h2><div class="sub">O que ainda precisa de decisão e o que muda no painel quando for decidido.</div>
+    ${T(['#','Item','Quem decide','Estado'],[
+     REFRI_CAT
+       ? ['1','<b>Categoria Refrigerantes:</b> o gatilho de 95% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).','Back Office / IM',OK]
+       : ['1','<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de 95%. Afeta quem entra no ranking.','Back Office / IM',P],
+     ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma as rotas da mesa, no canal, e deixa de fora rota sem meta ou sem real. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+') e aparecem nos dois, cada uma só com as rotas do canal. O confronto (+5) segue sem dados.','IM',P],
+     DADOS.meta.origem==='api'
+       ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
+       : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
+     ['5','<b>Refri Single = Refrigerantes Individual</b> na Segmentada.','Back Office',P],
+     ['6','<b>Rotas sem canal</b> ('+DADOS.semCanal.length+') e <b>rotas em dois segmentos</b> ('+DADOS.duplicadas.length+'): confirmar o critério de maior volume.','IM',P],
+     ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
+     ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
+     ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada.','IM',P],
+     ...bo])}`; } },
+ { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
+    return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
+    <label for="nota" style="display:block;margin-bottom:8px;font-weight:700">Anotações</label>
+    <textarea id="nota" class="nota" placeholder="Escreva aqui decisões, exceções e avisos para o time.">${esc(v)}</textarea>`; } },
+];
+function renderRegras(){
+  $('rgnav').innerHTML = SEC.map(s=>`<button role="tab" data-s="${s.id}" aria-selected="${s.id===st.sec}">${s.t}</button>`).join('');
+  const s = SEC.find(x=>x.id===st.sec);
+  $('rgbd').innerHTML = s.html();
+  $('rgbd').scrollTop = 0;
+  const n = $('nota'); if(n) n.addEventListener('input',()=>{ try{ localStorage.setItem('q4_notas', n.value); }catch(e){} });
+}
+$('rgnav').addEventListener('click',e=>{ const b=e.target.closest('button[data-s]'); if(!b) return; st.sec=b.dataset.s; renderRegras(); });
+
+popularFiltros(); setTab('ranking');
+addEventListener('resize',()=>{ fit(); if(st.tab!=='regras') render(); });
+window.__PAINEL__ = { RES, st, DADOS };
+});
+</script>
+</body>
+</html>
