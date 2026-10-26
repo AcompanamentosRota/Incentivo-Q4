@@ -18,6 +18,10 @@ on:
         type: choice
         options: [real, simulado]
         default: real
+  # ajustes do painel publicados (merge do PR): agrupadores extras entram na API sem esperar o agendamento
+  push:
+    branches: [main]
+    paths: ["frontend/ajustes.json"]
 
 permissions:
   contents: write
@@ -60,7 +64,7 @@ jobs:
           MODO: ${{ inputs.modo }}
         run: |
           ARGS=()
-          if [ "$EVENTO" = "workflow_dispatch" ]; then ARGS+=(--forcar); fi
+          if [ "$EVENTO" = "workflow_dispatch" ] || [ "$EVENTO" = "push" ]; then ARGS+=(--forcar); fi
           if [ "$MODO" = "simulado" ]; then ARGS+=(--simulado); fi
           python scripts/gerar.py "${ARGS[@]}"
 

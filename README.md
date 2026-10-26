@@ -29,7 +29,7 @@ metas-produtos/
 │   ├── scripts/descobrir_produtos.py   confere a grafia dos agrupadores no Datasphere
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
-    ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília)
+    ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
     ├── deploy-pages.yml     publica frontend/ + api/ no Pages
     └── testes.yml           testes do back-end e do painel
 ```
@@ -60,6 +60,11 @@ Mudou algo em `painel-q4/src/` ou `painel-q4/data/`: rode `python painel-q4/scri
 `frontend/desafio-q4.html` gerado. Testes: `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js`.
 Os pilares de cada mês ficam em `painel-q4/src/adapter.js` → `CONFIG`; em novembro, atualize `mes` e
 `pilaresConfig` (até lá, se a API já estiver no mês novo, o painel avisa e usa a base embutida).
+
+**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, canal das rotas e
+**agrupadores extras**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
+merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
+desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).
 
 ## Antes de ligar: confirmar os agrupadores
 

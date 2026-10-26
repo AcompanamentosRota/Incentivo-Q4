@@ -150,14 +150,14 @@ test('configuração do mês ausente: alerta, sem inventar pilares', () => {
 });
 
 // ── 6. gatilho de volume ─────────────────────────────────
-test('volume abaixo de 95% com pontos altos: pontos não contam, status "-", fora do ranking', () => {
+test('volume abaixo de 95% com pontos altos: pontos aparecem, mas status "-" e fora do ranking', () => {
   const e = base10([pessoa('SV1', 'SV', 'Mista'), pessoa('RT1', 'RT', 'Mista', 'SV1')], [
     ...med('SV1', 10, CFG_OUT, 'Mista', 110), ...med('RT1', 10, CFG_OUT, 'Mista', 110, 94.99999)]);
   const res = calcular(e);
   const rt = res.pessoas.find((p) => p.id === 'RT1');
   assert.equal(rt.pontosMes, 5 * 5 - 2 /* missão vale 3, não 5 */, 'pontos internos altos (23)');
   assert.equal(rt.volume.atingido, false);
-  assert.equal(rt.pontosAtuaisExibidos, '-');
+  assert.equal(rt.pontosAtuaisExibidos, 23, 'os pontos aparecem mesmo sem o gatilho de volume');
   assert.equal(rt.status, '-');
   assert.equal(rt.posicao, null);
   assert.equal(rt.premiada, false);
@@ -186,7 +186,7 @@ test('Consultor: gatilho de volume é do mês vigente; SV: acumulado do trimestr
   assert.equal(rt.volume.pctTexto, '90,0%');
 });
 
-test('SV: pontos retroativos não valem; abaixo de 95% acumulado os acumulados ficam "-" e voltam se recuperar', () => {
+test('SV: abaixo de 95% acumulado os pontos acumulados aparecem, mas o status fica "-"', () => {
   const pessoas = [pessoa('SV1', 'SV', 'Mista')];
   const mk = (refriNov) => [
     ...med('SV1', 10, CFG_OUT, 'Mista', 105, 100),
@@ -194,11 +194,14 @@ test('SV: pontos retroativos não valem; abaixo de 95% acumulado os acumulados f
   ];
   const run = (refriNov) => calcular({ mesRef: 11, pessoas, pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas: mk(refriNov), confrontos: [] }).pessoas[0];
   const baixo = run(80); // acumulado 90%
-  assert.equal(baixo.pontosAcumuladosExibidos, '-');
+  assert.equal(baixo.volume.atingido, false);
+  assert.ok(baixo.pontosAcumulados > 0);
+  assert.equal(baixo.pontosAcumuladosExibidos, baixo.pontosAcumulados);
   assert.equal(baixo.status, '-');
-  assert.ok(baixo.pontosAcumulados > 0, 'valor interno preservado');
+  assert.equal(baixo.posicao, null);
   const alto = run(95); // acumulado 97,5%
-  assert.equal(typeof alto.pontosAcumuladosExibidos, 'number');
+  assert.equal(alto.volume.atingido, true);
+  assert.equal(alto.pontosAcumuladosExibidos, alto.pontosAcumulados);
 });
 
 // ── 7. gatilho de pontos ─────────────────────────────────

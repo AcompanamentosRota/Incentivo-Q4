@@ -14,6 +14,8 @@ produtos desta API (M.PRODUTOS). Todas analíticas (o $select de dimensões é o
   metas       AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_VOLUME (meta da rota)
   meta_neg    AM_FAT_BND_ANALISE_META           rota x agrupador: META_NEG do mês e da parte restante
   meta_dia    AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_RECUPERAVEL_ROTA de hoje
+  agrupadores AM_FAT_BND_ANALISE_META           agrupador x rota da meta, todos os agrupadores: META_VOLUME (sugestões
+                                                do painel para incluir agrupadores extras)
 
 DATA_MOVIMENTO só aparece no $filter, nunca no groupby (por dia a consulta fica lenta demais).
 """
@@ -285,6 +287,22 @@ def carregar_metas_volume(cons: Consulta, anomes: str, rota: str | None) -> dict
     return dict(metas)
 
 
+def carregar_agrupadores_meta(cons: Consulta, anomes: str) -> list[dict] | None:
+    """Todos os agrupadores com META_VOLUME no mês, [{"nome", "meta"}]: sugestões do painel para os agrupadores extras
+    (grafia exata do Datasphere). Mesma conta da meta da rota: o maior valor por rota, somado. None se falhar."""
+    try:
+        sel = _colunas(cons, M.OBJ_META, [CM.META_AGRUPADOR, CM.META_ROTA, CM.META_VOLUME])
+        por_ag: dict = defaultdict(dict)
+        for l in cons.linhas(M.OBJ_META, sel, eq(CM.META_ANOMES, anomes)):
+            ag, r = limpar(l.get(CM.META_AGRUPADOR)), _rota(l.get(CM.META_ROTA))
+            if ag and r and l.get(CM.META_VOLUME) not in (None, ""):
+                por_ag[ag][r] = max(por_ag[ag].get(r, 0.0), numero(l.get(CM.META_VOLUME)))
+    except Exception as erro:   # noqa: BLE001 - só a lista de sugestões fica sem atualizar
+        log.warning("Agrupadores com META_VOLUME indisponíveis (%s): mantida a lista anterior.", erro)
+        return None
+    return [{"nome": ag, "meta": modelo.r1(sum(v.values()))} for ag, v in sorted(por_ag.items()) if sum(v.values()) > 0]
+
+
 # ------------------------------------------------------------------ fechamento do mês
 def decidir_fechamento(cons: Consulta, hoje: date, linhas_cal: list[dict], gc_da_rota: dict[str, str]) -> Calendario | None:
     """Mês anterior fechado até o fim do 1º dia útil e enquanto alguma gerência não tiver META_VOLUME do mês."""
@@ -318,17 +336,19 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None) -> Dados:
         cal = decidir_fechamento(cons, hoje, linhas_cal, gc_da_rota) or cal
     anomes, fech = cal.anomes, cal.fechamento
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         f_real = ex.submit(carregar_volume_real, cons, anomes, gcs, rota)
         f_cli = ex.submit(carregar_clientes_meta_online, cons, anomes, gcs, rota, not fech)
         f_metas = ex.submit(carregar_metas_volume, cons, anomes, rota)
         f_neg = ex.submit(carregar_curva_neg, cons, anomes, gcs, rota, hoje, not fech)
         f_dia = None if fech else ex.submit(carregar_meta_dia, cons, anomes, gcs, rota, hoje)
+        f_ags = None if rota else ex.submit(carregar_agrupadores_meta, cons, anomes)
         real, real_cli, ev = f_real.result()
         meta_cli, online, online_cli = f_cli.result()
         metas = f_metas.result()
         neg_mes, neg_rest, fonte_neg = f_neg.result()
         meta_dia = f_dia.result() if f_dia else None
+        agrupadores_meta = f_ags.result() if f_ags else None
 
     rotas = sorted(gc_da_rota)
     dias_restantes = cal.total_dias_uteis - cal.dia_ontem
@@ -380,4 +400,4 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None) -> Dados:
     return Dados(agora=agora, cal=cal, clientes=clientes, volume=dict(volume), volume_cliente=vol_cli,
                  online=None if online is None else {r: v for r, v in online.items() if r in gc_da_rota},
                  online_cliente={r: v for r, v in online_cli.items() if r in gc_da_rota},
-                 eventuais=eventuais, avisos=avisos)
+                 eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta)

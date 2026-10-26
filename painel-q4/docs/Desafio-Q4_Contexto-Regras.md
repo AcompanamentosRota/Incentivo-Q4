@@ -40,7 +40,7 @@
 **Gatilho de volume:** para os pontos **valerem**, é necessário **≥ 95% do volume da categoria Refrigerantes** (vs meta). A medida é a da categoria Refrigerantes no SAC, e não a soma dos pilares.
 - **Consultor:** % do **mês vigente**.
 - **SV:** % **acumulado** do trimestre (outubro até o mês vigente).
-- Enquanto o gatilho de volume não é atingido, **os pontos não contam**: status, pontos atuais e pontos acumulados ficam **"-"** no painel.
+- Enquanto o gatilho de volume não é atingido, **os pontos não valem**: o status fica **"-"** e a pessoa fica fora do ranking e da premiação. Os pontos de cada pilar, os atuais e os acumulados **continuam aparecendo** no painel (decisão de 26/10/2026; antes ficavam "-").
 
 ## 4. Pilares por cargo (iguais para SV e Consultor)
 
@@ -121,7 +121,7 @@
 
 | Situação | Status |
 |---|---|
-| Gatilho de volume (≥ 95% Refrigerantes) **não** atingido | **"-"** em status, pontos atuais e pontos acumulados |
+| Gatilho de volume (≥ 95% Refrigerantes) **não** atingido | **"-"** no status (os pontos aparecem, mas não valem) |
 | Volume atingido, mas pontos abaixo do mínimo (SV 60 acumulados; Consultor 20 no mês) | **"-"** |
 | Volume e pontos atingidos, mas **fora das posições premiadas** | **"Bateu, mas não está no total"** (engajar o time a subir) |
 | Volume e pontos atingidos e **dentro das posições premiadas** | **"No total"** |
@@ -132,7 +132,7 @@
 2. **Pontos acumulados da Rota:** assumido como não aplicável (zera todo mês).
 3. **Confrontos:** prazo de registro em cada mês.
 
-**Resolvidos:** limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos exibidos como "-" antes do gatilho de volume; desempate pelo maior % de Refrigerantes para todos; coringa mensal; itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
+**Resolvidos:** limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal; itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
 
 ## 10. Glossário
 

@@ -53,13 +53,13 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP")) -> D
                     for k in M.IDS_PRODUTOS:
                         if rnd.random() < 0.2:      # cliente que não tem meta deste produto
                             continue
-                        meta = round(_BASE[k] * rnd.uniform(0.5, 2.0), 1)
+                        meta = round(_BASE.get(k, 5.0) * rnd.uniform(0.5, 2.0), 1)   # 5.0: agrupador extra
                         real = round(meta * frac * desempenho * rnd.uniform(0.4, 1.5), 1)
                         vol_cli[rota][pv][k] = (meta, real)
                         metas_rota[k] += meta
                         reais_rota[k] += real
                         if not cal.fechamento and rnd.random() < 0.15:
-                            on = round(_BASE[k] * rnd.uniform(0.2, 1.0), 1)
+                            on = round(_BASE.get(k, 5.0) * rnd.uniform(0.2, 1.0), 1)
                             online_cli[rota].setdefault(pv, {})[k] = on
                             online[rota][k] += on
                 volume[rota] = {}

@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../src/motor.js');
-const { CONFIG, montarEntrada, dadosDaApi, carregarDados } = require('../src/adapter.js');
+const { CONFIG, montarEntrada, dadosDaApi, carregarDados, normalizarAjustes, aplicarAjustes, carregarAjustes,
+        urlPublicacao } = require('../src/adapter.js');
 
 // ── fixtures: base embutida (só o canal importa) e uma API com uma gerência ──
 const BASE = {
@@ -80,6 +81,85 @@ test('API sem a categoria Refrigerantes: gatilho pela soma provisória de Indivi
   const a11 = M.calcular(montarEntrada(d, CONFIG).entrada).pessoas.find((x) => x.id === 'A11');
   assert.equal(a11.volume.pctTexto, '98,0%');        // (118 + 4 + 290) / (120 + 300) = 98,09%, truncado
   assert.equal(a11.volume.atingido, true);
+});
+
+// ── ajustes do admin ──
+test('ajustes: o canal do admin troca a rota de canal, tira do ranking ou inclui rota que estava sem canal', () => {
+  const d = dadosDaApi(INDEX, GERENCIAS, BASE, CONFIG,
+    { A11: { canal: 'Mista', sub: null }, A12: { canal: null, sub: null }, A13: { canal: 'Segmentada', sub: 'Mini' } });
+  const por = Object.fromEntries(d.rotas.map((r) => [r.rota, r]));
+  assert.equal(por.A11.canal, 'Mista');
+  assert.deepEqual([por.A13.canal, por.A13.sub], ['Segmentada', 'Mini']);
+  assert.deepEqual(d.semCanal.map((x) => x.rota), ['A12']);
+});
+
+test('ajustes: só campos válidos entram; sem nenhum válido, null', () => {
+  assert.equal(normalizarAjustes({ regras: { gatilhoVolumePct: -1 }, pilares: { Mista: ['Volume Água', 'Volume Sucos'] } }), null);
+  const aj = normalizarAjustes({ regras: { faixas: [{ min: 90, pontos: 2 }, { min: 110, pontos: 6 }, { min: 100, pontos: 3 }], gatilhoVolumePct: 90 },
+                                 canais: { X1: { canal: 'Segmentada', sub: 'Outro' } } });
+  assert.deepEqual(aj.regras.faixas.map((f) => f.min), [110, 100, 90]); // ordena as faixas
+  assert.equal(aj.regras.gatilhoVolumePct, 90);
+  assert.deepEqual(aj.canais.X1, { canal: 'Segmentada', sub: null });
+});
+
+test('ajustes: regras e pilares coringa do admin mudam o cálculo', () => {
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  const guardado = JSON.parse(JSON.stringify(M.REGRAS));
+  try {
+    aplicarAjustes(normalizarAjustes({
+      regras: { gatilhoVolumePct: 90, faixas: [{ min: 105, pontos: 5 }, { min: 100, pontos: 4 }, { min: 90, pontos: 2 }] },
+      pilares: { Mista: ['Volume Sucos', 'Volume Refri Single'], Segmentada: ['Volume Sabores', 'Missões Guiadas'] }, // Segmentada repete o pilar 1
+    }), cfg, M.REGRAS);
+    const res = M.calcular(montarEntrada(dadosDaApi(INDEX, GERENCIAS, BASE, cfg), cfg).entrada);
+    const p = (id) => res.pessoas.find((x) => x.id === id);
+    assert.equal(p('A11').volume.atingido, true);                                           // 91% >= 90%
+    assert.equal(p('A12').pilares.find((x) => x.nome === 'Volume Retornáveis').pontos, 4);  // 310 / 300 = 103,3%
+    assert.deepEqual(p('A12').pilares.slice(3).map((x) => x.nome), ['Volume Sucos', 'Volume Refri Single']);
+    assert.deepEqual(p('A11').pilares.slice(3).map((x) => x.nome), ['Volume Sucos', 'Missões Guiadas']); // ignorado
+  } finally {
+    Object.assign(M.REGRAS, guardado);
+  }
+});
+
+test('agrupadores extras: viram pilar coringa e coluna da API; inválidos ficam de fora', () => {
+  const aj = normalizarAjustes({ agrupadores: [
+    { id: 'agua', nome: 'Água', agrupador: 'Agua Crystal' },
+    { id: 'sucos', nome: 'X', agrupador: 'X' },          // id de um fixo
+    { id: 'y', nome: 'Sucos', agrupador: 'Outro' },      // o pilar "Volume Sucos" já existe
+    { id: 'z', nome: 'Z', agrupador: 'REFRIGERANTES' },  // agrupador de um fixo
+  ], pilares: { Mista: ['Volume Sucos', 'Volume Água'] } });
+  assert.deepEqual(aj.agrupadores, [{ id: 'agua', nome: 'Água', agrupador: 'Agua Crystal' }]);
+  assert.deepEqual(aj.pilares.Mista, ['Volume Sucos', 'Volume Água']);
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  aplicarAjustes(aj, cfg, JSON.parse(JSON.stringify(M.REGRAS)));
+  assert.match(dadosDaApi(INDEX, GERENCIAS, BASE, cfg).meta.aviso, /Agua Crystal/); // API ainda sem o extra
+  const index = { ...INDEX, produtos: INDEX.produtos.concat([{ id: 'agua', nome: 'Vol. Água' }]) };
+  const gerencias = [{ rotas: GERENCIAS[0].rotas.map((r) => (r.id === 'A12' ? { ...r, produtos: { ...r.produtos, agua: b(40, 42, 1, 2) } } : r)) }];
+  const a12 = M.calcular(montarEntrada(dadosDaApi(index, gerencias, BASE, cfg), cfg).entrada).pessoas.find((p) => p.id === 'A12');
+  assert.equal(a12.pilares.find((p) => p.nome === 'Volume Água').pontos, 5); // (42 + 1) / 40 = 107,5%
+});
+
+test('publicação por PR: cria o arquivo já preenchido ou abre a edição se ele já existe', () => {
+  assert.equal(urlPublicacao(CONFIG, '{"a":1}', true), 'https://github.com/AcompanamentosRota/Incentivo-Q4/edit/main/frontend/ajustes.json');
+  const u = new URL(urlPublicacao(CONFIG, '{"a":1}', false));
+  assert.equal(u.pathname, '/AcompanamentosRota/Incentivo-Q4/new/main/frontend');
+  assert.deepEqual([u.searchParams.get('filename'), u.searchParams.get('value')], ['ajustes.json', '{"a":1}']);
+});
+
+test('carregarAjustes: os deste navegador valem antes dos publicados', async () => {
+  const fetchOriginal = globalThis.fetch;
+  const publicado = { regras: { gatilhoVolumePct: 92 } }, local = { regras: { gatilhoVolumePct: 90 } };
+  try {
+    globalThis.fetch = async (url) => (url === './ajustes.json' ? { ok: true, json: async () => publicado } : { ok: false, status: 404 });
+    let aj = await carregarAjustes(CONFIG);
+    assert.deepEqual([aj.origem, aj.ativo.regras.gatilhoVolumePct], ['publicado', 92]);
+    globalThis.localStorage = { getItem: () => JSON.stringify(local) };
+    aj = await carregarAjustes(CONFIG);
+    assert.deepEqual([aj.origem, aj.ativo.regras.gatilhoVolumePct], ['local', 90]);
+  } finally {
+    globalThis.fetch = fetchOriginal;
+    delete globalThis.localStorage;
+  }
 });
 
 test('carregarDados: lê index e gerências da API; se falhar, usa a base embutida com o motivo', async () => {

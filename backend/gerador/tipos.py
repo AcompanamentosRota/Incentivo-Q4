@@ -78,3 +78,5 @@ class Dados:
     eventuais: dict[str, str] = field(default_factory=dict)
     avisos: list[str] = field(default_factory=list)
     simulado: bool = False
+    # agrupadores com META_VOLUME no mês, [{"nome", "meta"}] (sugestões do painel); None = não consultado
+    agrupadores_meta: list[dict] | None = None
