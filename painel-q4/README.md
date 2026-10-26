@@ -11,7 +11,26 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
 - **Supervisão:** mesma estrutura por supervisor (soma das rotas da mesa, provisório).
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar.
-- **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências e anotações livres.
+- **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
+
+Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre; só o status, o ranking e a premiação
+dependem do gatilho de Refrigerantes.
+
+## Administração (aba Regras)
+Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
+Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, o canal
+(Mista/Segmentada) de cada rota e os **agrupadores extras**.
+- **Agrupadores extras:** inclua ou exclua agrupadores do Datasphere (o campo sugere os que têm meta no mês, de
+  `api/v1/agrupadores.json`). Cada um vira o pilar "Volume <nome>", com cor própria, e pode ser escolhido como pilar
+  coringa 4 ou 5. Depois do merge do PR, o gerador da API passa a buscá-lo (cerca de 3 minutos). Os 6 agrupadores
+  fixos não podem ser excluídos.
+- **Salvar neste navegador:** vale na hora, só para quem salvou (etiqueta "Ajustes do admin (só neste navegador)").
+- **Publicar no GitHub (PR):** abre o `frontend/ajustes.json` no GitHub já preenchido (ou copia o conteúdo para
+  colar, se o arquivo já existe). Em *Commit changes*, escolha "Create a new branch for this commit and start a pull
+  request": alguém revisa e faz o merge, e só então os ajustes valem para todos. Para voltar todos ao padrão, apague o
+  `frontend/ajustes.json`, também por PR. "Baixar ajustes.json" continua disponível.
+- A senha fica embaralhada (hash) dentro do HTML, mas o site é público: ela evita mudança por engano, não é proteção
+  forte. Publicar para todos exige acesso ao repositório.
 
 ## Estrutura
 ```
@@ -23,7 +42,7 @@ src/assets/                  fontes e logo extraídos da apresentação oficial
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       33 testes do motor e 7 do adaptador
+tests/                       33 testes do motor e 13 do adaptador
 docs/                        regras do incentivo (fonte de verdade)
 ```
 

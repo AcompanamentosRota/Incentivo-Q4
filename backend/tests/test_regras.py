@@ -83,5 +83,36 @@ class TestSimuladoEGravacao(unittest.TestCase):
         self.assertEqual(validacao.validar(arq, self.arquivos["v1/resumo.json"], idx)[0], [])
 
 
+class TestIncluirAgrupadores(unittest.TestCase):
+    def tearDown(self):
+        M.incluir_agrupadores([])
+
+    def test_valida_e_ignora_com_aviso(self):
+        avisos = M.incluir_agrupadores([
+            {"id": "agua", "nome": "Água", "agrupador": "Agua Crystal"},
+            {"id": "sucos", "nome": "Outro", "agrupador": "Outro"},        # id de um fixo
+            {"id": "x1", "nome": "Refri", "agrupador": "REFRIGERANTES"},    # agrupador de um fixo (sem caixa)
+            {"id": "Com Espaço", "nome": "X", "agrupador": "X"},            # id inválido
+            {"id": "cha", "nome": "Chá", "agrupador": "Agua Crystal"},      # agrupador repetido
+        ])
+        self.assertEqual(len(avisos), 4)
+        self.assertEqual(M.IDS_PRODUTOS[-1], "agua")
+        self.assertEqual(M.produto_do_agrupador("AGUA CRYSTAL"), "agua")
+        self.assertIn("Agua Crystal", M.AGRUPADORES_CONSULTA)
+        self.assertIn("agua", M.SO_META_VOLUME)
+        M.incluir_agrupadores([])
+        self.assertEqual(M.IDS_PRODUTOS, [p["id"] for p in M.PRODUTOS_FIXOS])
+
+    def test_maximo_de_extras(self):
+        extras = [{"id": f"e{i}", "nome": f"E{i}", "agrupador": f"Agrupador {i}"} for i in range(M.EXTRAS_MAX + 2)]
+        self.assertEqual(len(M.incluir_agrupadores(extras)), 2)
+        self.assertEqual(len(M.IDS_PRODUTOS), len(M.PRODUTOS_FIXOS) + M.EXTRAS_MAX)
+
+    def test_simulado_com_extra(self):
+        M.incluir_agrupadores([{"id": "agua", "nome": "Água", "agrupador": "Agua"}])
+        arquivos = api.montar(simulado.gerar(datetime(2026, 10, 22, 10, 0)))
+        self.assertIn("agua", arquivos["v1/resumo.json"]["empresa"]["produtos"])
+
+
 if __name__ == "__main__":
     unittest.main()

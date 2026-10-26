@@ -276,9 +276,10 @@
         gatilhoPontos,
         alertas,
       };
-      // exibição: sem gatilho de volume, pontos não contam
-      r.pontosAtuaisExibidos = volume.atingido ? r.pontosMes : '-';
-      if (p.cargo === 'SV') r.pontosAcumuladosExibidos = volume.atingido ? acumulado : '-';
+      // exibição (decisão de 26/10/2026): os pontos aparecem mesmo sem o gatilho de volume;
+      // só status, ranking e premiação dependem dele
+      r.pontosAtuaisExibidos = r.pontosMes;
+      if (p.cargo === 'SV') r.pontosAcumuladosExibidos = acumulado;
       r.elegivel = volume.atingido && gatilhoPontos.atingido;
       r.status = REGRAS.status.nenhum;
       r.posicao = null;
@@ -329,7 +330,7 @@
         if (p.pontos !== faixaPontos(p.real + p.online, p.meta)) falhas.push('PONTOS_PILAR:' + r.id + ':' + p.nome);
       }
       if (r.pilares.reduce((s, x) => s + x.pontos, 0) !== r.pontosPilares) falhas.push('SOMA_PILARES:' + r.id);
-      if (!r.volume.atingido && (r.status !== '-' || r.pontosAtuaisExibidos !== '-' || r.posicao !== null)) falhas.push('SEM_GATILHO_VOLUME_COM_PONTOS:' + r.id);
+      if (!r.volume.atingido && (r.status !== '-' || r.posicao !== null)) falhas.push('SEM_GATILHO_VOLUME_COM_STATUS:' + r.id);
       if (r.cargo === 'RT' && 'pontosAcumulados' in r && r.pontosAcumulados !== undefined) falhas.push('RT_COM_ACUMULADO:' + r.id);
     }
     const ids = resultado.pessoas.map((r) => r.id);

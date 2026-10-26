@@ -6,9 +6,13 @@ Uso (na pasta backend/):
     python scripts/gerar.py --simulado --forcar   # dados FICTÍCIOS (sem Datasphere), para o front
     python scripts/gerar.py --rota 111 --forcar   # testa uma rota, grava em saida/rota_111/
     python scripts/gerar.py --hoje 2026-11-03 --saida saida/sim --forcar   # simula a data
+    python scripts/gerar.py --ajustes teste.json --saida saida/teste --forcar   # outro arquivo de ajustes
 
 Fechamento do mês: detectado sozinho (até o fim do 1º dia útil e enquanto alguma gerência não tiver
 META_VOLUME do mês). Nesse período a API mostra o mês anterior fechado.
+
+Agrupadores extras: os que o admin do painel incluiu (frontend/ajustes.json -> "agrupadores") entram como produtos
+da API, além dos fixos de gerador/mapeamento.py.
 
 Fora da janela de execução (JANELA_EXECUCAO, padrão 07:00-18:59 de Brasília) termina sem fazer nada,
 a não ser com --forcar. Códigos de saída: 0 ok / nada a fazer, 1 erro de execução,
@@ -25,9 +29,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gerador import api, calendario, saida, validacao  # noqa: E402
+from gerador import api, calendario, mapeamento, saida, validacao  # noqa: E402
 from odata.config import PASTA_DADOS_PADRAO, PASTA_SAIDA  # noqa: E402
 from odata.log import configurar_log  # noqa: E402
+
+AJUSTES_PAINEL = Path(__file__).resolve().parents[2] / "frontend" / "ajustes.json"
 
 
 def _janela(texto: str) -> tuple[time, time]:
@@ -59,10 +65,20 @@ def main() -> int:
     ap.add_argument("--forcar", action="store_true", help="ignora a janela de horário")
     ap.add_argument("--gravar-cache", type=Path, help="salva as respostas do Datasphere nesta pasta")
     ap.add_argument("--replay", type=Path, help="usa respostas salvas (sem rede)")
+    ap.add_argument("--ajustes", type=Path, default=AJUSTES_PAINEL,
+                    help="ajustes do painel com os agrupadores extras (padrão: frontend/ajustes.json)")
     args = ap.parse_args()
 
     log = configurar_log("gerar")
     inicio = relogio.monotonic()
+    ajustes = saida.ler(args.ajustes)
+    extras = ajustes.get("agrupadores") if isinstance(ajustes, dict) else None
+    extras = extras if isinstance(extras, list) else []
+    for aviso in mapeamento.incluir_agrupadores(extras):
+        log.warning("Aviso: %s", aviso)
+    if extras:
+        log.info("Agrupadores extras do painel (%s): %s", args.ajustes.name,
+                 ", ".join(p["agrupadores"][0] for p in mapeamento.PRODUTOS if p.get("extra")) or "nenhum válido")
     agora = calendario.agora()
     if args.hoje:
         agora = datetime.combine(datetime.fromisoformat(args.hoje).date(), agora.time())
@@ -80,7 +96,7 @@ def main() -> int:
             log.warning("Gerando dados SIMULADOS (fictícios) -> %s", destino)
             dados = simulado.gerar(agora)
         else:
-            from gerador import fontes, mapeamento
+            from gerador import fontes
             from gerador.consulta import Consulta
             from odata.config import carregar_config
             cfg = carregar_config()
@@ -95,6 +111,9 @@ def main() -> int:
         return 1
 
     arquivos = api.montar(dados)
+    if "v1/agrupadores.json" not in arquivos and not args.rota:   # lista de sugestões sem atualizar: mantém a anterior
+        if (lista := saida.ler(destino / "v1/agrupadores.json")) is not None:
+            arquivos["v1/agrupadores.json"] = lista
     anterior = (None, None) if args.rota else (saida.ler(destino / "v1/resumo.json"), saida.ler(destino / "v1/index.json"))
     erros, avisos = validacao.validar(arquivos, *anterior)
     for a in avisos + dados.avisos:

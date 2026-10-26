@@ -6,6 +6,7 @@ api.py — Monta os arquivos da API a partir de tipos.Dados (sem rede).
     v1/gerencias/<GC>.json     a gerência, suas supervisões e suas rotas, por produto
     v1/rotas/<ROTA>.json       a rota e seus clientes, por produto
     v1/busca.json              lista compacta de clientes (pv, nome, rota, gerência) para busca
+    v1/agrupadores.json        agrupadores com META_VOLUME no mês (sugestões do painel para agrupadores extras)
 
 Só o index.json traz a data/hora: os demais arquivos só mudam quando o dado muda (commit pequeno).
 """
@@ -126,6 +127,9 @@ def montar(d: Dados) -> dict[str, dict]:
         "campos": ["pv", "nome", "rota", "gerencia"],
         "clientes": [[c.pv, c.nome, c.rota, c.gc] for c in sorted(d.clientes, key=lambda c: (c.nome, c.pv))],
     }
+    if d.agrupadores_meta is not None:
+        arquivos["v1/agrupadores.json"] = {"anomes": cal.anomes, "campos": ["nome", "meta"],
+                                           "agrupadores": [[a["nome"], a["meta"]] for a in d.agrupadores_meta]}
     arquivos["v1/index.json"] = {
         "versao_api": VERSAO,
         "atualizado_em": d.agora.isoformat(timespec="seconds"),
@@ -138,12 +142,13 @@ def montar(d: Dados) -> dict[str, dict]:
             "ritmo_esperado_pct": cal.pace_ontem_pct,
         },
         "unidade": UNIDADE,
-        "produtos": [{"id": p["id"], "nome": p["nome"]} for p in M.PRODUTOS],
+        "produtos": [{"id": p["id"], "nome": p["nome"], "agrupadores": p["agrupadores"], "extra": bool(p.get("extra"))}
+                     for p in M.PRODUTOS],
         "status": {modelo.META_BATIDA: "Meta batida", modelo.NO_RITMO: "No ritmo",
                    modelo.ABAIXO: "Abaixo do ritmo", modelo.SEM_META: "Sem meta"},
         "gerencias": [{"id": g, "nome": M.GC_NOMES.get(g, g), "arquivo": f"gerencias/{g}.json"} for g in gcs],
         "arquivos": {"resumo": "resumo.json", "gerencia": "gerencias/{gerencia}.json", "rota": "rotas/{rota}.json",
-                     "busca": "busca.json"},
+                     "busca": "busca.json", "agrupadores": "agrupadores.json"},
         "avisos": d.avisos,
     }
     return arquivos

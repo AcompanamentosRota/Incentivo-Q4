@@ -180,5 +180,23 @@ class TestFechamento(unittest.TestCase):
         self.assertEqual(b["status"], "abaixo_do_ritmo")   # 70% realizado no mês fechado
 
 
+class TestAgrupadoresExtras(unittest.TestCase):
+    def tearDown(self):
+        M.incluir_agrupadores([])
+
+    def test_extra_do_painel_entra_na_api(self):
+        self.assertEqual(M.incluir_agrupadores([{"id": "agua", "nome": "Água", "agrupador": "Agua"}]), [])
+        cons = cenario()
+        cons.dados[M.OBJ_META] += [_meta("111", "Agua", 30), _fato("111", 1, "Agua", FX_VOL_PADRAO_FAT=12)]
+        a = api.montar(fontes.carregar(cons, AGORA))
+        b = a["v1/rotas/111.json"]["produtos"]["agua"]
+        self.assertEqual((b["meta"], b["realizado"]), (30.0, 12.0))
+        prod = {p["id"]: p for p in a["v1/index.json"]["produtos"]}
+        self.assertEqual((prod["agua"]["nome"], prod["agua"]["agrupadores"], prod["agua"]["extra"]), ("Vol. Água", ["Agua"], True))
+        self.assertFalse(prod["sucos"]["extra"])
+        ags = dict(a["v1/agrupadores.json"]["agrupadores"])   # todos os agrupadores com META_VOLUME, inclusive fora da API
+        self.assertEqual((ags["Sucos"], ags["Agua"], ags["Cervejas"]), (140.0, 30.0, 999.0))
+
+
 if __name__ == "__main__":
     unittest.main()

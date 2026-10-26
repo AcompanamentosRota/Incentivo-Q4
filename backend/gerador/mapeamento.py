@@ -35,7 +35,7 @@ OBJ_CALENDARIO = "AM_BND_MTR_CALENDARIO_DATA_ATUAL"  # dias úteis do mês
 # "meta_so_meta_volume": a meta da rota é só a META_VOLUME, como no SAC: rota sem META_VOLUME fica com meta 0, sem
 # cair na soma da META_NEG. Refrigerantes Individual não tem META_VOLUME em algumas rotas (A11-A37 em out/26) e o
 # SAC mostra meta 0 nelas (conferido com a base do painel em 26/10/2026).
-PRODUTOS: list[dict] = [
+PRODUTOS_FIXOS: list[dict] = [
     {"id": "sucos", "nome": "Vol. Sucos", "agrupadores": ["Sucos"]},
     {"id": "powerade", "nome": "Vol. Powerade", "agrupadores": ["Powerade"]},
     {"id": "sabores", "nome": "Vol. Sabores", "agrupadores": ["Sabores Tt"]},
@@ -47,11 +47,58 @@ PRODUTOS: list[dict] = [
     {"id": "refrigerantes", "nome": "Vol. Refrigerantes", "agrupadores": ["Refrigerantes"],
      "meta_so_meta_volume": True},
 ]
-IDS_PRODUTOS = [p["id"] for p in PRODUTOS]
-SO_META_VOLUME = {p["id"] for p in PRODUTOS if p.get("meta_so_meta_volume")}
-NOME_PRODUTO = {p["id"]: p["nome"] for p in PRODUTOS}
-AGRUPADORES_CONSULTA = sorted({a for p in PRODUTOS for a in p["agrupadores"]})
-_INDICE_PRODUTO = {normalizar(a): p["id"] for p in PRODUTOS for a in p["agrupadores"]}
+# Fixos + agrupadores extras incluídos pelo admin do painel (incluir_agrupadores); o resto do gerador lê estes nomes.
+PRODUTOS: list[dict] = []
+IDS_PRODUTOS: list[str] = []
+SO_META_VOLUME: set[str] = set()
+NOME_PRODUTO: dict[str, str] = {}
+AGRUPADORES_CONSULTA: list[str] = []
+_INDICE_PRODUTO: dict[str, str] = {}
+
+EXTRAS_MAX = 10
+_ID_EXTRA = re.compile(r"^[a-z0-9_]{1,30}$")
+
+
+def _texto_valido(valor: object, tamanho: int) -> bool:
+    return isinstance(valor, str) and 0 < len(valor.strip()) <= tamanho and valor.isprintable()
+
+
+def incluir_agrupadores(extras: list[dict]) -> list[str]:
+    """Produtos = fixos + agrupadores extras do painel (frontend/ajustes.json -> "agrupadores").
+
+    Cada extra: {"id", "nome", "agrupador"}, com o agrupador escrito como no Datasphere (vai no $filter, que é exato).
+    Meta só pela META_VOLUME, como o SAC. Os inválidos, repetidos ou que colidem com os fixos ficam de fora, com aviso.
+    Chamar de novo troca os extras (incluir_agrupadores([]) volta só aos fixos). Devolve os avisos.
+    """
+    global PRODUTOS, IDS_PRODUTOS, SO_META_VOLUME, NOME_PRODUTO, AGRUPADORES_CONSULTA, _INDICE_PRODUTO
+    produtos, avisos = [dict(p) for p in PRODUTOS_FIXOS], []
+    ids = {p["id"] for p in produtos}
+    agrupadores = {normalizar(a) for p in produtos for a in p["agrupadores"]}
+    for x in extras or []:
+        x = x if isinstance(x, dict) else {}
+        rotulo = x.get("agrupador") or x.get("id") or "?"
+        if not (_ID_EXTRA.match(str(x.get("id", ""))) and _texto_valido(x.get("nome"), 40)
+                and _texto_valido(x.get("agrupador"), 80)):
+            avisos.append(f"agrupador extra ignorado (id, nome ou agrupador inválido): {rotulo}")
+        elif x["id"] in ids or normalizar(x["agrupador"]) in agrupadores:
+            avisos.append(f"agrupador extra ignorado (já existe na API): {rotulo}")
+        elif len(produtos) - len(PRODUTOS_FIXOS) >= EXTRAS_MAX:
+            avisos.append(f"agrupador extra ignorado (máximo de {EXTRAS_MAX} extras): {rotulo}")
+        else:
+            produtos.append({"id": x["id"], "nome": f"Vol. {x['nome'].strip()}", "agrupadores": [x["agrupador"].strip()],
+                             "meta_so_meta_volume": True, "extra": True})
+            ids.add(x["id"])
+            agrupadores.add(normalizar(x["agrupador"]))
+    PRODUTOS = produtos
+    IDS_PRODUTOS = [p["id"] for p in PRODUTOS]
+    SO_META_VOLUME = {p["id"] for p in PRODUTOS if p.get("meta_so_meta_volume")}
+    NOME_PRODUTO = {p["id"]: p["nome"] for p in PRODUTOS}
+    AGRUPADORES_CONSULTA = sorted({a for p in PRODUTOS for a in p["agrupadores"]})
+    _INDICE_PRODUTO = {normalizar(a): p["id"] for p in PRODUTOS for a in p["agrupadores"]}
+    return avisos
+
+
+incluir_agrupadores([])
 
 
 def produto_do_agrupador(agrupador: object) -> str | None:

@@ -27,6 +27,12 @@ quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 | `gerencias/{GC}.json` | Uma gerência: total, supervisões e rotas, por produto. `{GC}` vem de `index.json` → `gerencias[].id`. |
 | `rotas/{ROTA}.json` | Uma rota: total e clientes, por produto. `{ROTA}` vem de `gerencias/{GC}.json` → `rotas[].id`. |
 | `busca.json` | Todos os clientes em formato compacto, para busca por nome ou código. |
+| `agrupadores.json` | Todos os agrupadores com META_VOLUME no mês (`campos`: `[nome, meta]`), com a grafia exata do Datasphere. É a lista de sugestões da Administração do painel. |
+
+**Agrupadores extras.** Além dos 6 produtos fixos, a API inclui os agrupadores que o admin do painel publicou em
+`frontend/ajustes.json` (campo `agrupadores`: `{id, nome, agrupador}`). Eles aparecem em `index.json` → `produtos`
+com `"extra": true` (cada produto traz também os seus `agrupadores`) e têm o mesmo bloco de indicador dos demais;
+a meta é só a META_VOLUME, como no SAC.
 
 ## O bloco de indicador (rota, supervisão, gerência e empresa)
 
