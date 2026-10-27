@@ -1,8 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../src/motor.js');
-const { CONFIG, montarEntrada, dadosDaApi, carregarDados, normalizarAjustes, aplicarAjustes, carregarAjustes,
-        urlPublicacao } = require('../src/adapter.js');
+const { CONFIG, montarEntrada, dadosDaApi, carregarDados, normalizarAjustes, normalizarConfrontos, aplicarAjustes,
+        carregarAjustes, urlPublicacao } = require('../src/adapter.js');
 
 // ── fixtures: base embutida (só o canal importa) e uma API com uma gerência ──
 const BASE = {
@@ -119,6 +119,44 @@ test('ajustes: regras e pilares coringa do admin mudam o cálculo', () => {
   } finally {
     Object.assign(M.REGRAS, guardado);
   }
+});
+
+test('confrontos: só os válidos entram, na ordem de registro', () => {
+  const c = (mes, a, b, pilar) => ({ mes, id_sv_desafiante: a, id_sv_desafiado: b, pilar });
+  const out = normalizarConfrontos([
+    c(10, 'A#Mista', 'B#Mista', 'Volume Sabores'),
+    c(9, 'A#Mista', 'C#Mista', 'Volume Sabores'),      // mês fora do Q4
+    c(11, 'A#Mista', 'A#Mista', 'Volume Sabores'),     // autodesafio
+    c(11, 'A#Mista', 'C#Mista', '  '),                 // sem pilar
+    c(10, 'A#Mista', 'B#Mista', 'Volume Sucos'),       // mesmo par e mês: repetido
+    c(11, 'A#Mista', 'B#Mista', 'Volume Sucos'),
+  ]);
+  assert.deepEqual(out.map((x) => [x.mes, x.pilar, x.ordem_registro]), [[10, 'Volume Sabores', 1], [11, 'Volume Sucos', 2]]);
+  assert.equal(normalizarConfrontos(null).length, 0);
+  // um confronto sozinho já é um ajuste válido
+  assert.deepEqual(normalizarAjustes({ confrontos: [c(10, 'A#Mista', 'B#Mista', 'Volume Sabores')] }).confrontos.length, 1);
+});
+
+test('confrontos do admin chegam ao motor e dão o bônus ao vencedor e à mesa dele', () => {
+  const base = { ...BASE, rotas: BASE.rotas.concat([{ gc: 'An', sv: 'Sv. An.3', rota: 'A14', canal: 'Mista', sub: null, v: {} }]) };
+  const gerencias = [{ rotas: GERENCIAS[0].rotas.concat([
+    rota('A14', 'SV.AN.3', { sucos: b(100, 100, 0, 3), powerade: b(50, 50, 0, 2), sabores: b(200, 230, 0, 8),
+                             retornaveis: b(300, 300, 0, 5), individuais: b(120, 120, 0, 1), refrigerantes: b(800, 800, 0, 30) }),
+  ]) }];
+  const aj = normalizarAjustes({ confrontos: [
+    { mes: 10, id_sv_desafiante: 'Sv. An.1#Mista', id_sv_desafiado: 'Sv. An.3#Mista', pilar: 'Volume Sabores' },
+  ] });
+  const res = M.calcular(montarEntrada(dadosDaApi(INDEX, gerencias, base, CONFIG), CONFIG, aj.confrontos).entrada);
+  const det = res.confrontos[0];
+  assert.equal(det.valido, true);
+  assert.equal(det.vencedor, 'Sv. An.3#Mista');                                    // 115% contra 105% em Sabores
+  assert.equal(res.pessoas.find((x) => x.id === 'Sv. An.3#Mista').pontosConfronto, M.REGRAS.bonusConfronto);
+  assert.equal(res.pessoas.find((x) => x.id === 'A14').pontosConfronto, M.REGRAS.bonusConfronto); // a mesa inteira
+  assert.equal(res.pessoas.find((x) => x.id === 'A12').pontosConfronto, 0);        // mesa de quem perdeu não ganha
+  assert.deepEqual(M.conferir(res), []);
+  // sem confronto, ninguém ganha o bônus
+  const semConf = M.calcular(montarEntrada(dadosDaApi(INDEX, gerencias, base, CONFIG), CONFIG).entrada);
+  assert.equal(semConf.pessoas.find((x) => x.id === 'A14').pontosConfronto, 0);
 });
 
 test('agrupadores extras: viram pilar coringa e coluna da API; inválidos ficam de fora', () => {
