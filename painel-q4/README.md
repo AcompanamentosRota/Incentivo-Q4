@@ -12,8 +12,10 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 - **Supervisão:** mesma estrutura por supervisor (soma das rotas da mesa, provisório).
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
-- **Estratégicos:** uma linha por gerência com Meta, Real e % de **todos os itens** dos dois canais juntos, a soma dos
-  pilares e o % da categoria Refrigerantes, fechando com o total da empresa.
+- **Estratégicos:** uma linha por gerência com as mesmas colunas das abas Rota e Supervisão (Meta, M. dia, Real, Hoje,
+  Diferença e %) para **todos os itens** dos dois canais juntos, mais a soma dos pilares e o % da categoria
+  Refrigerantes, fechando com o total da empresa. É a tabela mais densa do painel (38 colunas), por isso costuma ficar
+  no menor corpo de fonte.
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
 - **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês, com o % de cada lado, o vencedor e o
