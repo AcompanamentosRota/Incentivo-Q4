@@ -1129,7 +1129,7 @@ const largMax = (textos, peso, px)=> textos.reduce((m,s)=> Math.max(m, larg(s, p
 /* Escolhe o maior corpo de fonte (16 a 10 px) em que todas as colunas ainda cabem na largura do painel:
    com 1 casa decimal os números ficaram mais largos, e assim nada é cortado nem sobra espaço vazio. */
 const GRIDS = {};
-function ajustarGrid(cols, alvo, chave, grupos){
+function ajustarGrid(cols, alvo, chave, grupos, piso){
   const el = $(alvo), painel = el.closest('.panel'), disp = (el.clientWidth || 1890) - 2;
   const k = chave + '|' + disp;
   if(!GRIDS[k]){
@@ -1143,7 +1143,7 @@ function ajustarGrid(cols, alvo, chave, grupos){
       return l;
     };
     let px = 16, l = calc(px);
-    while(px > 10 && l.reduce((s,x)=>s+x,0) > disp){ px--; l = calc(px); }
+    while(px > (piso||10) && l.reduce((s,x)=>s+x,0) > disp){ px--; l = calc(px); }
     const base = l.reduce((s,x,i)=> s + (cols[i].fixa ? 0 : x), 0), sobra = disp - l.reduce((s,x)=>s+x,0);
     if(sobra > 0 && base > 0) l = l.map((w,i)=> cols[i].fixa ? w : w + Math.floor(sobra * w / base));
     GRIDS[k] = { px, grid: l.map((w,i)=> cols[i].flex ? `minmax(${w}px,1fr)` : w+'px').join(' ') };
@@ -1374,15 +1374,18 @@ function itensEstrat(){
   ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(p.tipo==='volume' && !out.some(x=>x.nome===p.nome)) out.push(p); }));
   return out;
 }
+/* Mesmas colunas das abas Rota e Supervisão: Meta, M. dia, Real, Hoje, Dif e %. */
+const COLS_EST = ['Meta','M. dia','Real','Hoje','Dif','%'];
 function renderEstrat(){
   const itens = itensEstrat();
   const blocos = itens.map(p=>({ chave:fonteDe(p.nome), rot:rotuloPilar(p.nome), g:grupo(p.nome) }))
                       .concat([{ chave:'__soma__', rot:'TOTAL', g:'g0' }]);
   const chaves = blocos.map(b=>b.chave).concat(['__refri__']);
-  const novo = ()=>{ const o={}; chaves.forEach(k=>{ o[k]={meta:0,real:0}; }); return o; };
+  const novo = ()=>{ const o={}; chaves.forEach(k=>{ o[k]={meta:0,mdia:0,real:0,online:0,temMdia:false}; }); return o; };
   const gcs = [...new Set(DADOS.rotas.map(r=>r.gc))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const acc = {}; gcs.forEach(g=>{ acc[g]=novo(); }); const tot = novo();
-  const soma = (d,k,meta,real)=>{ d[k].meta += meta; d[k].real += real; };
+  const soma = (d,k,v)=>{ const a=d[k]; a.meta += v[0]; a.real += v[1]; a.online += v[2]||0;
+                          if(v[4]!=null){ a.mdia += v[4]; a.temMdia = true; } };
   let nRotas = 0;
   DADOS.rotas.forEach(r=>{
     const a = acc[r.gc]; if(!a) return;
@@ -1390,32 +1393,37 @@ function renderEstrat(){
     itens.forEach((pl,i)=>{
       const v = r.v[blocos[i].chave] || VAZIO;
       if(!(v[0]>0) || v[1]===null) return; // sem meta ou sem real fica fora da soma, como no resto do painel
-      const real = v[1] + (v[2]||0);
-      soma(a, blocos[i].chave, v[0], real); soma(a, '__soma__', v[0], real);
-      soma(tot, blocos[i].chave, v[0], real); soma(tot, '__soma__', v[0], real);
+      soma(a, blocos[i].chave, v); soma(a, '__soma__', v);
+      soma(tot, blocos[i].chave, v); soma(tot, '__soma__', v);
     });
     REFRI_COMP.forEach(ag=>{
       const v = r.v[ag] || VAZIO;
       if(!(v[0]>0) || v[1]===null) return;
-      const real = v[1] + (v[2]||0);
-      soma(a, '__refri__', v[0], real); soma(tot, '__refri__', v[0], real);
+      soma(a, '__refri__', v); soma(tot, '__refri__', v);
     });
   });
+  const pctDe = (x)=> x.meta>0 ? (x.real + x.online)/x.meta*100 : null;
+  const difDe = (x)=> x.real + x.online - x.meta;
+  const celulas = (d, b)=>{
+    const x = d[b.chave], pct = pctDe(x);
+    return [numF(x.meta), x.temMdia ? numF(x.mdia) : '–', numF(x.real), numF(x.online),
+            pct===null ? '–' : sgn(difDe(x)), pct===null ? '–' : M.fmtPct(pct)];
+  };
+  const todas = gcs.map(g=>acc[g]).concat([tot]);
+  const maior = (b, i)=> todas.reduce((m,d)=>{ const s = celulas(d,b)[i]; return s.length>m.length ? s : m; }, '');
   const cols = [{ textos: gcs.concat(['Gerência','TOTAL']), flex:true }], grupos = [];
   blocos.forEach(b=>{
     const ini = cols.length;
-    cols.push({ textos:['Meta', numF(tot[b.chave].meta)] });
-    cols.push({ textos:['Real', numF(tot[b.chave].real)] });
-    cols.push({ textos:['%','100,0%'] });
+    COLS_EST.forEach((l,i)=>cols.push({ textos:[l, maior(b,i)] }));
     grupos.push({ ini, fim: cols.length-1, textos:[b.rot] });
   });
   cols.push({ textos:['% Refri','gatilho '+R.gatilhoVolumePct+'%','100,0%'] });
-  GRID = ajustarGrid(cols, 'ethead', 'estrat', grupos);
+  GRID = ajustarGrid(cols, 'ethead', 'estrat', grupos, 9);
   let h = `<div class="hh lf" style="grid-column:1">Gerência</div>`, col = 2;
   blocos.forEach(b=>{
-    h += `<div class="gh ${b.g}" style="grid-column:${col} / span 3">${esc(b.rot)}</div>`;
-    ['Meta','Real','%'].forEach((l,i)=>{ h += `<div class="sl ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
-    col += 3;
+    h += `<div class="gh ${b.g}" style="grid-column:${col} / span ${COLS_EST.length}">${esc(b.rot)}</div>`;
+    COLS_EST.forEach((l,i)=>{ h += `<div class="sl ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
+    col += COLS_EST.length;
   });
   h += `<div class="hh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
   $('ethead').style.gridTemplateColumns = GRID;
@@ -1423,19 +1431,22 @@ function renderEstrat(){
   const linhaEst = (nome, d, cls)=>{
     let c = `<div class="rt">${esc(nome)}</div>`;
     blocos.forEach(b=>{
-      const x = d[b.chave], pct = x.meta>0 ? x.real/x.meta*100 : null;
-      c += `<div class="${b.g} n gs">${numF(x.meta)}</div><div class="${b.g} n">${numF(x.real)}</div>`
-         + `<div class="${b.g} n b">${pct===null?'–':M.fmtPct(pct)}</div>`;
+      const v = celulas(d, b), dif = difDe(d[b.chave]);
+      const cor = pctDe(d[b.chave])===null ? '' : dif<0 ? 'color:#b4b9c4' : 'color:#7dffa0';
+      c += `<div class="${b.g} n gs">${v[0]}</div><div class="${b.g} n m">${v[1]}</div><div class="${b.g} n">${v[2]}</div>`
+         + `<div class="${b.g} n m">${v[3]}</div><div class="${b.g} n" style="${cor}">${v[4]}</div>`
+         + `<div class="${b.g} n b">${v[5]}</div>`;
     });
-    const rf = d.__refri__, rp = rf.meta>0 ? rf.real/rf.meta*100 : null;
+    const rp = pctDe(d.__refri__);
     c += `<div class="n b${rp!==null && rp>=R.gatilhoVolumePct?' ok':''}">${rp===null?'–':M.fmtPct(rp)}</div>`;
     return `<div class="trow ${cls||''}" style="grid-template-columns:${GRID}">${c}</div>`;
   };
   $('ettitulo').textContent = `Gerências · todos os itens · Mista e Segmentada`;
   $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`;
   $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('') + linhaEst('TOTAL', tot, 'gtot');
-  $('etnota').innerHTML = `TOTAL é a soma dos pilares acima. A categoria Refrigerantes (gatilho de ${R.gatilhoVolumePct}%) fica fora dessa soma: `
-    + `ela já contém Retornáveis, Refri Single e parte de Sabores. Real inclui os pedidos de hoje. Pilar sem meta ou sem real na rota fica fora da soma`
+  $('etnota').innerHTML = `Mesmas medidas das abas Rota e Supervisão: Real é o faturado do mês, Hoje são os pedidos ainda não faturados, `
+    + `e Diferença e % usam Real + Hoje. TOTAL é a soma dos pilares acima; a categoria Refrigerantes (gatilho de ${R.gatilhoVolumePct}%) fica fora `
+    + `dessa soma, porque já contém Retornáveis, Refri Single e parte de Sabores. Pilar sem meta ou sem real na rota fica fora da soma`
     + (DADOS.semCanal.length ? `; ${DADOS.semCanal.length} rotas sem canal não entram` : '') + `.`;
 }
 
