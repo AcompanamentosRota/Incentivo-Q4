@@ -13,8 +13,9 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
 - **Estratégicos:** uma linha por gerência com as mesmas colunas das abas Rota e Supervisão (Meta, M. dia, Real, Hoje,
-  Diferença e %) para **todos os itens** dos dois canais juntos, mais o % da categoria Refrigerantes, e a linha
-  **TOTAL** da empresa em destaque no fim. É a tabela mais larga do painel (32 colunas).
+  Diferença e %) para **todos os itens** dos dois canais juntos, mais o % da categoria Refrigerantes. A linha
+  **TOTAL** da empresa fica fixa no rodapé da tabela, sempre visível: as gerências rolam, o total não. É a tabela
+  mais larga do painel (32 colunas).
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Os cards do topo trazem os cinco pilares
   e mais um de **Refrigerantes**, com o gatilho do mês.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
@@ -32,6 +33,9 @@ cabe na tela.
 (5 pontos), **amarelo** de 100% a 104,99% (3 pontos), **vermelho fechado** de 90% a 99,99% (2 pontos) e cinza abaixo
 disso (0). O quadro do % usa a mesma cor da faixa, bem mais apagada, para o chip de Pts continuar sendo o destaque da
 linha. Diferença negativa aparece em vermelho e positiva em verde.
+
+Nas tabelas de Rota, Supervisão e Estratégicos, passar o mouse **acende a linha e a coluna** sob o cursor, junto com o
+rótulo da coluna no cabeçalho, para ajudar a ler de ponta a ponta sem perder a linha.
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de

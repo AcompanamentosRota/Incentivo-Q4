@@ -261,6 +261,14 @@ button{background:none;border:0;cursor:pointer}
 .trow.gtot{background:rgba(255,255,255,.10);font-weight:600;border-top:2px solid rgba(255,255,255,.3)}
 .trow.gtot .rt{font-weight:700}
 .etnota{font-size:15px;font-weight:500;color:var(--muted);line-height:1.35}
+#etrows{overflow-y:auto}
+.ettot{flex:none}
+/* realce em cruz: a linha sai do :hover, a coluna da classe .cl posta pelo mouse */
+.trow>div.cl{background:rgba(255,255,255,.09)}
+.rows .trow:hover>div,.ettot .trow:hover>div{background:rgba(255,255,255,.09)}
+.trow:hover>div.cl{background:rgba(255,255,255,.18)}
+.th>div.cl{background:rgba(255,255,255,.17)}
+.th>div.gh.cl{background:var(--gc)}
 
 /* confrontos */
 .cf{display:grid;grid-template-columns:54px 150px minmax(0,1fr) 92px 30px minmax(0,1fr) 92px minmax(180px,250px);align-items:center;padding:0 16px}
@@ -366,7 +374,7 @@ button{background:none;border:0;cursor:pointer}
       <div class="tt"><span id="ettitulo"></span><span class="kp" id="etsub"></span></div>
       <div class="th" id="ethead"></div>
       <div class="rows" id="etrows"></div>
-      <div class="pager"><span class="etnota" id="etnota"></span></div>
+      <div class="ettot" id="ettot"></div>
     </div>
   </section>
 
@@ -1073,6 +1081,28 @@ const esc = (s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'
 const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const tier = (p)=> !(p>0) ? 0 : p>=R.faixas[0].pontos ? 5 : p>=R.faixas[1].pontos ? 3 : p>=R.faixas[2].pontos ? 2 : 0; // cor da faixa do ponto
 
+/* realce em cruz nas tabelas: destaca a linha e a coluna sob o mouse */
+function ligarCruz(cab, ...corpos){
+  const base = $(cab).closest('.panel');
+  const indice = (cel)=>{
+    const pai = cel.parentNode;
+    if(pai.classList.contains('trow')) return [...pai.children].indexOf(cel);
+    const g = parseInt(cel.style.gridColumn); // cabeçalho: a coluna vem do grid-column
+    return cel.classList.contains('gh') || !g ? -1 : g - 1; // o rótulo do grupo cobre várias colunas
+  };
+  const limpar = ()=> base.querySelectorAll('.cl').forEach(e=>e.classList.remove('cl'));
+  base.addEventListener('mouseover', (e)=>{
+    const cel = e.target.closest('.trow > div, #' + cab + ' > div');
+    limpar();
+    const n = cel ? indice(cel) : -1;
+    if(n < 0) return;
+    corpos.forEach(id=>{ const c = $(id); if(c) c.querySelectorAll('.trow').forEach(l=>{ const x = l.children[n]; if(x) x.classList.add('cl'); }); });
+    [...$(cab).children].forEach(x=>{ if(indice(x) === n) x.classList.add('cl'); });
+  });
+  base.addEventListener('mouseleave', limpar);
+}
+['thead|rows', 'sthead|srows', 'ethead|etrows|ettot'].forEach(s=>ligarCruz(...s.split('|')));
+
 /* palco ajustado à janela */
 function fit(){ const s=Math.min(innerWidth/1920, innerHeight/720), sg=$('stage'); sg.style.setProperty('--s', s); sg.style.width=(innerWidth/s)+'px'; sg.style.height=(innerHeight/s)+'px'; sg.classList.toggle('short', innerHeight/s<1000); }
 fit();
@@ -1460,10 +1490,10 @@ function renderEstrat(){
     return `<div class="trow ${cls||''}" style="grid-template-columns:${GRID}">${c}</div>`;
   };
   $('ettitulo').textContent = `Gerências · todos os itens · Mista e Segmentada`;
-  $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`;
-  $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('') + linhaEst('TOTAL', tot, 'gtot');
-  $('etnota').innerHTML = `A linha TOTAL soma todas as gerências. Pilar sem meta ou sem real na rota fica fora da soma`
-    + (DADOS.semCanal.length ? `; ${DADOS.semCanal.length} rotas sem canal não entram` : '') + `.`;
+  $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`
+    + (DADOS.semCanal.length ? `<span><b>${DADOS.semCanal.length}</b>sem canal</span>` : '');
+  $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('');
+  $('ettot').innerHTML = linhaEst('TOTAL', tot, 'gtot');
 }
 
 /* ---------- confrontos entre supervisores ---------- */
