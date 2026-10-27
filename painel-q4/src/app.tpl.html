@@ -261,7 +261,7 @@ button{background:none;border:0;cursor:pointer}
 .trow.gtot{background:rgba(255,255,255,.10);font-weight:600;border-top:2px solid rgba(255,255,255,.3)}
 .trow.gtot .rt{font-weight:700}
 .etnota{font-size:15px;font-weight:500;color:var(--muted);line-height:1.35}
-#etrows{overflow-y:auto}
+#etrows{flex:0 1 auto;overflow-y:auto}   /* encolhe até o conteúdo: a linha TOTAL fica colada na última gerência */
 .ettot{flex:none}
 /* realce em cruz: a linha sai do :hover, a coluna da classe .cl posta pelo mouse */
 .trow>div.cl{background:rgba(255,255,255,.09)}
@@ -765,9 +765,13 @@ function renderRank(){
 }
 
 /* ---------- estratégicos: gerências x todos os itens, Mista e Segmentada juntas ---------- */
+/* Refri Single fica fora do Estratégicos: já está dentro da coluna % Refri. */
+const FORA_ESTRAT = ['Volume Refri Single'];
 function itensEstrat(){
   const out = [];
-  ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(p.tipo==='volume' && !out.some(x=>x.nome===p.nome)) out.push(p); }));
+  ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{
+    if(p.tipo==='volume' && !FORA_ESTRAT.includes(p.nome) && !out.some(x=>x.nome===p.nome)) out.push(p);
+  }));
   return out;
 }
 /* Mesmas colunas das abas Rota e Supervisão: Meta, M. dia, Real, Hoje, Dif e %. */

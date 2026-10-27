@@ -11,9 +11,9 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
 - **Supervisão:** mesma estrutura por supervisor (soma das rotas da mesa, provisório).
 - **Estratégicos:** uma linha por gerência com as mesmas colunas das abas Rota e Supervisão (Meta, M. dia, Real, Hoje,
-  Diferença e %) para **todos os itens** dos dois canais juntos, mais o % da categoria Refrigerantes. A linha
-  **TOTAL** da empresa fica fixa no rodapé da tabela, sempre visível: as gerências rolam, o total não. É a tabela
-  mais larga do painel (32 colunas).
+  Diferença e %) para os itens dos dois canais juntos, mais o % da categoria Refrigerantes. **Refri Single fica de
+  fora**, por já estar dentro da coluna % Refri. A linha **TOTAL** da empresa vem logo depois da última gerência e
+  continua visível quando as gerências precisam rolar. É a tabela mais larga do painel (26 colunas).
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Os cards do topo trazem os cinco pilares
