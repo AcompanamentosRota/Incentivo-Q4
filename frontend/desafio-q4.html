@@ -204,10 +204,12 @@ button{background:none;border:0;cursor:pointer}
 .th{display:grid;flex:none;grid-template-rows:34px 28px;border-bottom:2px solid rgba(255,255,255,.3)}
 .hh{grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:calc(var(--tf) + 1px);font-weight:600;line-height:1.15;background:rgba(255,255,255,.05);text-align:center;padding:0 4px}
 .hh small{font-size:calc(var(--tf) - 2px);font-weight:500;color:var(--muted)}.hh small.am{color:#ffd978}
-.hh.lf{align-items:flex-start;padding-left:10px}
+.hh.lf{align-items:flex-start;padding-left:8px}   /* mesmo recuo de .trow .rt e .trow .stc */
+.hh.rh{align-items:flex-end;padding-right:4px}    /* cabeçalho sobre valor alinhado à direita */
 .gh{grid-row:1;display:flex;align-items:center;justify-content:center;background:var(--gc);color:var(--gf,#fff);font-size:calc(var(--tf) - 1px);font-weight:600;letter-spacing:.06em;border-left:1px solid rgba(0,0,0,.35)}
 .sl{grid-row:2;display:flex;align-items:center;justify-content:flex-end;padding:0 4px;font-size:calc(var(--tf) - 1px);font-weight:600;color:#e4e6ea;background:var(--gt)}
 .sl.c{justify-content:center;padding:0}
+.sl.pq{padding-right:8px}                         /* 4px da célula + 4px do quadro do % */
 .gs{border-left:1px solid rgba(255,255,255,.22)}
 .trow{display:grid;height:32px;flex:none;align-items:stretch;border-bottom:1px solid rgba(255,255,255,.08);font-size:var(--tf);font-weight:500}
 .trow.tot{background:rgba(34,177,76,.14)}.trow.bat{background:rgba(255,200,74,.10)}
@@ -306,8 +308,8 @@ button{background:none;border:0;cursor:pointer}
       <div class="seg" role="tablist" aria-label="Seções">
         <button role="tab" id="tab-ranking" aria-selected="true">Rota</button>
         <button role="tab" id="tab-sup" aria-selected="false">Supervisão</button>
-        <button role="tab" id="tab-rank" aria-selected="false">Ranking</button>
         <button role="tab" id="tab-estrat" aria-selected="false">Estratégicos</button>
+        <button role="tab" id="tab-rank" aria-selected="false">Ranking</button>
         <button role="tab" id="tab-detalhe" aria-selected="false">Detalhe</button>
         <button role="tab" id="tab-regras" aria-selected="false">Regras</button>
       </div>
@@ -1227,13 +1229,13 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   cols.push({ textos:['Total','mín. '+min,'999'] });
   cols.push({ textos:['Bateu, mas não está no total'], flex:true });
   GRID = ajustarGrid(cols, alvo, alvo+'|'+st.canal, grupos);
-  let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
+  let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh rh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
   let col = 4;
   pil.forEach(pl=>{
     const g=grupo(pl.nome), comp=compacta(pl), n=comp?2:7;
     h += `<div class="gh ${g}" style="grid-column:${col} / span ${n}">${esc(rotuloPilar(pl.nome))}</div>`;
     const labs = comp ? ['%','Pts'] : ['Meta','M. dia','Real','Hoje','Dif','%','Pts'];
-    labs.forEach((l,i)=>{ const ctr = l==='Pts'; h += `<div class="sl ${g} ${ctr?'c':''} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
+    labs.forEach((l,i)=>{ const ctr = l==='Pts'; h += `<div class="sl ${g} ${ctr?'c':''} ${l==='%'?'pq':''} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
     col += n;
   });
   h += `<div class="hh" style="grid-column:${col}">Total<small>mín. ${min}</small></div><div class="hh lf" style="grid-column:${col+1}">Status</div>`;
@@ -1473,7 +1475,7 @@ function renderEstrat(){
     COLS_EST.forEach((l,i)=>{ h += `<div class="sl ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
     col += COLS_EST.length;
   });
-  h += `<div class="hh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
+  h += `<div class="hh rh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
   $('ethead').style.gridTemplateColumns = GRID;
   $('ethead').innerHTML = h;
   const linhaEst = (nome, d, cls)=>{
@@ -1536,7 +1538,7 @@ function renderConfrontos(){
 }
 
 /* ---------- abas ---------- */
-const ABAS = ['ranking','sup','rank','estrat','detalhe','regras','confrontos'];
+const ABAS = ['ranking','sup','estrat','rank','detalhe','regras','confrontos'];
 const SEM_FILTRO = ['regras','estrat','confrontos'];   // telas que não usam a barra de filtros
 const SEM_ROTA = ['sup','rank'];                        // telas sem filtro de supervisão nem busca por rota
 function setTab(t){
