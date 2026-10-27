@@ -13,10 +13,10 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
 - **Estratégicos:** uma linha por gerência com as mesmas colunas das abas Rota e Supervisão (Meta, M. dia, Real, Hoje,
-  Diferença e %) para **todos os itens** dos dois canais juntos, mais a soma dos pilares e o % da categoria
-  Refrigerantes, fechando com o total da empresa. É a tabela mais densa do painel (38 colunas), por isso costuma ficar
-  no menor corpo de fonte.
-- **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar.
+  Diferença e %) para **todos os itens** dos dois canais juntos, mais o % da categoria Refrigerantes, e a linha
+  **TOTAL** da empresa em destaque no fim. É a tabela mais larga do painel (32 colunas).
+- **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Os cards do topo trazem os cinco pilares
+  e mais um de **Refrigerantes**, com o gatilho do mês.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
 - **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês, com o % de cada lado, o vencedor e o
   bônus, ou o motivo quando o confronto não vale.
@@ -24,8 +24,14 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre, e **todas as linhas são numeradas**; só o
 status, a posição oficial e a premiação dependem do gatilho de Refrigerantes (quem está fora aparece em cinza).
 
-Os volumes aparecem sempre com **uma casa decimal**. Nas tabelas de Rota e Supervisão a largura de cada coluna é medida
-pelo maior valor que ela recebe, e o painel usa o maior corpo de fonte (16 a 10 px) em que tudo ainda cabe na tela.
+Os volumes aparecem sempre com **uma casa decimal**. Nas tabelas de Rota, Supervisão e Estratégicos a largura de cada
+coluna é medida pelo maior valor que ela recebe, e o painel usa o maior corpo de fonte (16 a 10 px) em que tudo ainda
+cabe na tela.
+
+**Cores das faixas de pontos** (valem no chip de Pts, na barra dos cards e no quadro do %): **azul** em 105% ou mais
+(5 pontos), **amarelo** de 100% a 104,99% (3 pontos), **vermelho fechado** de 90% a 99,99% (2 pontos) e cinza abaixo
+disso (0). O quadro do % usa a mesma cor da faixa, bem mais apagada, para o chip de Pts continuar sendo o destaque da
+linha. Diferença negativa aparece em vermelho e positiva em verde.
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de

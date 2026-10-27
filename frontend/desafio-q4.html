@@ -93,9 +93,15 @@ button{background:none;border:0;cursor:pointer}
 .pv.low{color:#b4b9c4}.pv.na{font-size:17px;font-weight:600;color:var(--muted)}
 .bar{display:block;width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
 .bar b{display:block;height:100%}
-.bar .t0{background:#7b8090}.bar .t2{background:#8fb8ff}.bar .t3{background:#1d7bff}.bar .t5{background:var(--gold)}
+.bar .t0{background:#7b8090}.bar .t2{background:#c22840}.bar .t3{background:var(--gold)}.bar .t5{background:var(--blue)}
 .chip{min-width:28px;text-align:center;border-radius:7px;font-size:16px;font-weight:600;padding:1px 6px;line-height:22px}
-.chip.t0{background:#2a2d36;color:#d5d8df}.chip.t2{background:#17366f;color:#d6e5ff}.chip.t3{background:var(--blue);color:#fff}.chip.t5{background:var(--gold);color:#3a2800}
+.chip.t0{background:#2a2d36;color:#d5d8df}.chip.t2{background:#8a0f22;color:#ffd0d8}.chip.t3{background:var(--gold);color:#3a2800}.chip.t5{background:var(--blue);color:#fff}
+/* quadro do %: a mesma faixa do Pts, com a cor bem mais apagada */
+.pchip{display:inline-block;border-radius:5px;padding:0 4px;font-weight:600}
+.pchip.t0{background:rgba(154,160,173,.16);color:#cfd3db}
+.pchip.t2{background:rgba(194,40,64,.28);color:#ffc2cc}
+.pchip.t3{background:rgba(255,200,74,.20);color:#ffdf9e}
+.pchip.t5{background:rgba(29,123,255,.30);color:#bcd9ff}
 .pts{text-align:right;font-weight:600;font-size:28px;letter-spacing:-.01em}
 .pts.dash{color:#9aa0ad}
 .st{display:flex;flex-direction:column;justify-content:center;gap:2px}
@@ -158,7 +164,8 @@ button{background:none;border:0;cursor:pointer}
 .rbtn svg{opacity:.55;flex:none}.rbtn:hover svg,.rbtn:focus-visible svg{opacity:1}
 .dh{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between}
 .dh b{font-size:30px;font-weight:700}.dh span{font-size:21px;font-weight:600;color:var(--muted)}.dh span b{font-size:26px;color:#fff;margin:0 8px}
-.cards{height:232px;flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px}
+.cards{height:232px;flex:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.card.rfc{border-color:rgba(255,200,74,.55)}
 .card{background:var(--panel);border:1.5px solid rgba(228,0,43,.45);border-radius:18px;padding:14px 20px;display:flex;flex-direction:column;box-shadow:0 12px 34px rgba(0,0,0,.45)}
 .card .n{display:flex;align-items:baseline;justify-content:space-between;font-size:24px;font-weight:600}
 .card .n small{font-size:16px;font-weight:600;color:var(--muted)}
@@ -222,6 +229,10 @@ button{background:none;border:0;cursor:pointer}
 .trow .stc .pill{align-self:center}
 .trow>div{padding:0 4px}.trow .stc .pill{font-size:calc(var(--tf) - 1px);line-height:15px;padding:2px 8px 2px 6px;white-space:normal}.trow .stc .pill svg{flex:none}.trow .stc .pill.no{padding:2px 12px}.trow .stc .pill.no,.trow .stc .pill{line-height:17px}
 .trow .stc .pill{line-height:16px;padding:1px 8px 1px 6px}.trow .stc .pill.no{padding:1px 12px}
+.trow .pchip{line-height:18px}
+.trow.gtot{border-top:2px solid rgba(255,255,255,.42);border-bottom:0}
+.trow.gtot>div{background:rgba(29,123,255,.16);font-weight:600}
+.trow.gtot .rt{font-weight:700;font-size:calc(var(--tf) + 1px);letter-spacing:.03em}
 .grow{height:32px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;background:rgba(255,255,255,.09);border-bottom:1px solid rgba(255,255,255,.14);font-size:calc(var(--tf) + 3px);font-weight:600}.grow span{font-size:var(--tf);font-weight:500;color:var(--muted)}
 .dd{overflow:auto}
 /* botao de atalho ao lado das abas (Confrontos) */
@@ -1174,11 +1185,11 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   cols.push({ textos:['% Refri','mín. '+R.gatilhoVolumePct+'%','100,0%'] });
   pil.forEach(pl=>{
     const a = ex[pl.nome], ini = cols.length;
-    if(compacta(pl)){ cols.push({ textos:['%','100,0%'] }); cols.push({ fixa:32 }); }
+    if(compacta(pl)){ cols.push({ textos:['%','100,0%'], extra:9 }); cols.push({ fixa:32 }); }
     else {
       [['Meta',a.meta],['M. dia',a.mdia],['Real',a.real],['Hoje',a.hoje]].forEach(([lab,v])=> cols.push({ textos:[lab, numF(v)] }));
       cols.push({ textos:['Dif', sgn(-a.dif)] });
-      cols.push({ textos:['%', M.fmtPct(a.pct || 100)] });
+      cols.push({ textos:['%', M.fmtPct(a.pct || 100)], extra:9 });
       cols.push({ fixa:32 });
     }
     grupos.push({ ini, fim: cols.length-1, textos:[rotuloPilar(pl.nome)] });
@@ -1208,12 +1219,12 @@ function celulas(r){
   const inf = r.cargo==='RT' ? INFO[r.id] : null, pil = pilaresDo(r.canal); let h='';
   ordemTela(r.pilares).forEach(p=>{
     const g=grupo(p.nome), pl = pil.find(x=>x.nome===p.nome);
-    if(compacta(pl)){ h += `<div class="${g} n b gs">100,0%</div><div class="${g} c">${chip(p.pontos, tier(p.pontos))}</div>`; return; }
+    if(compacta(pl)){ h += `<div class="${g} n gs"><span class="pchip t${tier(p.pontos)}">100,0%</span></div><div class="${g} c">${chip(p.pontos, tier(p.pontos))}</div>`; return; }
     const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO, ok = p.pct!==null;
     const mot = p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
-    const dc = !ok ? '' : p.diferenca<0 ? 'color:#b4b9c4' : 'color:#7dffa0';
+    const dc = !ok ? '' : p.diferenca<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
     h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div><div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div><div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
-       + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n b" style="${ok&&p.pct<R.faixas[2].min?'color:#b4b9c4':''}">${ok?p.pctTexto:'<span class="na">'+mot+'</span>'}</div>`
+       + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n">${ok?`<span class="pchip t${tier(p.pontos)}">${p.pctTexto}</span>`:'<span class="na">'+mot+'</span>'}</div>`
        + `<div class="${g} c">${chip(ok?p.pontos:'-', ok?tier(p.pontos):0)}</div>`;
   });
   return h;
@@ -1294,7 +1305,17 @@ function renderDetalhe(){
   const agg = (get)=>{ let m=0,r=0,o=0; sc.forEach(p=>{ const x=get(p); if(x && x.pct!==null){ m+=x.meta; r+=x.real; o+=x.online; } }); return {m,r,o,pct:m>0?(r+o)/m*100:null,tf:m>0?M.faixaPontos(r+o,m):0}; };
   const dia = (fonte)=>{ let s=0,any=false; sc.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
   const ar = agg(p=>p.refri);
-  $('dsub').innerHTML = `Refrigerantes do grupo<b>${ar.pct===null?'-':M.fmtPct(ar.pct)}</b>${REFRI_CAT?'':'<span class="tag">provisório</span>'}`;
+  const diaRfGrupo = (()=>{ let s=0,any=false; sc.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
+  $('dsub').innerHTML = REFRI_CAT ? '' : `Refrigerantes<span class="tag">provisório</span>`;
+  const cardRefri = (()=>{
+    const bate = ar.pct!==null && ar.pct>=R.gatilhoVolumePct;
+    const w = ar.pct===null ? 0 : Math.min(100, ar.pct/R.gatilhoVolumePct*100).toFixed(0);
+    return `<div class="card rfc"><div class="n">Refrigerantes<small>gatilho ${R.gatilhoVolumePct}%</small></div>`
+      + `<div class="big"${bate?' style="color:#7dffa0"':''}>${ar.pct===null?'-':M.fmtPct(ar.pct)}</div>`
+      + `<i class="bar"><b class="${bate?'t5':'t2'}" style="width:${w}%"></b></i>`
+      + `<div class="mg"><div><small>Meta</small><b>${numF(ar.m)}</b></div><div><small>Real</small><b>${numF(ar.r)}</b></div>`
+      + `<div><small>Online</small><b>${numF(ar.o)}</b></div><div><small>Meta dia</small><b>${diaRfGrupo}</b></div></div></div>`;
+  })();
   $('cards').innerHTML = pil.map((pl,i)=>{
     const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
     if(pl.tipo==='missao') return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
@@ -1302,7 +1323,7 @@ function renderDetalhe(){
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
       <div class="mg"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div><div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div></div></div>`;
-  }).join('');
+  }).join('') + cardRefri;
   if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
   $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
     return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${inf.sub?' · Seg. '+esc(inf.sub):''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
@@ -1324,7 +1345,6 @@ function renderDetalhe(){
   const diaDe = (fonte)=>{ const v=inf.v[fonte]; return v && v[4]!=null ? numF(v[4]) : '–'; };
   const diaRf = (()=>{ let s=0,any=false; REFRI_COMP.forEach(g=>{ const v=inf.v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; })();
   $('ddet').innerHTML = `<div class="sumr">
-    <div class="s"><small>${esc(r.nome)} · ${esc(inf.sv)}</small><b>${r.volume.pctTexto}</b> <span class="micro">Refrigerantes${REFRI_CAT?'':' <span style="color:#ffd978">provisório</span>'}</span></div>
     <div class="s"><small>Pontos no mês</small><b>${r.pontosAtuaisExibidos}</b></div>
     <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
     <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
@@ -1378,8 +1398,7 @@ function itensEstrat(){
 const COLS_EST = ['Meta','M. dia','Real','Hoje','Dif','%'];
 function renderEstrat(){
   const itens = itensEstrat();
-  const blocos = itens.map(p=>({ chave:fonteDe(p.nome), rot:rotuloPilar(p.nome), g:grupo(p.nome) }))
-                      .concat([{ chave:'__soma__', rot:'TOTAL', g:'g0' }]);
+  const blocos = itens.map(p=>({ chave:fonteDe(p.nome), rot:rotuloPilar(p.nome), g:grupo(p.nome) }));
   const chaves = blocos.map(b=>b.chave).concat(['__refri__']);
   const novo = ()=>{ const o={}; chaves.forEach(k=>{ o[k]={meta:0,mdia:0,real:0,online:0,temMdia:false}; }); return o; };
   const gcs = [...new Set(DADOS.rotas.map(r=>r.gc))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
@@ -1393,8 +1412,7 @@ function renderEstrat(){
     itens.forEach((pl,i)=>{
       const v = r.v[blocos[i].chave] || VAZIO;
       if(!(v[0]>0) || v[1]===null) return; // sem meta ou sem real fica fora da soma, como no resto do painel
-      soma(a, blocos[i].chave, v); soma(a, '__soma__', v);
-      soma(tot, blocos[i].chave, v); soma(tot, '__soma__', v);
+      soma(a, blocos[i].chave, v); soma(tot, blocos[i].chave, v);
     });
     REFRI_COMP.forEach(ag=>{
       const v = r.v[ag] || VAZIO;
@@ -1432,7 +1450,7 @@ function renderEstrat(){
     let c = `<div class="rt">${esc(nome)}</div>`;
     blocos.forEach(b=>{
       const v = celulas(d, b), dif = difDe(d[b.chave]);
-      const cor = pctDe(d[b.chave])===null ? '' : dif<0 ? 'color:#b4b9c4' : 'color:#7dffa0';
+      const cor = pctDe(d[b.chave])===null ? '' : dif<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
       c += `<div class="${b.g} n gs">${v[0]}</div><div class="${b.g} n m">${v[1]}</div><div class="${b.g} n">${v[2]}</div>`
          + `<div class="${b.g} n m">${v[3]}</div><div class="${b.g} n" style="${cor}">${v[4]}</div>`
          + `<div class="${b.g} n b">${v[5]}</div>`;
@@ -1444,9 +1462,7 @@ function renderEstrat(){
   $('ettitulo').textContent = `Gerências · todos os itens · Mista e Segmentada`;
   $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`;
   $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('') + linhaEst('TOTAL', tot, 'gtot');
-  $('etnota').innerHTML = `Mesmas medidas das abas Rota e Supervisão: Real é o faturado do mês, Hoje são os pedidos ainda não faturados, `
-    + `e Diferença e % usam Real + Hoje. TOTAL é a soma dos pilares acima; a categoria Refrigerantes (gatilho de ${R.gatilhoVolumePct}%) fica fora `
-    + `dessa soma, porque já contém Retornáveis, Refri Single e parte de Sabores. Pilar sem meta ou sem real na rota fica fora da soma`
+  $('etnota').innerHTML = `A linha TOTAL soma todas as gerências. Pilar sem meta ou sem real na rota fica fora da soma`
     + (DADOS.semCanal.length ? `; ${DADOS.semCanal.length} rotas sem canal não entram` : '') + `.`;
 }
 
