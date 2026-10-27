@@ -70,10 +70,11 @@
     const t = truncar1(pct);
     return t === null ? '-' : t.toFixed(1).replace('.', ',') + '%';
   }
+  /** Volume para exibição: sempre com 1 casa decimal e ponto de milhar. */
   function fmtVolume(v) {
     if (v === null || v === undefined) return '-';
-    const s = String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return s;
+    const [i, d] = Math.abs(v).toFixed(1).split('.');
+    return (v < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d;
   }
 
   // ───────────────────────── pilar ─────────────────────────

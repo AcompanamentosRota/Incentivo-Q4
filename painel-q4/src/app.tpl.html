@@ -10,9 +10,12 @@
   --red:#E4002B; --red2:#ff1f45; --blue:#1d7bff; --blued:#0a2a6e; --gold:#ffc84a;
   --green:#22b14c; --greend:#0d5a24; --panel:rgba(14,12,16,.88); --line:rgba(255,255,255,.12);
   --muted:#b9bcc4; --ink:#ffffff;
+  /* Inter em todo o painel, com reserva na fonte do sistema. --tf e o corpo das tabelas de
+     acompanhamento: o JS escolhe o maior tamanho em que as colunas ainda cabem na tela. */
+  --ff:Inter,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif; --tf:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#000;color:var(--ink);overflow:hidden;font-family:Barlow,'Arial Narrow',Arial,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+html,body{height:100%;background:#000;color:var(--ink);overflow:hidden;font-family:var(--ff);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 button{background:none;border:0;cursor:pointer}
 :focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
@@ -40,12 +43,12 @@ button{background:none;border:0;cursor:pointer}
 .ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:26px;letter-spacing:.14em;text-transform:uppercase}
 .info{position:absolute;right:60px;top:34px;text-align:right;line-height:1.1}
 .info small{display:block;font-size:16px;font-weight:600;color:var(--muted);letter-spacing:.04em}
-.info b{display:block;font-size:30px;font-weight:700;margin-bottom:10px}
+.info b{display:block;font-size:30px;font-weight:600;margin-bottom:10px}
 
 /* navegação */
 .nav{position:absolute;left:60px;right:60px;top:170px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
 .seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px}
-.seg button{padding:4px 18px;border-radius:999px;font-size:17px;font-weight:700;color:var(--muted);min-height:32px}
+.seg button{padding:4px 15px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted);min-height:32px}
 .seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(228,0,43,.5)}
 .seg button:not([aria-pressed="true"]):not([aria-selected="true"]):hover{color:#fff}
 .nav .grp{display:flex;align-items:center;gap:10px}
@@ -62,46 +65,46 @@ button{background:none;border:0;cursor:pointer}
 .kpis{display:flex;gap:0;height:58px;align-items:center}
 .kpi{display:flex;align-items:baseline;gap:12px;padding:0 34px;border-left:1px solid var(--line)}
 .kpi:first-child{padding-left:4px;border-left:0}
-.kpi b{font-family:Anton;font-weight:400;font-size:42px;line-height:1;letter-spacing:.02em}
+.kpi b{font-weight:600;font-size:38px;line-height:1;letter-spacing:-.01em}
 .kpi span{font-size:20px;font-weight:600;color:var(--muted);line-height:1.1}
 .kpi.g b{color:#7dffa0}.kpi.o b{color:var(--gold)}
 .panel{flex:1;min-height:0;background:var(--panel);border:1.5px solid rgba(228,0,43,.55);border-radius:22px;box-shadow:0 0 0 1px rgba(255,255,255,.04),0 18px 50px rgba(0,0,0,.5),0 0 40px rgba(228,0,43,.14);display:flex;flex-direction:column;overflow:hidden}
 .ptitle{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);font-size:22px;font-weight:700}
 .tag{display:inline-flex;align-items:center;gap:8px;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;font-size:17px;font-weight:600;padding:2px 12px}
 .cols{display:grid;grid-template-columns:80px 250px 170px repeat(5,148px) 120px 1fr;align-items:center}
-.thead{height:50px;flex:none;border-bottom:2px solid rgba(255,255,255,.22);font-size:17px;font-weight:700;color:#d8dbe2;line-height:1.1;background:rgba(255,255,255,.03)}
+.thead{height:50px;flex:none;border-bottom:2px solid rgba(255,255,255,.22);font-size:17px;font-weight:600;color:#d8dbe2;line-height:1.15;background:rgba(255,255,255,.03)}
 .thead>div{padding:0 10px}
 .thead .c{text-align:center}.thead .rt{text-align:right}
 .thead small{display:block;font-size:14px;font-weight:600;color:var(--muted)}
 .thead small.am{color:#ffd978}
 .rows{flex:1;min-height:0;overflow:hidden}
-.row{height:56px;border-bottom:1px solid rgba(255,255,255,.08);font-size:24px;font-weight:600}
+.row{height:56px;border-bottom:1px solid rgba(255,255,255,.08);font-size:24px;font-weight:500}
 .row.tot{background:rgba(34,177,76,.12)}.row.bat{background:rgba(255,200,74,.09)}
 .row>div{padding:0 10px}
-.pos{text-align:center;font-weight:800;font-size:26px}
-.rota b{display:block;font-weight:700;line-height:1.05}
+.pos{text-align:center;font-weight:600;font-size:22px}
+.rota b{display:block;font-weight:600;line-height:1.1}
 .rota small{display:block;font-size:16px;font-weight:500;color:var(--muted);line-height:1.1}
-.refri{text-align:right;font-weight:700}
+.refri{text-align:right;font-weight:600}
 .pc{display:flex;align-items:center;justify-content:center;gap:8px;padding:0 4px}
 .pv-wrap{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
-.pv{font-size:22px;font-weight:700;line-height:1}
+.pv{font-size:22px;font-weight:600;line-height:1}
 .pv.low{color:#b4b9c4}.pv.na{font-size:17px;font-weight:600;color:var(--muted)}
 .bar{display:block;width:70px;height:5px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
 .bar b{display:block;height:100%}
 .bar .t0{background:#7b8090}.bar .t2{background:#8fb8ff}.bar .t3{background:#1d7bff}.bar .t5{background:var(--gold)}
-.chip{min-width:28px;text-align:center;border-radius:7px;font-size:17px;font-weight:800;padding:1px 6px;line-height:22px}
+.chip{min-width:28px;text-align:center;border-radius:7px;font-size:16px;font-weight:600;padding:1px 6px;line-height:22px}
 .chip.t0{background:#2a2d36;color:#d5d8df}.chip.t2{background:#17366f;color:#d6e5ff}.chip.t3{background:var(--blue);color:#fff}.chip.t5{background:var(--gold);color:#3a2800}
-.pts{text-align:right;font-family:Anton;font-weight:400;font-size:32px;letter-spacing:.02em}
+.pts{text-align:right;font-weight:600;font-size:28px;letter-spacing:-.01em}
 .pts.dash{color:#9aa0ad}
 .st{display:flex;flex-direction:column;justify-content:center;gap:2px}
-.pill{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;border-radius:8px;font-size:19px;font-weight:700;line-height:24px;padding:0 12px 0 9px;border:1px solid}
+.pill{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;border-radius:8px;font-size:18px;font-weight:600;line-height:24px;padding:0 12px 0 9px;border:1px solid}
 .pill.tot{background:var(--greend);border-color:var(--green);color:#c4ffd3}
 .pill.bat{background:#4a3500;border-color:var(--gold);color:#ffe29a}
 .pill.no{background:#23262e;border-color:#454a56;color:#e4e6ea;padding:0 16px}
 .micro{font-size:16px;font-weight:500;color:var(--muted);line-height:1.1}
 .pager{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-top:1px solid var(--line);font-size:20px;color:var(--muted);font-weight:600}
 .pager .btns{display:flex;gap:6px}
-.pager button{min-width:44px;height:40px;border-radius:10px;font-size:20px;font-weight:700;color:#e4e6ea;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18)}
+.pager button{min-width:44px;height:40px;border-radius:10px;font-size:19px;font-weight:600;color:#e4e6ea;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18)}
 .pager button[aria-current="page"]{background:var(--red);border-color:var(--red);color:#fff}
 .pager button:disabled{opacity:.35;cursor:default}
 .vazio{padding:60px;text-align:center;font-size:26px;color:var(--muted)}
@@ -109,23 +112,26 @@ button{background:none;border:0;cursor:pointer}
 /* regras */
 .rg{flex:1;min-height:0;display:flex}
 .rg nav{width:300px;flex:none;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
-.rg nav button{text-align:left;padding:12px 18px;border-radius:12px;font-size:23px;font-weight:700;color:var(--muted);min-height:48px}
+.rg nav button{text-align:left;padding:12px 18px;border-radius:12px;font-size:21px;font-weight:600;color:var(--muted);min-height:48px}
 .rg nav button[aria-selected="true"]{background:rgba(228,0,43,.9);color:#fff}
 .rg nav button:not([aria-selected="true"]):hover{background:rgba(255,255,255,.07);color:#fff}
-.rg .bd{flex:1;min-width:0;overflow:auto;padding:26px 36px 30px;font-size:22px;line-height:1.35;font-weight:500;color:#e9ebef}
-.rg h2{font-family:Anton;font-weight:400;font-size:40px;letter-spacing:.02em;margin-bottom:6px}
-.rg h3{font-size:24px;font-weight:800;margin:22px 0 8px;color:#fff}
-.rg p{margin:8px 0;max-width:1180px;color:#dfe2e8}
-.rg .sub{color:var(--muted);font-size:20px;margin-bottom:12px}
+.rg .bd{flex:1;min-width:0;overflow:auto;padding:26px 36px 34px;font-size:21px;line-height:1.6;font-weight:400;color:#e9ebef}
+.rg h2{font-weight:700;font-size:32px;letter-spacing:-.02em;line-height:1.2;margin-bottom:10px}
+.rg h3{font-size:23px;font-weight:700;margin:28px 0 10px;color:#fff}
+.rg p{margin:12px 0;max-width:1180px;color:#dfe2e8}
+.rg .sub{color:var(--muted);font-size:19px;line-height:1.55;margin-bottom:16px;max-width:1180px}
 .rg table{border-collapse:collapse;width:100%;max-width:1300px;margin:10px 0 4px}
-.rg th{text-align:left;font-size:18px;font-weight:700;color:var(--muted);padding:8px 14px;border-bottom:2px solid rgba(255,255,255,.2)}
-.rg td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);vertical-align:top;font-size:21px}
-.rg td b{font-weight:800}
-.pend{display:inline-block;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:7px;font-size:16px;font-weight:700;padding:1px 10px}
-.okk{display:inline-block;background:var(--greend);color:#c4ffd3;border:1px solid var(--green);border-radius:7px;font-size:16px;font-weight:700;padding:1px 10px}
+.rg th{text-align:left;font-size:17px;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:2px solid rgba(255,255,255,.2)}
+.rg td{padding:14px;border-bottom:1px solid rgba(255,255,255,.1);vertical-align:top;font-size:20px;line-height:1.5;font-weight:400}
+.rg td b{font-weight:600}
+.pend{display:inline-block;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
+.okk{display:inline-block;background:var(--greend);color:#c4ffd3;border:1px solid var(--green);border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-.chips span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:2px 12px;font-size:19px;font-weight:600}
+.chips span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:3px 12px;font-size:18px;font-weight:500}
 .bd::-webkit-scrollbar{width:12px}.bd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:8px}
+.rows::-webkit-scrollbar,.rkl::-webkit-scrollbar,.dd::-webkit-scrollbar,.lr::-webkit-scrollbar{width:10px;height:10px}
+.rows::-webkit-scrollbar-thumb,.rkl::-webkit-scrollbar-thumb,.dd::-webkit-scrollbar-thumb,.lr::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}
+.rows::-webkit-scrollbar-track,.rkl::-webkit-scrollbar-track,.dd::-webkit-scrollbar-track,.lr::-webkit-scrollbar-track{background:transparent}
 [hidden]{display:none!important}
 .adm h3:first-of-type{margin-top:26px}
 .adm-form{display:flex;align-items:center;gap:14px;margin:20px 0}
@@ -133,7 +139,7 @@ button{background:none;border:0;cursor:pointer}
 .adm select option{background:#14121a;color:#fff}
 .adm input[type=number]{width:100px;text-align:right}
 .adm-form input{width:200px}
-.adm-btn{height:40px;padding:0 18px;border-radius:10px;font-size:19px;font-weight:700;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28)}
+.adm-btn{height:40px;padding:0 18px;border-radius:10px;font-size:18px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28)}
 .adm-btn.pri{background:var(--red);border-color:var(--red)}
 .adm-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 6px}
 .adm-linha{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:20px}
@@ -146,24 +152,24 @@ button{background:none;border:0;cursor:pointer}
 
 .foot{position:absolute;left:60px;right:60px;bottom:16px;font-size:17px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
 
-.rbtn{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:24px;text-align:left;padding:0;line-height:1.05;color:#fff;min-height:30px}
+.rbtn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:22px;text-align:left;padding:0;line-height:1.1;color:#fff;min-height:30px}
 .rbtn svg{opacity:.55;flex:none}.rbtn:hover svg,.rbtn:focus-visible svg{opacity:1}
 .dh{height:40px;flex:none;display:flex;align-items:center;justify-content:space-between}
-.dh b{font-size:30px;font-weight:800}.dh span{font-size:21px;font-weight:600;color:var(--muted)}.dh span b{font-size:26px;color:#fff;margin:0 8px}
+.dh b{font-size:30px;font-weight:700}.dh span{font-size:21px;font-weight:600;color:var(--muted)}.dh span b{font-size:26px;color:#fff;margin:0 8px}
 .cards{height:232px;flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px}
 .card{background:var(--panel);border:1.5px solid rgba(228,0,43,.45);border-radius:18px;padding:14px 20px;display:flex;flex-direction:column;box-shadow:0 12px 34px rgba(0,0,0,.45)}
-.card .n{display:flex;align-items:baseline;justify-content:space-between;font-size:25px;font-weight:800}
+.card .n{display:flex;align-items:baseline;justify-content:space-between;font-size:24px;font-weight:600}
 .card .n small{font-size:16px;font-weight:600;color:var(--muted)}
-.card .big{font-family:Anton;font-size:52px;line-height:1.12;letter-spacing:.02em}
+.card .big{font-weight:600;font-size:44px;line-height:1.12;letter-spacing:-.02em}
 .card .bar{width:100%;height:7px;margin:2px 0 10px}
 .card .txt{font-size:19px;font-weight:500;color:var(--muted);line-height:1.25}
 .mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
-.mg small{display:block;font-size:15px;font-weight:600;color:var(--muted)}.mg b{font-size:23px;font-weight:700}
+.mg small{display:block;font-size:15px;font-weight:500;color:var(--muted)}.mg b{font-size:21px;font-weight:500}
 .dsplit{flex:1;min-height:0;display:flex}
 .dlist{width:640px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.lh{height:38px;flex:none;display:grid;grid-template-columns:1fr 150px 230px;align-items:center;font-size:17px;font-weight:700;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03);padding:0 6px}
+.lh{height:38px;flex:none;display:grid;grid-template-columns:1fr 150px 230px;align-items:center;font-size:17px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03);padding:0 6px}
 .lr{overflow:auto;flex:1;min-height:0}
-.dl{display:grid;grid-template-columns:1fr 150px 230px;align-items:center;width:100%;height:52px;padding:0 6px;border-bottom:1px solid rgba(255,255,255,.08);font-size:22px;font-weight:600;text-align:left;color:#fff}
+.dl{display:grid;grid-template-columns:1fr 150px 230px;align-items:center;width:100%;height:52px;padding:0 6px;border-bottom:1px solid rgba(255,255,255,.08);font-size:21px;font-weight:500;text-align:left;color:#fff}
 .dl.on{background:rgba(228,0,43,.16);box-shadow:inset 0 0 0 2px var(--red)}
 .dl small{display:block;font-size:15px;font-weight:500;color:var(--muted)}
 .dl .pill{font-size:17px;line-height:22px}
@@ -171,10 +177,10 @@ button{background:none;border:0;cursor:pointer}
 .sumr{display:flex;align-items:center;height:74px;flex:none;padding:0 24px;border-bottom:1px solid var(--line)}
 .sumr .s{padding:0 30px;border-left:1px solid var(--line)}.sumr .s:first-child{padding-left:0;border:0}
 .sumr small{display:block;font-size:16px;font-weight:600;color:var(--muted)}
-.sumr b{font-family:Anton;font-weight:400;font-size:38px;line-height:1.1}
+.sumr b{font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.01em}
 .dcols{display:grid;grid-template-columns:200px 112px 112px 100px 112px 122px 110px 60px;align-items:center;padding:0 24px}
-.dt{height:38px;flex:none;font-size:17px;font-weight:700;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
-.dr{height:48px;flex:none;font-size:22px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
+.dt{height:38px;flex:none;font-size:17px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
+.dr{height:48px;flex:none;font-size:21px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.08)}
 .dr.rf{background:rgba(255,200,74,.06);border-top:2px solid rgba(255,255,255,.22)}
 .dcols .n{text-align:right}.dcols .c{text-align:center}
 .dcols small{display:block;font-size:14px;font-weight:600;color:var(--muted)}
@@ -185,37 +191,84 @@ button{background:none;border:0;cursor:pointer}
 .g3{--gc:#ffc84a;--gf:#3a2800;--gt:rgba(255,200,74,.09)}.g4{--gc:#1a5fd0;--gt:rgba(29,123,255,.10)}
 .g5{--gc:#6a3fc8;--gt:rgba(123,63,228,.11)}
 .tt{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);font-size:22px;font-weight:700}
-.kp{display:flex;gap:22px;font-size:18px;font-weight:600;color:var(--muted)}.kp b{font-family:Anton;font-weight:400;font-size:26px;color:#fff;margin-right:6px;letter-spacing:.02em}.kp .g b{color:#7dffa0}
-.th{display:grid;flex:none;grid-template-rows:38px 34px;border-bottom:2px solid rgba(255,255,255,.3)}
-.hh{grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:17px;font-weight:800;line-height:1.1;background:rgba(255,255,255,.05);text-align:center;padding:0 4px}
-.hh small{font-size:13px;font-weight:600;color:var(--muted)}.hh small.am{color:#ffd978}
+.kp{display:flex;gap:22px;font-size:18px;font-weight:600;color:var(--muted)}.kp b{font-weight:600;font-size:22px;color:#fff;margin-right:6px;letter-spacing:-.01em}.kp .g b{color:#7dffa0}
+.th{display:grid;flex:none;grid-template-rows:34px 28px;border-bottom:2px solid rgba(255,255,255,.3)}
+.hh{grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:calc(var(--tf) + 1px);font-weight:600;line-height:1.15;background:rgba(255,255,255,.05);text-align:center;padding:0 4px}
+.hh small{font-size:calc(var(--tf) - 2px);font-weight:500;color:var(--muted)}.hh small.am{color:#ffd978}
 .hh.lf{align-items:flex-start;padding-left:10px}
-.gh{grid-row:1;display:flex;align-items:center;justify-content:center;background:var(--gc);color:var(--gf,#fff);font-size:16px;font-weight:800;letter-spacing:.05em;border-left:1px solid rgba(0,0,0,.35)}
-.sl{grid-row:2;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:14px;font-weight:700;color:#e4e6ea;background:var(--gt)}
+.gh{grid-row:1;display:flex;align-items:center;justify-content:center;background:var(--gc);color:var(--gf,#fff);font-size:calc(var(--tf) - 1px);font-weight:600;letter-spacing:.06em;border-left:1px solid rgba(0,0,0,.35)}
+.sl{grid-row:2;display:flex;align-items:center;justify-content:flex-end;padding:0 4px;font-size:calc(var(--tf) - 1px);font-weight:600;color:#e4e6ea;background:var(--gt)}
 .sl.c{justify-content:center;padding:0}
 .gs{border-left:1px solid rgba(255,255,255,.22)}
-.trow{display:grid;height:36px;flex:none;align-items:stretch;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px;font-weight:600}
+.trow{display:grid;height:32px;flex:none;align-items:stretch;border-bottom:1px solid rgba(255,255,255,.08);font-size:var(--tf);font-weight:500}
 .trow.tot{background:rgba(34,177,76,.14)}.trow.bat{background:rgba(255,200,74,.10)}
 .trow>div{display:flex;align-items:center;justify-content:flex-end;padding:0 6px;min-width:0;white-space:nowrap}
 .trow>div[class^="g"]{background:var(--gt)}
 .trow .c{justify-content:center;padding:0}
-.trow .rk{justify-content:center;font-weight:800;font-size:19px;padding:0}
+.trow .rk{justify-content:center;font-weight:600;font-size:calc(var(--tf) + 1px);padding:0}
+.trow .rk.fora{font-weight:500;color:#8e939f}
 .trow .rt{justify-content:flex-start;padding-left:8px}
-.trow .rt .rbtn{font-size:19px;min-height:0;gap:3px}.trow .rt .rbtn svg{width:12px;height:12px}
-.trow .rf{font-weight:800;font-size:18px}.trow .rf.ok{color:#7dffa0}
-.trow .b{font-weight:800}.trow .m{color:var(--muted)}
-.trow .na{font-size:13px;font-weight:600;color:var(--muted)}
-.trow .tp{font-family:Anton;font-weight:400;font-size:24px;letter-spacing:.02em;justify-content:center;padding:0}.trow .tp.dash{color:#9aa0ad}
+.trow .rt .rbtn{font-size:calc(var(--tf) + 1px);font-weight:600;min-height:0;gap:3px}.trow .rt .rbtn svg{width:12px;height:12px}
+.trow .rf{font-weight:600;font-size:var(--tf)}.trow .rf.ok{color:#7dffa0}
+.trow .b{font-weight:600}.trow .m{color:var(--muted)}.trow .ok{color:#7dffa0}
+.trow .na{font-size:calc(var(--tf) - 2px);font-weight:500;color:var(--muted)}
+.trow .tp{font-weight:600;font-size:calc(var(--tf) + 4px);justify-content:center;padding:0}.trow .tp.dash{color:#9aa0ad}
 .trow .stc{justify-content:flex-start;padding-left:8px}
-.trow .chip{min-width:26px;padding:0 4px;font-size:16px;line-height:20px}
+.trow .chip{min-width:24px;padding:0 4px;font-size:calc(var(--tf) - 1px);line-height:18px}
 .trow .stc .pill{font-size:16px;line-height:22px;padding:0 10px 0 7px}
 .trow .stc .pill.no{padding:0 14px}
 .trow .stc .pill{align-self:center}
-.trow{font-size:16px}.trow>div{padding:0 4px}.sl{padding:0 4px;font-size:13px}.trow .stc .pill{font-size:15px;line-height:17px;padding:2px 8px 2px 6px;white-space:normal}.trow .stc .pill svg{flex:none}.trow .stc .pill.no{padding:2px 12px}.trow .stc .pill.no,.trow .stc .pill{line-height:17px}
+.trow>div{padding:0 4px}.trow .stc .pill{font-size:calc(var(--tf) - 1px);line-height:15px;padding:2px 8px 2px 6px;white-space:normal}.trow .stc .pill svg{flex:none}.trow .stc .pill.no{padding:2px 12px}.trow .stc .pill.no,.trow .stc .pill{line-height:17px}
 .trow .stc .pill{line-height:16px;padding:1px 8px 1px 6px}.trow .stc .pill.no{padding:1px 12px}
-.grow{height:36px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;background:rgba(255,255,255,.09);border-bottom:1px solid rgba(255,255,255,.14);font-size:19px;font-weight:800}.grow span{font-size:16px;font-weight:600;color:var(--muted)}
+.grow{height:32px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;background:rgba(255,255,255,.09);border-bottom:1px solid rgba(255,255,255,.14);font-size:calc(var(--tf) + 3px);font-weight:600}.grow span{font-size:var(--tf);font-weight:500;color:var(--muted)}
 .dd{overflow:auto}
-.short .cards{height:196px}.short .card{padding:10px 18px}.short .card .big{font-size:40px;line-height:1.05}.short .card .n{font-size:22px}.short .mg b{font-size:20px}.short .mg small{font-size:14px}.short .card .txt{font-size:17px}
+/* botao de atalho ao lado das abas (Confrontos) */
+.vsbtn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 15px;border-radius:999px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.06);font-size:16px;font-weight:600;color:#e4e6ea}
+.vsbtn[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 18px rgba(29,123,255,.45)}
+.vsbtn:not([aria-pressed="true"]):hover{color:#fff}
+
+/* ranking: duas listas lado a lado */
+.rk2{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rkh,.rkr{display:grid;grid-template-columns:54px minmax(0,1fr) 92px 62px minmax(148px,206px);align-items:center;padding:0 14px}
+.rkh{height:32px;flex:none;font-size:15px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
+.rkl{flex:1;min-height:0;overflow:auto}
+.rkr{height:34px;border-bottom:1px solid rgba(255,255,255,.08);font-size:16px;font-weight:500}
+.rkr.tot{background:rgba(34,177,76,.14)}.rkr.bat{background:rgba(255,200,74,.10)}
+.rkr .p{font-weight:600;font-size:17px}
+.rkr .p.fora,.rkr.fora .nm{color:#8e939f}
+.rkr .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;padding-right:10px}
+.rkr .nm small{font-weight:400;color:var(--muted);margin-left:8px}
+.rkh .v,.rkr .v,.rkh .pt,.rkr .pt{text-align:right;padding-right:12px}
+.rkr .pt{font-weight:600;font-size:18px}
+.rkr .pill{font-size:14px;line-height:15px;padding:2px 8px 2px 6px;white-space:normal}
+.rkcorte{height:24px;display:flex;align-items:center;padding:0 14px;font-size:14px;font-weight:600;letter-spacing:.04em;color:#ffd978;background:rgba(255,200,74,.10);border-top:1px solid rgba(255,200,74,.6);border-bottom:1px solid rgba(255,200,74,.6)}
+.rkvazio{padding:28px 14px;color:var(--muted);font-size:18px}
+
+/* estrategicos: linha de total da empresa */
+.trow.gtot{background:rgba(255,255,255,.10);font-weight:600;border-top:2px solid rgba(255,255,255,.3)}
+.trow.gtot .rt{font-weight:700}
+.etnota{font-size:15px;font-weight:500;color:var(--muted);line-height:1.35}
+
+/* confrontos */
+.cf{display:grid;grid-template-columns:54px 150px minmax(0,1fr) 92px 30px minmax(0,1fr) 92px minmax(180px,250px);align-items:center;padding:0 16px}
+.cfh{height:34px;flex:none;font-size:15px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
+.cfr{height:46px;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px;font-weight:500}
+.cfr .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.cfr .nm small{display:block;font-weight:400;font-size:14px;color:var(--muted)}
+.cf .v{text-align:right;padding-right:14px}
+.cfr .v{font-weight:600}
+.cf .x{text-align:center;color:var(--muted);font-weight:600}
+.cfr.ganhou-a .va,.cfr.ganhou-b .vb{color:#7dffa0}
+.cfr.invalido{background:rgba(255,255,255,.03);color:#9aa0ad}
+.cfr .mt{font-size:14px;font-weight:500;color:var(--muted);line-height:1.2}
+
+/* pendencias: responsaveis e estado separados da descricao */
+.rg table.pd td:first-child{width:46px;color:var(--muted);font-weight:600}
+.rg table.pd td:nth-child(2){padding-right:28px}
+.rg table.pd td:nth-child(3),.rg table.pd td:nth-child(4){width:1%;white-space:nowrap;vertical-align:middle;text-align:center;border-left:1px solid rgba(255,255,255,.14);color:var(--muted);font-size:17px}
+.rg table.pd th:nth-child(3),.rg table.pd th:nth-child(4){text-align:center;border-left:1px solid rgba(255,255,255,.14)}
+
+.short .cards{height:196px}.short .card{padding:10px 18px}.short .card .big{font-size:36px;line-height:1.05}.short .card .n{font-size:22px}.short .mg b{font-size:20px}.short .mg small{font-size:14px}.short .card .txt{font-size:17px}
 </style>
 </head>
 <body>
@@ -228,11 +281,16 @@ button{background:none;border:0;cursor:pointer}
   <div class="info"><small>Dados de</small><b id="corte"></b><small>Mês de referência</small><b id="mesref" style="margin-bottom:0"></b></div>
 
   <div class="nav">
-    <div class="seg" role="tablist" aria-label="Seções">
-      <button role="tab" id="tab-ranking" aria-selected="true">Rota</button>
-      <button role="tab" id="tab-sup" aria-selected="false">Supervisão</button>
-      <button role="tab" id="tab-detalhe" aria-selected="false">Detalhe</button>
-      <button role="tab" id="tab-regras" aria-selected="false">Regras</button>
+    <div class="grp">
+      <div class="seg" role="tablist" aria-label="Seções">
+        <button role="tab" id="tab-ranking" aria-selected="true">Rota</button>
+        <button role="tab" id="tab-sup" aria-selected="false">Supervisão</button>
+        <button role="tab" id="tab-rank" aria-selected="false">Ranking</button>
+        <button role="tab" id="tab-estrat" aria-selected="false">Estratégicos</button>
+        <button role="tab" id="tab-detalhe" aria-selected="false">Detalhe</button>
+        <button role="tab" id="tab-regras" aria-selected="false">Regras</button>
+      </div>
+      <button class="vsbtn" id="tab-confrontos" type="button" aria-pressed="false">Confrontos</button>
     </div>
     <div class="grp" id="filtros">
       <div class="seg" role="group" aria-label="Canal">
@@ -275,6 +333,39 @@ button{background:none;border:0;cursor:pointer}
     </div>
   </section>
 
+  <section class="view" id="v-rank" aria-label="Ranking">
+    <div class="rk2">
+      <div class="panel">
+        <div class="tt"><span id="rk-rt-tt"></span><span class="tag aj-tag" hidden style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff"></span></div>
+        <div class="rkh" id="rk-rt-h"></div>
+        <div class="rkl" id="rk-rt"></div>
+      </div>
+      <div class="panel">
+        <div class="tt"><span id="rk-sv-tt"></span></div>
+        <div class="rkh" id="rk-sv-h"></div>
+        <div class="rkl" id="rk-sv"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view wide" id="v-estrat" aria-label="Estratégicos: gerências por item">
+    <div class="panel">
+      <div class="tt"><span id="ettitulo"></span><span class="kp" id="etsub"></span></div>
+      <div class="th" id="ethead"></div>
+      <div class="rows" id="etrows"></div>
+      <div class="pager"><span class="etnota" id="etnota"></span></div>
+    </div>
+  </section>
+
+  <section class="view wide" id="v-confrontos" aria-label="Confrontos entre supervisores">
+    <div class="panel">
+      <div class="tt"><span id="cftitulo"></span><span class="kp" id="cfsub"></span></div>
+      <div class="cf cfh" id="cfhead"></div>
+      <div class="rows" id="cfrows" style="overflow:auto"></div>
+      <div class="pager"><span class="etnota" id="cfnota"></span></div>
+    </div>
+  </section>
+
   <section class="view" id="v-regras" aria-label="Regras e informações">
     <div class="panel"><div class="rg">
       <nav id="rgnav" role="tablist" aria-label="Tópicos das regras" aria-orientation="vertical"></nav>
@@ -299,12 +390,13 @@ const PADRAO = { regras: JSON.parse(JSON.stringify(R)), coringas: coringasDe(CON
 const AJ = await carregarAjustes();
 aplicarAjustes(AJ.ativo, CONFIG, R);
 const DADOS = await carregarDados(BASE_EMBUTIDA, CONFIG, AJ.ativo);
-const {entrada, notasRefri} = montarEntrada(DADOS, CONFIG);
+const {entrada, notasRefri} = montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
 const RES = M.calcular(entrada);
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
 if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
 let PAGE = 17;
-const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/36));
+const ALT_LINHA = 32;
+const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/ALT_LINHA));
 const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null };
 const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
 const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
@@ -333,23 +425,26 @@ if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; 
 function pilaresDo(canal){ return CONFIG.pilaresConfig.find(c=>c.mes===CONFIG.mes && c.canal===canal).pilares; }
 // ordem das colunas nas abas Rota e Supervisão: Missões Guiadas por último (a numeração dos pilares não muda)
 const ordemTela = (l)=> l.filter(p=>p.tipo!=='missao').concat(l.filter(p=>p.tipo==='missao'));
-function lista(){
-  const base = RTS.filter(p=>p.canal===st.canal);
-  base.sort((a,b)=>{
-    if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
-    if(a.elegivel) return a.posicao-b.posicao;
-    if(a.pontosMes!==b.pontosMes) return b.pontosMes-a.pontosMes; // fora do ranking: mais pontos primeiro
-    return (b.volume.pct??-1)-(a.volume.pct??-1) || (a.id<b.id?-1:1);
-  });
-  return base;
-}
+/* Ordem da tela: elegíveis na posição oficial e, depois, quem está fora do ranking por pontos.
+   A posição oficial (premiação) continua só para os elegíveis; posTela numera todas as linhas. */
+const ordenaRanking = (a,b)=>{
+  if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
+  if(a.elegivel) return a.posicao-b.posicao;
+  if(a.gatilhoPontos.valor!==b.gatilhoPontos.valor) return b.gatilhoPontos.valor-a.gatilhoPontos.valor;
+  return (b.volume.pct??-1)-(a.volume.pct??-1) || (a.id<b.id?-1:1);
+};
+['Mista','Segmentada'].forEach(c=>[RTS,SVS].forEach(arr=>{
+  arr.filter(p=>p.canal===c).sort(ordenaRanking).forEach((p,i)=>{ p.posTela = i+1; });
+}));
+function lista(){ return RTS.filter(p=>p.canal===st.canal).sort(ordenaRanking); }
 function escopo(){ return lista().filter(p=>(st.gc==='Todas'||p.unidade===st.gc) && (st.sv==='Todas'||INFO[p.id].sv===st.sv)); }
 function filtrada(){
   const b = st.busca.trim().toLowerCase();
   return escopo().filter(p=>!b || p.id.toLowerCase().includes(b));
 }
-const numF = (n)=> String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-const sgn = (n)=> n===0 ? '0' : (n<0?'-':'+') + numF(Math.abs(n));
+// todos os volumes aparecem com 1 casa decimal (mesmo formato do motor)
+const numF = (n)=> M.fmtVolume(n);
+const sgn = (n)=> n===0 ? '0,0' : (n<0?'-':'+') + numF(Math.abs(n));
 const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
@@ -364,21 +459,82 @@ function statusDe(r){
 const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
 const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
 const grupo = (nome)=> 'g'+(GCOL[nome] ?? 5); // g5: agrupador extra incluído pelo admin
+const rotuloPilar = (nome)=> nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase();
 const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(CONFIG.mes);
 let GRID = '';
-function gridCols(pil, sv){
-  const c=['44px',sv?'96px':'68px',sv?'70px':'72px'];
-  pil.forEach(pl=>{ if(compacta(pl)) c.push('58px','34px'); else c.push('52px','52px','52px','36px','58px','58px','32px'); });
-  c.push('52px','minmax(170px,1fr)'); return c.join(' ');
+/* Largura real de um texto com a fonte das tabelas, para dimensionar cada coluna pelo maior valor que ela recebe. */
+const REG = document.createElement('div');
+REG.setAttribute('aria-hidden','true');
+REG.style.cssText = 'position:absolute;left:-9999px;top:-9999px;white-space:nowrap;font-variant-numeric:tabular-nums';
+REG.style.fontFamily = getComputedStyle(document.body).fontFamily;
+document.body.appendChild(REG);
+const larg = (txt, peso, px)=>{ REG.style.fontWeight=peso; REG.style.fontSize=px+'px'; REG.textContent=txt; return REG.offsetWidth; };
+const largMax = (textos, peso, px)=> textos.reduce((m,s)=> Math.max(m, larg(s, peso, px)), 0);
+/* Escolhe o maior corpo de fonte (16 a 10 px) em que todas as colunas ainda cabem na largura do painel:
+   com 1 casa decimal os números ficaram mais largos, e assim nada é cortado nem sobra espaço vazio. */
+const GRIDS = {};
+function ajustarGrid(cols, alvo, chave, grupos){
+  const el = $(alvo), painel = el.closest('.panel'), disp = (el.clientWidth || 1890) - 2;
+  const k = chave + '|' + disp;
+  if(!GRIDS[k]){
+    const calc = (px)=>{
+      const l = cols.map(c=> c.fixa || Math.ceil(largMax(c.textos, c.peso||600, px)) + (c.extra||0) + 8);
+      (grupos||[]).forEach(g=>{ // o título do grupo (ex.: RETORNÁVEIS) não pode ficar maior que as colunas dele
+        const w = Math.ceil(largMax(g.textos, 600, px)) + 12;
+        let s = 0; for(let i=g.ini;i<=g.fim;i++) s += l[i];
+        if(s < w) l[g.ini] += w - s;
+      });
+      return l;
+    };
+    let px = 16, l = calc(px);
+    while(px > 10 && l.reduce((s,x)=>s+x,0) > disp){ px--; l = calc(px); }
+    const base = l.reduce((s,x,i)=> s + (cols[i].fixa ? 0 : x), 0), sobra = disp - l.reduce((s,x)=>s+x,0);
+    if(sobra > 0 && base > 0) l = l.map((w,i)=> cols[i].fixa ? w : w + Math.floor(sobra * w / base));
+    GRIDS[k] = { px, grid: l.map((w,i)=> cols[i].flex ? `minmax(${w}px,1fr)` : w+'px').join(' ') };
+  }
+  if(painel) painel.style.setProperty('--tf', GRIDS[k].px+'px');
+  return GRIDS[k].grid;
 }
-function cabecalho(pil, lim, min, nomeCol, alvo){
+/* Maior valor de cada coluna de cada pilar, entre as linhas que a tabela vai mostrar. */
+function extremos(linhas, pil){
+  const m = {}; pil.forEach(pl=>{ m[pl.nome] = { meta:0, mdia:0, real:0, hoje:0, dif:0, pct:0 }; });
+  linhas.forEach(r=>{
+    const inf = r.cargo==='RT' ? INFO[r.id] : null;
+    r.pilares.forEach(p=>{
+      const a = m[p.nome]; if(!a) return;
+      const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO;
+      const up = (k,v)=>{ if(v!=null) a[k] = Math.max(a[k], Math.abs(v)); };
+      up('meta', p.meta); up('real', p.real); up('mdia', raw[4]); up('hoje', raw[2]);
+      if(p.pct!==null){ up('dif', p.diferenca); a.pct = Math.max(a.pct, p.pct); }
+    });
+  });
+  return m;
+}
+function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   nomeCol = nomeCol||'Rota'; alvo = alvo||'thead';
-  GRID = gridCols(pil, nomeCol!=='Rota');
+  const sv = nomeCol!=='Rota', ex = extremos(linhas, pil), cols = [], grupos = [];
+  cols.push({ textos:['Rank','Top '+lim+'º','999'] });
+  cols.push({ textos: [nomeCol].concat(linhas.map(r=> sv ? r.nome : r.id)), extra:18 });
+  cols.push({ textos:['% Refri','mín. '+R.gatilhoVolumePct+'%','100,0%'] });
+  pil.forEach(pl=>{
+    const a = ex[pl.nome], ini = cols.length;
+    if(compacta(pl)){ cols.push({ textos:['%','100,0%'] }); cols.push({ fixa:32 }); }
+    else {
+      [['Meta',a.meta],['M. dia',a.mdia],['Real',a.real],['Hoje',a.hoje]].forEach(([lab,v])=> cols.push({ textos:[lab, numF(v)] }));
+      cols.push({ textos:['Dif', sgn(-a.dif)] });
+      cols.push({ textos:['%', M.fmtPct(a.pct || 100)] });
+      cols.push({ fixa:32 });
+    }
+    grupos.push({ ini, fim: cols.length-1, textos:[rotuloPilar(pl.nome)] });
+  });
+  cols.push({ textos:['Total','mín. '+min,'999'] });
+  cols.push({ textos:['Bateu, mas não está no total'], flex:true });
+  GRID = ajustarGrid(cols, alvo, alvo+'|'+st.canal, grupos);
   let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
   let col = 4;
   pil.forEach(pl=>{
     const g=grupo(pl.nome), comp=compacta(pl), n=comp?2:7;
-    h += `<div class="gh ${g}" style="grid-column:${col} / span ${n}">${esc(pl.nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase())}</div>`;
+    h += `<div class="gh ${g}" style="grid-column:${col} / span ${n}">${esc(rotuloPilar(pl.nome))}</div>`;
     const labs = comp ? ['%','Pts'] : ['Meta','M. dia','Real','Hoje','Dif','%','Pts'];
     labs.forEach((l,i)=>{ const ctr = l==='Pts'; h += `<div class="sl ${g} ${ctr?'c':''} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
     col += n;
@@ -410,7 +566,7 @@ function linha(r){
   const vol = r.volume.atingido, s = statusDe(r), sv = r.cargo==='SV';
   const nome = sv ? `<button class="rbtn" data-sv="${esc(r.nome)}" aria-label="Ver a mesa do ${esc(r.nome)}">${esc(r.nome)}${CHEV}</button>` : `<button class="rbtn" data-rota="${esc(r.id)}" aria-label="Ver detalhe da ${esc(r.nome)}">${esc(r.id)}${CHEV}</button>`;
   const tot = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
-  return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk">${r.posicao||'–'}</div>
+  return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>
     <div class="rt">${nome}</div>
     <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
     <div class="tp">${tot}</div><div class="stc">${s.pill}</div></div>`;
@@ -419,13 +575,8 @@ function linha(r){
 const SPAG = { n:1 };
 function renderSup(){
   const pil = ordemTela(pilaresDo(st.canal)), lim = R.premiadas.SV[st.canal], min = R.gatilhoPontos.SV;
-  cabecalho(pil, lim, min, 'Supervisão', 'sthead');
-  const base = SVS.filter(p=>p.canal===st.canal && (st.gc==='Todas'||p.unidade===st.gc));
-  base.sort((a,b)=>{
-    if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
-    if(a.elegivel) return a.posicao-b.posicao;
-    return a.unidade.localeCompare(b.unidade,'pt-BR') || a.nome.localeCompare(b.nome,'pt-BR',{numeric:true});
-  });
+  cabecalho(pil, lim, min, 'Supervisão', 'sthead', SVS.filter(p=>p.canal===st.canal));
+  const base = SVS.filter(p=>p.canal===st.canal && (st.gc==='Todas'||p.unidade===st.gc)).sort(ordenaRanking);
   PAGE = capac('srows');
   const pages = Math.max(1, Math.ceil(base.length/PAGE)); if(SPAG.n>pages) SPAG.n=pages;
   const ini=(SPAG.n-1)*PAGE, fatia=base.slice(ini,ini+PAGE);
@@ -442,7 +593,7 @@ $('spbtns').addEventListener('click',e=>{ const b=e.target.closest('button[data-
 $('srows').addEventListener('click',e=>{ const b=e.target.closest('button[data-sv]'); if(!b) return; st.sv=b.dataset.sv; st.gc='Todas'; st.pag=1; st.sel=null; popularFiltros(); setTab('detalhe'); });
 function renderRanking(){
   const pil = ordemTela(pilaresDo(st.canal)), lim = R.premiadas.RT[st.canal], min = R.gatilhoPontos.RT;
-  cabecalho(pil, lim, min);
+  cabecalho(pil, lim, min, 'Rota', 'thead', RTS.filter(p=>p.canal===st.canal));
   PAGE = capac('rows');
   const f = filtrada();
   $('ptitulo').textContent = `Rotas · ${st.canal}${st.sv!=='Todas'?' · '+st.sv:''}`;
@@ -467,7 +618,11 @@ function popularFiltros(){
   if(!svs.includes(st.sv)) st.sv='Todas';
   $('sv').innerHTML=['Todas',...svs].map(g=>`<option ${g===st.sv?'selected':''}>${esc(g)}</option>`).join('');
 }
-function render(){ if(st.tab==='ranking') renderRanking(); else if(st.tab==='sup') renderSup(); else if(st.tab==='detalhe') renderDetalhe(); }
+function render(){
+  if(st.tab==='ranking') renderRanking(); else if(st.tab==='sup') renderSup();
+  else if(st.tab==='rank') renderRank(); else if(st.tab==='estrat') renderEstrat();
+  else if(st.tab==='confrontos') renderConfrontos(); else if(st.tab==='detalhe') renderDetalhe();
+}
 ['Mista','Segmentada'].forEach(c=>$('c-'+c).addEventListener('click',()=>{ st.canal=c; st.gc='Todas'; st.sv='Todas'; st.pag=1; st.sel=null; SPAG.n=1;
   ['Mista','Segmentada'].forEach(x=>$('c-'+x).setAttribute('aria-pressed', x===c)); popularFiltros(); render(); }));
 $('gc').addEventListener('change',e=>{ st.gc=e.target.value; st.pag=1; SPAG.n=1; popularFiltros(); render(); });
@@ -522,16 +677,168 @@ function renderDetalhe(){
 }
 $('dlist').addEventListener('click',e=>{ const b=e.target.closest('button[data-sel]'); if(!b) return; st.sel=b.dataset.sel; renderDetalhe(); });
 
+
+/* ---------- ranking: as duas listas premiadas, lado a lado ---------- */
+const RKCAB = (nome)=>`<div>Pos.</div><div>${nome}</div><div class="v">% Refri</div><div class="pt">Pontos</div><div>Status</div>`;
+function linhaRk(r, sv){
+  const s = statusDe(r), sub = sv ? esc(r.unidade) : esc(INFO[r.id].sv)+' · '+esc(r.unidade);
+  const pts = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
+  return `<div class="rkr ${s.cls}${r.elegivel?'':' fora'}"><div class="p${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>`
+    + `<div class="nm">${esc(sv?r.nome:r.id)}<small>${sub}</small></div>`
+    + `<div class="v">${r.volume.pctTexto}</div><div class="pt">${pts}</div><div>${s.pill}</div></div>`;
+}
+function listaRk(arr, lim, sv){
+  if(!arr.length) return `<div class="rkvazio">Nenhum resultado neste filtro.</div>`;
+  const temEleg = arr.some(r=>r.elegivel);
+  const rotulo = temEleg ? `Linha de corte · ${lim} posições premiadas`
+                         : `${lim} primeiros · ninguém bateu os dois gatilhos ainda`;
+  let h = '', posto = false;
+  arr.forEach((r,i)=>{
+    const dentro = temEleg ? (r.elegivel && r.posTela<=lim) : i < lim;
+    if(!posto && !dentro){ posto = true; h += `<div class="rkcorte">${rotulo}</div>`; }
+    h += linhaRk(r, sv);
+  });
+  return h;
+}
+function renderRank(){
+  const naGer = (p)=> st.gc==='Todas' || p.unidade===st.gc;
+  const rts = RTS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
+  const svs = SVS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
+  const suf = st.canal + (st.gc!=='Todas' ? ' · '+st.gc : '');
+  $('rk-rt-tt').textContent = `Rotas · ${suf} · ${rts.length} ${rts.length===1?'rota':'rotas'}`;
+  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}`;
+  $('rk-rt-h').innerHTML = RKCAB('Rota'); $('rk-sv-h').innerHTML = RKCAB('Supervisão');
+  $('rk-rt').innerHTML = listaRk(rts, R.premiadas.RT[st.canal], false);
+  $('rk-sv').innerHTML = listaRk(svs, R.premiadas.SV[st.canal], true);
+}
+
+/* ---------- estratégicos: gerências x todos os itens, Mista e Segmentada juntas ---------- */
+function itensEstrat(){
+  const out = [];
+  ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(p.tipo==='volume' && !out.some(x=>x.nome===p.nome)) out.push(p); }));
+  return out;
+}
+function renderEstrat(){
+  const itens = itensEstrat();
+  const blocos = itens.map(p=>({ chave:fonteDe(p.nome), rot:rotuloPilar(p.nome), g:grupo(p.nome) }))
+                      .concat([{ chave:'__soma__', rot:'TOTAL', g:'g0' }]);
+  const chaves = blocos.map(b=>b.chave).concat(['__refri__']);
+  const novo = ()=>{ const o={}; chaves.forEach(k=>{ o[k]={meta:0,real:0}; }); return o; };
+  const gcs = [...new Set(DADOS.rotas.map(r=>r.gc))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const acc = {}; gcs.forEach(g=>{ acc[g]=novo(); }); const tot = novo();
+  const soma = (d,k,meta,real)=>{ d[k].meta += meta; d[k].real += real; };
+  let nRotas = 0;
+  DADOS.rotas.forEach(r=>{
+    const a = acc[r.gc]; if(!a) return;
+    nRotas++;
+    itens.forEach((pl,i)=>{
+      const v = r.v[blocos[i].chave] || VAZIO;
+      if(!(v[0]>0) || v[1]===null) return; // sem meta ou sem real fica fora da soma, como no resto do painel
+      const real = v[1] + (v[2]||0);
+      soma(a, blocos[i].chave, v[0], real); soma(a, '__soma__', v[0], real);
+      soma(tot, blocos[i].chave, v[0], real); soma(tot, '__soma__', v[0], real);
+    });
+    REFRI_COMP.forEach(ag=>{
+      const v = r.v[ag] || VAZIO;
+      if(!(v[0]>0) || v[1]===null) return;
+      const real = v[1] + (v[2]||0);
+      soma(a, '__refri__', v[0], real); soma(tot, '__refri__', v[0], real);
+    });
+  });
+  const cols = [{ textos: gcs.concat(['Gerência','TOTAL']), flex:true }], grupos = [];
+  blocos.forEach(b=>{
+    const ini = cols.length;
+    cols.push({ textos:['Meta', numF(tot[b.chave].meta)] });
+    cols.push({ textos:['Real', numF(tot[b.chave].real)] });
+    cols.push({ textos:['%','100,0%'] });
+    grupos.push({ ini, fim: cols.length-1, textos:[b.rot] });
+  });
+  cols.push({ textos:['% Refri','gatilho '+R.gatilhoVolumePct+'%','100,0%'] });
+  GRID = ajustarGrid(cols, 'ethead', 'estrat', grupos);
+  let h = `<div class="hh lf" style="grid-column:1">Gerência</div>`, col = 2;
+  blocos.forEach(b=>{
+    h += `<div class="gh ${b.g}" style="grid-column:${col} / span 3">${esc(b.rot)}</div>`;
+    ['Meta','Real','%'].forEach((l,i)=>{ h += `<div class="sl ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
+    col += 3;
+  });
+  h += `<div class="hh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
+  $('ethead').style.gridTemplateColumns = GRID;
+  $('ethead').innerHTML = h;
+  const linhaEst = (nome, d, cls)=>{
+    let c = `<div class="rt">${esc(nome)}</div>`;
+    blocos.forEach(b=>{
+      const x = d[b.chave], pct = x.meta>0 ? x.real/x.meta*100 : null;
+      c += `<div class="${b.g} n gs">${numF(x.meta)}</div><div class="${b.g} n">${numF(x.real)}</div>`
+         + `<div class="${b.g} n b">${pct===null?'–':M.fmtPct(pct)}</div>`;
+    });
+    const rf = d.__refri__, rp = rf.meta>0 ? rf.real/rf.meta*100 : null;
+    c += `<div class="n b${rp!==null && rp>=R.gatilhoVolumePct?' ok':''}">${rp===null?'–':M.fmtPct(rp)}</div>`;
+    return `<div class="trow ${cls||''}" style="grid-template-columns:${GRID}">${c}</div>`;
+  };
+  $('ettitulo').textContent = `Gerências · todos os itens · Mista e Segmentada`;
+  $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`;
+  $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('') + linhaEst('TOTAL', tot, 'gtot');
+  $('etnota').innerHTML = `TOTAL é a soma dos pilares acima. A categoria Refrigerantes (gatilho de ${R.gatilhoVolumePct}%) fica fora dessa soma: `
+    + `ela já contém Retornáveis, Refri Single e parte de Sabores. Real inclui os pedidos de hoje. Pilar sem meta ou sem real na rota fica fora da soma`
+    + (DADOS.semCanal.length ? `; ${DADOS.semCanal.length} rotas sem canal não entram` : '') + `.`;
+}
+
+/* ---------- confrontos entre supervisores ---------- */
+const MOTIVOS = {
+  SV_NAO_ENCONTRADO:'supervisor não encontrado no mês',
+  AUTODESAFIO:'desafiante e desafiado são o mesmo supervisor',
+  CANAIS_DIFERENTES:'supervisores de canais diferentes',
+  PILAR_NAO_VOLUME:'o pilar não é de volume neste canal',
+  DESAFIADO_JA_RECEBEU:'o desafiado já recebeu outro desafio no mês',
+  SEM_DADO_PARA_APURAR:'sem dado no pilar para apurar',
+  EMPATE_SEM_VENCEDOR:'empate: ninguém pontua',
+  DESEMPATE_REFRI:'decidido no desempate por % de Refrigerantes',
+};
+function renderConfrontos(){
+  const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
+  const nomeSV = (id)=> porId[id] ? porId[id].nome : id;
+  const infoSV = (id)=> porId[id] ? porId[id].canal+' · '+porId[id].unidade : 'não encontrado';
+  const pctP = (id, pilar)=>{ const x = porId[id]; if(!x) return '–';
+    const pl = x.pilares.find(y=>y.nome===pilar); return pl && pl.pct!==null ? pl.pctTexto : '–'; };
+  const lst = RES.confrontos || [];
+  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[CONFIG.mes]}`;
+  $('cfsub').innerHTML = `<span><b>${lst.length}</b>cadastrados</span><span><b>${lst.filter(c=>c.valido).length}</b>válidos</span>`
+    + `<span><b>${lst.filter(c=>c.vencedor).length}</b>com vencedor</span>`;
+  $('cfhead').innerHTML = `<div>Mês</div><div>Pilar</div><div>Desafiante</div><div class="v">%</div><div class="x"></div>`
+    + `<div>Desafiado</div><div class="v">%</div><div>Resultado</div>`;
+  $('cfrows').innerHTML = lst.length ? lst.map(c=>{
+    const res = !c.valido ? `<span class="mt">Não vale: ${esc(MOTIVOS[c.motivo]||c.motivo||'—')}</span>`
+      : c.vencedor ? `<span class="pill tot">${CK}${esc(nomeSV(c.vencedor))} +${R.bonusConfronto}</span>`
+      : `<span class="mt">${esc(MOTIVOS[c.motivo]||'sem vencedor')}</span>`;
+    return `<div class="cf cfr${c.valido?'':' invalido'}${c.vencedor===c.desafiante?' ganhou-a':''}${c.vencedor===c.desafiado?' ganhou-b':''}">`
+      + `<div>${esc(MESES[c.mes].slice(0,3))}</div><div>${esc(rotuloPilar(c.pilar))}</div>`
+      + `<div class="nm">${esc(nomeSV(c.desafiante))}<small>${esc(infoSV(c.desafiante))}</small></div>`
+      + `<div class="v va">${pctP(c.desafiante, c.pilar)}</div><div class="x">×</div>`
+      + `<div class="nm">${esc(nomeSV(c.desafiado))}<small>${esc(infoSV(c.desafiado))}</small></div>`
+      + `<div class="v vb">${pctP(c.desafiado, c.pilar)}</div><div>${res}</div></div>`;
+  }).join('') : `<div class="vazio">Nenhum confronto cadastrado.<br>Inclua na aba Regras &gt; Administração.</div>`;
+  $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
+    + `Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. `
+    + `Empate é decidido pelo maior % de Refrigerantes.`;
+}
+
 /* ---------- abas ---------- */
+const ABAS = ['ranking','sup','rank','estrat','detalhe','regras','confrontos'];
+const SEM_FILTRO = ['regras','estrat','confrontos'];   // telas que não usam a barra de filtros
+const SEM_ROTA = ['sup','rank'];                        // telas sem filtro de supervisão nem busca por rota
 function setTab(t){
   st.tab=t;
-  ['ranking','sup','detalhe','regras'].forEach(x=>{ $('tab-'+x).setAttribute('aria-selected', x===t); $('v-'+x).classList.toggle('on', x===t); });
-  $('filtros').style.visibility = t==='regras' ? 'hidden' : 'visible';
-  $('lblsv').style.display = $('lblbusca').style.display = t==='sup' ? 'none' : '';
-  $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',detalhe:'Detalhe por pilar',regras:'Regras e informações'})[t];
+  ABAS.forEach(x=>{
+    $('tab-'+x).setAttribute(x==='confrontos' ? 'aria-pressed' : 'aria-selected', x===t);
+    $('v-'+x).classList.toggle('on', x===t);
+  });
+  $('filtros').style.visibility = SEM_FILTRO.includes(t) ? 'hidden' : 'visible';
+  $('lblsv').style.display = $('lblbusca').style.display = SEM_ROTA.includes(t) ? 'none' : '';
+  $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',rank:'Ranking',estrat:'Estratégicos',
+                           detalhe:'Detalhe por pilar',regras:'Regras e informações',confrontos:'Confrontos'})[t];
   if(t==='regras') renderRegras(); else render();
 }
-['ranking','sup','detalhe','regras'].forEach(x=>$('tab-'+x).addEventListener('click',()=>setTab(x)));
+ABAS.forEach(x=>$('tab-'+x).addEventListener('click',()=>setTab(x)));
 
 /* ---------- regras (informações extras ficam aqui) ---------- */
 const alertaTxt = { META_ZERO:'meta zero', META_AUSENTE:'sem meta', REAL_AUSENTE:'sem real' };
@@ -540,7 +847,7 @@ function alertasDados(){
   RTS.forEach(p=>p.pilares.forEach(pl=>pl.alertas.forEach(a=>out.push(`${p.nome} · ${pl.nome.replace('Volume ','')}: ${alertaTxt[a]||a}`))));
   return out;
 }
-const T = (head, rows)=>`<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+const T = (head, rows, cls)=>`<table class="${cls||''}"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 const pctTxt = (v)=> v.toLocaleString('pt-BR',{maximumFractionDigits:5});
 const SEC = [
  { id:'pontuacao', t:'Pontuação', html:()=>{ const f=R.faixas;
@@ -551,7 +858,8 @@ const SEC = [
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
   <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
-  <p>Confronto entre Supervisores: o SV vencedor ganha +${R.bonusConfronto} no mês e toda a mesa dele ganha +${R.bonusConfronto} também. Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} dos pilares + ${R.bonusConfronto} do confronto.</p>`; } },
+  <p>Confronto entre Supervisores: o SV vencedor ganha +${R.bonusConfronto} no mês e toda a mesa dele ganha +${R.bonusConfronto} também. Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} dos pilares + ${R.bonusConfronto} do confronto.</p>
+  <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
  { id:'gatilhos', t:'Gatilhos e status', html:()=>`<h2>Gatilhos e status</h2><div class="sub">Dois gatilhos precisam ser batidos para a rota entrar no ranking e na premiação.</div>
   ${T(['Gatilho','Consultor (Rota)','Supervisor'],[
     [`Volume: Refrigerantes em ${pctTxt(R.gatilhoVolumePct)}% ou mais`,'% do mês vigente','% acumulado do trimestre'],
@@ -606,7 +914,7 @@ const SEC = [
     <h3>Rotas sem canal (${sc.length})</h3>
     <div class="chips">${sc.map(x=>`<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small></span>`).join('')}</div>
     <h3>Rotas em dois segmentos (${du.length})</h3>
-    ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${Math.round(o.vol).toLocaleString('pt-BR')}`).join(' · ')]))}
+    ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${numF(o.vol)}`).join(' · ')]))}
     <h3>Pilares sem meta ou sem real (${al.length})</h3>
     <div class="chips">${al.map(a=>`<span>${esc(a)}</span>`).join('')||'<span>Nenhum</span>'}</div>
     <p>Esses pilares ficam com 0 ponto e sem % na tela; nada é preenchido por suposição.</p>
@@ -623,7 +931,7 @@ const SEC = [
        ? ['1',`<b>Categoria Refrigerantes:</b> o gatilho de ${pctTxt(R.gatilhoVolumePct)}% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).`,'Back Office / IM',OK]
        : ['1',`<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de ${pctTxt(R.gatilhoVolumePct)}%. Afeta quem entra no ranking.`,'Back Office / IM',P],
      ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
-     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma as rotas da mesa, no canal, e deixa de fora rota sem meta ou sem real. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+') e aparecem nos dois, cada uma só com as rotas do canal. O confronto (+5) segue sem dados.','IM',P],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma as rotas da mesa, no canal, e deixa de fora rota sem meta ou sem real. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+') e aparecem nos dois, cada uma só com as rotas do canal. Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
      DADOS.meta.origem==='api'
        ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
        : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
@@ -632,7 +940,7 @@ const SEC = [
      ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
      ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
      ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada.','IM',P],
-     ...bo])}`; } },
+     ...bo], 'pd')}`; } },
  { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
     return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
     <label for="nota" style="display:block;margin-bottom:8px;font-weight:700">Anotações</label>
@@ -672,6 +980,17 @@ function segLinhas(){
 }
 // agrupadores extras em edição (começa pelos ajustes em uso); viram o pilar "Volume <nome>"
 let EXTRAS = ((AJ.ativo && AJ.ativo.agrupadores) || []).map(e=>Object.assign({}, e));
+// confrontos em edição (começa pelos ajustes em uso); o motor apura o vencedor e o bônus
+let CONFRONTOS = ((AJ.ativo && AJ.ativo.confrontos) || []).map(c=>Object.assign({}, c));
+const SV_POR_ID = {}; SVS.forEach(s=>{ SV_POR_ID[s.id] = s; });
+const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[id].canal : id;
+const chaveConf = (c)=> c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
+const linhaConf = (c)=>`<tr><td>${esc(MESES[c.mes])}</td><td>${esc(nomeDoSV(c.id_sv_desafiante))}</td>
+  <td>${esc(nomeDoSV(c.id_sv_desafiado))}</td><td>${esc(rotuloPilar(c.pilar))}</td>
+  <td><button class="adm-btn" type="button" data-conf="${esc(chaveConf(c))}">Excluir</button></td></tr>`;
+const opcoesSV = ()=> SVS.slice().sort((a,b)=> a.canal.localeCompare(b.canal) || a.nome.localeCompare(b.nome,'pt-BR',{numeric:true}))
+  .map(s=>`<option value="${esc(s.id)}">${esc(s.nome)} · ${esc(s.canal)} · ${esc(s.unidade)}</option>`).join('');
+const pilaresVolume = (canal)=> pilaresDo(canal).filter(p=>p.tipo==='volume');
 const linhaExtra = (e)=>`<tr data-id="${esc(e.id)}"><td>${esc(e.nome)}</td><td>${esc(e.agrupador)}</td>
   <td>${DADOS.meta.produtosApi ? (DADOS.meta.produtosApi.includes(e.id) ? 'sim' : 'ainda não') : '–'}</td>
   <td><button class="adm-btn" type="button" data-excluir="${esc(e.id)}">Excluir</button></td></tr>`;
@@ -729,6 +1048,18 @@ function adminHtml(){
     <datalist id="adm-ags"></datalist>
     <h3>Pilares coringa de ${MESES[CONFIG.mes].toLowerCase()}</h3><div class="adm-grid">
       ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>
+    <h3>Confrontos entre supervisores</h3>
+    <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele; quem perde não perde pontos.
+      Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês.
+      O resultado aparece na tela <b>Confrontos</b>, no botão ao lado das abas.</p>
+    <table id="adm-conf"><thead><tr><th>Mês</th><th>Desafiante</th><th>Desafiado</th><th>Pilar</th><th></th></tr></thead>
+      <tbody>${CONFRONTOS.map(linhaConf).join('')}</tbody></table>
+    <p class="sub" id="adm-conf-vazio"${CONFRONTOS.length?' hidden':''}>Nenhum confronto cadastrado.</p>
+    <div class="adm-linha">Mês <select id="adm-conf-mes">${MESES_Q4.filter(m=>m<=CONFIG.mes).map(m=>`<option value="${m}"${m===CONFIG.mes?' selected':''}>${MESES[m]}</option>`).join('')}</select>
+      Desafiante <select id="adm-conf-a">${opcoesSV()}</select>
+      Desafiado <select id="adm-conf-b">${opcoesSV()}</select>
+      Pilar <select id="adm-conf-p"></select>
+      <button class="adm-btn" type="button" id="adm-conf-incluir">Incluir</button></div>
     <h3>Segmentação das rotas</h3>
     <p class="sub">O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}. Linhas em azul estão diferentes do padrão.
       Rota sem canal só pode entrar quando o painel está lendo a API.</p>
@@ -765,10 +1096,12 @@ function lerAjustes(){
     if (s.value !== padraoCanal(s.dataset.rota)) { const [c, sub] = s.value.split('|'); canais[s.dataset.rota] = { canal:c||null, sub:sub||null }; }
   });
   const agrupadores = EXTRAS.map(e=>({ id:e.id, nome:e.nome, agrupador:e.agrupador }));
-  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !agrupadores.length) return null;
+  const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
+  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length
+      && !agrupadores.length && !confrontos.length) return null;
   const d = new Date(), z = (x)=>String(x).padStart(2,'0');
   return { versao:1, atualizado_em:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`,
-           regras, pilares, canais, agrupadores };
+           regras, pilares, canais, agrupadores, confrontos };
 }
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
@@ -831,6 +1164,35 @@ function ligarAdmin(){
       if (estava) { const padrao = PADRAO.coringas[c][i]; s.value = [...s.options].some(x=>x.value===padrao) ? padrao : s.options[0].value; }
     });
     msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
+  });
+  // confrontos: o pilar segue o canal do desafiante; a lista é refeita a cada inclusão ou exclusão
+  const refazConf = ()=>{
+    $('adm-conf').querySelector('tbody').innerHTML = CONFRONTOS.map(linhaConf).join('');
+    $('adm-conf-vazio').hidden = CONFRONTOS.length > 0;
+  };
+  const pilaresDoDesafiante = ()=>{
+    const sv = SV_POR_ID[$('adm-conf-a').value];
+    $('adm-conf-p').innerHTML = (sv ? pilaresVolume(sv.canal) : [])
+      .map(x=>`<option value="${esc(x.nome)}">${esc(rotuloPilar(x.nome))}</option>`).join('');
+  };
+  $('adm-conf-a').addEventListener('change', pilaresDoDesafiante);
+  pilaresDoDesafiante();
+  $('adm-conf-incluir').addEventListener('click', ()=>{
+    const a = $('adm-conf-a').value, b = $('adm-conf-b').value, pilar = $('adm-conf-p').value, mes = Number($('adm-conf-mes').value);
+    if (!a || !b || !pilar) return msg('Escolha os dois supervisores e o pilar.');
+    if (a === b) return msg('O desafiante e o desafiado precisam ser supervisores diferentes.');
+    if (SV_POR_ID[a].canal !== SV_POR_ID[b].canal) return msg('O confronto é entre supervisores do mesmo canal.');
+    if (CONFRONTOS.length >= CONFRONTOS_MAX) return msg(`No máximo ${CONFRONTOS_MAX} confrontos.`);
+    const c = { mes, id_sv_desafiante:a, id_sv_desafiado:b, pilar };
+    if (CONFRONTOS.some(x=>chaveConf(x)===chaveConf(c))) return msg('Esse confronto já está cadastrado.');
+    if (CONFRONTOS.some(x=>x.mes===mes && x.id_sv_desafiado===b)) return msg(`${nomeDoSV(b)} já recebeu um desafio em ${MESES[mes].toLowerCase()}.`);
+    CONFRONTOS.push(c); refazConf();
+    msg('Confronto incluído. Salve ou publique para valer.');
+  });
+  $('adm-conf').addEventListener('click', ev=>{
+    const b = ev.target.closest('button[data-conf]'); if (!b) return;
+    CONFRONTOS = CONFRONTOS.filter(x=>chaveConf(x)!==b.dataset.conf);
+    refazConf(); msg('Confronto excluído. Salve ou publique para valer.');
   });
   $('adm-publicar').addEventListener('click', async ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);

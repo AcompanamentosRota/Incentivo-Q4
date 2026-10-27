@@ -366,9 +366,13 @@ test('conferir(): recálculo independente não encontra divergência', () => {
   assert.deepEqual(conferir(res, e), []);
 });
 
-test('formatação: % truncado com vírgula; volume com separador de milhar', () => {
+test('formatação: % truncado com vírgula; volume com milhar e 1 casa decimal', () => {
   assert.equal(fmtPct(94.96), '94,9%');
-  assert.equal(M.fmtVolume(1234567), '1.234.567');
+  assert.equal(M.fmtVolume(1234567), '1.234.567,0');
+  assert.equal(M.fmtVolume(395090.24), '395.090,2');
+  assert.equal(M.fmtVolume(-1234.56), '-1.234,6');
+  assert.equal(M.fmtVolume(0), '0,0');
+  assert.equal(M.fmtVolume(null), '-');
 });
 
 // ── helpers de cenário ───────────────────────────────────

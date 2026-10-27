@@ -10,16 +10,28 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
 ## Abas
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
 - **Supervisão:** mesma estrutura por supervisor (soma das rotas da mesa, provisório).
+- **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
+  status e a linha de corte das posições premiadas. Feita para print.
+- **Estratégicos:** uma linha por gerência com Meta, Real e % de **todos os itens** dos dois canais juntos, a soma dos
+  pilares e o % da categoria Refrigerantes, fechando com o total da empresa.
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
+- **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês, com o % de cada lado, o vencedor e o
+  bônus, ou o motivo quando o confronto não vale.
 
-Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre; só o status, o ranking e a premiação
-dependem do gatilho de Refrigerantes.
+Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre, e **todas as linhas são numeradas**; só o
+status, a posição oficial e a premiação dependem do gatilho de Refrigerantes (quem está fora aparece em cinza).
+
+Os volumes aparecem sempre com **uma casa decimal**. Nas tabelas de Rota e Supervisão a largura de cada coluna é medida
+pelo maior valor que ela recebe, e o painel usa o maior corpo de fonte (16 a 10 px) em que tudo ainda cabe na tela.
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
 Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, o canal
-(Mista/Segmentada) de cada rota e os **agrupadores extras**.
+(Mista/Segmentada) de cada rota, os **agrupadores extras** e os **confrontos do mês**.
+- **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
+  recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
+  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também.
 - **Agrupadores extras:** inclua ou exclua agrupadores do Datasphere (o campo sugere os que têm meta no mês, de
   `api/v1/agrupadores.json`). Cada um vira o pilar "Volume <nome>", com cor própria, e pode ser escolhido como pilar
   coringa 4 ou 5. Depois do merge do PR, o gerador da API passa a buscá-lo (cerca de 3 minutos). Os 6 agrupadores
@@ -38,11 +50,11 @@ Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pi
 src/app.tpl.html             tela (HTML, CSS e lógica de exibição)
 src/motor.js                 motor de cálculo (pontos, gatilhos, confronto, status, ranking)
 src/adapter.js               lê a API e liga os dados ao motor; CONFIG com o mês e os pilares
-src/assets/                  fontes e logo extraídos da apresentação oficial
+src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do painel usa Inter/fonte do sistema)
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       33 testes do motor e 13 do adaptador
+tests/                       33 testes do motor e 15 do adaptador
 docs/                        regras do incentivo (fonte de verdade)
 ```
 

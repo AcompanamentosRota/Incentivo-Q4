@@ -137,12 +137,16 @@ async function carregarDados(base, cfg, ajustes) {
  * Publicados em ajustes.json (valem para todos) ou guardados só neste navegador (têm prioridade).
  * Formato: { atualizado_em, regras: {faixas, gatilhoVolumePct, gatilhoPontos, bonusConfronto, premiadas},
  *            pilares: {Mista: [pilar 4, pilar 5], Segmentada: [...]}, canais: {rota: {canal, sub}},
- *            agrupadores: [{id, nome, agrupador}] }
+ *            agrupadores: [{id, nome, agrupador}],
+ *            confrontos: [{mes, id_sv_desafiante, id_sv_desafiado, pilar}] }
  * "agrupadores" são os extras: viram o pilar "Volume <nome>" e o gerador da API (scripts/gerar.py) passa a buscá-los.
+ * "confrontos" são os desafios entre supervisores do mês; o motor apura o vencedor e dá o bônus.
  */
 const AJUSTES_LOCAL = 'q4_ajustes';
 const PILARES_CORINGA = ['Volume Sabores', 'Volume Retornáveis', 'Volume Refri Single', 'Volume Powerade', 'Volume Sucos', 'Missões Guiadas'];
 const EXTRAS_MAX = 10;
+const CONFRONTOS_MAX = 60;
+const MESES_Q4 = [10, 11, 12];
 const IDS_FIXOS = Object.values(CONFIG.produtoDaApi), AGRUPADORES_FIXOS = Object.keys(CONFIG.produtoDaApi);
 /** Mesma chave de comparação do gerador (texto.normalizar): sem acento, espaços simples, maiúsculas. */
 const normalizarTexto = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -163,12 +167,34 @@ function normalizarExtras(lista) {
   return out;
 }
 
+/**
+ * Confrontos válidos para o motor: mês do Q4, dois SVs diferentes e um pilar com nome.
+ * A ordem da lista vira a ordem de registro (o motor usa isso quando um SV recebe mais de um desafio).
+ * O que é regra do incentivo (mesmo canal, pilar de volume, um desafio por desafiado) o motor apura e explica.
+ */
+function normalizarConfrontos(lista) {
+  const out = [], vistos = new Set();
+  for (const x of Array.isArray(lista) ? lista : []) {
+    if (out.length >= CONFRONTOS_MAX) break;
+    if (!x || !MESES_Q4.includes(x.mes)) continue;
+    if (!textoOk(x.id_sv_desafiante, 120) || !textoOk(x.id_sv_desafiado, 120) || !textoOk(x.pilar, 60)) continue;
+    const c = { mes: x.mes, id_sv_desafiante: x.id_sv_desafiante.trim(), id_sv_desafiado: x.id_sv_desafiado.trim(), pilar: x.pilar.trim() };
+    if (c.id_sv_desafiante === c.id_sv_desafiado) continue;
+    const chave = c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    out.push(Object.assign(c, { ordem_registro: out.length + 1 }));
+  }
+  return out;
+}
+
 /** Só os campos válidos; o resto é ignorado. Sem nenhum campo válido, null. */
 function normalizarAjustes(aj) {
   if (!aj || typeof aj !== 'object') return null;
   const ok = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
   const r = aj.regras || {}, regras = {}, pilares = {}, canais = {};
   const agrupadores = normalizarExtras(aj.agrupadores);
+  const confrontos = normalizarConfrontos(aj.confrontos);
   const coringas = PILARES_CORINGA.concat(agrupadores.map(pilarDoExtra));
   if (Array.isArray(r.faixas) && r.faixas.length === 3 && r.faixas.every((f) => f && ok(f.min) && ok(f.pontos)))
     regras.faixas = r.faixas.map((f) => ({ min: f.min, pontos: f.pontos })).sort((a, b) => b.min - a.min);
@@ -186,8 +212,8 @@ function normalizarAjustes(aj) {
     if (c && (c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada'))
       canais[rota] = { canal: c.canal, sub: c.canal === 'Segmentada' && (c.sub === 'Mini' || c.sub === 'Mod') ? c.sub : null };
   }
-  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !agrupadores.length) return null;
-  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores };
+  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !agrupadores.length && !confrontos.length) return null;
+  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores, confrontos };
 }
 
 /** Aplica os agrupadores extras e os pilares coringa do mês (em cfg) e as regras (no REGRAS do motor).
@@ -229,7 +255,7 @@ function urlPublicacao(cfg, texto, existe) {
 /** Agrupadores que formam o Refrigerantes do gatilho: a categoria (API) ou, sem ela, a soma provisória. */
 const componentesRefri = (dados, cfg) => (dados.meta.refriCategoria ? [cfg.refri] : cfg.refriProvisorio);
 
-function montarEntrada(dados, cfg) {
+function montarEntrada(dados, cfg, confrontos) {
   const I = cfg.idx;
   const compRefri = componentesRefri(dados, cfg);
   const pessoas = [];
@@ -267,11 +293,13 @@ function montarEntrada(dados, cfg) {
     const nomes = cfg.pilaresConfig.find((c) => c.mes === cfg.mes && c.canal === a.canal).pilares.filter((p) => p.tipo === 'volume').map((p) => p.nome).concat(['Refrigerantes']);
     for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes: cfg.mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
   }
-  return { entrada: { mesRef: cfg.mes, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas, confrontos: [] }, notasRefri };
+  return { entrada: { mesRef: cfg.mes, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
+                      confrontos: confrontos || [] }, notasRefri };
 }
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
-                     AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, IDS_FIXOS, AGRUPADORES_FIXOS, normalizarTexto, pilarDoExtra,
-                     normalizarExtras, normalizarAjustes, aplicarAjustes, carregarAjustes, urlPublicacao };
+                     AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
+                     normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
+                     carregarAjustes, urlPublicacao };
 }

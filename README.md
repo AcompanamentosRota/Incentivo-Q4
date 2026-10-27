@@ -61,8 +61,8 @@ Mudou algo em `painel-q4/src/` ou `painel-q4/data/`: rode `python painel-q4/scri
 Os pilares de cada mês ficam em `painel-q4/src/adapter.js` → `CONFIG`; em novembro, atualize `mes` e
 `pilaresConfig` (até lá, se a API já estiver no mês novo, o painel avisa e usa a base embutida).
 
-**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, canal das rotas e
-**agrupadores extras**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
+**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, canal das rotas,
+**agrupadores extras** e os **confrontos entre supervisores**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
 merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
 desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).
 
