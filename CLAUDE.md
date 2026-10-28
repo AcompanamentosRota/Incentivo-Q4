@@ -25,6 +25,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
 | `backend/scripts/servir.py` | sobe o site local como no Pages | — |
+| `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
 | `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
@@ -45,8 +46,12 @@ rotas com Real.
 # testes do painel — 54 testes (33 do motor, 21 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 26 testes, sem rede (Datasphere falso)
+# testes do back-end — 56 testes, sem rede (Datasphere falso)
 cd backend && python -m unittest discover -s tests -t .
+
+# por que o Real do Total Band não bate com o SAC (só leitura; relatório em saida/descoberta/)
+cd backend && python scripts/diagnosticar_real.py                # só a API publicada
+cd backend && python scripts/diagnosticar_real.py --datasphere   # + consulta direta ao modelo (precisa de .env)
 
 # regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
 python painel-q4/scripts/build.py
@@ -156,7 +161,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 54 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 26 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 56 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

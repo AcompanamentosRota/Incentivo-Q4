@@ -78,8 +78,10 @@ docs/                        regras do incentivo (fonte de verdade)
 ```
 
 ## Dados
-- **API** (`../api/v1/index.json` e `gerencias/*.json`): meta (META_VOLUME), real (faturado no mês, inclusive o de
-  hoje), online (pedidos de hoje ainda não faturados) e meta dia de cada rota, nos agrupadores Sucos, Powerade,
+- **API** (`../api/v1/index.json` e `gerencias/*.json`): meta (META_VOLUME), real (faturado no mês **até ontem**:
+  o modelo carrega o faturamento com um dia de atraso, e o volume de hoje aparece só no online — conferido em
+  28/10/2026 com `backend/scripts/diagnosticar_real.py --datasphere`), online (pedidos de hoje ainda não
+  faturados) e meta dia de cada rota, nos agrupadores Sucos, Powerade,
   Sabores Tt, Refrigerantes Retornavel e Refrigerantes Individual. Conferido em 26/10/2026: metas iguais às do SAC
   nas 201 rotas, nos 5 agrupadores.
 - **Gatilho de 95% e desempate:** categoria Refrigerantes do SAC = agrupador `Refrigerantes` da API, com todos os
@@ -107,5 +109,11 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
 3. Rotas sem canal e em dois segmentos (6); Real vazio tratado como dado ausente.
 4. Canal Mista/Segmentada ainda vem da base embutida, não da API.
 5. Regras do Back Office: prazo dos confrontos, +5 sem gatilho de volume, % acumulado de Refri do SV, desempate do SV.
+6. Real do Total Band x Real do SAC: o SAC informado em 28/10/2026 fica abaixo da API em todos os produtos (de
+   0,007% a 0,04%, e 1,38% no Refri Single). Faltam a meta do SAC, os filtros da story e a definição de "Total
+   Band" para fechar o diagnóstico (`backend/scripts/diagnosticar_real.py`).
+7. O texto da pendência 4 da aba Regras diz que "o Real inclui o faturado de hoje". A medição de 28/10/2026
+   mostra o contrário: hoje aparece só no Online. Corrigir o texto mexe em `src/app.tpl.html` e ficou de fora
+   deste diagnóstico.
 
 Resolvido: a categoria Refrigerantes do gatilho de 95% vem da API (agrupador `Refrigerantes`, todos os itens de refri).
