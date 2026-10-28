@@ -46,15 +46,43 @@ const CONFIG = {
 
 const svKey = (r) => r.sv + '#' + r.canal; // Supervisão por canal (SV com rotas nos dois canais aparece nos dois)
 const VAZIO = [null, null, null, null, null]; // agrupador sem dado (ex.: extra que a API ainda não traz)
+const CHAVE_REFRI = '__refri__'; // coluna % Refri do Estratégicos (a categoria, ou a soma provisória)
+
+/** Bloco de produto da API -> linha [meta, real, online, hoje, meta dia] (cfg.idx). */
+function linhaDaApi(bloco, I) {
+  const linha = [null, null, null, null, null];
+  if (bloco) { linha[I.meta] = bloco.meta; linha[I.real] = bloco.realizado; linha[I.online] = bloco.online_hoje; linha[I.metaDia] = bloco.meta_dia; }
+  return linha;
+}
+
+/** `produtos` de um nível da API (rota, gerência ou empresa) -> uma linha por agrupador configurado. */
+function valoresDaApi(produtos, cfg, I) {
+  const v = {};
+  for (const [ag, id] of Object.entries(cfg.produtoDaApi)) v[ag] = linhaDaApi((produtos || {})[id], I);
+  return v;
+}
+
+/** Soma linhas de agrupador campo a campo; campo sem nenhum valor continua null. */
+function somarLinhas(linhas, I) {
+  const out = [null, null, null, null, null];
+  for (const l of linhas) for (const k of [I.meta, I.real, I.online, I.metaDia]) {
+    if (l[k] === null || l[k] === undefined) continue;
+    out[k] = (out[k] || 0) + l[k];
+  }
+  return out;
+}
 
 /*
  * API (index.json + gerencias/*.json) -> mesmo formato da base embutida.
  * A API ainda não traz o canal (Mista/Segmentada): ele vem da base embutida, e rota sem canal vai para semCanal.
  * Real = faturado no mês (inclui o faturado de hoje); Online = pedidos de hoje ainda não faturados.
  * `canais` (ajuste do admin) troca o canal de rotas; {canal: null} tira a rota do ranking.
- * Devolve null se a API estiver em outro mês (os pilares do mês ficam em CONFIG.pilaresConfig).
+ * `resumo` (resumo.json) traz o total da empresa; sem ele, o total vira a soma das gerências.
+ * Além das rotas do incentivo, devolve os totais que a própria API já traz por gerência (`totaisGerencia`)
+ * e da empresa (`totalEmpresa`): são todas as rotas com Real, inclusive as de fora do incentivo, e é o que
+ * a aba Estratégicos mostra. Devolve null se a API estiver em outro mês (os pilares ficam em CONFIG.pilaresConfig).
  */
-function dadosDaApi(index, gerencias, base, cfg, canais) {
+function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const ref = index.mes_referencia;
   if (ref.anomes !== cfg.ano + String(cfg.mes).padStart(2, '0')) return null;
   const I = cfg.idx;
@@ -71,14 +99,15 @@ function dadosDaApi(index, gerencias, base, cfg, canais) {
     naApi.add(r.id);
     const gc = titulo(r.gerencia), c = canal[r.id];
     if (!c || !c.canal) { semCanal.push({ gc, rota: r.id }); continue; }
-    const v = {};
-    for (const [ag, id] of Object.entries(cfg.produtoDaApi)) {
-      const b = r.produtos[id], linha = [null, null, null, null, null];
-      if (b) { linha[I.meta] = b.meta; linha[I.real] = b.realizado; linha[I.online] = b.online_hoje; linha[I.metaDia] = b.meta_dia; }
-      v[ag] = linha;
-    }
-    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, v });
+    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, v: valoresDaApi(r.produtos, cfg, I) });
   }
+  // Totais da API: uma linha por gerência do index.json (mesmo que nenhuma rota dela esteja no incentivo)
+  const totaisGerencia = index.gerencias.map((g, i) => ({
+    gc: titulo(g.id), id: g.id, nome: g.nome, v: valoresDaApi((gerencias[i] || {}).produtos, cfg, I),
+  }));
+  const temResumo = !!(resumo && resumo.empresa && resumo.empresa.produtos);
+  const totalEmpresa = temResumo ? valoresDaApi(resumo.empresa.produtos, cfg, I)
+    : Object.fromEntries(Object.keys(cfg.produtoDaApi).map((ag) => [ag, somarLinhas(totaisGerencia.map((g) => g.v[ag]), I)]));
   const [dia, hora] = index.atualizado_em.split('T');
   const corte = dia.split('-').reverse().join('/') + ' ' + hora.slice(0, 5);
   return {
@@ -89,9 +118,10 @@ function dadosDaApi(index, gerencias, base, cfg, canais) {
         `Canal Mista/Segmentada da base de segmentação de ${base.meta.corteSeg} (provisório)`,
       medidas: base.meta.medidas, produtos: Object.keys(cfg.produtoDaApi), totalRotasModelo: naApi.size,
       refriCategoria: !faltam.includes(cfg.refri), produtosApi: [...ids],
+      totalEmpresaOrigem: temResumo ? 'resumo' : 'gerencias',
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
     },
-    rotas, semCanal, duplicadas: base.duplicadas,
+    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas,
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
@@ -125,8 +155,13 @@ async function carregarDados(base, cfg, ajustes) {
   try {
     const index = await ler('index.json');
     const gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
-    return dadosDaApi(index, gerencias, base, cfg, canais) ||
-      comAviso(comCanais(base, canais), `a API está em ${index.mes_referencia.rotulo} e o painel está configurado para ${cfg.mes}/${cfg.ano}`);
+    // O resumo.json só traz o total da empresa (aba Estratégicos): se faltar, o painel segue com a soma das gerências
+    let resumo = null, erroResumo = null;
+    try { resumo = await ler('resumo.json'); } catch (e) { erroResumo = e.message; }
+    const d = dadosDaApi(index, gerencias, base, cfg, canais, resumo);
+    if (!d) return comAviso(comCanais(base, canais), `a API está em ${index.mes_referencia.rotulo} e o painel está configurado para ${cfg.mes}/${cfg.ano}`);
+    if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
+    return d;
   } catch (erro) {
     return comAviso(comCanais(base, canais), `API indisponível (${erro.message})`);
   }
@@ -255,6 +290,64 @@ function urlPublicacao(cfg, texto, existe) {
 /** Agrupadores que formam o Refrigerantes do gatilho: a categoria (API) ou, sem ela, a soma provisória. */
 const componentesRefri = (dados, cfg) => (dados.meta.refriCategoria ? [cfg.refri] : cfg.refriProvisorio);
 
+/*
+ * Linhas da aba Estratégicos: uma por gerência e o TOTAL da empresa, só volume (não há pontos nem gatilho aqui —
+ * quem pontua continua sendo o motor). `itens` são os agrupadores das colunas, na ordem da tela.
+ * Com a API, os números são os totais que ela já traz: a gerência inteira, com TODAS as rotas que têm Real
+ * (sem canal, Neutraliza, virtuais, eventuais e item sem meta), igual ao Desempenho de Rotas.
+ * Sem a API (base embutida), continua a soma das rotas do incentivo, como antes — as duas origens nunca se misturam.
+ * `conciliacao` compara o Refrigerantes das rotas do incentivo com o total da empresa (nota abaixo da tabela).
+ */
+function montarEstrat(dados, itens, cfg) {
+  cfg = cfg || CONFIG;
+  const I = cfg.idx;
+  const compRefri = componentesRefri(dados, cfg);
+  const chaves = itens.concat([CHAVE_REFRI]);
+  const novo = () => { const o = {}; chaves.forEach((k) => { o[k] = { meta: 0, real: 0, online: 0, mdia: 0, temMdia: false }; }); return o; };
+  const soma = (d, k, v) => {
+    const a = d[k];
+    a.meta += v[I.meta] || 0; a.real += v[I.real] || 0; a.online += v[I.online] || 0;
+    if (v[I.metaDia] !== null && v[I.metaDia] !== undefined) { a.mdia += v[I.metaDia]; a.temMdia = true; }
+  };
+  // Rotas do incentivo (canal Mista/Segmentada): a tabela sem a API e, com a API, a conciliação da nota
+  const porRota = {}, totalRotas = novo();
+  let nRotas = 0;
+  for (const r of dados.rotas) {
+    const a = (porRota[r.gc] = porRota[r.gc] || novo());
+    nRotas++;
+    for (const k of itens) {
+      const v = r.v[k] || VAZIO;
+      if (!(v[I.meta] > 0) || v[I.real] === null) continue; // sem meta ou sem real fica fora da soma, como no resto do painel
+      soma(a, k, v); soma(totalRotas, k, v);
+    }
+    for (const g of compRefri) {
+      const v = r.v[g] || VAZIO;
+      if (!(v[I.meta] > 0) || v[I.real] === null) continue;
+      soma(a, CHAVE_REFRI, v); soma(totalRotas, CHAVE_REFRI, v);
+    }
+  }
+  const porNome = (a, b) => a.gc.localeCompare(b.gc, 'pt-BR');
+  if (!(dados.meta.origem === 'api' && dados.totaisGerencia && dados.totalEmpresa)) {
+    return { origem: 'rotas', nRotas, conciliacao: null,
+             linhas: Object.keys(porRota).map((gc) => ({ gc, nome: gc, v: porRota[gc] })).sort(porNome),
+             total: { gc: 'TOTAL', nome: 'TOTAL', v: totalRotas } };
+  }
+  const daApi = (vals) => {
+    const o = novo();
+    for (const k of itens) soma(o, k, vals[k] || VAZIO);
+    for (const g of compRefri) soma(o, CHAVE_REFRI, vals[g] || VAZIO);
+    return o;
+  };
+  const total = { gc: 'TOTAL', nome: 'TOTAL', v: daApi(dados.totalEmpresa) };
+  const canal = totalRotas[CHAVE_REFRI].real, todas = total.v[CHAVE_REFRI].real;
+  return {
+    origem: 'api', nRotas,
+    linhas: dados.totaisGerencia.map((g) => ({ gc: g.gc, nome: g.nome, v: daApi(g.v) })).sort(porNome),
+    total,
+    conciliacao: { refriCanal: canal, refriTotal: todas, pct: todas > 0 ? (canal / todas) * 100 : null },
+  };
+}
+
 function montarEntrada(dados, cfg, confrontos) {
   const I = cfg.idx;
   const compRefri = componentesRefri(dados, cfg);
@@ -299,6 +392,7 @@ function montarEntrada(dados, cfg, confrontos) {
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
+                     montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao };

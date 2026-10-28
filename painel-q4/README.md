@@ -14,6 +14,13 @@ embutida (`data/data.json`) e avisa no rodapé ("base embutida").
   Diferença e %) para os itens dos dois canais juntos, mais o % da categoria Refrigerantes. **Refri Single fica de
   fora**, por já estar dentro da coluna % Refri. A linha **TOTAL** da empresa vem logo depois da última gerência e
   continua visível quando as gerências precisam rolar. É a tabela mais larga do painel (26 colunas).
+  Ao contrário das abas Rota e Supervisão, que são do incentivo, esta mostra a **gerência inteira**: os números são os
+  totais que a própria API já traz (`gerencias/{GC}.json` → `produtos` e `resumo.json` → `empresa.produtos`), com
+  **todas as rotas que têm Real** — também as de fora do incentivo (sem canal, Neutraliza, virtuais e eventuais) e os
+  itens sem meta na rota. É o mesmo corte dos cards de Diretoria e de Gerência do Desempenho de Rotas. A nota abaixo
+  da tabela concilia os dois recortes: quanto do Refrigerantes da empresa está nas rotas do incentivo (em 28/10/2026,
+  2.723.545,6 de 4.698.930,3 cx, 57,9%). Sem a API, a aba volta a somar só as rotas do incentivo e avisa na nota;
+  as duas origens nunca se misturam na mesma tabela.
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
 - **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Os cards do topo trazem os cinco pilares
@@ -66,7 +73,7 @@ src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do pa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       33 testes do motor e 15 do adaptador
+tests/                       33 testes do motor e 21 do adaptador
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -82,6 +89,10 @@ docs/                        regras do incentivo (fonte de verdade)
   canal na base fica fora do ranking (aba Regras > Dados e alertas).
 - **Mês:** o painel só usa a API quando ela está no mês de `CONFIG` (`src/adapter.js`). Na virada para novembro,
   atualize `mes` e `pilaresConfig`; antes disso o painel avisa e usa a base embutida.
+- **Totais da aba Estratégicos:** o adaptador expõe `totaisGerencia` (de `gerencias/{GC}.json` → `produtos`) e
+  `totalEmpresa` (de `resumo.json` → `empresa.produtos`); se o `resumo.json` falhar, o total vira a soma das
+  gerências e o painel registra o motivo em `meta.aviso`. A montagem das linhas fica em `montarEstrat()`, no
+  adaptador — é só soma de volume: pontos, gatilhos e ranking continuam só no motor.
 
 ## Comandos
 ```

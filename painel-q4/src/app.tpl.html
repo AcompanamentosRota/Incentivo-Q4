@@ -261,6 +261,8 @@ button{background:none;border:0;cursor:pointer}
 .trow.gtot{background:rgba(255,255,255,.10);font-weight:600;border-top:2px solid rgba(255,255,255,.3)}
 .trow.gtot .rt{font-weight:700}
 .etnota{font-size:15px;font-weight:500;color:var(--muted);line-height:1.35}
+.etfoot{flex:none;display:flex;align-items:center;gap:12px;padding:9px 24px;border-top:1px solid var(--line)}
+.etfoot .tag{font-size:15px;padding:1px 10px;white-space:nowrap}
 #etrows{flex:0 1 auto;overflow-y:auto}   /* encolhe até o conteúdo: a linha TOTAL fica colada na última gerência */
 .ettot{flex:none}
 /* realce em cruz: a linha sai do :hover, a coluna da classe .cl posta pelo mouse */
@@ -375,6 +377,7 @@ button{background:none;border:0;cursor:pointer}
       <div class="th" id="ethead"></div>
       <div class="rows" id="etrows"></div>
       <div class="ettot" id="ettot"></div>
+      <div class="etfoot"><span class="etnota" id="etnota"></span></div>
     </div>
   </section>
 
@@ -779,27 +782,10 @@ const COLS_EST = ['Meta','M. dia','Real','Hoje','Dif','%'];
 function renderEstrat(){
   const itens = itensEstrat();
   const blocos = itens.map(p=>({ chave:fonteDe(p.nome), rot:rotuloPilar(p.nome), g:grupo(p.nome) }));
-  const chaves = blocos.map(b=>b.chave).concat(['__refri__']);
-  const novo = ()=>{ const o={}; chaves.forEach(k=>{ o[k]={meta:0,mdia:0,real:0,online:0,temMdia:false}; }); return o; };
-  const gcs = [...new Set(DADOS.rotas.map(r=>r.gc))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  const acc = {}; gcs.forEach(g=>{ acc[g]=novo(); }); const tot = novo();
-  const soma = (d,k,v)=>{ const a=d[k]; a.meta += v[0]; a.real += v[1]; a.online += v[2]||0;
-                          if(v[4]!=null){ a.mdia += v[4]; a.temMdia = true; } };
-  let nRotas = 0;
-  DADOS.rotas.forEach(r=>{
-    const a = acc[r.gc]; if(!a) return;
-    nRotas++;
-    itens.forEach((pl,i)=>{
-      const v = r.v[blocos[i].chave] || VAZIO;
-      if(!(v[0]>0) || v[1]===null) return; // sem meta ou sem real fica fora da soma, como no resto do painel
-      soma(a, blocos[i].chave, v); soma(tot, blocos[i].chave, v);
-    });
-    REFRI_COMP.forEach(ag=>{
-      const v = r.v[ag] || VAZIO;
-      if(!(v[0]>0) || v[1]===null) return;
-      soma(a, '__refri__', v); soma(tot, '__refri__', v);
-    });
-  });
+  /* Os números vêm do adaptador: com a API, os totais da própria API (gerência inteira, todas as rotas com
+     Real); sem ela, a soma das rotas do incentivo. A tela só formata. */
+  const est = montarEstrat(DADOS, blocos.map(b=>b.chave), CONFIG);
+  const linhas = est.linhas, tot = est.total.v;
   const pctDe = (x)=> x.meta>0 ? (x.real + x.online)/x.meta*100 : null;
   const difDe = (x)=> x.real + x.online - x.meta;
   const celulas = (d, b)=>{
@@ -807,9 +793,9 @@ function renderEstrat(){
     return [numF(x.meta), x.temMdia ? numF(x.mdia) : '–', numF(x.real), numF(x.online),
             pct===null ? '–' : sgn(difDe(x)), pct===null ? '–' : M.fmtPct(pct)];
   };
-  const todas = gcs.map(g=>acc[g]).concat([tot]);
+  const todas = linhas.map(l=>l.v).concat([tot]);
   const maior = (b, i)=> todas.reduce((m,d)=>{ const s = celulas(d,b)[i]; return s.length>m.length ? s : m; }, '');
-  const cols = [{ textos: gcs.concat(['Gerência','TOTAL']), flex:true }], grupos = [];
+  const cols = [{ textos: linhas.map(l=>l.gc).concat(['Gerência','TOTAL']), flex:true }], grupos = [];
   blocos.forEach(b=>{
     const ini = cols.length;
     COLS_EST.forEach((l,i)=>cols.push({ textos:[l, maior(b,i)] }));
@@ -835,15 +821,25 @@ function renderEstrat(){
          + `<div class="${b.g} n m">${v[3]}</div><div class="${b.g} n" style="${cor}">${v[4]}</div>`
          + `<div class="${b.g} n b">${v[5]}</div>`;
     });
-    const rp = pctDe(d.__refri__);
+    const rp = pctDe(d[CHAVE_REFRI]);
     c += `<div class="n b${rp!==null && rp>=R.gatilhoVolumePct?' ok':''}">${rp===null?'–':M.fmtPct(rp)}</div>`;
     return `<div class="trow ${cls||''}" style="grid-template-columns:${GRID}">${c}</div>`;
   };
+  const api = est.origem==='api';
   $('ettitulo').textContent = `Gerências · todos os itens · Mista e Segmentada`;
-  $('etsub').innerHTML = `<span><b>${gcs.length}</b>gerências</span><span><b>${nRotas}</b>rotas</span>`
-    + (DADOS.semCanal.length ? `<span><b>${DADOS.semCanal.length}</b>sem canal</span>` : '');
-  $('etrows').innerHTML = gcs.map(g=>linhaEst(g, acc[g])).join('');
+  $('etsub').innerHTML = `<span><b>${linhas.length}</b>gerências</span>`
+    + (api ? `<span>todas as rotas com Real</span>` : `<span><b>${est.nRotas}</b>rotas</span>`)
+    + (!api && DADOS.semCanal.length ? `<span><b>${DADOS.semCanal.length}</b>sem canal</span>` : '')
+    + (REFRI_CAT ? '' : `<span class="tag">% Refri provisório</span>`);
+  $('etrows').innerHTML = linhas.map(l=>linhaEst(l.gc, l.v)).join('');
   $('ettot').innerHTML = linhaEst('TOTAL', tot, 'gtot');
+  const cc = est.conciliacao;
+  $('etnota').innerHTML = api
+    ? `Inclui todas as rotas com Real, também as de fora do incentivo (sem canal, Neutraliza, virtuais e eventuais). `
+      + `Rotas do incentivo (Mista e Segmentada): Refrigerantes ${numF(cc.refriCanal)} de ${numF(cc.refriTotal)} cx `
+      + `(${cc.pct===null?'–':M.fmtPct(cc.pct)}).`
+    : `<span class="tag">base embutida: só rotas do incentivo</span>`
+      + ` Sem a API, a aba soma apenas as ${est.nRotas} rotas de canal Mista ou Segmentada: não é a gerência inteira.`;
 }
 
 /* ---------- confrontos entre supervisores ---------- */
