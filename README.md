@@ -54,7 +54,9 @@ meta do cliente = META_NEG do cliente; pedidos de hoje à parte (`online_hoje`).
 
 `frontend/desafio-q4.html` é o painel do incentivo Desafio Q4 (regras em `painel-q4/docs/`). Ele lê a API do
 mesmo site (`./api/v1/`) ao abrir; por isso fica neste repositório: com o Pages privado, uma página em outro
-endereço não consegue ler a API. Da API vêm meta, realizado, online e meta dia de cada rota; o canal
+endereço não consegue ler a API. Da API vêm meta, realizado, online e meta dia de cada rota e, na aba
+Estratégicos, os totais de cada gerência e da empresa (`gerencias/{GC}.json` e `resumo.json`), que incluem
+todas as rotas com Real, inclusive as de fora do incentivo; o canal
 (Mista/Segmentada) ainda vem da base de segmentação embutida (`painel-q4/data/data.json`). Aberto direto do
 computador, sem a API, o painel usa essa base embutida inteira e avisa no rodapé ("base embutida").
 

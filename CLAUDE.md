@@ -34,12 +34,15 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores) | só por **PR** do botão da Administração |
 | `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
 
-Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram no painel.
+Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram nas abas do
+incentivo (Rota, Supervisão, Ranking, Detalhe, Confrontos). A aba Estratégicos é a exceção: ela mostra a
+gerência inteira, somando os totais da API (`gerencias/{GC}.json` e `resumo.json`), que incluem todas as
+rotas com Real.
 
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 48 testes (33 do motor, 15 do adaptador); precisa de Node 18+
+# testes do painel — 54 testes (33 do motor, 21 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 26 testes, sem rede (Datasphere falso)
@@ -112,7 +115,9 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
 - **Contrato da API estável:** os campos de `api/v1` descritos em `API.md` não mudam de forma.
-- Estratégicos, orçamento, custo e valores de premiação ficam **fora** do painel e do repositório.
+- Orçamento, custo dos prêmios e valores de premiação ficam **fora** do painel e do repositório.
+  Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação. (A regra v3.1 ainda diz
+  "fora do escopo do painel" em `Desafio-Q4_Contexto-Regras.md` linha 19: redação antiga, já revertida.)
 
 ## 6. Armadilhas
 
@@ -150,7 +155,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 48 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 54 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 26 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
