@@ -9,7 +9,8 @@ projeto "Desempenho de Rotas" da TI, de onde vêm o cliente OData (`backend/odat
 O contrato da API (endereços e campos) para quem constrói o front está em **[API.md](API.md)**.
 
 ```
-metas-produtos/
+Incentivo-Q4/
+├── CLAUDE.md                guia do repositório para sessões do Claude Code
 ├── api/v1/                  ← a API (JSONs gerados; não edite à mão)
 ├── frontend/
 │   ├── index.html           página provisória que lê a API
@@ -26,6 +27,7 @@ metas-produtos/
 │   │   ├── validacao.py     conferência antes de publicar
 │   │   └── simulado.py      dados fictícios no mesmo formato
 │   ├── scripts/gerar.py     gera a API
+│   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
 │   ├── scripts/descobrir_produtos.py   confere a grafia dos agrupadores no Datasphere
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
