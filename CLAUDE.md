@@ -1,0 +1,171 @@
+# CLAUDE.md — guia do repositório
+
+Instruções para qualquer sessão do Claude Code neste projeto. Leia também `README.md`, `API.md`,
+`painel-q4/README.md` e, para as regras do incentivo, `painel-q4/docs/Desafio-Q4_Contexto-Regras.md`.
+
+## 1. O que é este projeto
+
+API de **meta x realizado de volume** da Comercial Bandeirantes, alimentada pelo **SAP Datasphere** (OData) e
+publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, que lê essa API no mesmo site.
+
+- A API cobre 6 produtos de volume (Sucos, Powerade, Sabores, Retornáveis, Individuais e Refrigerantes) nos
+  níveis cliente, rota, supervisão, gerência e empresa. Contrato em `API.md`.
+- O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
+  gatilhos, confrontos entre supervisores e ranking.
+- **Quem usa:** o Back Office e a equipe comercial (gerências, supervisores e consultores); o painel é feito
+  para tela de PC e para print. A Karen é a dona do repositório.
+- Os dados se atualizam sozinhos: um workflow roda o gerador a cada 15 min em dias úteis e comita em `api/`.
+
+## 2. Mapa do repositório
+
+| Pasta / arquivo | O que é | Quem altera |
+|---|---|---|
+| `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
+| `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
+| `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
+| `backend/scripts/gerar.py` | gera a API | — |
+| `backend/scripts/servir.py` | sobe o site local como no Pages | — |
+| `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
+| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
+| `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
+| `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
+| `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
+| `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores) | só por **PR** do botão da Administração |
+| `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
+
+Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram no painel.
+
+## 3. Comandos (todos verificados nesta máquina)
+
+```bash
+# testes do painel — 48 testes (33 do motor, 15 do adaptador); precisa de Node 18+
+node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
+
+# testes do back-end — 26 testes, sem rede (Datasphere falso)
+cd backend && python -m unittest discover -s tests -t .
+
+# regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
+python painel-q4/scripts/build.py
+
+# site local, montado como no Pages (frontend/ na raiz, api/ em /api)
+cd backend && python scripts/servir.py            # http://localhost:8000/desafio-q4.html
+cd backend && python scripts/servir.py --porta 8011
+```
+
+O gerador (`cd backend` antes). **Sempre com `--saida` para fora do repositório** quando for teste.
+Abaixo, `FORA` é uma pasta temporária fora do repositório, em **caminho absoluto**: os comandos rodam de
+`backend/`, então um `--saida ../alguma-coisa` cai dentro do próprio repositório.
+
+```bash
+# dados fictícios, sem tocar no Datasphere
+python scripts/gerar.py --simulado --saida "$FORA/sim" --forcar
+
+# simula a data (fechamento de mês, virada, dias úteis)
+python scripts/gerar.py --simulado --hoje 2026-11-03 --saida "$FORA/sim" --forcar
+
+# uma rota só, com dados reais (precisa de backend/.env); grava o cache das respostas
+python scripts/gerar.py --rota 111 --gravar-cache "$FORA/cache" --saida "$FORA/r111" --forcar
+
+# repete a partir do cache, sem rede e em segundos
+python scripts/gerar.py --rota 111 --replay "$FORA/cache" --saida "$FORA/r111" --forcar
+```
+
+Detalhes que o `--help` não deixa óbvios:
+
+- `--saida` tem precedência sobre a pasta que o `--rota` escolheria (`backend/saida/rota_<ROTA>/`).
+- `--rota` filtra só a consulta **real**; com `--simulado` ele apenas muda a pasta de destino.
+- `--replay` exige um cache gravado antes por `--gravar-cache` (que faz a consulta real).
+- `--forcar` ignora a janela de horário (padrão 07:00–18:59 de Brasília); sem ele, fora da janela nada acontece.
+- Saída: `0` ok, `1` erro de execução, `2` dados reprovados na validação (nada é gravado).
+
+## 4. Fluxo de uma mudança
+
+1. `git fetch origin` e `git status`. Árvore suja? Pare e pergunte antes de qualquer coisa.
+2. Branch a partir de `origin/main`.
+3. Edite `painel-q4/src/` ou `painel-q4/data/`.
+4. Rode `python painel-q4/scripts/build.py` e **comite o `frontend/desafio-q4.html` gerado junto**.
+   O build é determinístico: sem mudança na fonte, o HTML sai idêntico ao commitado.
+5. Rode os dois conjuntos de testes.
+6. Abra o PR **em rascunho**; marque pronto só com os testes passando e a branch atualizada com a main.
+
+## 5. Regras que não mudam
+
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.1). Itens marcados ⚠️ lá são
+interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
+
+- **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
+  Nenhuma fórmula nova fora dele.
+- **Faixas 90 / 100 / 105** com limites de 5 casas decimais, calculadas **sem arredondar**; na tela o %
+  é **truncado**, nunca arredondado (99,96% não pode virar "100,0%").
+- **Pilares nunca fixos no código:** vêm de `CONFIG.pilaresConfig` e dos ajustes do admin. Pilares de volume
+  são todos, menos Missões Guiadas.
+- **Missões Guiadas:** em outubro entra validada em 100% (3 pontos); em novembro e dezembro passa a ter
+  meta, real e online.
+- **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
+  **Gatilho de pontos:** SV 60 acumulados no trimestre, consultor 20 no mês (zera todo mês).
+- **Os pontos sempre aparecem.** Só status, posição oficial e premiação dependem dos gatilhos (26/10).
+  Todas as linhas são numeradas; a posição oficial é só de quem bate os dois gatilhos (27/10).
+- **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
+  O vencedor leva +5 no mês, e toda a mesa dele também; quem perde não perde pontos.
+  Desempate (confronto e ranking): maior % de Refrigerantes.
+- **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
+  `meta_dia` vem pronta da API — **não recalcule**.
+- **Contrato da API estável:** os campos de `api/v1` descritos em `API.md` não mudam de forma.
+- Estratégicos, orçamento, custo e valores de premiação ficam **fora** do painel e do repositório.
+
+## 6. Armadilhas
+
+- **A main anda sozinha.** O workflow "Atualizar dados" comita em `api/` a cada 15 min, de segunda a sexta,
+  das 07h às 18h45 (Brasília). Antes de marcar um PR como pronto, `git fetch` e atualize a branch.
+- **`api/v1/` não se edita à mão** e saídas locais do gerador nunca são comitadas.
+- **O botão "Atualizar dados" do `servir.py` grava em `api/`.** O `POST /atualizar` roda `gerar.py --forcar`
+  sem `--saida`, ou seja, no destino padrão, que é a pasta publicada. É a forma mais fácil de sujar a árvore
+  com 200+ JSONs sem perceber. O mesmo vale para `gerar.py` rodado sem `--saida`.
+- **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração). Ele não
+  existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
+  é esperado e inofensivo.
+- **A senha do admin existe só como hash** (SHA-256) dentro do HTML. Ela evita mudança por engano; não é
+  proteção forte e nunca deve ser escrita em texto claro em lugar nenhum.
+- **`.env` nunca é versionado** (já está no `.gitignore`). Nunca imprima credenciais. Se a autenticação no
+  Datasphere falhar, pare e avise em vez de tentar contornar.
+- **Dados de clientes e de pessoas** estão nos JSONs da API (nomes e códigos de clientes, nomes de vendedores
+  e supervisores). Não os copie para fora do repositório, para issues, PRs ou capturas de tela.
+- Use fixtures sintéticas, com nomes fictícios, em todo teste novo.
+
+## 7. Virada de mês
+
+- O painel só usa a API quando ela está no mês de `CONFIG` — `painel-q4/src/adapter.js`, campos `mes` e `ano`.
+  Fora disso ele avisa e cai para a base embutida.
+- Em 1º de novembro e 1º de dezembro: atualize `CONFIG.mes` e acrescente a entrada do mês em
+  `CONFIG.pilaresConfig` (um bloco por canal, com os coringas 4 e 5 daquele mês), rode o `build.py` e comite
+  o HTML gerado.
+- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online.
+- O que depende de fechamento de meses: os pontos acumulados do SV (gatilho de 60 no trimestre) somam os
+  meses fechados mais o mês corrente. A própria API tem período de fechamento — do 1º dia do mês até o fim
+  do 1º dia útil ela mostra o mês anterior, com `mes_referencia.fechamento = true` e `tendencia`,
+  `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje`.
+
+## 8. Checklist antes do PR
+
+1. `git fetch origin` e branch atualizada com a `main`.
+2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 48 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 26 passando.
+5. Painel aberto (`servir.py`) sem erro novo no console.
+6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
+7. Nenhum `.env`, dado gerado localmente ou segredo no diff.
+8. PR em rascunho, com resumo, testes rodados e resultado, conferência, o que não pôde ser testado e pendências.
+
+## 9. Declare a máquina no começo da sessão
+
+Verifique se existe `backend/.env` e diga em qual caso está:
+
+- **Com `.env` (máquina da empresa):** pode consultar o Datasphere, sempre com `--saida` para uma pasta
+  **fora** do repositório. Nunca use o destino padrão. Se a autenticação falhar, pare e avise.
+- **Sem `.env` (Claude Code na web):** não tente acessar o Datasphere nem peça credenciais. Use a API já
+  publicada (`git show origin/main:api/v1/<arquivo>`) copiada para uma pasta temporária fora do repositório,
+  e `gerar.py --simulado [--hoje AAAA-MM-DD] --saida <fora do repositório>` para simular.
+
+Em ambos os casos: capturas de tela só se o ambiente permitir e salvas fora do repositório; nunca grave em
+`api/` nem em `frontend/ajustes.json`.
