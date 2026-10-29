@@ -1,7 +1,6 @@
-{"versao":1,"atualizado_em":"2026-10-29T08:04","regras":{},"pilares":{},"canais":{"I19":{"canal":"Segmentada","sub":"Mini","segmento":"Mini"},"T35":{"canal":"Segmentada","sub":"Mini","segmento":"Mini"}},"canaisSV":{},"agrupadores":[],"confrontos":[]}
 {
   "versao": 1,
-  "atualizado_em": "2026-10-29T13:56",
+  "atualizado_em": "2026-10-29T15:00",
   "regras": {
     "gatilhoPontos": {
       "SV": 60,
@@ -12,29 +11,15 @@
   "canais": {
     "I19": {
       "canal": "Segmentada",
-      "sub": "Mod",
-      "segmento": "Mod"
+      "sub": "Mini",
+      "segmento": "Mini"
     },
     "T35": {
-      "canal": "Mista",
-      "sub": null,
-      "segmento": null
-    }
-  },{
-  "versao": 1,
-  "atualizado_em": "2026-10-29T14:05",
-  "regras": {
-    "gatilhoPontos": {
-      "SV": 60,
-      "RT": 17
+      "canal": "Segmentada",
+      "sub": "Mini",
+      "segmento": "Mini"
     }
   },
-  "pilares": {},
-  "canais": {},
-  "canaisSV": {},
-  "agrupadores": [],
-  "confrontos": []
-}
   "canaisSV": {},
   "agrupadores": [],
   "confrontos": []
