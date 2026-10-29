@@ -42,6 +42,8 @@
       'Confronto vencido vale +5 para SV e mesa mesmo se o SV não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
       '% acumulado de Refrigerantes do SV = Σ(Real+Online) ÷ Σ Meta, de out até o mês vigente.',
       'Desempate no ranking do SV usa o % acumulado de Refrigerantes do trimestre (no confronto, o % do mês).',
+      'Mês do trimestre sem dado (mês fechado ausente na API): o acumulado do SV aparece como incompleto e o SV fica sem posição oficial até o dado chegar.',
+      'Canal (Mista/Segmentada) e mesas dos meses fechados: o canal é o da base de segmentação atual; a mesa de cada mês é a supervisão da rota naquele mês.',
     ],
   };
 
@@ -141,6 +143,7 @@
       det.valido = true;
 
       const pa = pctPilar(a.id, c.pilar), pb = pctPilar(b.id, c.pilar);
+      Object.assign(det, { pctDesafiante: pa, pctDesafiado: pb }); // % do mês do confronto (a tela mostra o mês apurado)
       if (pa === null || pb === null) { det.motivo = 'SEM_DADO_PARA_APURAR'; continue; }
       let vencedor = null;
       if (pa !== pb) vencedor = pa > pb ? a.id : b.id;
@@ -167,11 +170,14 @@
    * @param {Array}  e.pilaresConfig          {mes,canal,pilares:[{nome,tipo:'volume'|'missao'}]}
    * @param {Array}  e.medidas                {id,mes,pilar,meta,real,online}  (inclui pilar 'Refrigerantes')
    * @param {Array}  e.confrontos             {mes,id_sv_desafiante,id_sv_desafiado,pilar,ordem_registro}
+   * @param {Array}  [e.mesesIncompletos]     {mes,motivo}: meses do trimestre sem dado (fechado que faltou ou falhou)
    */
   function calcular(e) {
     if (!REGRAS.meses.includes(e.mesRef)) throw new Error('mesRef fora do Q4: ' + e.mesRef);
     const alertasGlobais = [];
     const meses = REGRAS.meses.filter((m) => m <= e.mesRef);
+    // mês do trimestre sem dado: o acumulado do SV fica incompleto (nunca soma só o que existe sem avisar)
+    const incompletos = (e.mesesIncompletos || []).filter((x) => meses.includes(x.mes));
 
     // cadastro: sem duplicados, com canal/cargo válidos
     const vistos = new Set();
@@ -234,6 +240,8 @@
       if (p.cargo === 'RT' && p.id_supervisor != null && !supervisor) alertas.push('SUPERVISOR_NAO_ENCONTRADO');
 
       const porMes = meses.map((mes) => {
+        // mês sem dado não soma nada (nem a Missões validada de outubro): o acumulado fica marcado como incompleto
+        if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, pontosMes: 0 };
         const c = calc[p.id][mes];
         const pontosPilares = c.pilares.reduce((s, x) => s + x.pontos, 0);
         const idSV = p.cargo === 'SV' ? p.id : supervisor ? supervisor.id : null;
@@ -273,6 +281,7 @@
         pontosConfronto: mesAtual.pontosConfronto,
         pontosMes: mesAtual.pontosMes, // valor interno (sempre numérico)
         pontosAcumulados: p.cargo === 'SV' ? acumulado : undefined, // Consultor: não se aplica
+        acumuladoIncompleto: p.cargo === 'SV' ? incompletos.map((x) => x.mes) : undefined,
         volume,
         gatilhoPontos,
         alertas,
@@ -281,7 +290,8 @@
       // só status, ranking e premiação dependem dele
       r.pontosAtuaisExibidos = r.pontosMes;
       if (p.cargo === 'SV') r.pontosAcumuladosExibidos = acumulado;
-      r.elegivel = volume.atingido && gatilhoPontos.atingido;
+      // SV com mês do trimestre sem dado não entra no ranking oficial: o acumulado não está completo ⚠️
+      r.elegivel = volume.atingido && gatilhoPontos.atingido && !(p.cargo === 'SV' && incompletos.length);
       r.status = REGRAS.status.nenhum;
       r.posicao = null;
       r.premiada = false;
@@ -310,6 +320,7 @@
       ranking,
       confrontos: todosDetalhes,
       alertas: alertasGlobais,
+      mesesIncompletos: incompletos,
       semVinculoSupervisor: pessoas.filter((p) => p.cargo === 'RT' && p.id_supervisor == null).length,
       notasPendentes: REGRAS.notasPendentes,
       avisoOutubro: e.mesRef === 10

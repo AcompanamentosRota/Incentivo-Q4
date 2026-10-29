@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 54 testes (33 do motor, 21 do adaptador); precisa de Node 18+
+# testes do painel — 68 testes (34 do motor, 34 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -141,12 +141,19 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 ## 7. Virada de mês
 
-- O painel só usa a API quando ela está no mês de `CONFIG` — `painel-q4/src/adapter.js`, campos `mes` e `ano`.
-  Fora disso ele avisa e cai para a base embutida.
-- Em 1º de novembro e 1º de dezembro: atualize `CONFIG.mes` e acrescente a entrada do mês em
-  `CONFIG.pilaresConfig` (um bloco por canal, com os coringas 4 e 5 daquele mês), rode o `build.py` e comite
-  o HTML gerado.
-- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online.
+- O mês de referência vem da API (`index.json` → `mes_referencia.anomes`); não há mais `CONFIG.mes`. `CONFIG.ano`
+  é o ano do trimestre. Mês sem pilares em `CONFIG.pilaresConfig` (`pilares: []`): o painel mostra "Pilares de <mês>
+  ainda não configurados" e não calcula pontos nem ranking. API fora do ar: base embutida só no mês dela, rotulada
+  "base embutida (outubro)"; em outro mês, aviso e nada calculado. Nunca mostrar um mês como se fosse outro.
+- Para novembro e dezembro: preencha os 5 pilares de cada canal na entrada do mês em `CONFIG.pilaresConfig`
+  (decisão do Back Office), rode o `build.py` e comite o HTML gerado. Os coringas do admin (`ajustes.json` →
+  `pilares`, sem mês) valem para o mês de referência, e só depois que os pilares 1 a 3 dele estiverem configurados.
+- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online. A fonte
+  por rota ainda não foi definida; quando for, entra em `CONFIG.fonteDoPilar['Missões Guiadas']` (+ `produtoDaApi`).
+  Sem fonte, o pilar aparece "sem dados" e não pontua.
+- **Acumulado do SV:** o adaptador lê os meses fechados do trimestre (`index.json` → `fechados`), cada mês é
+  calculado com os pilares e os confrontos dele, e o motor recebe todos os meses até o vigente. Mês fechado ausente
+  ou com falha: aviso, acumulado "incompleto" (`mesesIncompletos` na entrada do motor) e SV sem posição oficial.
 - O que depende de fechamento de meses: os pontos acumulados do SV (gatilho de 60 no trimestre) somam os
   meses fechados mais o mês corrente. A própria API tem período de fechamento — do 1º dia do mês até o fim
   do 1º dia útil ela mostra o mês anterior, com `mes_referencia.fechamento = true` e `tendencia`,
@@ -161,7 +168,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 54 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 68 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

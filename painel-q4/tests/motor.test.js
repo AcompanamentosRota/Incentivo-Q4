@@ -242,6 +242,23 @@ test('SV: acumulado de out+nov (48) ainda não atinge o gatilho de 60', () => {
   assert.equal(out.pontosAcumuladosExibidos, 48);
 });
 
+test('SV: mês do trimestre sem dado não soma nada, marca o acumulado como incompleto e tira a posição oficial', () => {
+  const pessoas = [pessoa('SV1', 'SV', 'Mista'), pessoa('R1', 'RT', 'Mista', 'SV1')];
+  const medidas = [...med('SV1', 10, CFG_OUT, 'Mista', 120), ...med('SV1', 11, CFG_NOV, 'Mista', 120), { id: 'SV1', mes: 11, pilar: 'Missões Guiadas', meta: 100, real: 120 },
+                   ...med('R1', 11, CFG_NOV, 'Mista', 120), { id: 'R1', mes: 11, pilar: 'Missões Guiadas', meta: 100, real: 120 }];
+  const e = { mesRef: 11, pessoas, pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas, confrontos: [] };
+  const completo = calcular(e).pessoas.find((p) => p.id === 'SV1');
+  assert.deepEqual([completo.pontosAcumulados, completo.acumuladoIncompleto], [48, []]);
+  const res = calcular({ ...e, mesesIncompletos: [{ mes: 10, motivo: 'outubro não carregou' }] });
+  const sv = res.pessoas.find((p) => p.id === 'SV1'), rt = res.pessoas.find((p) => p.id === 'R1');
+  assert.deepEqual(sv.porMes.map((m) => [m.mes, m.pontosMes, !!m.semDado]), [[10, 0, true], [11, 25, false]]);
+  assert.deepEqual([sv.pontosAcumulados, sv.acumuladoIncompleto, sv.elegivel, sv.posicao, sv.status], [25, [10], false, null, '-']);
+  assert.equal(rt.pontosMes, 25);                       // o consultor (só o mês vigente) não muda
+  assert.equal(rt.acumuladoIncompleto, undefined);
+  assert.deepEqual(res.mesesIncompletos, [{ mes: 10, motivo: 'outubro não carregou' }]);
+  assert.deepEqual(conferir(res), []);
+});
+
 // ── 8. confrontos ────────────────────────────────────────
 function cenarioConfronto(pctA, pctB, refriA = 100, refriB = 100, extra = {}) {
   const pessoas = [pessoa('A', 'SV', 'Mista'), pessoa('B', 'SV', 'Mista'), pessoa('RA', 'RT', 'Mista', 'A'), pessoa('RB', 'RT', 'Mista', 'B')];

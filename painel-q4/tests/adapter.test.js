@@ -52,9 +52,13 @@ test('rota eventual fica fora; rota sem canal vai para semCanal; rota da base fo
   assert.equal(d.meta.totalRotasModelo, 3); // A11, A12 e A13
 });
 
-test('API em outro mês: null (os pilares do mês vêm de CONFIG)', () => {
+test('API fora do Q4: null; mês do Q4 sem pilares configurados: dados com aviso e sem cálculo', () => {
+  const set = { ...INDEX, mes_referencia: { anomes: '202609', rotulo: 'Setembro/26', fechamento: false } };
+  assert.equal(dadosDaApi(set, GERENCIAS, BASE, CONFIG), null);
   const nov = { ...INDEX, mes_referencia: { anomes: '202611', rotulo: 'Novembro/26', fechamento: false } };
-  assert.equal(dadosDaApi(nov, GERENCIAS, BASE, CONFIG), null);
+  const d = dadosDaApi(nov, GERENCIAS, BASE, CONFIG);
+  assert.equal(d.meta.mes, 11);
+  assert.equal(d.meta.semCalculo, 'Pilares de novembro ainda não configurados');
 });
 
 test('produto que a API ainda não traz: valores vazios e aviso, sem inventar número', () => {
@@ -109,7 +113,7 @@ test('ajustes: regras e pilares coringa do admin mudam o cálculo', () => {
     aplicarAjustes(normalizarAjustes({
       regras: { gatilhoVolumePct: 90, faixas: [{ min: 105, pontos: 5 }, { min: 100, pontos: 4 }, { min: 90, pontos: 2 }] },
       pilares: { Mista: ['Volume Sucos', 'Volume Refri Single'], Segmentada: ['Volume Sabores', 'Missões Guiadas'] }, // Segmentada repete o pilar 1
-    }), cfg, M.REGRAS);
+    }), cfg, M.REGRAS, 10);
     const res = M.calcular(montarEntrada(dadosDaApi(INDEX, GERENCIAS, BASE, cfg), cfg).entrada);
     const p = (id) => res.pessoas.find((x) => x.id === id);
     assert.equal(p('A11').volume.atingido, true);                                           // 91% >= 90%
@@ -169,7 +173,7 @@ test('agrupadores extras: viram pilar coringa e coluna da API; inválidos ficam 
   assert.deepEqual(aj.agrupadores, [{ id: 'agua', nome: 'Água', agrupador: 'Agua Crystal' }]);
   assert.deepEqual(aj.pilares.Mista, ['Volume Sucos', 'Volume Água']);
   const cfg = JSON.parse(JSON.stringify(CONFIG));
-  aplicarAjustes(aj, cfg, JSON.parse(JSON.stringify(M.REGRAS)));
+  aplicarAjustes(aj, cfg, JSON.parse(JSON.stringify(M.REGRAS)), 10);
   assert.match(dadosDaApi(INDEX, GERENCIAS, BASE, cfg).meta.aviso, /Agua Crystal/); // API ainda sem o extra
   const index = { ...INDEX, produtos: INDEX.produtos.concat([{ id: 'agua', nome: 'Vol. Água' }]) };
   const gerencias = [{ rotas: GERENCIAS[0].rotas.map((r) => (r.id === 'A12' ? { ...r, produtos: { ...r.produtos, agua: b(40, 42, 1, 2) } } : r)) }];
@@ -337,4 +341,226 @@ test('Estratégicos sem a API: só as rotas do incentivo, sem conciliação e se
   assert.equal(est.total.v['Sabores Tt'].real, 190 * 2);
   // sem a categoria, o % Refri volta à soma provisória de Individual + Retornável
   assert.equal(est.total.v[CHAVE_REFRI].meta, (120 + 300) * 2);
+});
+
+// ── virada de mês: outubro fechado (fechado/202610.json) + novembro corrente ──
+// Fixture sintética: gerência NV, SV.NV.1 (rotas N1 e N2) e SV.NV.2 (rota N3), todas Mista.
+const { fechadoDaApi, aplicarCoringas } = require('../src/adapter.js');
+const BASE_V = { ...BASE, rotas: [
+  { gc: 'Nv', sv: 'Sv. Nv.1', rota: 'N1', canal: 'Mista', sub: null, v: {} },
+  { gc: 'Nv', sv: 'Sv. Nv.1', rota: 'N2', canal: 'Mista', sub: null, v: {} },
+  { gc: 'Nv', sv: 'Sv. Nv.2', rota: 'N3', canal: 'Mista', sub: null, v: {} },
+] };
+// novembro (só nos testes): pilares fictícios para exercitar a virada; os reais ainda não foram definidos
+const cfgNov = (missoes) => {
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  const pl = (nome) => ({ nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' });
+  cfg.pilaresConfig.find((c) => c.mes === 11 && c.canal === 'Mista').pilares =
+    ['Volume Sabores', 'Volume Retornáveis', 'Missões Guiadas', 'Volume Powerade', 'Volume Refri Single'].map(pl);
+  cfg.pilaresConfig.find((c) => c.mes === 11 && c.canal === 'Segmentada').pilares =
+    ['Volume Sabores', 'Volume Refri Single', 'Volume Powerade', 'Volume Sucos', 'Missões Guiadas'].map(pl);
+  if (missoes) { cfg.produtoDaApi['Missoes Guiadas'] = 'missoes'; cfg.fonteDoPilar['Missões Guiadas'] = 'Missoes Guiadas'; }
+  return cfg;
+};
+const FECHADO_OUT = {
+  anomes: '202610', rotulo: 'Outubro/26', gerado_em: '2026-11-03T18:46:02', atualizado_em: '2026-11-03T18:45:10',
+  simulado: false, fechamento_final: true, campos: ['rota', 'gerencia', 'supervisao', 'produtos'], campos_produto: ['meta', 'realizado'],
+  rotas: [
+    ['N1', 'NV', 'SV.NV.1', { sabores: [100, 105], retornaveis: [100, 100], sucos: [100, 90], powerade: [100, 80], individuais: [100, 100], refrigerantes: [1000, 900] }],
+    ['N2', 'NV', 'SV.NV.1', { sabores: [100, 100], retornaveis: [100, 95], sucos: [100, 100], powerade: [100, 106], individuais: [100, 100], refrigerantes: [1000, 850] }],
+    ['N3', 'NV', 'SV.NV.2', { sabores: [200, 220], retornaveis: [100, 100], sucos: [100, 100], powerade: [100, 100], individuais: [100, 100], refrigerantes: [1000, 1000] }],
+    ['NV-EV', 'NV', 'SV.NV.EV', { refrigerantes: [0, 30] }],
+  ],
+};
+const INDEX_NOV = {
+  atualizado_em: '2026-11-04T10:00:00', simulado: false,
+  mes_referencia: { anomes: '202611', rotulo: 'Novembro/26', fechamento: false },
+  produtos: ['sucos', 'powerade', 'sabores', 'retornaveis', 'individuais', 'refrigerantes', 'missoes'].map((id) => ({ id, nome: id })),
+  gerencias: [{ id: 'NV', nome: 'Gerência Nova', arquivo: 'gerencias/NV.json' }],
+  fechados: [{ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json', gerado_em: '2026-11-03T18:46:02', fechamento_final: true }],
+};
+const rotaNv = (id, sv, produtos) => ({ id, tipo: 'normal', gerencia: 'NV', supervisao: sv, produtos });
+const GER_NOV = { rotas: [
+  rotaNv('N1', 'SV.NV.1', { sabores: b(100, 50, 10, 4), retornaveis: b(100, 100, 5, 4), powerade: b(100, 95, 0, 4), individuais: b(100, 100, 0, 4),
+                            sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 900, 50, 40), missoes: b(10, 9, 1, 0) }),
+  rotaNv('N2', 'SV.NV.1', { sabores: b(100, 100, 0, 4), retornaveis: b(100, 90, 0, 4), powerade: b(100, 100, 0, 4), individuais: b(100, 110, 0, 4),
+                            sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 1000, 0, 40) }),
+  rotaNv('N3', 'SV.NV.2', { sabores: b(100, 50, 0, 4), retornaveis: b(100, 100, 0, 4), powerade: b(100, 100, 0, 4), individuais: b(100, 100, 0, 4),
+                            sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 1000, 0, 40) }),
+] };
+/** carregarDados com uma API falsa: `arquivos` por caminho; `falhar` = caminhos que dão erro de rede. */
+async function comApi(arquivos, fn, falhar = []) {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const k = url.replace('./api/v1/', '');
+    if (falhar.includes(k)) throw new Error('Failed to fetch');
+    return k in arquivos ? { ok: true, json: async () => JSON.parse(JSON.stringify(arquivos[k])) } : { ok: false, status: 404 };
+  };
+  try { return await fn(); } finally { globalThis.fetch = original; }
+}
+const API_NOV = { 'index.json': INDEX_NOV, 'gerencias/NV.json': GER_NOV, 'fechado/202610.json': FECHADO_OUT };
+const calcularNov = async (cfg, arquivos = API_NOV, confrontos, falhar) => comApi(arquivos, async () => {
+  const d = await carregarDados(BASE_V, cfg);
+  return { d, res: d.meta.semCalculo ? null : M.calcular(montarEntrada(d, cfg, confrontos).entrada) };
+}, falhar);
+const pessoaDe = (res, id) => res.pessoas.find((x) => x.id === id);
+
+test('virada: mês fechado vira rotas no formato do mês corrente (online 0, sem meta dia), sem a rota eventual', () => {
+  const f = fechadoDaApi(FECHADO_OUT, BASE_V, CONFIG);
+  assert.deepEqual([f.mes, f.final, f.rotas.map((r) => r.rota)], [10, true, ['N1', 'N2', 'N3']]);
+  const n1 = f.rotas[0];
+  assert.deepEqual([n1.gc, n1.sv, n1.canal], ['Nv', 'Sv. Nv.1', 'Mista']);
+  assert.deepEqual(n1.v['Sabores Tt'], [100, 105, 0, null, null]);
+  assert.deepEqual(n1.v['Refrigerantes'], [1000, 900, 0, null, null]);
+});
+
+test('virada: acumulado do SV = pontos de outubro (pilares de outubro) + novembro (pilares de novembro)', async () => {
+  const { d, res } = await calcularNov(cfgNov());
+  assert.deepEqual([d.meta.mes, d.meta.acumulado.usados.map((x) => [x.mes, x.final]), d.meta.acumulado.faltando], [11, [[10, true]], []]);
+  const sv1 = pessoaDe(res, 'Sv. Nv.1#Mista');
+  // outubro: Sabores 205/200 = 102,5% (3) · Retornáveis 195/200 (2) · Missões validada (3) · Sucos 190/200 (2) · Powerade 186/200 (2)
+  // novembro: Sabores 160/200 (0) · Retornáveis 195/200 (2) · Missões sem fonte (0) · Powerade 195/200 (2) · Refri Single 210/200 (5)
+  assert.deepEqual(sv1.porMes.map((m) => [m.mes, m.pontosMes]), [[10, 12], [11, 9]]);
+  assert.equal(sv1.pontosAcumulados, 21);
+  assert.equal(sv1.pontosMes, 9);
+  assert.deepEqual(sv1.acumuladoIncompleto, []);
+  assert.deepEqual(sv1.pilares.map((p) => p.nome), ['Volume Sabores', 'Volume Retornáveis', 'Missões Guiadas', 'Volume Powerade', 'Volume Refri Single']);
+  assert.deepEqual(M.conferir(res), []);
+});
+
+test('virada: gatilho de volume do SV = Σ(Real + Online) ÷ Σ Meta de Refrigerantes de outubro a novembro', async () => {
+  const { res } = await calcularNov(cfgNov());
+  const sv1 = pessoaDe(res, 'Sv. Nv.1#Mista');
+  // outubro 1750/2000 (87,5%) + novembro (900 + 50 + 1000)/2000 (97,5%) = 3700/4000 = 92,5%: não bate, mesmo com novembro acima de 95%
+  assert.equal(sv1.volume.pctTexto, '92,5%');
+  assert.equal(sv1.volume.atingido, false);
+  assert.equal(pessoaDe(res, 'Sv. Nv.2#Mista').volume.pctTexto, '100,0%');
+});
+
+test('virada: o consultor zera em novembro (pontos, gatilho de pontos e de volume só do mês vigente)', async () => {
+  const { res } = await calcularNov(cfgNov());
+  const n2 = pessoaDe(res, 'N2');
+  // novembro: Sabores 100% (3) · Retornáveis 90% (2) · Missões sem fonte (0) · Powerade 100% (3) · Refri Single 110% (5) = 13
+  assert.equal(n2.pontosMes, 13);
+  assert.equal(n2.gatilhoPontos.valor, 13);              // outubro (14) não soma
+  assert.equal(n2.pontosAcumulados, undefined);
+  assert.equal(n2.volume.escopo, 'mês');
+  assert.equal(n2.volume.pctTexto, '100,0%');            // outubro (85%) não entra
+});
+
+test('virada: mês sem pilares configurados mostra o aviso e não calcula nada (nem lê os meses fechados)', async () => {
+  const lidos = [];
+  const { d, res } = await comApi(API_NOV, async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (url) => { lidos.push(url); return orig(url); };
+    const d = await carregarDados(BASE_V, CONFIG);       // CONFIG real: novembro ainda sem pilares
+    return { d, res: d.meta.semCalculo ? null : 'calculou' };
+  });
+  assert.equal(d.meta.semCalculo, 'Pilares de novembro ainda não configurados');
+  assert.match(d.meta.aviso, /^Pilares de novembro ainda não configurados/);
+  assert.equal(d.meta.origem, 'api');
+  assert.equal(d.meta.mes, 11);                          // nunca vira outubro
+  assert.equal(res, null);
+  assert.equal(lidos.some((u) => u.includes('fechado/')), false);
+});
+
+test('virada: mês fechado ausente ou que falha ao carregar deixa o acumulado do SV "incompleto", com aviso', async () => {
+  const semLista = { ...API_NOV, 'index.json': { ...INDEX_NOV, fechados: [] } };
+  for (const [arquivos, falhar, motivo] of [[semLista, [], /outubro não está nos meses fechados/], [API_NOV, ['fechado/202610.json'], /outubro não carregou/]]) {
+    const { d, res } = await calcularNov(cfgNov(), arquivos, undefined, falhar);
+    assert.match(d.meta.aviso, /acumulado do trimestre incompleto/);
+    assert.match(d.meta.aviso, motivo);
+    const sv2 = pessoaDe(res, 'Sv. Nv.2#Mista');
+    assert.deepEqual(sv2.acumuladoIncompleto, [10]);
+    assert.equal(sv2.pontosAcumulados, sv2.pontosMes);  // só novembro: por isso marcado como incompleto
+    assert.equal(sv2.volume.pct, null);                 // sem outubro não há % acumulado
+    assert.equal(sv2.elegivel, false);
+    assert.equal(sv2.posicao, null);
+    assert.deepEqual(sv2.porMes.map((m) => [m.mes, m.pontosMes, !!m.semDado]), [[10, 0, true], [11, 9, false]]); // nem a Missões validada
+    assert.equal(pessoaDe(res, 'N3').pontosMes, 9);     // o consultor (mês vigente) não é afetado
+  }
+});
+
+test('virada: cada confronto é apurado com os dados do mês dele (fechado ou corrente)', async () => {
+  const conf = normalizarAjustes({ confrontos: [
+    { mes: 10, id_sv_desafiante: 'Sv. Nv.1#Mista', id_sv_desafiado: 'Sv. Nv.2#Mista', pilar: 'Volume Sabores' },
+    { mes: 11, id_sv_desafiante: 'Sv. Nv.2#Mista', id_sv_desafiado: 'Sv. Nv.1#Mista', pilar: 'Volume Sabores' },
+  ] }).confrontos;
+  const { res } = await calcularNov(cfgNov(), API_NOV, conf);
+  const [out, nov] = res.confrontos;
+  // outubro: Sabores 102,5% × 110% (dados de outubro) -> SV.NV.2; com os dados de novembro daria SV.NV.1
+  assert.deepEqual([out.mes, out.vencedor, M.fmtPct(out.pctDesafiante), M.fmtPct(out.pctDesafiado)], [10, 'Sv. Nv.2#Mista', '102,5%', '110,0%']);
+  assert.deepEqual([nov.mes, nov.vencedor, M.fmtPct(nov.pctDesafiante), M.fmtPct(nov.pctDesafiado)], [11, 'Sv. Nv.1#Mista', '50,0%', '80,0%']);
+  const sv1 = pessoaDe(res, 'Sv. Nv.1#Mista'), sv2 = pessoaDe(res, 'Sv. Nv.2#Mista');
+  assert.deepEqual(sv1.porMes.map((m) => m.pontosConfronto), [0, 5]);
+  assert.deepEqual(sv2.porMes.map((m) => m.pontosConfronto), [5, 0]);
+  assert.equal(sv1.pontosAcumulados, 21 + 5);
+  assert.equal(pessoaDe(res, 'N1').pontosConfronto, 5);  // a mesa leva o +5 do mês
+  assert.equal(pessoaDe(res, 'N3').pontosConfronto, 0);  // o +5 de outubro não passa para novembro
+});
+
+test('virada: Missões Guiadas de novembro sem fonte fica "sem dados" e não pontua; com fonte pontua como os demais', async () => {
+  const sem = (await calcularNov(cfgNov(false))).res;
+  const mgSem = pessoaDe(sem, 'N1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgSem.pontos, mgSem.validada, mgSem.pct], [0, false, null]); // nunca 100% em novembro
+  assert.ok(mgSem.alertas.includes('META_AUSENTE'));
+  const com = (await calcularNov(cfgNov(true))).res;
+  const mgCom = pessoaDe(com, 'N1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgCom.pontos, mgCom.pctTexto, mgCom.validada], [3, '100,0%', false]); // (9 + 1) / 10
+  // outubro do mesmo SV continua com Missões validada em 100% (3 pontos)
+  assert.equal(pessoaDe(com, 'Sv. Nv.1#Mista').porMes[0].pontosPilares, 12);
+});
+
+test('virada: no fechamento de outubro (1º dia útil de novembro) o painel mostra outubro, e o fechado de novembro vem como final', async () => {
+  const idx = { ...INDEX, mes_referencia: { anomes: '202610', rotulo: 'Outubro/26', fechamento: true },
+                fechados: [{ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json', fechamento_final: false }] };
+  const { d, res } = await comApi({ 'index.json': idx, 'gerencias/AN.json': GERENCIAS[0] }, async () => {
+    const d = await carregarDados(BASE, CONFIG);
+    return { d, res: M.calcular(montarEntrada(d, CONFIG).entrada) };
+  });
+  assert.deepEqual([d.meta.mes, d.meta.fechamento, d.meta.semCalculo, d.fechados.length], [10, true, null, 0]); // o próprio mês não vira "fechado"
+  assert.ok(res.pessoas.length > 0);
+  const nov = await calcularNov(cfgNov());
+  assert.deepEqual(nov.d.meta.acumulado.usados, [{ mes: 10, rotulo: 'Outubro/26', final: true }]);
+});
+
+test('virada: API indisponível usa a base embutida só no mês dela, com o rótulo "base embutida (outubro)"', async () => {
+  const falha = async (hoje) => comApi({}, () => carregarDados(BASE, CONFIG, null, hoje), ['index.json']);
+  const out = await falha(new Date(2026, 9, 29));
+  assert.deepEqual([out.meta.origem, out.meta.mes, out.meta.rotuloBase, out.meta.semCalculo], ['base', 10, 'base embutida (outubro)', null]);
+  assert.match(out.meta.fonte, /base embutida \(outubro\)$/);
+  assert.equal(out.rotas, BASE.rotas);
+  const nov = await falha(new Date(2026, 10, 4));
+  assert.equal(nov.meta.origem, 'base');
+  assert.match(nov.meta.semCalculo, /^Sem dados de novembro: API indisponível/);
+  assert.deepEqual(nov.rotas, []);
+});
+
+test('virada: pilares coringa do admin valem para o mês de referência e nunca para mês sem pilares 1 a 3', () => {
+  const aj = normalizarAjustes({ pilares: { Mista: ['Volume Sucos', 'Volume Powerade'] } });
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  aplicarCoringas(aj, cfg, 11);
+  assert.deepEqual(cfg.pilaresConfig.find((c) => c.mes === 11 && c.canal === 'Mista').pilares, []);
+});
+
+// ── regressão: outubro continua idêntico ao de antes da virada ──
+const resumoRes = (res) => res.pessoas.map((p) => [p.id, p.cargo, p.canal, p.pilares.map((x) => [x.nome, x.pontos, x.pctTexto]),
+  p.pontosMes, p.pontosAcumulados ?? null, p.volume.pctTexto, p.volume.atingido, p.elegivel, p.posicao, p.status]);
+
+test('regressão: outubro pela API (fixture) dá o mesmo resultado de antes da virada', () => {
+  const res = M.calcular(montarEntrada(dadosDaApi(INDEX, GERENCIAS, BASE, CONFIG), CONFIG).entrada);
+  assert.deepEqual(resumoRes(res), [
+    ['A11', 'RT', 'Segmentada', [['Volume Sabores', 0, '80,0%'], ['Volume Refri Single', 3, '101,6%'], ['Volume Powerade', 0, '80,0%'], ['Volume Sucos', 0, '85,0%'], ['Missões Guiadas', 3, '100,0%']], 6, null, '91,0%', false, false, null, '-'],
+    ['A12', 'RT', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, null, '99,3%', true, true, 1, 'No total'],
+    ['Sv. An.1#Segmentada', 'SV', 'Segmentada', [['Volume Sabores', 0, '80,0%'], ['Volume Refri Single', 3, '101,6%'], ['Volume Powerade', 0, '80,0%'], ['Volume Sucos', 0, '85,0%'], ['Missões Guiadas', 3, '100,0%']], 6, 6, '91,0%', false, false, null, '-'],
+    ['Sv. An.1#Mista', 'SV', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, 21, '99,3%', true, false, null, '-'],
+  ]);
+  assert.deepEqual(res.mesesIncompletos, []);
+});
+
+test('regressão: outubro pela base embutida (data.json) dá o mesmo resultado de antes da virada', () => {
+  const base = require('../data/data.json');
+  const esperado = require('./fixtures/regressao-outubro-base.json').base;
+  const res = M.calcular(montarEntrada(base, CONFIG).entrada);
+  assert.deepEqual(resumoRes(res), esperado);
 });
