@@ -1,20 +1,20 @@
 {
- "descricao": "ajustes.json no formato antigo (canal + sub, sem segmento) aplicado à base embutida de outubro: resultado gerado pelo painel ANTES da segmentação da supervisão (etapa 7). Só códigos de rota e de SV.",
+ "descricao": "ajustes.json no formato antigo (canal + sub, sem segmento) aplicado à base embutida de outubro: resultado gerado pelo painel ANTES da segmentação da supervisão (etapa 7). Só códigos de rota e de SV. Atualizado em 29/10/2026: SV em um só canal (maioria das rotas), somando a mesa inteira.",
  "ajustes": {
   "atualizado_em": "2026-10-27T10:00",
   "regras": {},
   "pilares": {},
   "canais": {
-   "131": {
-    "canal": "Mista",
-    "sub": null
-   },
    "111": {
     "canal": "Segmentada",
     "sub": "Mod"
    },
    "112": {
     "canal": null,
+    "sub": null
+   },
+   "131": {
+    "canal": "Mista",
     "sub": null
    }
   },
@@ -1840,19 +1840,10 @@
     "-"
    ],
    [
-    "Sv. An.1#Segmentada",
-    "Segmentada",
-    3,
-    "92,2%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. An.1#Mista",
     "Mista",
     3,
-    "69,4%",
+    "74,9%",
     false,
     null,
     "-"
@@ -1921,19 +1912,10 @@
     "-"
    ],
    [
-    "Sv. G1.1#Segmentada",
-    "Segmentada",
-    3,
-    "61,2%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. G1.1#Mista",
     "Mista",
     3,
-    "58,3%",
+    "58,6%",
     false,
     null,
     "-"
@@ -1948,19 +1930,10 @@
     "-"
    ],
    [
-    "Sv. G1.3#Mista",
-    "Mista",
-    3,
-    "73,0%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. G1.3#Segmentada",
     "Segmentada",
     3,
-    "105,6%",
+    "86,8%",
     false,
     null,
     "-"
@@ -2011,19 +1984,10 @@
     "-"
    ],
    [
-    "Sv. Gu.1#Segmentada",
-    "Segmentada",
-    3,
-    "67,1%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. Gu.1#Mista",
     "Mista",
     3,
-    "65,0%",
+    "65,8%",
     false,
     null,
     "-"
@@ -2092,19 +2056,10 @@
     "-"
    ],
    [
-    "Sv. Pa.1#Segmentada",
-    "Segmentada",
-    3,
-    "59,5%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. Pa.1#Mista",
     "Mista",
     3,
-    "66,9%",
+    "64,2%",
     false,
     null,
     "-"
@@ -2128,19 +2083,10 @@
     "-"
    ],
    [
-    "Sv. Rv.1#Segmentada",
-    "Segmentada",
-    3,
-    "43,1%",
-    false,
-    null,
-    "-"
-   ],
-   [
     "Sv. Rv.1#Mista",
     "Mista",
-    6,
-    "63,9%",
+    3,
+    "58,2%",
     false,
     null,
     "-"

@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 80 testes (34 do motor, 46 do adaptador); precisa de Node 18+
+# testes do painel — 83 testes (34 do motor, 49 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -113,6 +113,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Canal × segmento (28/10, ⚠️ ainda fora do documento de regras):** o motor só vê o canal (Mista, Segmentada ou sem
   canal). O segmento é etiqueta: Segmentada → Mini ou Mod; sem canal → Neutraliza, Eventual, Coke Net ou Virtual; Mista
   não tem. Mini e Mod são o mesmo canal (pilares, ranking, premiação e confronto). Rota sem ajuste fica como na base.
+- **Canal do SV (29/10, ⚠️):** cada SV aparece em **um canal só**: o do admin (`ajustes.json` → `canaisSV`) ou, sem
+  ajuste, o da maioria das rotas da mesa; empate fica fora do ranking, com aviso, até o admin escolher. O SV soma
+  **todas** as rotas da mesa, medidas nos pilares do canal dele (`aplicarCanalSV` no adaptador); cada rota continua
+  no ranking do canal dela e ganha o +5 se o SV vencer.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
   O vencedor leva +5 no mês, e toda a mesa dele também; quem perde não perde pontos.
   Desempate (confronto e ranking): maior % de Refrigerantes.
@@ -131,8 +135,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **O botão "Atualizar dados" do `servir.py` grava em `api/`.** O `POST /atualizar` roda `gerar.py --forcar`
   sem `--saida`, ou seja, no destino padrão, que é a pasta publicada. É a forma mais fácil de sujar a árvore
   com 200+ JSONs sem perceber. O mesmo vale para `gerar.py` rodado sem `--saida`.
-- **O id do SV leva o canal** (`svKey`: "Sv. An.1#Mista"). Ajuste que tira a mesa inteira de um canal faz o confronto
-  cadastrado com o id antigo não valer: a tela mostra "canal ajustado" (`confrontoInvalidadoPorAjuste`), sem apagar.
+- **O id do SV leva o canal do SV** (`svKey`: "Sv. An.1#Mista"). Ajuste que muda o canal do SV (escolha do admin ou
+  nova maioria das rotas) faz o confronto cadastrado com o id antigo não valer: a tela mostra "canal ajustado" (`confrontoInvalidadoPorAjuste`), sem apagar.
 - **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração). Ele não
   existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
   é esperado e inofensivo.
@@ -173,7 +177,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 80 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 83 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../src/motor.js');
 const { CONFIG, montarEntrada, dadosDaApi, carregarDados, normalizarAjustes, normalizarConfrontos, aplicarAjustes,
-        carregarAjustes, urlPublicacao, montarEstrat, CHAVE_REFRI } = require('../src/adapter.js');
+        carregarAjustes, urlPublicacao, montarEstrat, CHAVE_REFRI, aplicarCanalSV } = require('../src/adapter.js');
 
 // ── fixtures: base embutida (só o canal importa) e uma API com uma gerência ──
 const BASE = {
@@ -147,19 +147,21 @@ test('confrontos do admin chegam ao motor e dão o bônus ao vencedor e à mesa 
     rota('A14', 'SV.AN.3', { sucos: b(100, 100, 0, 3), powerade: b(50, 50, 0, 2), sabores: b(200, 230, 0, 8),
                              retornaveis: b(300, 300, 0, 5), individuais: b(120, 120, 0, 1), refrigerantes: b(800, 800, 0, 30) }),
   ]) }];
-  const aj = normalizarAjustes({ confrontos: [
+  // Sv. An.1 tem 1 rota Mista e 1 Segmentada (empate): o admin escolhe o canal do SV
+  const aj = normalizarAjustes({ canaisSV: { 'Sv. An.1': 'Mista' }, confrontos: [
     { mes: 10, id_sv_desafiante: 'Sv. An.1#Mista', id_sv_desafiado: 'Sv. An.3#Mista', pilar: 'Volume Sabores' },
   ] });
-  const res = M.calcular(montarEntrada(dadosDaApi(INDEX, gerencias, base, CONFIG), CONFIG, aj.confrontos).entrada);
+  const dados = aplicarCanalSV(dadosDaApi(INDEX, gerencias, base, CONFIG), aj.canaisSV);
+  const res = M.calcular(montarEntrada(dados, CONFIG, aj.confrontos).entrada);
   const det = res.confrontos[0];
   assert.equal(det.valido, true);
-  assert.equal(det.vencedor, 'Sv. An.3#Mista');                                    // 115% contra 105% em Sabores
+  assert.equal(det.vencedor, 'Sv. An.3#Mista');                                    // 115% contra 92,5% em Sabores (A11 + A12)
   assert.equal(res.pessoas.find((x) => x.id === 'Sv. An.3#Mista').pontosConfronto, M.REGRAS.bonusConfronto);
   assert.equal(res.pessoas.find((x) => x.id === 'A14').pontosConfronto, M.REGRAS.bonusConfronto); // a mesa inteira
   assert.equal(res.pessoas.find((x) => x.id === 'A12').pontosConfronto, 0);        // mesa de quem perdeu não ganha
   assert.deepEqual(M.conferir(res), []);
   // sem confronto, ninguém ganha o bônus
-  const semConf = M.calcular(montarEntrada(dadosDaApi(INDEX, gerencias, base, CONFIG), CONFIG).entrada);
+  const semConf = M.calcular(montarEntrada(dados, CONFIG).entrada);
   assert.equal(semConf.pessoas.find((x) => x.id === 'A14').pontosConfronto, 0);
 });
 
@@ -215,7 +217,7 @@ test('carregarDados: lê index e gerências da API; se falhar, usa a base embuti
     const d = await carregarDados(BASE, CONFIG);
     assert.equal(d.meta.origem, 'base');
     assert.match(d.meta.aviso, /API indisponível/);
-    assert.equal(d.rotas, BASE.rotas);
+    assert.deepEqual(d.rotas.map((r) => r.rota), BASE.rotas.map((r) => r.rota)); // a base inteira (com o canal do SV)
   } finally {
     globalThis.fetch = original;
   }
@@ -529,7 +531,7 @@ test('virada: API indisponível usa a base embutida só no mês dela, com o rót
   const out = await falha(new Date(2026, 9, 29));
   assert.deepEqual([out.meta.origem, out.meta.mes, out.meta.rotuloBase, out.meta.semCalculo], ['base', 10, 'base embutida (outubro)', null]);
   assert.match(out.meta.fonte, /base embutida \(outubro\)$/);
-  assert.equal(out.rotas, BASE.rotas);
+  assert.deepEqual(out.rotas.map((r) => r.rota), BASE.rotas.map((r) => r.rota));
   const nov = await falha(new Date(2026, 10, 4));
   assert.equal(nov.meta.origem, 'base');
   assert.match(nov.meta.semCalculo, /^Sem dados de novembro: API indisponível/);
@@ -552,8 +554,7 @@ test('regressão: outubro pela API (fixture) dá o mesmo resultado de antes da v
   assert.deepEqual(resumoRes(res), [
     ['A11', 'RT', 'Segmentada', [['Volume Sabores', 0, '80,0%'], ['Volume Refri Single', 3, '101,6%'], ['Volume Powerade', 0, '80,0%'], ['Volume Sucos', 0, '85,0%'], ['Missões Guiadas', 3, '100,0%']], 6, null, '91,0%', false, false, null, '-'],
     ['A12', 'RT', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, null, '99,3%', true, true, 1, 'No total'],
-    ['Sv. An.1#Segmentada', 'SV', 'Segmentada', [['Volume Sabores', 0, '80,0%'], ['Volume Refri Single', 3, '101,6%'], ['Volume Powerade', 0, '80,0%'], ['Volume Sucos', 0, '85,0%'], ['Missões Guiadas', 3, '100,0%']], 6, 6, '91,0%', false, false, null, '-'],
-    ['Sv. An.1#Mista', 'SV', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, 21, '99,3%', true, false, null, '-'],
+    // Sv. An.1 tem 1 rota Mista e 1 Segmentada: empate, o SV fica sem canal (fora do ranking) até o admin escolher (29/10/2026)
   ]);
   assert.deepEqual(res.mesesIncompletos, []);
 });
@@ -620,9 +621,6 @@ test('segmentação: mover rota de Mista para Segmentada muda os pilares dela, a
   assert.deepEqual(antes.res.ranking['RT|Segmentada'].premiados, ['F21', 'F31']);
   assert.deepEqual(depois.res.ranking['RT|Segmentada'].premiados, ['F21', 'F12', 'F31']); // 98% > 97% > 96% de Refri no desempate
   assert.deepEqual(depois.res.ranking['RT|Mista'].premiados, ['F11']); // F41 (101%) fica com 15 pontos, abaixo de 20
-  // o SV com rotas nos dois canais aparece nos dois, cada um só com as rotas do canal
-  assert.ok(depois.p('Sv. Fx.1#Mista') && depois.p('Sv. Fx.1#Segmentada'));
-  assert.deepEqual(A.segmentosDaMesa(depois.d.rotas, 'Sv. Fx.1#Segmentada'), ['Mini']);
   assert.deepEqual(M.conferir(depois.res), []);
 });
 
@@ -681,9 +679,11 @@ test('segmentação: "aplicar a toda a mesa", "restaurar padrão", resumo penden
   assert.deepEqual(mesa1.map((l) => l.rota), ['F11', 'F12']);
   let ed = A.aplicarNaMesa({}, mesa1, 'Segmentada|Mini');
   assert.deepEqual(ed, { F11: 'Segmentada|Mini', F12: 'Segmentada|Mini' });
-  assert.deepEqual(A.canalDaMesa(mesa1, ed), { canais: ['Segmentada'], mista: false });
-  assert.deepEqual(A.canalDaMesa(mesa1, { F11: '|Virtual' }), { canais: ['Sem canal', 'Mista'], mista: false });
-  assert.deepEqual(A.canalDaMesa(mesa1, { F11: 'Segmentada|Mod' }), { canais: ['Segmentada', 'Mista'], mista: true }); // aviso na tela
+  assert.deepEqual(A.canalDaMesa(mesa1, ed), { canais: ['Segmentada'], mista: false, maioria: 'Segmentada', canal: 'Segmentada' });
+  assert.deepEqual(A.canalDaMesa(mesa1, { F11: '|Virtual' }), { canais: ['Sem canal', 'Mista'], mista: false, maioria: 'Mista', canal: 'Mista' });
+  // 1 Mista + 1 Segmentada: aviso na tela, empate sem canal até o admin escolher
+  assert.deepEqual(A.canalDaMesa(mesa1, { F11: 'Segmentada|Mod' }), { canais: ['Segmentada', 'Mista'], mista: true, maioria: null, canal: null });
+  assert.equal(A.canalDaMesa(mesa1, { F11: 'Segmentada|Mod' }, 'Mista').canal, 'Mista');
   ed = A.restaurarPadrao(ed, mesa1.filter((l) => l.rota === 'F12'));             // restaurar uma rota
   ed = A.restaurarPadrao(ed, A.rotasDoFiltro(linhas, 'Sv. Fx.4'));               // restaurar a mesa (F41 volta a Mista)
   assert.deepEqual(A.pendenciasSegmentacao(linhas, ed).map((x) => [x.rota, x.base, x.novo, x.situacao]),
@@ -747,4 +747,56 @@ test('segmentação: ajuste de canal que invalida um confronto cadastrado mostra
   const sem = calcSeg({ confrontos: ajustes.confrontos });
   assert.equal(sem.res.confrontos[0].valido, true);
   assert.equal(A.confrontoInvalidadoPorAjuste(sem.res.confrontos[0], sem.d.segmentacao), null);
+});
+
+// ── canal do SV (29/10/2026): cada supervisão em um canal só, somando todas as rotas da mesa ──
+test('canal do SV: padrão = maioria das rotas; o SV aparece só nesse canal e soma a mesa inteira nos pilares dele', () => {
+  // Sv. Fx.1 com F11 e F12 Mista + F13 Segmentada Mini: maioria Mista
+  const base = { ...SEG_BASE, rotas: SEG_BASE.rotas.concat([{ gc: 'Fx', sv: 'Sv. Fx.1', rota: 'F13', canal: 'Segmentada', sub: 'Mini', v: {} }]) };
+  const ger = [{ rotas: SEG_GER[0].rotas.concat([{ ...rotaFx('F13', 'SV.FX.1', 90, 95), produtos: { ...prods(90, 95), retornaveis: b(100, 50, 0, 1) } }]) }];
+  const d = aplicarCanalSV(dadosDaApi(SEG_INDEX, ger, base, CONFIG), null);
+  assert.deepEqual([d.canaisSV['Sv. Fx.1'].canal, d.canaisSV['Sv. Fx.1'].origem, d.canaisSV['Sv. Fx.1'].misto], ['Mista', 'maioria', true]);
+  const res = M.calcular(montarEntrada(d, CONFIG).entrada), p = (id) => res.pessoas.find((x) => x.id === id);
+  assert.equal(p('Sv. Fx.1#Segmentada'), undefined);                                  // um canal só
+  const sv = p('Sv. Fx.1#Mista');
+  // Retornáveis do SV soma as 3 rotas, inclusive a Segmentada F13: (106 + 106 + 50) / 300 = 87,3%
+  assert.equal(sv.pilares.find((x) => x.nome === 'Volume Retornáveis').pctTexto, '87,3%');
+  assert.equal(sv.refri.meta, 3000);                                                   // Refrigerantes das 3 rotas
+  // a rota Segmentada continua no ranking do canal dela, com os pilares dela, e na mesa do SV (para o +5)
+  assert.deepEqual([p('F13').canal, p('F13').id_supervisor], ['Segmentada', 'Sv. Fx.1#Mista']);
+  assert.deepEqual(A.segmentosDaMesa(d.rotas, 'Sv. Fx.1#Mista'), []);                 // etiqueta: só segmentos do canal do SV
+  assert.deepEqual(M.conferir(res), []);
+});
+
+test('canal do SV: o admin escolhe (canaisSV); empate sem escolha deixa o SV fora, com aviso; valor inválido vira aviso', () => {
+  const ajTxt = { canais: { F12: { canal: 'Segmentada', sub: 'Mini', segmento: 'Mini' } } };   // Sv. Fx.1: 1 Mista + 1 Segmentada
+  const empate = calcSeg(ajTxt);
+  assert.equal(empate.res.pessoas.filter((x) => x.id.startsWith('Sv. Fx.1#')).length, 0);
+  const dEmp = aplicarCanalSV(empate.d, null);
+  assert.equal(dEmp.canaisSV['Sv. Fx.1'].origem, 'empate');
+  assert.match(dEmp.meta.aviso, /Sv\. Fx\.1: escolha o canal do SV|\(Sv\. Fx\.1\): escolha o canal do SV/);
+  const avisos = [];
+  const aj = normalizarAjustes({ ...ajTxt, canaisSV: { 'Sv. Fx.1': 'Segmentada', 'Sv. Fx.2': 'Varejo' } }, avisos);
+  assert.deepEqual(aj.canaisSV, { 'Sv. Fx.1': 'Segmentada' });
+  assert.match(avisos.join('|'), /SV Sv\. Fx\.2: canal do SV "Varejo"/);
+  const d = aplicarCanalSV(dadosDaApi(SEG_INDEX, SEG_GER, SEG_BASE, CONFIG, aj.canais), aj.canaisSV);
+  const res = M.calcular(montarEntrada(d, CONFIG).entrada);
+  assert.deepEqual(res.pessoas.filter((x) => x.id.startsWith('Sv. Fx.1#')).map((x) => x.id), ['Sv. Fx.1#Segmentada']);
+  assert.equal(res.pessoas.find((x) => x.id === 'F11').id_supervisor, 'Sv. Fx.1#Segmentada'); // a rota Mista fica na mesa
+  // resumo antes de publicar
+  assert.deepEqual(A.pendenciasCanalSV({ 'Sv. Fx.1': 'Segmentada', 'Sv. Fx.3': 'Mista' }, { 'Sv. Fx.1': 'Segmentada', 'Sv. Fx.4': 'Segmentada' }),
+    [{ sv: 'Sv. Fx.1', novo: 'Segmentada', situacao: 'em uso' }, { sv: 'Sv. Fx.3', novo: '', situacao: 'volta ao padrão' },
+     { sv: 'Sv. Fx.4', novo: 'Segmentada', situacao: 'nova' }]);
+});
+
+test('canal do SV: confronto cadastrado com o canal antigo do SV mostra "canal ajustado" e continua no cadastro', () => {
+  const conf = [{ mes: 10, id_sv_desafiante: 'Sv. Fx.4#Mista', id_sv_desafiado: 'Sv. Fx.1#Mista', pilar: 'Volume Sabores', ordem_registro: 1 }];
+  const aj = normalizarAjustes({ canaisSV: { 'Sv. Fx.4': 'Segmentada' }, confrontos: conf });
+  const d = aplicarCanalSV(dadosDaApi(SEG_INDEX, SEG_GER, SEG_BASE, CONFIG), aj.canaisSV);
+  const det = M.calcular(montarEntrada(d, CONFIG, aj.confrontos).entrada).confrontos[0];
+  assert.deepEqual([det.valido, det.motivo], [false, 'SV_NAO_ENCONTRADO']);
+  const exp = A.confrontoInvalidadoPorAjuste(det, d.segmentacao, d.canaisSV);
+  assert.equal(exp.motivo, 'CANAL_AJUSTADO');
+  assert.match(exp.texto, /Sv\. Fx\.4 agora é da Segmentada \(canal do SV definido pelo admin\)/);
+  assert.equal(aj.confrontos.length, 1);
 });

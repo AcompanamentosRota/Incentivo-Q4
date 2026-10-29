@@ -531,7 +531,9 @@ const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
 // etiqueta do segmento ao lado do canal (Mini/Mod na Segmentada; Neutraliza, Eventual, Coke Net ou Virtual sem canal)
 const segTag = (seg, semCanal)=> seg ? `<span class="sg${semCanal?' sc':''}" title="Segmento ${esc(seg)}">${esc(seg)}</span>` : '';
 const segsDe = (r)=> r.cargo==='RT' ? (INFO[r.id] && INFO[r.id].sub ? [INFO[r.id].sub] : []) : segmentosDaMesa(DADOS.rotas, r.id);
-const segsTag = (r)=> segsDe(r).map(x=>segTag(x)).join('');
+const CANAIS_SV = DADOS.canaisSV || {};   // canal de cada SV: ajuste do admin ou maioria das rotas da mesa
+const segsTag = (r)=> segsDe(r).map(x=>segTag(x)).join('')
+  + (r.cargo==='SV' && CANAIS_SV[r.nome] && CANAIS_SV[r.nome].misto ? `<span class="sg sc" title="Mesa com rotas Mista e Segmentada: o SV soma todas nos pilares da ${esc(r.canal)}">2 canais</span>` : '');
 const segTxt = (r)=> segsDe(r).join(' ');
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
@@ -904,7 +906,7 @@ const MOTIVOS = {
   DESEMPATE_REFRI:'decidido no desempate por % de Refrigerantes',
 };
 // confronto que um ajuste de canal invalidou: o cadastro continua; o motivo diz qual mesa saiu de qual canal
-const motivoConf = (c)=>{ const a = confrontoInvalidadoPorAjuste(c, SEG); return a ? a.texto : (MOTIVOS[c.motivo]||c.motivo||'—'); };
+const motivoConf = (c)=>{ const a = confrontoInvalidadoPorAjuste(c, SEG, CANAIS_SV); return a ? a.texto : (MOTIVOS[c.motivo]||c.motivo||'—'); };
 const nomeSVId = (id)=> String(id).replace('#',' · ');
 function renderConfrontos(){
   const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
@@ -1059,8 +1061,7 @@ const SEC = [
     <h3>Gatilho de Refrigerantes: componentes fora da soma (${notasRefri.length} rotas)</h3>
     <p>${Object.keys(exc).map(k=>`${esc(k)} sem meta ou meta zero: ${exc[k]} rotas`).join(' · ')||'Nenhum'}. Componente sem meta sai da soma, para não inflar o %.</p>`; } },
  { id:'pend', t:'Pendências', html:()=>{
-    const mix={}; DADOS.rotas.forEach(r=>{ const m=(mix[r.sv]=mix[r.sv]||{}); m[r.canal]=(m[r.canal]||0)+1; });
-    const mistos=Object.keys(mix).filter(k=>mix[k].Mista&&mix[k].Segmentada);
+    const mistos=Object.keys(CANAIS_SV).filter(k=>CANAIS_SV[k].misto).map(k=>k+' → '+(CANAIS_SV[k].canal||'sem canal (empate)'));
     const P='<span class="pend">pendente</span>', OK='<span class="okk">resolvido</span>';
     const bo = R.notasPendentes.map((n,i)=>['B'+(i+1),esc(n),'Back Office',P]);
     return `<h2>Pendências</h2><div class="sub">O que ainda precisa de decisão e o que muda no painel quando for decidido.</div>
@@ -1069,7 +1070,7 @@ const SEC = [
        ? ['1',`<b>Categoria Refrigerantes:</b> o gatilho de ${pctTxt(R.gatilhoVolumePct)}% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).`,'Back Office / IM',OK]
        : ['1',`<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de ${pctTxt(R.gatilhoVolumePct)}%. Afeta quem entra no ranking.`,'Back Office / IM',P],
      ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
-     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma as rotas da mesa, no canal, e deixa de fora rota sem meta ou sem real. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+') e aparecem nos dois, cada uma só com as rotas do canal. Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real. ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas e ganham o +'+R.bonusConfronto+' se o SV vencer o confronto. Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
      DADOS.meta.origem==='api'
        ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
        : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
@@ -1078,7 +1079,7 @@ const SEC = [
      ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
      ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
      ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada, ou pelo ajuste do admin (Segmentação da supervisão).','IM',P],
-     ['10','⚠️ <b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). Sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Ainda não está no documento de regras.','Back Office',P],
+     ['10','⚠️ <b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). Sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Canal do SV (29/10): um só por SV, escolhido na Administração ou, sem escolha, o da maioria das rotas; empate fica fora do ranking até a escolha. Ainda não está no documento de regras.','Back Office',P],
      ...bo], 'pd')}`; } },
  { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
     return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
@@ -1107,6 +1108,8 @@ async function hashSenha(s){
 }
 /* segmentação da supervisão: o admin escolhe o SV e ajusta canal e segmento das rotas da mesa (lógica em adapter.js) */
 let EDIC = {};                                  // rota -> valor escolhido na tela (só as que mudaram em relação ao uso)
+const SV_CANAL_USO = Object.assign({}, (AJ.ativo && AJ.ativo.canaisSV) || {});
+let EDIC_SV = Object.assign({}, SV_CANAL_USO);  // sv -> canal do SV escolhido ('' ou ausente = padrão, a maioria das rotas)
 const SEGADM = { sv:null, busca:'' };
 const SVS_SEG = svsDaSegmentacao(SEG);
 const valEdic = (l)=> l.rota in EDIC ? EDIC[l.rota] : l.atual;
@@ -1120,10 +1123,17 @@ function segSvOpcoes(){
 }
 function segMesaHtml(){
   if (!SEGADM.sv) return '<p class="sub">Nenhum SV no filtro.</p>';
-  const rotas = rotasDoFiltro(SEG, SEGADM.sv), semSv = SEGADM.sv===SEM_SV, cm = canalDaMesa(rotas, EDIC);
+  const rotas = rotasDoFiltro(SEG, SEGADM.sv), semSv = SEGADM.sv===SEM_SV, escolhido = EDIC_SV[SEGADM.sv]||'';
+  const cm = canalDaMesa(rotas, EDIC, escolhido);
   const cab = semSv ? `<p><b>Rotas sem SV</b>: não formam mesa nem supervisão no ranking.</p>`
-    : `<p><b>Canal do SV ${esc(SEGADM.sv)}</b> (com as alterações desta tela): ${cm.canais.map(esc).join(' e ')}.</p>`
-      + (cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV aparece nos dois rankings, cada um só com as rotas do canal.</div>` : '');
+    : `<div class="adm-linha"><label for="seg-svcanal"><b>Canal do SV ${esc(SEGADM.sv)}</b></label>
+        <select id="seg-svcanal" aria-label="Canal do SV ${esc(SEGADM.sv)}">
+          <option value=""${escolhido?'':' selected'}>Padrão: maioria das rotas (${esc(cm.maioria||'empate')})</option>
+          ${['Mista','Segmentada'].map(c=>`<option value="${c}"${escolhido===c?' selected':''}>${c}</option>`).join('')}</select>
+        <span>→ o SV aparece só na <b>${esc(cm.canal||'—')}</b>${escolhido!==(SV_CANAL_USO[SEGADM.sv]||'')?' <b>(alteração pendente)</b>':''}</span></div>
+      <p class="sub">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela). O SV soma todas as rotas da mesa, medidas nos pilares do canal dele. ⚠️</p>`
+      + (!cm.canal ? `<div class="seg-av" role="alert">⚠️ Mesmo número de rotas Mista e Segmentada: escolha o canal do SV. Até lá o SV fica fora do ranking.</div>`
+        : cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV fica só na ${esc(cm.canal)} e soma também as rotas da ${cm.canal==='Mista'?'Segmentada':'Mista'}, nos pilares da ${esc(cm.canal)}. As rotas continuam no ranking do canal delas.</div>` : '');
   return cab + `<div class="adm-linha">Para todas as rotas ${semSv?'sem SV':'desta mesa'}: <select id="seg-todas" aria-label="Valor para todas as rotas">${opcoesSeg(OPCOES_SEGMENTACAO[0])}</select>
       <button class="adm-btn" type="button" id="seg-aplicar">Aplicar a todas as rotas ${semSv?'sem SV':'desta mesa'}</button>
       <button class="adm-btn" type="button" id="seg-restaurar-mesa">Restaurar padrão ${semSv?'das rotas sem SV':'desta mesa'}</button></div>
@@ -1135,9 +1145,12 @@ function segMesaHtml(){
     </tbody></table>`;
 }
 function segPendHtml(){
-  const pend = pendenciasSegmentacao(SEG, EDIC);
-  if (!pend.length) return '<p class="sub">Nenhuma rota fora do padrão da base.</p>';
-  return `<table><thead><tr><th>Rota</th><th>SV</th><th>Base</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
+  const pend = pendenciasSegmentacao(SEG, EDIC), psv = pendenciasCanalSV(SV_CANAL_USO, EDIC_SV);
+  const tsv = psv.length ? `<table><thead><tr><th>Canal do SV</th><th>Padrão</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
+    ${psv.map(x=>`<tr${x.situacao==='em uso'?'':' class="mud"'}><td>${esc(x.sv)}</td><td>maioria das rotas</td><td>→</td><td>${esc(x.novo||'maioria das rotas')}</td>
+      <td>${x.situacao==='em uso'?'já em uso':x.situacao==='nova'?'<b>nova</b>':'<b>volta ao padrão</b>'}</td></tr>`).join('')}</tbody></table>` : '';
+  if (!pend.length) return tsv + '<p class="sub">Nenhuma rota fora do padrão da base.</p>';
+  return tsv + `<table><thead><tr><th>Rota</th><th>SV</th><th>Base</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
     ${pend.map(x=>`<tr${x.situacao==='em uso'?'':' class="mud"'}><td>${esc(x.rota)}</td><td>${esc(x.sv||'sem SV')}</td><td>${esc(rotuloSeg(x.base))}</td><td>→</td>
       <td>${esc(rotuloSeg(x.novo))}</td><td>${x.situacao==='em uso'?'já em uso':x.situacao==='nova'?'<b>nova</b>':'<b>volta ao padrão</b>'}</td></tr>`).join('')}</tbody></table>`;
 }
@@ -1150,7 +1163,7 @@ const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[
 const chaveConf = (c)=> c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
 // confronto cadastrado que um ajuste de canal invalidou: continua na lista, com o motivo
 const avisoConf = (c)=>{ const d = (RES.confrontos||[]).find(x=>x.mes===c.mes && x.desafiante===c.id_sv_desafiante && x.desafiado===c.id_sv_desafiado);
-  const a = d && confrontoInvalidadoPorAjuste(d, SEG); return a ? `<br><small class="pend">⚠️ não vale: ${esc(a.texto)}</small>` : ''; };
+  const a = d && confrontoInvalidadoPorAjuste(d, SEG, CANAIS_SV); return a ? `<br><small class="pend">⚠️ não vale: ${esc(a.texto)}</small>` : ''; };
 const linhaConf = (c)=>`<tr><td>${esc(MESES[c.mes])}</td><td>${esc(nomeDoSV(c.id_sv_desafiante))}</td>
   <td>${esc(nomeDoSV(c.id_sv_desafiado))}${avisoConf(c)}</td><td>${esc(rotuloPilar(c.pilar))}</td>
   <td><button class="adm-btn" type="button" data-conf="${esc(chaveConf(c))}">Excluir</button></td></tr>`;
@@ -1232,8 +1245,9 @@ function adminHtml(){
       confrontos e premiação (Mista, Segmentada ou sem canal); o <b>segmento</b> é só a etiqueta (Mini ou Mod na Segmentada; Neutraliza,
       Eventual, Coke Net ou Virtual sem canal). O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}; rota sem ajuste fica
       como está na base. Linhas em azul mudam em relação ao que está em uso. Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
-    <div class="seg-av">⚠️ A confirmar no documento de regras (decisão de 28/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
-      premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.</div>
+    <div class="seg-av">⚠️ A confirmar no documento de regras (decisões de 28 e 29/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
+      premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.
+      Cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma todas as rotas da mesa nos pilares desse canal.</div>
     ${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
     <div class="adm-linha"><label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
       <label for="seg-sv">SV</label><select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></div>
@@ -1266,13 +1280,14 @@ function lerAjustes(){
     if (!igual(sel, PADRAO.coringas[c])) pilares[c] = sel;
   }
   const canais = canaisDaEdicao(SEG, EDIC, AJ.ativo && AJ.ativo.canais);
+  const canaisSV = {}; Object.keys(EDIC_SV).forEach(sv=>{ if (EDIC_SV[sv]) canaisSV[sv] = EDIC_SV[sv]; });
   const agrupadores = EXTRAS.map(e=>({ id:e.id, nome:e.nome, agrupador:e.agrupador }));
   const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
-  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length
+  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
       && !agrupadores.length && !confrontos.length) return null;
   const d = new Date(), z = (x)=>String(x).padStart(2,'0');
   return { versao:1, atualizado_em:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`,
-           regras, pilares, canais, agrupadores, confrontos };
+           regras, pilares, canais, canaisSV, agrupadores, confrontos };
 }
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
@@ -1294,7 +1309,10 @@ function ligarAdmin(){
   const editar = (nova)=>{ EDIC = {}; SEG.forEach(l=>{ if (l.rota in nova && nova[l.rota]!==l.atual) EDIC[l.rota] = nova[l.rota]; }); refazSeg(); };
   $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-sv').innerHTML = segSvOpcoes(); refazSeg(); });
   $('seg-sv').addEventListener('change', e=>{ SEGADM.sv = e.target.value || null; refazSeg(); });
-  $('seg-mesa').addEventListener('change', e=>{ const s=e.target.closest('select[data-rota]'); if(!s) return;
+  $('seg-mesa').addEventListener('change', e=>{
+    if (e.target.id==='seg-svcanal') { EDIC_SV[SEGADM.sv] = e.target.value; if (!e.target.value) delete EDIC_SV[SEGADM.sv]; refazSeg();
+      msg(`Canal do SV ${SEGADM.sv}: ${e.target.value||'padrão (maioria das rotas)'}. Salve ou publique para valer.`); return; }
+    const s=e.target.closest('select[data-rota]'); if(!s) return;
     editar(Object.assign({}, EDIC, { [s.dataset.rota]: s.value })); });
   $('seg-mesa').addEventListener('click', e=>{
     const rotas = rotasDoFiltro(SEG, SEGADM.sv), nome = SEGADM.sv===SEM_SV ? 'as rotas sem SV' : 'a mesa de '+SEGADM.sv;
@@ -1306,7 +1324,8 @@ function ligarAdmin(){
       if (!confirm(`Aplicar "${rotuloSeg(v)}" a ${rotas.length} ${rotas.length===1?'rota':'rotas'} (${nome})?`)) return;
       editar(aplicarNaMesa(edAtual, rotas, v)); msg(`"${rotuloSeg(v)}" aplicado a ${nome}. Confira o resumo e salve ou publique para valer.`);
     } else if (b.id==='seg-restaurar-mesa') {
-      if (!confirm(`Voltar ${nome} (${rotas.length} ${rotas.length===1?'rota':'rotas'}) ao padrão da base?`)) return;
+      if (!confirm(`Voltar ${nome} (${rotas.length} ${rotas.length===1?'rota':'rotas'}${SEGADM.sv===SEM_SV?'':' e o canal do SV'}) ao padrão da base?`)) return;
+      if (SEGADM.sv!==SEM_SV) delete EDIC_SV[SEGADM.sv];
       editar(restaurarPadrao(edAtual, rotas)); msg(`${nome.charAt(0).toUpperCase()+nome.slice(1)} volta ao padrão da base. Salve ou publique para valer.`);
     }
   });
