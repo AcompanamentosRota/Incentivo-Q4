@@ -7,6 +7,7 @@ api.py — Monta os arquivos da API a partir de tipos.Dados (sem rede).
     v1/rotas/<ROTA>.json       a rota e seus clientes, por produto
     v1/busca.json              lista compacta de clientes (pv, nome, rota, gerência) para busca
     v1/agrupadores.json        agrupadores com META_VOLUME no mês (sugestões do painel para agrupadores extras)
+    v1/fechado/<AAAAMM>.json   meses fechados (gerador/fechado.py, gravados à parte; aqui só a lista em index.json)
 
 Só o index.json traz a data/hora: os demais arquivos só mudam quando o dado muda (commit pequeno).
 """
@@ -149,6 +150,7 @@ def montar(d: Dados) -> dict[str, dict]:
         "gerencias": [{"id": g, "nome": M.GC_NOMES.get(g, g), "arquivo": f"gerencias/{g}.json"} for g in gcs],
         "arquivos": {"resumo": "resumo.json", "gerencia": "gerencias/{gerencia}.json", "rota": "rotas/{rota}.json",
                      "busca": "busca.json", "agrupadores": "agrupadores.json"},
+        "fechados": [],   # preenchido por gerar.py com os arquivos de v1/fechado/ (fechado.listar)
         "avisos": d.avisos,
     }
     return arquivos

@@ -9,7 +9,9 @@ Uso (na pasta backend/):
     python scripts/gerar.py --ajustes teste.json --saida saida/teste --forcar   # outro arquivo de ajustes
 
 Fechamento do mês: detectado sozinho (até o fim do 1º dia útil e enquanto alguma gerência não tiver
-META_VOLUME do mês). Nesse período a API mostra o mês anterior fechado.
+META_VOLUME do mês). Nesse período a API mostra o mês anterior fechado e cada rodada grava o snapshot dele em
+v1/fechado/AAAAMM.json; na 1ª rodada do mês novo o snapshot é selado (fechamento_final) e não muda mais
+(gerador/fechado.py). Falha no snapshot vira aviso: a rodada normal continua.
 
 Agrupadores extras: os que o admin do painel incluiu (frontend/ajustes.json -> "agrupadores") entram como produtos
 da API, além dos fixos de gerador/mapeamento.py.
@@ -29,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gerador import api, calendario, mapeamento, saida, validacao  # noqa: E402
+from gerador import api, calendario, fechado, mapeamento, saida, validacao  # noqa: E402
 from odata.config import PASTA_DADOS_PADRAO, PASTA_SAIDA  # noqa: E402
 from odata.log import configurar_log  # noqa: E402
 
@@ -54,6 +56,28 @@ def _pasta(valor: str | None) -> Path:
         return PASTA_DADOS_PADRAO
     caminho = Path(valor)
     return caminho if caminho.is_absolute() else (Path(__file__).resolve().parent.parent / caminho).resolve()
+
+
+def _meses_fechados(destino: Path, arquivos: dict[str, dict], anterior_index: dict | None, log) -> list[str]:
+    """Snapshot do mês fechado (gerador/fechado.py) e a lista `fechados` do index.json. Só roda com a validação
+    aprovada; qualquer falha aqui vira aviso no log e no index.json, sem derrubar a rodada. Devolve os gravados."""
+    index = arquivos["v1/index.json"]
+    gravados: list[str] = []
+    try:
+        gravados, avisos = fechado.atualizar(destino, arquivos, calendario.agora().isoformat(), anterior_index)
+        for rel in gravados:
+            log.info("Mês fechado gravado: %s", rel)
+    except Exception as erro:  # noqa: BLE001 - o snapshot nunca derruba a rodada normal
+        avisos = [f"snapshot do mês fechado {index['mes_referencia']['anomes']} não foi gravado: {erro}"]
+    try:
+        index["fechados"], ilegiveis = fechado.listar(destino)
+        avisos += ilegiveis
+    except Exception as erro:  # noqa: BLE001
+        avisos.append(f"lista de meses fechados indisponível: {erro}")
+    for a in avisos:
+        log.warning("Aviso: %s", a)
+    index["avisos"] = index["avisos"] + avisos
+    return gravados
 
 
 def main() -> int:
@@ -125,11 +149,13 @@ def main() -> int:
         _github_output(mudou="false")
         return 2
 
+    fechados = [] if args.rota else _meses_fechados(destino, arquivos, anterior[1], log)
+
     total = sum(len(saida.serializar(o)) for o in arquivos.values())
     log.info("%d arquivos, %.2f MB no total", len(arquivos), total / 1e6)
     gravados, apagados = saida.gravar_api(destino, arquivos)
     log.info("Gravados: %d; apagados: %d (%.0f s no total)", len(gravados), len(apagados), relogio.monotonic() - inicio)
-    mudou = bool(gravados or apagados)
+    mudou = bool(gravados or apagados or fechados)
     _github_output(mudou="true" if mudou else "false")
     return 0
 

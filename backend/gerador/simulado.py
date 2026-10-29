@@ -4,6 +4,8 @@ simulado.py — Dados FICTÍCIOS no mesmo formato dos reais (tipos.Dados), sem D
 Serve para os testes e para a pessoa do front trabalhar antes de as credenciais estarem configuradas:
     python scripts/gerar.py --simulado --forcar
 Sempre gera o mesmo resultado para a mesma data (semente fixa). Nomes de clientes são inventados.
+Fechamento do mês como nos dados reais: até o fim do 1º dia útil (dias úteis locais) gera o mês anterior fechado;
+a outra condição dos reais (gerência sem META_VOLUME do mês) não existe aqui.
 """
 from __future__ import annotations
 
@@ -26,6 +28,9 @@ _BASE = {"sucos": 6.0, "powerade": 3.0, "sabores": 14.0, "retornaveis": 9.0, "in
 def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP")) -> Dados:
     rnd = random.Random(agora.date().toordinal())
     cal = calmod.calcular_local(agora.date())
+    if calmod.em_fechamento(calmod.dia_util_hoje([], cal.hoje), metas_ok=True):
+        ref = calmod.mes_anterior(cal.hoje)
+        cal = calmod.fechado(cal.hoje, ref, len(calmod.dias_uteis_do_mes(ref.year, ref.month)))
     frac = cal.dia_ontem / cal.total_dias_uteis if cal.total_dias_uteis else 0.0
     clientes: list[Cliente] = []
     volume: dict = {}
