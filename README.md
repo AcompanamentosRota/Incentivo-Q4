@@ -76,6 +76,11 @@ segmento de cada rota, escolhidos por SV, e o canal do SV, um só por supervisã
 **agrupadores extras** e os **confrontos entre supervisores**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
 merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
 desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).
+O arquivo tem de ser **um único objeto JSON**: no editor do GitHub, selecione tudo e substitua o conteúdo, nunca cole
+depois do texto antigo. Se o publicado não puder ser lido, o painel ignora todos os ajustes publicados e mostra uma faixa
+vermelha com o motivo; valor inválido dentro de um arquivo válido é ignorado nesse item, com faixa amarela. Precedência,
+item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do admin, que guarda só o que difere do
+publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
 
 ## Antes de ligar: confirmar os agrupadores
 

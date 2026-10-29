@@ -59,14 +59,14 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
 - **Segmentação da supervisão** (decisão de 28/10/2026): escolha o SV (busca pelo código que o painel mostra, ex.
   "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; "Rotas sem SV" reúne as que não têm supervisão) e ajuste cada
   rota da mesa entre **Mista · Segmentada – Mini · Segmentada – Mod · Sem canal – Neutraliza · Sem canal – Eventual ·
-  Sem canal – Coke Net · Sem canal – Virtual**. A tabela mostra canal e segmento atuais e a origem ("base" ou
-  "ajuste"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
+  Sem canal – Coke Net · Sem canal – Virtual**. A tabela mostra canal e segmento atuais e a origem ("base",
+  "publicado" ou "este navegador"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
   confirmação quando valem para a mesa. O campo **Canal do SV** define em qual canal a supervisão aparece (uma só):
   "Padrão" é o canal da maioria das rotas da mesa; empate deixa o SV fora do ranking, com aviso, até alguém escolher.
   O SV soma todas as rotas da mesa, medidas nos pilares do canal dele; cada rota continua no ranking do canal dela e
   ganha o +5 se o SV vencer o confronto. O bloco avisa quando a mesa tem rotas de canais diferentes e "restaurar
-  padrão desta mesa" também volta o canal do SV ao padrão. Antes de salvar ou publicar, o resumo
-  "Alterações pendentes" lista rota, valor da base → novo valor e se a mudança é nova, já está em uso ou volta ao padrão.
+  padrão desta mesa" também volta o canal do SV ao padrão. Antes de salvar ou publicar, confira o resumo
+  "Alterações para publicar" (no fim da Administração).
   O **canal** é o que o motor usa (Mista, Segmentada ou sem canal); o **segmento** é só etiqueta, ao lado do canal nas
   abas Rota, Supervisão, Ranking e Detalhe, na tela Confrontos e, para as rotas sem canal, na lista de alertas.
   Rota sem ajuste fica exatamente como está na base (nada é renomeado). ⚠️ A confirmar no documento de regras: Mini e
@@ -81,11 +81,28 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
   `api/v1/agrupadores.json`). Cada um vira o pilar "Volume <nome>", com cor própria, e pode ser escolhido como pilar
   coringa 4 ou 5. Depois do merge do PR, o gerador da API passa a buscá-lo (cerca de 3 minutos). Os 6 agrupadores
   fixos não podem ser excluídos.
-- **Salvar neste navegador:** vale na hora, só para quem salvou (etiqueta "Ajustes do admin (só neste navegador)").
+- **Publicado × navegador (decisão de 29/10/2026).** Vale, item a item: padrão < `frontend/ajustes.json` publicado <
+  ajustes deste navegador. O navegador guarda e aplica **só o que difere do publicado**: ao abrir o painel, o que ficou
+  igual ao publicado sai do navegador sozinho, e a etiqueta "Ajustes do admin · N ajustes só neste navegador" some
+  quando não sobra diferença. No topo da Administração aparecem a data do `ajustes.json` lido (`atualizado_em`, lido
+  sem cache) e a lista exata do que só vale neste navegador (ajuste, valor publicado → valor do navegador), com
+  "Descartar este" e "Descartar todos os do navegador (usar o publicado)"; se o ajuste do navegador foi salvo antes do
+  publicado, o painel avisa "ajuste do navegador anterior ao publicado". Ajustes salvos antes desta regra (uma cópia
+  completa do arquivo) continuam valendo só no que a cópia tem e difere do publicado; o que foi publicado depois vale.
+- **Formulário:** abre com o estado em uso (publicado + navegador). Campo que difere do publicado fica com contorno azul
+  e o valor publicado ao lado. "Alterações para publicar" lista só o que a tela muda em relação ao publicado.
+- **Salvar neste navegador:** vale na hora, só para quem salvou; guarda só as diferenças do publicado.
 - **Publicar no GitHub (PR):** abre o `frontend/ajustes.json` no GitHub já preenchido (ou copia o conteúdo para
-  colar, se o arquivo já existe). Em *Commit changes*, escolha "Create a new branch for this commit and start a pull
-  request": alguém revisa e faz o merge, e só então os ajustes valem para todos. Para voltar todos ao padrão, apague o
+  colar, se o arquivo já existe). **No GitHub, selecione tudo e substitua o conteúdo do arquivo; não cole depois do
+  texto antigo.** Em *Commit changes*, escolha "Create a new branch for this commit and start a pull request": alguém
+  revisa e faz o merge, e só então os ajustes valem para todos. Para voltar todos ao padrão, apague o
   `frontend/ajustes.json`, também por PR. "Baixar ajustes.json" continua disponível.
+- **`ajustes.json` ilegível:** o arquivo tem de ser **um único objeto JSON**. Se o publicado existe mas não pode ser
+  lido (por exemplo, dois objetos seguidos, como em 29/10/2026), nenhum ajuste publicado vale e o painel mostra uma
+  **faixa vermelha** abaixo das abas, com o motivo. Valor inválido dentro de um arquivo válido (ex.: mínimo de pontos
+  só com RT) é ignorado nesse item, com **faixa amarela** e a lista em Regras > Dados e alertas. Nunca em silêncio.
+- **Limpar o navegador:** Administração > "Descartar todos os do navegador (usar o publicado)" (funciona também sem
+  a senha), ou apague a chave `q4_ajustes` do armazenamento local do site nas ferramentas do navegador.
 - A senha fica embaralhada (hash) dentro do HTML, mas o site é público: ela evita mudança por engano, não é proteção
   forte. Publicar para todos exige acesso ao repositório.
 
@@ -99,7 +116,7 @@ src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do pa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       34 testes do motor e 49 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       34 testes do motor e 59 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
 

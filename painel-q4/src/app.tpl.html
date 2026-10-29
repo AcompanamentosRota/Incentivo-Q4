@@ -163,6 +163,17 @@ button{background:none;border:0;cursor:pointer}
 .adm .seg-av{background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;padding:6px 12px;margin:8px 0;font-size:18px}
 .adm h4{font-size:20px;margin:18px 0 6px}
 .adm td{padding:6px 14px}
+/* ajustes do admin: faixa de aviso (ajustes.json ilegível ou com valor inválido) e o que difere do publicado */
+#alerta-aj{position:absolute;left:12px;right:12px;top:222px;display:flex;align-items:center;gap:10px;padding:7px 18px;border-radius:12px;font-size:18px;font-weight:600;line-height:1.3;background:#5a0010;border:2px solid var(--red2);color:#fff;z-index:5}
+#alerta-aj.amb{background:#3a2a00;border-color:#a47500;color:#ffe29a}
+#alerta-aj[hidden]{display:none}
+#stage.com-alerta .view{top:calc(230px + var(--alerta-h, 44px))}
+.aj-erro{background:#5a0010;border:2px solid var(--red2);color:#fff;border-radius:10px;padding:8px 14px;margin:10px 0;font-size:19px}
+.aj-nav{background:rgba(29,123,255,.12);border:1px solid var(--blue);border-radius:10px;padding:8px 14px;margin:10px 0}
+.aj-nav table{margin:6px 0}
+.adm .difpub{outline:2px solid var(--blue);outline-offset:2px}
+.adm .pv{font-size:15px;font-weight:600;color:#9cc4ff;white-space:nowrap}
+.adm .colar{font-weight:700;color:#ffe29a}
 .nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
 
 .foot{position:absolute;left:60px;right:60px;bottom:16px;font-size:17px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
@@ -334,6 +345,7 @@ button{background:none;border:0;cursor:pointer}
       <label class="fld" id="lblbusca">Rota <input id="busca" type="search" placeholder="Buscar" autocomplete="off" style="min-width:150px;width:150px"></label>
     </div>
   </div>
+  <div id="alerta-aj" role="alert" hidden></div>
 
   <section class="view on wide" id="v-ranking" aria-label="Rota">
     <div class="panel">
@@ -442,7 +454,10 @@ const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag
 const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
 // segmentação de todas as rotas (com e sem canal): valor em uso, o da base e a origem; o segmento é só etiqueta
 const SEG = DADOS.segmentacao || [], SEG_POR = {}; SEG.forEach(l=>{ SEG_POR[l.rota]=l; });
-const AVISOS_AJ = AJ.avisos || []; // valores inválidos do ajustes.json, ignorados
+const AVISOS_AJ = AJ.avisos || []; // valores inválidos do ajustes.json (e do navegador), ignorados
+const AVISOS_PUB = AJ.avisosPublicado || [];
+const N_NAV = (AJ.diferencas || []).length; // ajustes que só valem neste navegador (o que difere do publicado)
+const quandoAj = (s)=> s ? s.replace(/^(\d{4})-(\d\d)-(\d\d)T?/, '$3/$2/$1 ').trim() : ''; // '2026-10-29T15:00' -> '29/10/2026 15:00'
 const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
 const MESA = {}; DADOS.rotas.forEach(r=>{ (MESA[svKey(r)]=MESA[svKey(r)]||[]).push(r); });
 const $ = (id)=>document.getElementById(id);
@@ -499,9 +514,22 @@ if (!SEMCALC) $('acum').innerHTML = textoAcum();
 /* rodapé: origem dos dados (API ou base embutida) e o corte */
 $('rod').textContent = 'Fonte: ' + (DADOS.meta.origem==='api' ? 'API (SAP Datasphere)' : DADOS.meta.rotuloBase) + ' · dados de ' + DADOS.meta.corte
   + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '')
+  + (AJ.erroPublicado ? ' · ajustes.json publicado ilegível (ignorado)' : '')
   + (AVISOS_AJ.length ? ` · ${AVISOS_AJ.length} ${AVISOS_AJ.length===1?'valor inválido ignorado':'valores inválidos ignorados'} nos ajustes (ver Regras > Dados e alertas)` : '');
 if (DADOS.meta.fechamento) $('rodpts').textContent = `Fechamento de ${MESES[MES].toLowerCase()}: Real do mês inteiro, sem Online. O % é truncado, nunca arredondado.`;
-if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = AJ.origem==='local' ? 'Ajustes do admin (só neste navegador)' : 'Ajustes do admin'; });
+const txtNav = (n)=> n===1 ? '1 ajuste só neste navegador' : `${n} ajustes só neste navegador`;
+if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = 'Ajustes do admin' + (N_NAV ? ' · ' + txtNav(N_NAV) : ''); });
+/* faixa de aviso: ajustes.json publicado ilegível (vermelho) ou com valor inválido (amarelo). Nunca cai no padrão em silêncio. */
+if (AJ.erroPublicado || AVISOS_PUB.length) {
+  const el = $('alerta-aj');
+  el.textContent = AJ.erroPublicado
+    ? `⚠️ O ajustes.json publicado não pôde ser lido: ${AJ.erroPublicado}. Os ajustes publicados estão sendo ignorados e o painel usa o padrão${N_NAV?' e os ajustes deste navegador':''} (ver Regras > Administração).`
+    : `⚠️ O ajustes.json publicado tem ${AVISOS_PUB.length===1?'1 valor inválido, ignorado':AVISOS_PUB.length+' valores inválidos, ignorados'}: ${AVISOS_PUB[0]}${AVISOS_PUB.length>1?' e mais '+(AVISOS_PUB.length-1):''} (ver Regras > Dados e alertas).`;
+  el.classList.toggle('amb', !AJ.erroPublicado);
+  el.hidden = false;
+  $('stage').classList.add('com-alerta');
+  $('stage').style.setProperty('--alerta-h', el.offsetHeight + 'px');
+}
 
 /* ---------- ranking ---------- */
 function pilaresDo(canal){ return pilaresDoMes(CONFIG, MES, canal) || []; }
@@ -1040,6 +1068,7 @@ const SEC = [
     const api = DADOS.meta.origem==='api';
     return `<h2>Dados e alertas</h2><div class="sub">${esc(DADOS.meta.fonteLonga)}</div>
     ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
+    ${AJ.erroPublicado ? `<p><b>O ajustes.json publicado não pôde ser lido:</b> ${esc(AJ.erroPublicado)}. Nenhum ajuste publicado está valendo. Detalhes em Regras &gt; Administração.</p>` : ''}
     ${AVISOS_AJ.length ? `<p><b>Ajustes do admin com valor inválido (ignorado):</b> ${AVISOS_AJ.map(esc).join('; ')}.</p>` : ''}
     ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+(u.final?' (final)':' (provisório)')).join(', ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
@@ -1127,6 +1156,9 @@ let EDIC_SV = Object.assign({}, SV_CANAL_USO);  // sv -> canal do SV escolhido (
 const SEGADM = { sv:null, busca:'' };
 const SVS_SEG = svsDaSegmentacao(SEG);
 const valEdic = (l)=> l.rota in EDIC ? EDIC[l.rota] : l.atual;
+// de onde vem o canal em uso da rota: base de segmentação, ajustes.json publicado ou só este navegador
+const ITENS_NAV = (AJ.navegador && AJ.navegador.itens) || {};
+const origemSeg = (l)=> l.origem!=='ajuste' ? 'base' : ('canais:'+l.rota) in ITENS_NAV ? '<b>este navegador</b>' : '<b>publicado</b>';
 const opcoesSeg = (atual)=> (OPCOES_SEGMENTACAO.includes(atual) ? OPCOES_SEGMENTACAO : OPCOES_SEGMENTACAO.concat([atual]))
   .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloSeg(v))}${OPCOES_SEGMENTACAO.includes(v)?'':' (como na base)'}</option>`).join('');
 function segSvOpcoes(){
@@ -1153,20 +1185,10 @@ function segMesaHtml(){
       <button class="adm-btn" type="button" id="seg-restaurar-mesa">Restaurar padrão ${semSv?'das rotas sem SV':'desta mesa'}</button></div>
     <table id="adm-seg"><thead><tr><th>Rota</th><th>Gerência</th><th>Canal atual</th><th>Segmento atual</th><th>Origem</th><th>Novo valor</th><th></th></tr></thead><tbody>
     ${rotas.map(l=>`<tr data-rota="${esc(l.rota)}" class="${valEdic(l)!==l.atual?'mud':''}"><td>${esc(l.rota)}</td><td>${esc(l.gc)}</td>
-      <td>${esc(l.canal||'Sem canal')}</td><td>${l.sub?segTag(l.sub, !l.canal):'–'}</td><td>${l.origem==='ajuste'?'<b>ajuste</b>':'base'}</td>
+      <td>${esc(l.canal||'Sem canal')}</td><td>${l.sub?segTag(l.sub, !l.canal):'–'}</td><td>${origemSeg(l)}</td>
       <td><select data-rota="${esc(l.rota)}" aria-label="Canal e segmento da rota ${esc(l.rota)}">${opcoesSeg(valEdic(l))}</select></td>
       <td><button class="adm-btn" type="button" data-restaurar="${esc(l.rota)}"${valEdic(l)===l.padrao?' disabled':''} title="Base: ${esc(rotuloSeg(l.padrao))}">Restaurar padrão</button></td></tr>`).join('')}
     </tbody></table>`;
-}
-function segPendHtml(){
-  const pend = pendenciasSegmentacao(SEG, EDIC), psv = pendenciasCanalSV(SV_CANAL_USO, EDIC_SV);
-  const tsv = psv.length ? `<table><thead><tr><th>Canal do SV</th><th>Padrão</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
-    ${psv.map(x=>`<tr${x.situacao==='em uso'?'':' class="mud"'}><td>${esc(x.sv)}</td><td>maioria das rotas</td><td>→</td><td>${esc(x.novo||'maioria das rotas')}</td>
-      <td>${x.situacao==='em uso'?'já em uso':x.situacao==='nova'?'<b>nova</b>':'<b>volta ao padrão</b>'}</td></tr>`).join('')}</tbody></table>` : '';
-  if (!pend.length) return tsv + '<p class="sub">Nenhuma rota fora do padrão da base.</p>';
-  return tsv + `<table><thead><tr><th>Rota</th><th>SV</th><th>Base</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
-    ${pend.map(x=>`<tr${x.situacao==='em uso'?'':' class="mud"'}><td>${esc(x.rota)}</td><td>${esc(x.sv||'sem SV')}</td><td>${esc(rotuloSeg(x.base))}</td><td>→</td>
-      <td>${esc(rotuloSeg(x.novo))}</td><td>${x.situacao==='em uso'?'já em uso':x.situacao==='nova'?'<b>nova</b>':'<b>volta ao padrão</b>'}</td></tr>`).join('')}</tbody></table>`;
 }
 // agrupadores extras em edição (começa pelos ajustes em uso); viram o pilar "Volume <nome>"
 let EXTRAS = ((AJ.ativo && AJ.ativo.agrupadores) || []).map(e=>Object.assign({}, e));
@@ -1193,35 +1215,59 @@ const novoId = (nome)=>{
   let id = base, k = 2; while (usados.has(id)) id = base+'_'+(k++);
   return id;
 };
+/* topo da Administração: o ajustes.json publicado que foi lido (ou por que não foi) e o que só vale neste navegador */
+function adminTopo(){
+  const sit = AJ.situacaoPublicado, arq = `<code>${esc(CONFIG.arquivoAjustes)}</code>`;
+  const pub = sit==='erro' ? `<div class="aj-erro" role="alert">⚠️ O ${arq} publicado <b>não pôde ser lido</b>: ${esc(AJ.erroPublicado)}. Os ajustes publicados estão sendo ignorados.
+      Corrija no GitHub: o arquivo tem de ter <b>um único objeto JSON</b> (selecione tudo e substitua o conteúdo).</div>`
+    : sit==='ok' ? `<p>Ajustes publicados lidos agora (${arq}): <b>atualizado em ${esc(quandoAj(AJ.publicado.atualizado_em)||'data não informada')}</b>.</p>`
+    : sit==='vazio' ? `<p>O ${arq} publicado foi lido, mas não tem nenhum ajuste válido: o painel está no padrão.</p>`
+    : sit==='ausente' ? `<p>Nenhum ajuste publicado (${arq} não existe): o painel está no padrão.</p>`
+    : `<p>Não foi possível ler o ${arq} (painel aberto sem o site?).</p>`;
+  const av = AVISOS_PUB.length ? `<div class="seg-av" role="alert">Valores inválidos no ${arq} publicado, ignorados (nesses itens vale o padrão): ${AVISOS_PUB.map(esc).join('; ')}.</div>` : '';
+  const nd = (AJ.descartados||[]).length;
+  const desc = nd ? `<p class="sub">${nd===1?'1 ajuste deste navegador era igual ao publicado e foi descartado':nd+' ajustes deste navegador eram iguais ao publicado e foram descartados'} ao abrir o painel.</p>` : '';
+  if (!N_NAV) return pub + av + desc + `<p class="sub">Nenhum ajuste só neste navegador: vale o que está publicado.</p>`;
+  const ant = AJ.navegadorAnterior ? `<p><b>⚠️ Ajuste do navegador anterior ao publicado</b> (salvo aqui em ${esc(quandoAj(AJ.navegador.atualizado_em))};
+      publicado em ${esc(quandoAj(AJ.publicado.atualizado_em))}). Confira se ainda vale ou descarte.</p>` : '';
+  return pub + av + desc + `<div class="aj-nav" role="status"><b>${N_NAV===1?'1 ajuste só neste navegador':N_NAV+' ajustes só neste navegador'}</b>: valem só aqui, por cima do publicado.${ant}
+    <table><thead><tr><th>Ajuste</th><th>Publicado</th><th></th><th>Neste navegador</th><th></th></tr></thead><tbody>
+    ${AJ.diferencas.map(d=>`<tr><td>${esc(d.rotulo)}</td><td>${esc(d.textoPublicado)}</td><td>→</td><td><b>${esc(d.textoNovo)}</b></td>
+      <td><button class="adm-btn" type="button" data-descartar="${esc(d.chave)}">Descartar este</button></td></tr>`).join('')}</tbody></table>
+    <button class="adm-btn" type="button" data-descartar-todos="1">Descartar todos os do navegador (usar o publicado)</button></div>`;
+}
 function adminHtml(){
   if(!ADMIN_ABERTO) return `<h2>Administração</h2><div class="sub">Área do Back Office para ajustar as regras e a segmentação das rotas sem mexer no código.</div>
+    ${adminTopo()}
     <form class="adm-form" id="adm-login"><label for="adm-senha"><b>Senha</b></label>
       <input id="adm-senha" type="password" inputmode="numeric" autocomplete="off"><button class="adm-btn pri" type="submit">Entrar</button>
       <span id="adm-msg" class="micro" role="status"></span></form>`;
   const f = R.faixas, cor = coringasDe(CONFIG, MES), comCoringas = mesConfigurado(CONFIG, MES);
   const num = (id, v)=>`<input type="number" id="${id}" value="${v}" min="0" step="any">`;
-  const campo = (rot, id, v)=>`<label>${rot}${num(id, v)}</label>`;
+  const campo = (rot, id, v)=>`<label>${rot}<span class="pv" data-pv="${esc(CAMPO_CHAVE[id])}"></span>${num(id, v)}</label>`;
   const opcoesPilar = (canal, atual)=>{ const fixos = pilaresDo(canal).slice(0,3).map(p=>p.nome);
     return PILARES_CORINGA.concat(EXTRAS.map(pilarDoExtra)).filter(n=>!fixos.includes(n)).map(n=>`<option value="${esc(n)}"${n===atual?' selected':''}>${esc(n.replace('Volume ',''))}</option>`).join(''); };
-  const estado = AJ.origem==='local' ? 'Ajustes ativos <b>só neste navegador</b>'+(AJ.publicado?'. Há também ajustes publicados: voltam a valer aqui se você descartar os deste navegador.':'.')
-    : AJ.origem==='publicado' ? 'Ativos os <b>ajustes publicados</b>'+(AJ.publicado.atualizado_em?' em '+esc(AJ.publicado.atualizado_em.replace('T',' ')):'')+'.'
-    : 'Nenhum ajuste ativo: o painel está no padrão.';
-  return `<h2>Administração</h2><div class="sub">${estado} O formulário abaixo mostra os valores em uso.</div>
+  const estado = AJ.ativo ? `Em uso: ${AJ.publicado?'os ajustes publicados':'o padrão'}${N_NAV?' e '+txtNav(N_NAV):''}.` : 'Nenhum ajuste em uso: o painel está no padrão.';
+  return `<h2>Administração</h2><div class="sub">${estado} O formulário mostra os valores em uso; o que difere do <code>${esc(CONFIG.arquivoAjustes)}</code> publicado fica com contorno azul e o valor publicado ao lado.</div>
+   ${adminTopo()}
    <div class="adm">
     <div class="adm-acoes">
       <button class="adm-btn pri" type="button" id="adm-salvar">Salvar neste navegador</button>
       <button class="adm-btn pri" type="button" id="adm-publicar">Publicar no GitHub (PR)</button>
       <button class="adm-btn" type="button" id="adm-baixar">Baixar ajustes.json</button>
-      <button class="adm-btn" type="button" id="adm-descartar">Descartar ajustes deste navegador</button>
+      <button class="adm-btn" type="button" id="adm-descartar">Descartar todos os do navegador (usar o publicado)</button>
       <button class="adm-btn" type="button" id="adm-sair">Sair</button>
+      <span id="adm-npend" class="pv"></span>
       <span id="adm-msg" class="micro" role="status"></span>
     </div>
-    <p><b>Salvar neste navegador</b> mostra o efeito na hora, só para você. Para valer para todos, clique em <b>Publicar no GitHub (PR)</b>:
+    <p><b>Salvar neste navegador</b> mostra o efeito na hora, só para você, e guarda só o que difere do publicado. Para valer para todos, clique em <b>Publicar no GitHub (PR)</b>:
       o GitHub abre o arquivo <code>${esc(CONFIG.arquivoAjustes)}</code> (já preenchido, ou pronto para colar o conteúdo copiado); em <i>Commit changes</i>,
       escolha <b>Create a new branch for this commit and start a pull request</b>. Depois da revisão e do merge, o site e a API passam a usar os
       ajustes em poucos minutos. Para voltar todos ao padrão, apague o <code>${esc(CONFIG.arquivoAjustes)}</code> no GitHub, também por PR.</p>
+    <p class="colar">No GitHub, selecione tudo e substitua o conteúdo do arquivo; não cole depois do texto antigo. O arquivo tem de ser um único objeto JSON:
+      com dois objetos seguidos, nenhum ajuste publicado vale e o painel mostra o aviso de arquivo ilegível.</p>
     <h3>Pontuação por pilar</h3>
-    ${[2,1,0].map(i=>`<div class="adm-linha">A partir de ${num('adm-f'+i+'-min', f[i].min)} % vale ${num('adm-f'+i+'-pts', f[i].pontos)} pontos</div>`).join('')}
+    ${[2,1,0].map(i=>`<div class="adm-linha">A partir de ${num('adm-f'+i+'-min', f[i].min)} % vale ${num('adm-f'+i+'-pts', f[i].pontos)} pontos${i===0?' <span class="pv" data-pv="regras:faixas"></span>':''}</div>`).join('')}
     <h3>Gatilhos e confronto</h3><div class="adm-grid">
       ${campo('Gatilho de Refrigerantes (%)','adm-gv',R.gatilhoVolumePct)}${campo('Bônus do confronto (pontos)','adm-bc',R.bonusConfronto)}
       ${campo('Mínimo da Rota (pontos no mês)','adm-grt',R.gatilhoPontos.RT)}${campo('Mínimo do SV (pontos no trimestre)','adm-gsv',R.gatilhoPontos.SV)}</div>
@@ -1240,7 +1286,7 @@ function adminHtml(){
       <button class="adm-btn" type="button" id="adm-ext-incluir">Incluir</button></div>
     <datalist id="adm-ags"></datalist>
     <h3>Pilares coringa de ${MESES[MES].toLowerCase()}</h3>${comCoringas ? `<div class="adm-grid">
-      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
+      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}${i===0?`<span class="pv" data-pv="pilares:${c}"></span>`:''}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
       : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas só podem ser escolhidos depois que os pilares 1 a 3 do mês estiverem na configuração.</p>`}
     <h3>Confrontos entre supervisores</h3>
     <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele; quem perde não perde pontos.
@@ -1258,7 +1304,8 @@ function adminHtml(){
     <p class="sub">Escolha o SV e ajuste o canal e o segmento de cada rota da mesa. O <b>canal</b> é o que conta para pilares, ranking,
       confrontos e premiação (Mista, Segmentada ou sem canal); o <b>segmento</b> é só a etiqueta (Mini ou Mod na Segmentada; Neutraliza,
       Eventual, Coke Net ou Virtual sem canal). O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}; rota sem ajuste fica
-      como está na base. Linhas em azul mudam em relação ao que está em uso. Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
+      como está na base. Linhas em azul mudam em relação ao que está em uso; a coluna Origem diz de onde vem o valor em uso (base, publicado
+      ou só este navegador). Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
     <div class="seg-av">⚠️ A confirmar no documento de regras (decisões de 28 e 29/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
       premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.
       Cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma todas as rotas da mesa nos pilares desse canal.</div>
@@ -1266,11 +1313,35 @@ function adminHtml(){
     <div class="adm-linha"><label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
       <label for="seg-sv">SV</label><select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></div>
     <div id="seg-mesa">${segMesaHtml()}</div>
-    <h4>Alterações pendentes (base → novo valor)</h4>
-    <p class="sub">É o que vai para o <code>${esc(CONFIG.arquivoAjustes)}</code> ao salvar neste navegador ou publicar por PR.</p>
-    <div id="seg-pend">${segPendHtml()}</div>
+    <h3>Alterações para publicar (publicado → novo valor)</h3>
+    <p class="sub">Só o que esta tela muda em relação ao <code>${esc(CONFIG.arquivoAjustes)}</code> publicado${AJ.erroPublicado?' (ilegível: comparado com o padrão)':''}.
+      "Salvar neste navegador" guarda só estas diferenças; "Publicar no GitHub (PR)" grava o arquivo inteiro, com tudo o que está em uso.</p>
+    <div id="adm-pend"></div>
    </div>`;
 }
+// campo do formulário -> chave do ajuste (adapter.js: itensDosAjustes), para marcar o que difere do publicado
+const CAMPO_CHAVE = { 'adm-gv':'regras:gatilhoVolumePct', 'adm-bc':'regras:bonusConfronto', 'adm-grt':'regras:gatilhoPontos.RT', 'adm-gsv':'regras:gatilhoPontos.SV',
+  'adm-p-rt-m':'regras:premiadas.RT.Mista', 'adm-p-rt-s':'regras:premiadas.RT.Segmentada', 'adm-p-sv-m':'regras:premiadas.SV.Mista', 'adm-p-sv-s':'regras:premiadas.SV.Segmentada' };
+const CAMPOS_DA_CHAVE = (chave)=> chave==='regras:faixas' ? [0,1,2].flatMap(i=>['adm-f'+i+'-min','adm-f'+i+'-pts'])
+  : chave.startsWith('pilares:') ? [0,1].map(i=>'adm-cor-'+chave.slice(8)+'-'+i) : Object.keys(CAMPO_CHAVE).filter(id=>CAMPO_CHAVE[id]===chave);
+/** "Alterações para publicar": o formulário comparado com o publicado; marca os campos que diferem dele. */
+function refazPend(){
+  const p = $('adm-pend'); if (!p) return;
+  const aj = lerAjustes();
+  if (typeof aj==='string') { p.innerHTML = `<div class="seg-av" role="alert">${esc(aj)}</div>`; $('adm-npend').textContent = ''; return; }
+  const dif = diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras), por = {};
+  dif.forEach(d=>{ por[d.chave] = d; });
+  Object.values(CAMPO_CHAVE).concat(['regras:faixas','pilares:Mista','pilares:Segmentada']).forEach(chave=>{
+    CAMPOS_DA_CHAVE(chave).forEach(id=>{ const e = $(id); if (e) e.classList.toggle('difpub', !!por[chave]); });
+    const pv = p.closest('.adm').querySelector(`[data-pv="${chave}"]`); if (pv) pv.textContent = por[chave] ? 'publicado: ' + por[chave].textoPublicado : '';
+  });
+  $('adm-npend').textContent = dif.length ? (dif.length===1 ? '1 alteração para publicar' : dif.length+' alterações para publicar') + ' (lista no fim da página)' : 'Nada difere do publicado';
+  p.innerHTML = !dif.length ? '<p class="sub">Nada difere do ajustes.json publicado.</p>'
+    : `<table><thead><tr><th>Ajuste</th><th>${AJ.erroPublicado?'Padrão':'Publicado'}</th><th></th><th>Novo valor</th></tr></thead><tbody>
+      ${dif.map(d=>`<tr class="mud"><td>${esc(d.rotulo)}</td><td>${esc(d.textoPublicado)}</td><td>→</td><td><b>${esc(d.textoNovo)}</b></td></tr>`).join('')}</tbody></table>`;
+}
+const agoraAj = ()=>{ const d = new Date(), z = (x)=>String(x).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
 /** Formulário -> ajustes (só o que difere do padrão). Texto = erro para mostrar; null = tudo no padrão. */
 function lerAjustes(){
   const n = (id)=>{ const v = Number(String($(id).value).replace(',','.')); return Number.isFinite(v) && v>=0 ? v : NaN; };
@@ -1299,13 +1370,18 @@ function lerAjustes(){
   const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
       && !agrupadores.length && !confrontos.length) return null;
-  const d = new Date(), z = (x)=>String(x).padStart(2,'0');
-  return { versao:1, atualizado_em:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`,
-           regras, pilares, canais, canaisSV, agrupadores, confrontos };
+  return { versao:1, atualizado_em:agoraAj(), regras, pilares, canais, canaisSV, agrupadores, confrontos };
 }
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
   const recarregar = ()=>{ try{ sessionStorage.setItem('q4_voltar','admin'); }catch(e){} location.reload(); };
+  // ajustes só deste navegador: "descartar este" tira um item; "descartar todos" volta ao publicado (também antes da senha)
+  $('rgbd').querySelectorAll('[data-descartar],[data-descartar-todos]').forEach(b=>b.addEventListener('click', ()=>{
+    const novo = b.dataset.descartarTodos ? null : semItens(Object.assign({ formato:2 }, AJ.navegador), [b.dataset.descartar]);
+    try { if (novo) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(novo)); else localStorage.removeItem(AJUSTES_LOCAL); }
+    catch (e) { return msg('Este navegador não permite mudar os ajustes salvos.'); }
+    recarregar();
+  }));
   if ($('adm-login')) {
     $('adm-login').addEventListener('submit', async (e)=>{
       e.preventDefault();
@@ -1319,7 +1395,7 @@ function ligarAdmin(){
     return;
   }
   // segmentação da supervisão: filtro de SV, seletor por rota, aplicar à mesa e restaurar padrão
-  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); $('seg-pend').innerHTML = segPendHtml(); };
+  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); refazPend(); };
   const editar = (nova)=>{ EDIC = {}; SEG.forEach(l=>{ if (l.rota in nova && nova[l.rota]!==l.atual) EDIC[l.rota] = nova[l.rota]; }); refazSeg(); };
   $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-sv').innerHTML = segSvOpcoes(); refazSeg(); });
   $('seg-sv').addEventListener('change', e=>{ SEGADM.sv = e.target.value || null; refazSeg(); });
@@ -1343,12 +1419,16 @@ function ligarAdmin(){
       editar(restaurarPadrao(edAtual, rotas)); msg(`${nome.charAt(0).toUpperCase()+nome.slice(1)} volta ao padrão da base. Salve ou publique para valer.`);
     }
   });
+  // o navegador guarda só o que difere do publicado (o resto continua vindo do ajustes.json)
   $('adm-salvar').addEventListener('click', ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
-    try { if (aj) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(aj)); else localStorage.removeItem(AJUSTES_LOCAL); }
+    const guardar = navegadorParaSalvar(diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras), AJ.publicado, agoraAj());
+    try { if (guardar) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(guardar)); else localStorage.removeItem(AJUSTES_LOCAL); }
     catch (e) { return msg('Este navegador não permite salvar os ajustes.'); }
     recarregar();
   });
+  // qualquer mudança no formulário refaz "Alterações para publicar" e as marcas do que difere do publicado
+  ['input','change'].forEach(ev=>$('rgbd').querySelector('.adm').addEventListener(ev, refazPend));
   // agrupadores extras: incluir/excluir mexe na lista e nas opções dos pilares coringa, sem perder o resto do formulário
   const fixosNorm = new Set(AGRUPADORES_FIXOS.map(normalizarTexto));
   const selsCoringa = ()=> ['Mista','Segmentada'].flatMap(c=>[0,1].map(i=>({ c, i, s:$('adm-cor-'+c+'-'+i) }))).filter(x=>x.s);
@@ -1372,7 +1452,7 @@ function ligarAdmin(){
     $('adm-ext-vazio').hidden = true;
     selsCoringa().forEach(({ s })=>s.insertAdjacentHTML('beforeend', `<option value="${esc(pilarDoExtra(e))}">${esc(e.nome)}</option>`));
     $('adm-ext-nome').value = $('adm-ext-ag').value = '';
-    msg(`"${nome}" incluído: já pode ser o pilar 4 ou 5. Salve ou publique para valer.`);
+    refazPend(); msg(`"${nome}" incluído: já pode ser o pilar 4 ou 5. Salve ou publique para valer.`);
   });
   $('adm-ext').addEventListener('click', ev=>{
     const b = ev.target.closest('button[data-excluir]'); if (!b) return;
@@ -1385,12 +1465,13 @@ function ligarAdmin(){
       const estava = o.selected; o.remove();
       if (estava) { const padrao = PADRAO.coringas[c][i]; s.value = [...s.options].some(x=>x.value===padrao) ? padrao : s.options[0].value; }
     });
-    msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
+    refazPend(); msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
   });
   // confrontos: o pilar segue o canal do desafiante; a lista é refeita a cada inclusão ou exclusão
   const refazConf = ()=>{
     $('adm-conf').querySelector('tbody').innerHTML = CONFRONTOS.map(linhaConf).join('');
     $('adm-conf-vazio').hidden = CONFRONTOS.length > 0;
+    refazPend();
   };
   const pilaresDoDesafiante = ()=>{
     const sv = SV_POR_ID[$('adm-conf-a').value];
@@ -1418,13 +1499,15 @@ function ligarAdmin(){
   });
   $('adm-publicar').addEventListener('click', async ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
-    if (!aj) return msg(`Tudo está no padrão: não há o que publicar. Para voltar todos ao padrão, apague o ${CONFIG.arquivoAjustes} no GitHub (por PR).`);
+    if (!aj) return msg(`Tudo está no padrão: não há o que publicar. Para voltar todos ao padrão${AJ.erroPublicado?' (e tirar o arquivo ilegível)':''}, apague o ${CONFIG.arquivoAjustes} no GitHub (por PR).`);
+    if (!AJ.erroPublicado && !diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras).length)
+      return msg(`Nada difere do ${CONFIG.arquivoAjustes} publicado: não há o que publicar.`);
     const texto = JSON.stringify(aj, null, 2);
     let copiado = false; try { await navigator.clipboard.writeText(texto); copiado = true; } catch (e) { /* sem área de transferência */ }
     window.open(urlPublicacao(CONFIG, texto, AJ.existePublicado), '_blank', 'noopener');
     msg(!AJ.existePublicado ? 'O GitHub abriu o arquivo já preenchido: clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
-      : copiado ? 'Conteúdo copiado. No GitHub: apague o texto do arquivo, cole (Ctrl+V), clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
-      : 'Não consegui copiar o conteúdo: use "Baixar ajustes.json" e cole o texto do arquivo no GitHub.');
+      : copiado ? 'Conteúdo copiado. No GitHub: selecione todo o texto do arquivo (Ctrl+A) e cole por cima (Ctrl+V), substituindo o conteúdo (não cole depois do texto antigo); depois clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
+      : 'Não consegui copiar o conteúdo: use "Baixar ajustes.json" e, no GitHub, substitua todo o conteúdo do arquivo pelo texto baixado.');
   });
   $('adm-baixar').addEventListener('click', ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
@@ -1432,10 +1515,11 @@ function ligarAdmin(){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(aj, null, 2)], { type:'application/json' }));
     a.download = 'ajustes.json'; document.body.appendChild(a); a.click(); a.remove();
-    msg('Arquivo baixado. Suba em frontend/ no GitHub para valer para todos.');
+    msg('Arquivo baixado. No GitHub, substitua todo o conteúdo do frontend/ajustes.json por este arquivo (não cole depois do texto antigo).');
   });
   $('adm-descartar').addEventListener('click', ()=>{ try{ localStorage.removeItem(AJUSTES_LOCAL); }catch(e){} recarregar(); });
   $('adm-sair').addEventListener('click', ()=>{ ADMIN_ABERTO = false; try{ sessionStorage.removeItem('q4_admin'); }catch(e){} renderRegras(); });
+  refazPend();
 }
 
 popularFiltros(); setTab('ranking');
