@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 83 testes (34 do motor, 49 do adaptador); precisa de Node 18+
+# testes do painel — 93 testes (34 do motor, 59 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -107,7 +107,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Missões Guiadas:** em outubro entra validada em 100% (3 pontos); em novembro e dezembro passa a ter
   meta, real e online.
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
-  **Gatilho de pontos:** SV 60 acumulados no trimestre, consultor 20 no mês (zera todo mês).
+  **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor no mês (zera todo mês), hoje **17** pelo
+  `ajustes.json` (decisão da Karen em 29/10/2026, a confirmar com o Back Office; o padrão do motor continua 20 e o
+  documento de regras v3.1 ainda diz 20). O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
+  texto (na tela, `R.gatilhoPontos`; um teste varre o template atrás de 17, 20 e 60 fixos).
 - **Os pontos sempre aparecem.** Só status, posição oficial e premiação dependem dos gatilhos (26/10).
   Todas as linhas são numeradas; a posição oficial é só de quem bate os dois gatilhos (27/10).
 - **Canal × segmento (28/10, ⚠️ ainda fora do documento de regras):** o motor só vê o canal (Mista, Segmentada ou sem
@@ -140,6 +143,14 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração). Ele não
   existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
   é esperado e inofensivo.
+- **`frontend/ajustes.json` tem de ser UM único objeto JSON.** Em 29/10/2026 ele ficou com dois e três objetos
+  seguidos (texto colado depois do antigo, no editor do GitHub) e o painel ignorou o arquivo em silêncio. Hoje,
+  ilegível (ou HTTP ≠ 200/404), nenhum ajuste publicado vale e o painel mostra uma **faixa vermelha** em todas as abas;
+  valor inválido dentro de um arquivo válido vira **faixa amarela** e aviso em Regras > Dados e alertas.
+- **Precedência dos ajustes (29/10/2026):** padrão < `ajustes.json` publicado < navegador, **item a item**
+  (`carregarAjustes` no adaptador). O navegador (`localStorage["q4_ajustes"]`, formato 2) guarda **só o que difere do
+  publicado**; ao abrir, o que ficou igual ao publicado sai sozinho. Para limpar o navegador: Regras > Administração >
+  "Descartar todos os do navegador (usar o publicado)", ou apagar a chave `q4_ajustes` do localStorage do site.
 - **A senha do admin existe só como hash** (SHA-256) dentro do HTML. Ela evita mudança por engano; não é
   proteção forte e nunca deve ser escrita em texto claro em lugar nenhum.
 - **`.env` nunca é versionado** (já está no `.gitignore`). Nunca imprima credenciais. Se a autenticação no
@@ -177,7 +188,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 83 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 93 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

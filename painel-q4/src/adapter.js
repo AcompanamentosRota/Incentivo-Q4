@@ -317,7 +317,9 @@ function aplicarCanalSV(dados, ajusteSV) {
 
 /*
  * Ajustes do admin (aba Regras > Administração): regras, pilares coringa do mês e canal das rotas.
- * Publicados em ajustes.json (valem para todos) ou guardados só neste navegador (têm prioridade).
+ * Publicados em ajustes.json (valem para todos) ou guardados só neste navegador. Precedência (aprovada em 29/10/2026):
+ * padrão < ajustes.json publicado < navegador, item a item; o navegador guarda e aplica SÓ o que difere do publicado
+ * (ver carregarAjustes). O ajustes.json tem de ser UM único objeto JSON; ilegível, ele é ignorado com aviso.
  * Formato: { atualizado_em, regras: {faixas, gatilhoVolumePct, gatilhoPontos, bonusConfronto, premiadas},
  *            pilares: {Mista: [pilar 4, pilar 5], Segmentada: [...]}, canais: {rota: {canal, sub, segmento}},
             canaisSV: {sv: 'Mista' | 'Segmentada'}  (canal do SV; sem ajuste, a maioria das rotas da mesa),
@@ -337,15 +339,19 @@ const normalizarTexto = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, ''
 const textoOk = (s, n) => typeof s === 'string' && s.trim().length > 0 && s.trim().length <= n && !/[\u0000-\u001f\u007f]/.test(s);
 const pilarDoExtra = (e) => 'Volume ' + e.nome;
 
-/** Agrupadores extras válidos (mesmas regras do gerador): id a-z0-9_, sem repetir fixos, nomes de pilar ou entre si. */
-function normalizarExtras(lista) {
+/** Agrupadores extras válidos (mesmas regras do gerador): id a-z0-9_, sem repetir fixos, nomes de pilar ou entre si.
+ *  Com `avisos`, cada item ignorado vira um aviso (nunca em silêncio). */
+function normalizarExtras(lista, avisos) {
   const out = [], ids = new Set(IDS_FIXOS), ags = new Set(AGRUPADORES_FIXOS.map(normalizarTexto));
   const pilares = new Set(PILARES_CORINGA.map(normalizarTexto));
+  const av = (t) => { if (avisos) avisos.push(t); };
+  if (lista !== undefined && lista !== null && !Array.isArray(lista)) av('agrupadores: precisa ser uma lista: ignorado');
   for (const x of Array.isArray(lista) ? lista : []) {
-    if (out.length >= EXTRAS_MAX) break;
-    if (!x || !/^[a-z0-9_]{1,30}$/.test(x.id) || !textoOk(x.nome, 40) || !textoOk(x.agrupador, 80)) continue;
+    const qual = `agrupador extra ${JSON.stringify(x && typeof x === 'object' ? x.id : x)}`;
+    if (out.length >= EXTRAS_MAX) { av(`${qual}: passa do máximo de ${EXTRAS_MAX} agrupadores extras: ignorado`); continue; }
+    if (!x || !/^[a-z0-9_]{1,30}$/.test(x.id) || !textoOk(x.nome, 40) || !textoOk(x.agrupador, 80)) { av(`${qual}: id, nome ou agrupador inválido: ignorado`); continue; }
     const e = { id: x.id, nome: x.nome.trim(), agrupador: x.agrupador.trim() };
-    if (ids.has(e.id) || ags.has(normalizarTexto(e.agrupador)) || pilares.has(normalizarTexto(pilarDoExtra(e)))) continue;
+    if (ids.has(e.id) || ags.has(normalizarTexto(e.agrupador)) || pilares.has(normalizarTexto(pilarDoExtra(e)))) { av(`${qual}: repete um id, agrupador ou pilar que já existe: ignorado`); continue; }
     out.push(e); ids.add(e.id); ags.add(normalizarTexto(e.agrupador)); pilares.add(normalizarTexto(pilarDoExtra(e)));
   }
   return out;
@@ -355,49 +361,73 @@ function normalizarExtras(lista) {
  * Confrontos válidos para o motor: mês do Q4, dois SVs diferentes e um pilar com nome.
  * A ordem da lista vira a ordem de registro (o motor usa isso quando um SV recebe mais de um desafio).
  * O que é regra do incentivo (mesmo canal, pilar de volume, um desafio por desafiado) o motor apura e explica.
+ * Com `avisos`, cada confronto ignorado vira um aviso.
  */
-function normalizarConfrontos(lista) {
+function normalizarConfrontos(lista, avisos) {
   const out = [], vistos = new Set();
-  for (const x of Array.isArray(lista) ? lista : []) {
-    if (out.length >= CONFRONTOS_MAX) break;
-    if (!x || !MESES_Q4.includes(x.mes)) continue;
-    if (!textoOk(x.id_sv_desafiante, 120) || !textoOk(x.id_sv_desafiado, 120) || !textoOk(x.pilar, 60)) continue;
+  const av = (t) => { if (avisos) avisos.push(t); };
+  if (lista !== undefined && lista !== null && !Array.isArray(lista)) av('confrontos: precisa ser uma lista: ignorado');
+  (Array.isArray(lista) ? lista : []).forEach((x, i) => {
+    const qual = `confronto ${i + 1} da lista`;
+    if (out.length >= CONFRONTOS_MAX) return av(`${qual}: passa do máximo de ${CONFRONTOS_MAX} confrontos: ignorado`);
+    if (!x || !MESES_Q4.includes(x.mes)) return av(`${qual}: mês fora do Q4: ignorado`);
+    if (!textoOk(x.id_sv_desafiante, 120) || !textoOk(x.id_sv_desafiado, 120) || !textoOk(x.pilar, 60)) return av(`${qual}: SV ou pilar inválido: ignorado`);
     const c = { mes: x.mes, id_sv_desafiante: x.id_sv_desafiante.trim(), id_sv_desafiado: x.id_sv_desafiado.trim(), pilar: x.pilar.trim() };
-    if (c.id_sv_desafiante === c.id_sv_desafiado) continue;
+    if (c.id_sv_desafiante === c.id_sv_desafiado) return av(`${qual}: desafiante e desafiado são o mesmo SV: ignorado`);
     const chave = c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
-    if (vistos.has(chave)) continue;
+    if (vistos.has(chave)) return av(`${qual}: repetido: ignorado`);
     vistos.add(chave);
     out.push(Object.assign(c, { ordem_registro: out.length + 1 }));
-  }
+  });
   return out;
 }
 
-/** Só os campos válidos; o resto é ignorado (o canal das rotas, com aviso em `avisos`). Sem nenhum campo válido, null. */
+const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores', 'confrontos'];
+const CAMPOS_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas'];
+const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Só os campos válidos; o resto é ignorado, e cada valor ignorado vira aviso em `avisos` (nunca em silêncio: um mínimo
+ *  de pontos inválido que volta ao padrão sem aviso repete o problema de 29/10/2026). Sem nenhum campo válido, null. */
 function normalizarAjustes(aj, avisos) {
   if (!aj || typeof aj !== 'object') return null;
+  const av = (t) => { if (avisos) avisos.push(t); };
   const ok = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
-  const r = aj.regras || {}, regras = {}, pilares = {}, canais = {};
-  const agrupadores = normalizarExtras(aj.agrupadores);
-  const confrontos = normalizarConfrontos(aj.confrontos);
+  Object.keys(aj).filter((k) => !CAMPOS_AJUSTES.includes(k)).forEach((k) => av(`campo ${JSON.stringify(k)} desconhecido: ignorado`));
+  if (aj.regras !== undefined && !ehObjeto(aj.regras)) av('regras: precisa ser um objeto: ignorado');
+  const r = ehObjeto(aj.regras) ? aj.regras : {}, regras = {}, pilares = {}, canais = {};
+  Object.keys(r).filter((k) => !CAMPOS_REGRAS.includes(k)).forEach((k) => av(`regras.${k} desconhecido: ignorado`));
+  const agrupadores = normalizarExtras(aj.agrupadores, avisos);
+  const confrontos = normalizarConfrontos(aj.confrontos, avisos);
   const coringas = PILARES_CORINGA.concat(agrupadores.map(pilarDoExtra));
   if (Array.isArray(r.faixas) && r.faixas.length === 3 && r.faixas.every((f) => f && ok(f.min) && ok(f.pontos)))
     regras.faixas = r.faixas.map((f) => ({ min: f.min, pontos: f.pontos })).sort((a, b) => b.min - a.min);
+  else if (r.faixas !== undefined) av('faixas de pontos: precisa de 3 faixas com min e pontos (números de 0 para cima): ignorado, vale o padrão');
   if (ok(r.gatilhoVolumePct)) regras.gatilhoVolumePct = r.gatilhoVolumePct;
+  else if (r.gatilhoVolumePct !== undefined) av(`gatilho de Refrigerantes ${JSON.stringify(r.gatilhoVolumePct)} não é número de 0 para cima: ignorado, vale o padrão`);
   if (ok(r.bonusConfronto)) regras.bonusConfronto = r.bonusConfronto;
+  else if (r.bonusConfronto !== undefined) av(`bônus do confronto ${JSON.stringify(r.bonusConfronto)} não é número de 0 para cima: ignorado, vale o padrão`);
   if (r.gatilhoPontos && ok(r.gatilhoPontos.SV) && ok(r.gatilhoPontos.RT)) regras.gatilhoPontos = { SV: r.gatilhoPontos.SV, RT: r.gatilhoPontos.RT };
+  else if (r.gatilhoPontos !== undefined) av(`mínimo de pontos ${JSON.stringify(r.gatilhoPontos)}: precisa de SV e RT (números de 0 para cima): ignorado, vale o padrão`);
   const pr = r.premiadas;
   if (pr && ['SV', 'RT'].every((c) => pr[c] && ok(pr[c].Mista) && ok(pr[c].Segmentada)))
     regras.premiadas = { SV: { Mista: pr.SV.Mista, Segmentada: pr.SV.Segmentada }, RT: { Mista: pr.RT.Mista, Segmentada: pr.RT.Segmentada } };
+  else if (pr !== undefined) av('posições premiadas: precisa de SV e RT, cada um com Mista e Segmentada (números de 0 para cima): ignorado, vale o padrão');
+  if (aj.pilares !== undefined && !ehObjeto(aj.pilares)) av('pilares: precisa ser um objeto: ignorado');
+  const pil = ehObjeto(aj.pilares) ? aj.pilares : {};
+  Object.keys(pil).filter((c) => c !== 'Mista' && c !== 'Segmentada').forEach((c) => av(`pilares coringa do canal ${JSON.stringify(c)}: canal desconhecido: ignorado`));
   for (const canal of ['Mista', 'Segmentada']) {
-    const p = (aj.pilares || {})[canal];
+    const p = pil[canal];
     if (Array.isArray(p) && p.length === 2 && p[0] !== p[1] && p.every((x) => coringas.includes(x))) pilares[canal] = p.slice();
+    else if (p !== undefined) av(`pilares coringa da ${canal} ${JSON.stringify(p)}: precisa de 2 pilares diferentes da lista de coringas: ignorado`);
   }
-  for (const [rota, c] of Object.entries(aj.canais && typeof aj.canais === 'object' ? aj.canais : {})) {
+  if (aj.canais !== undefined && !ehObjeto(aj.canais)) av('canais: precisa ser um objeto: ignorado');
+  if (aj.canaisSV !== undefined && !ehObjeto(aj.canaisSV)) av('canaisSV: precisa ser um objeto: ignorado');
+  for (const [rota, c] of Object.entries(ehObjeto(aj.canais) ? aj.canais : {})) {
     const v = validarCanalRota(rota, c, avisos);
     if (v) canais[rota] = v;
   }
   const canaisSV = {};
-  for (const [sv, c] of Object.entries(aj.canaisSV && typeof aj.canaisSV === 'object' ? aj.canaisSV : {})) {
+  for (const [sv, c] of Object.entries(ehObjeto(aj.canaisSV) ? aj.canaisSV : {})) {
     if (textoOk(sv, 120) && (c === 'Mista' || c === 'Segmentada')) canaisSV[sv] = c;
     else if (avisos) avisos.push(`SV ${sv}: canal do SV ${JSON.stringify(c)} não é Mista nem Segmentada: ajuste ignorado`);
   }
@@ -427,20 +457,239 @@ function aplicarCoringas(aj, cfg, mes) {
   }
 }
 
-/** Ajustes publicados (ajustes.json do site) e os deste navegador (localStorage); os deste navegador valem primeiro. */
-async function carregarAjustes(cfg) {
-  cfg = cfg || CONFIG;
-  let publicado = null, local = null, existePublicado = false;
-  const avPub = [], avLocal = [];
+/*
+ * Ajustes item a item. Cada ajuste tem uma chave "tipo:id": regras:gatilhoPontos.RT, regras:premiadas.SV.Mista,
+ * regras:faixas (as 3 juntas), pilares:Mista, canais:<rota>, canaisSV:<sv>, agrupadores:<id> e
+ * confrontos:<mês>|<desafiante>|<desafiado>. Nas regras, item ausente vale o padrão do motor (`padrao` = REGRAS sem
+ * ajustes); nos demais, ausente = não existe no arquivo (rota como na base, SV pela maioria, pilar coringa do mês).
+ */
+const MotorPadrao = JSON.parse(JSON.stringify(MotorRegras())); // REGRAS do motor antes de qualquer ajuste
+const CHAVES_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos.RT', 'gatilhoPontos.SV',
+  'premiadas.RT.Mista', 'premiadas.RT.Segmentada', 'premiadas.SV.Mista', 'premiadas.SV.Segmentada'].map((k) => 'regras:' + k);
+const ORDEM_TIPOS = ['regras', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos'];
+const ROTULOS_REGRAS = {
+  faixas: 'Faixas de pontos', gatilhoVolumePct: 'Gatilho de Refrigerantes (%)', bonusConfronto: 'Bônus do confronto (pontos)',
+  'gatilhoPontos.RT': 'Mínimo da Rota (pontos no mês)', 'gatilhoPontos.SV': 'Mínimo do SV (pontos no trimestre)',
+  'premiadas.RT.Mista': 'Posições premiadas · Rota · Mista', 'premiadas.RT.Segmentada': 'Posições premiadas · Rota · Segmentada',
+  'premiadas.SV.Mista': 'Posições premiadas · SV · Mista', 'premiadas.SV.Segmentada': 'Posições premiadas · SV · Segmentada',
+};
+const partesChave = (chave) => { const i = chave.indexOf(':'); return [chave.slice(0, i), chave.slice(i + 1)]; };
+const mesmoValor = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+const regraPadrao = (id, padrao) => {
+  if (id === 'faixas') return padrao.faixas.slice(0, 3).map((f) => ({ min: f.min, pontos: f.pontos }));
+  return id.split('.').reduce((o, k) => (o ? o[k] : undefined), padrao);
+};
+
+/** Ajustes normalizados -> {chave: valor}, só com o que está no arquivo. */
+function itensDosAjustes(aj) {
+  const out = {};
+  if (!aj) return out;
+  const r = aj.regras || {};
+  if (r.faixas) out['regras:faixas'] = r.faixas.map((f) => ({ min: f.min, pontos: f.pontos }));
+  for (const k of ['gatilhoVolumePct', 'bonusConfronto']) if (r[k] !== undefined) out['regras:' + k] = r[k];
+  if (r.gatilhoPontos) for (const c of ['RT', 'SV']) out['regras:gatilhoPontos.' + c] = r.gatilhoPontos[c];
+  if (r.premiadas) for (const c of ['RT', 'SV']) for (const n of ['Mista', 'Segmentada']) out[`regras:premiadas.${c}.${n}`] = r.premiadas[c][n];
+  for (const [canal, p] of Object.entries(aj.pilares || {})) out['pilares:' + canal] = p.slice();
+  for (const [sv, c] of Object.entries(aj.canaisSV || {})) out['canaisSV:' + sv] = c;
+  for (const [rota, c] of Object.entries(aj.canais || {})) out['canais:' + rota] = { canal: c.canal, sub: c.sub || null };
+  for (const e of aj.agrupadores || []) out['agrupadores:' + e.id] = { id: e.id, nome: e.nome, agrupador: e.agrupador };
+  for (const c of aj.confrontos || []) out[`confrontos:${c.mes}|${c.id_sv_desafiante}|${c.id_sv_desafiado}`] =
+    { mes: c.mes, id_sv_desafiante: c.id_sv_desafiante, id_sv_desafiado: c.id_sv_desafiado, pilar: c.pilar };
+  return out;
+}
+
+/** {chave: valor} -> objeto no formato do ajustes.json (mínimo de pontos e premiadas completos com o padrão). */
+function objetoDosItens(itens, padrao) {
+  padrao = padrao || MotorPadrao;
+  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [] }, r = {};
+  for (const [chave, v] of Object.entries(itens || {})) {
+    if (v === null || v === undefined) continue;
+    const [tipo, id] = partesChave(chave);
+    if (tipo === 'regras') r[id] = v;
+    else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV') aj[tipo][id] = v;
+    else if (tipo === 'agrupadores' || tipo === 'confrontos') aj[tipo].push(v);
+  }
+  const de = (id) => (id in r ? r[id] : regraPadrao(id, padrao));
+  for (const k of ['faixas', 'gatilhoVolumePct', 'bonusConfronto']) if (k in r) aj.regras[k] = r[k];
+  if (['RT', 'SV'].some((c) => 'gatilhoPontos.' + c in r)) aj.regras.gatilhoPontos = { SV: de('gatilhoPontos.SV'), RT: de('gatilhoPontos.RT') };
+  if (Object.keys(r).some((k) => k.startsWith('premiadas.')))
+    aj.regras.premiadas = Object.fromEntries(['SV', 'RT'].map((c) => [c, { Mista: de(`premiadas.${c}.Mista`), Segmentada: de(`premiadas.${c}.Segmentada`) }]));
+  return aj;
+}
+
+/** Nome do ajuste para a tela. */
+function rotuloItem(chave) {
+  const [tipo, id] = partesChave(chave);
+  if (tipo === 'regras') return ROTULOS_REGRAS[id] || id;
+  if (tipo === 'pilares') return `Pilares coringa · ${id}`;
+  if (tipo === 'canais') return `Canal da rota ${id}`;
+  if (tipo === 'canaisSV') return `Canal do SV ${id}`;
+  if (tipo === 'agrupadores') return `Agrupador extra ${id}`;
+  if (tipo === 'confrontos') {
+    const [mes, a, b] = id.split('|');
+    return `Confronto de ${NOMES_MES[Number(mes)] || mes}: ${String(a).replace('#', ' · ')} × ${String(b).replace('#', ' · ')}`;
+  }
+  return chave;
+}
+/** Valor do ajuste para a tela; null = ausente (padrão, ou não existe). */
+function textoItem(chave, v) {
+  const [tipo, id] = partesChave(chave);
+  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês' })[tipo] || 'não existe';
+  if (tipo === 'regras' && id === 'faixas') return v.map((f) => `${String(f.min).replace('.', ',')}%: ${f.pontos} pts`).join(' · ');
+  if (tipo === 'regras') return String(v).replace('.', ',');
+  if (tipo === 'pilares') return v.map((n) => n.replace('Volume ', '')).join(', ');
+  if (tipo === 'canais') return rotuloSeg(valorSeg(v.canal, v.sub));
+  if (tipo === 'agrupadores') return `${v.nome} (${v.agrupador})`;
+  if (tipo === 'confrontos') return 'pilar ' + String(v.pilar).replace('Volume ', '');
+  return String(v);
+}
+
+/** Itens com as regras resolvidas (ausente = padrão do motor), para comparar o que de fato vale. */
+function itensResolvidos(aj, padrao) {
+  const it = itensDosAjustes(aj), out = {};
+  for (const k of CHAVES_REGRAS) out[k] = k in it ? it[k] : regraPadrao(partesChave(k)[1], padrao);
+  return Object.assign(out, it);
+}
+const ordemItens = (a, b) => {
+  const [ta, ia] = partesChave(a), [tb, ib] = partesChave(b);
+  return ORDEM_TIPOS.indexOf(ta) - ORDEM_TIPOS.indexOf(tb)
+    || (ta === 'regras' ? CHAVES_REGRAS.indexOf(a) - CHAVES_REGRAS.indexOf(b) : ia.localeCompare(ib, 'pt-BR', { numeric: true }));
+};
+
+/**
+ * O que difere entre dois conjuntos de ajustes normalizados (ex.: o publicado e o do navegador, ou o publicado e o
+ * formulário): [{chave, rotulo, publicado, novo, textoPublicado, textoNovo}]; valor null = ausente.
+ */
+function diferencasAjustes(publicado, novo, padrao) {
+  padrao = padrao || MotorPadrao;
+  const a = itensResolvidos(publicado, padrao), b = itensResolvidos(novo, padrao);
+  return [...new Set(Object.keys(a).concat(Object.keys(b)))].sort(ordemItens)
+    .filter((k) => !mesmoValor(a[k], b[k]))
+    .map((k) => ({ chave: k, rotulo: rotuloItem(k), publicado: k in a ? a[k] : null, novo: k in b ? b[k] : null,
+                   textoPublicado: textoItem(k, a[k]), textoNovo: textoItem(k, b[k]) }));
+}
+
+/**
+ * Publicado + itens do navegador -> ajustes em uso. Cada item do navegador passa pelas mesmas regras do arquivo
+ * publicado; o que não passa é ignorado com aviso e, naquele item, vale o publicado.
+ */
+function mesclarAjustes(publicado, itensNav, padrao, avisos) {
+  padrao = padrao || MotorPadrao;
+  const base = itensDosAjustes(publicado);
+  const montar = (nav) => {
+    const it = Object.assign({}, base);
+    for (const [k, v] of Object.entries(nav)) { if (v === null) delete it[k]; else it[k] = v; }
+    return normalizarAjustes(objetoDosItens(it, padrao));
+  };
+  const validos = Object.assign({}, itensNav || {});
+  let aj = montar(validos);
+  const final = itensDosAjustes(aj), invalidos = [];
+  for (const [k, v] of Object.entries(validos)) {
+    if (v === null ? !(k in final) : mesmoValor(final[k], v)) continue;
+    invalidos.push(k); delete validos[k];
+    if (avisos) avisos.push(`neste navegador: ${rotuloItem(k)} com valor inválido: ignorado`);
+  }
+  if (invalidos.length) aj = montar(validos);
+  return { ajustes: aj, itens: validos, invalidos };
+}
+
+/*
+ * O que o navegador guardou -> {itens, atualizado_em}. Formato 2 (desde 29/10/2026): só os itens que diferem do
+ * publicado, {formato: 2, atualizado_em, publicado_em, itens: {chave: valor | null}} (null = tirar o item publicado).
+ * Formato antigo (uma cópia completa do arquivo, sem registro do que estava publicado): vale só o que a cópia tem e
+ * difere do publicado; item publicado que falta na cópia continua valendo (decisão da Karen em 29/10/2026).
+ */
+function itensDoNavegador(salvo, publicado, padrao, avisos) {
+  if (!ehObjeto(salvo)) return null;
+  const quando = (v) => (typeof v === 'string' ? v : null);
+  if (salvo.formato === 2) {
+    return { formato: 2, atualizado_em: quando(salvo.atualizado_em), publicado_em: quando(salvo.publicado_em),
+             itens: ehObjeto(salvo.itens) ? Object.assign({}, salvo.itens) : {} };
+  }
+  const av = [];
+  const copia = normalizarAjustes(salvo, av);
+  av.forEach((t) => { if (avisos) avisos.push('neste navegador: ' + t); });
+  const pub = itensResolvidos(publicado, padrao || MotorPadrao), itens = {};
+  for (const [k, v] of Object.entries(itensDosAjustes(copia))) if (!mesmoValor(pub[k], v)) itens[k] = v;
+  return { formato: 1, atualizado_em: copia ? copia.atualizado_em : quando(salvo.atualizado_em), publicado_em: null, itens,
+           lidos: Object.keys(itensDosAjustes(copia)) };
+}
+
+/** O que vai para o localStorage: só as diferenças do publicado (null = nada a guardar). */
+function navegadorParaSalvar(diferencas, publicado, atualizadoEm) {
+  if (!diferencas.length) return null;
+  return { formato: 2, atualizado_em: atualizadoEm, publicado_em: (publicado && publicado.atualizado_em) || null,
+           itens: Object.fromEntries(diferencas.map((d) => [d.chave, d.novo])) };
+}
+/** Tira itens do que o navegador guardou ("descartar este"); devolve null quando não sobra nenhum. */
+function semItens(salvo, chaves) {
+  if (!ehObjeto(salvo) || salvo.formato !== 2 || !ehObjeto(salvo.itens)) return null;
+  const itens = Object.assign({}, salvo.itens);
+  chaves.forEach((k) => { delete itens[k]; });
+  return Object.keys(itens).length ? Object.assign({}, salvo, { itens }) : null;
+}
+
+/** Motivo curto de um ajustes.json que não é JSON válido (dois objetos seguidos é o caso de 29/10/2026). */
+function motivoJsonInvalido(e) {
+  const m = String((e && e.message) || e);
+  return /after JSON|content at end/i.test(m) // Chrome/Edge/Node: "... after JSON at position"; Firefox: "... after JSON data"
+    ? 'JSON inválido, com mais de um objeto JSON seguido (texto novo colado depois do antigo?)'
+    : `JSON inválido: ${m}`;
+}
+
+/*
+ * Ajustes publicados (ajustes.json do site, lido sem cache) e os deste navegador (localStorage).
+ * Precedência: padrão < publicado < navegador, item a item; do navegador valem só os itens que diferem do publicado.
+ * - ajustes.json com HTTP 200 que não é um objeto JSON válido: `erroPublicado` traz o motivo e NENHUM ajuste publicado
+ *   vale (nunca cai no padrão em silêncio: a tela mostra a faixa de aviso).
+ * - Ao carregar, os itens do navegador iguais ao publicado saem do navegador (`descartados`); se não sobra nenhum, o
+ *   localStorage é limpo e o aviso "ajuste neste navegador" some. Só mexe no localStorage quando se sabe o que está
+ *   publicado (arquivo lido ou 404); sem rede ou com o arquivo ilegível, o navegador fica como está.
+ * - `diferencas` lista exatamente o que o navegador muda (publicado -> navegador); `navegadorAnterior` avisa quando o
+ *   ajuste do navegador foi salvo antes do atualizado_em do publicado.
+ */
+async function carregarAjustes(cfg, padrao) {
+  cfg = cfg || CONFIG; padrao = padrao || MotorPadrao;
+  let publicado = null, existePublicado = false, erroPublicado = null, conhecido = false, situacaoPublicado = 'sem-acesso';
+  const avPub = [], avNav = [];
   try {
-    const r = await fetch(cfg.ajustes, { cache: 'no-cache' });
+    const r = await fetch(cfg.ajustes, { cache: 'no-store' });
     existePublicado = r.ok;
-    if (r.ok) publicado = normalizarAjustes(await r.json(), avPub);
-  } catch (e) { /* sem ajustes publicados (ou HTML aberto direto do computador) */ }
-  try { local = normalizarAjustes(JSON.parse(localStorage.getItem(AJUSTES_LOCAL) || 'null'), avLocal); } catch (e) { /* sem localStorage */ }
-  // valores inválidos ignorados: a tela mostra os avisos dos ajustes em uso (nunca em silêncio)
-  return { publicado, local, existePublicado, ativo: local || publicado, origem: local ? 'local' : publicado ? 'publicado' : null,
-           avisos: local ? avLocal : avPub };
+    if (r.ok) {
+      let bruto;
+      try { bruto = await r.json(); } catch (e) { erroPublicado = motivoJsonInvalido(e); }
+      if (!erroPublicado && !ehObjeto(bruto)) erroPublicado = 'o conteúdo não é um objeto JSON';
+      if (!erroPublicado) { publicado = normalizarAjustes(bruto, avPub); conhecido = true; }
+    } else if (r.status === 404) conhecido = true; // ninguém publicou ajustes
+    else erroPublicado = `HTTP ${r.status}`;
+    situacaoPublicado = erroPublicado ? 'erro' : publicado ? 'ok' : r.ok ? 'vazio' : 'ausente';
+  } catch (e) { /* sem rede, ou HTML aberto direto do computador: não há publicado para ler */ }
+
+  let texto = null, salvo = null;
+  try { texto = localStorage.getItem(AJUSTES_LOCAL); } catch (e) { /* sem localStorage */ }
+  if (texto) { try { salvo = JSON.parse(texto); } catch (e) { avNav.push('neste navegador: os ajustes salvos estão ilegíveis e foram ignorados'); } }
+  const nav = itensDoNavegador(salvo, publicado, padrao, avNav);
+  const m = nav ? mesclarAjustes(publicado, nav.itens, padrao, avNav) : null;
+  const diferencas = m ? diferencasAjustes(publicado, m.ajustes, padrao) : [];
+  const guardar = nav && navegadorParaSalvar(diferencas, publicado, nav.atualizado_em);
+  if (guardar) guardar.publicado_em = nav.publicado_em || guardar.publicado_em;
+  const mudou = nav && JSON.stringify(guardar) !== texto;
+  if (mudou && conhecido) {
+    try { if (guardar) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(guardar)); else localStorage.removeItem(AJUSTES_LOCAL); }
+    catch (e) { /* localStorage só de leitura */ }
+  }
+  const restantes = new Set(diferencas.map((d) => d.chave));
+  const descartados = nav ? (nav.lidos || Object.keys(nav.itens)).filter((k) => !restantes.has(k) && !m.invalidos.includes(k)) : [];
+  const pubEm = publicado && publicado.atualizado_em;
+  const ativo = diferencas.length ? m.ajustes : publicado;
+  return {
+    publicado, existePublicado, erroPublicado, situacaoPublicado, ativo,
+    origem: diferencas.length ? 'local' : publicado ? 'publicado' : null,
+    navegador: guardar ? { atualizado_em: guardar.atualizado_em, publicado_em: guardar.publicado_em, itens: guardar.itens } : null,
+    diferencas, descartados,
+    navegadorAnterior: !!(diferencas.length && nav.atualizado_em && pubEm && nav.atualizado_em < pubEm),
+    avisosPublicado: avPub, avisos: avPub.concat(avNav),
+  };
 }
 
 /** Página do GitHub para publicar o ajustes.json por PR: edição do arquivo (se já existe) ou criação já preenchida. */
@@ -526,7 +775,8 @@ function canalDaMesa(rotas, edicao, escolhido) {
   const maioria = n('Mista') === n('Segmentada') ? null : n('Mista') > n('Segmentada') ? 'Mista' : 'Segmentada';
   return { canais, mista: n('Mista') > 0 && n('Segmentada') > 0, maioria, canal: escolhido || maioria };
 }
-/** Canal do SV no resumo antes de publicar: SV com canal escolhido (ou que volta ao padrão, a maioria das rotas). */
+/** Canal do SV escolhido (ou que volta ao padrão, a maioria das rotas) em relação ao que está em uso. A tela não usa
+ *  mais (desde 29/10/2026 "Alterações para publicar" compara com o publicado: diferencasAjustes). */
 function pendenciasCanalSV(emUso, edicao) {
   const out = [];
   for (const sv of [...new Set(Object.keys(emUso || {}).concat(Object.keys(edicao || {})))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }))) {
@@ -549,7 +799,8 @@ function restaurarPadrao(edicao, rotas) {
   return out;
 }
 
-/** Resumo antes de publicar: rotas fora do padrão da base (ou que voltam a ele), com "base -> novo". */
+/** Rotas fora do padrão da base (ou que voltam a ele), com "base -> novo". A tela não usa mais (desde 29/10/2026
+ *  "Alterações para publicar" compara com o publicado: diferencasAjustes). */
 function pendenciasSegmentacao(linhas, edicao) {
   const out = [];
   for (const l of linhas) {
@@ -731,7 +982,8 @@ if (typeof module === 'object' && module.exports) {
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
-                     carregarAjustes, urlPublicacao,
+                     carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
+                     diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
                      SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,

@@ -800,3 +800,220 @@ test('canal do SV: confronto cadastrado com o canal antigo do SV mostra "canal a
   assert.match(exp.texto, /Sv\. Fx\.4 agora é da Segmentada \(canal do SV definido pelo admin\)/);
   assert.equal(aj.confrontos.length, 1);
 });
+
+// ── ajustes do admin: publicado × navegador (etapa 8) ──
+// ajustes.json com dois objetos seguidos, como o de 29/10/2026 (texto colado depois do antigo); dados fictícios
+const DOIS_OBJETOS = '{\n  "atualizado_em": "2026-10-29T10:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 17 } }\n}\n'
+  + '{\n  "atualizado_em": "2026-10-29T11:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 17 } }\n}\n';
+const PUB = { versao: 1, atualizado_em: '2026-10-29T15:00', regras: { gatilhoPontos: { SV: 60, RT: 17 } },
+  canais: { X2: { canal: 'Segmentada', sub: 'Mini', segmento: 'Mini' } },
+  confrontos: [{ mes: 10, id_sv_desafiante: 'Sv. Fx.1#Mista', id_sv_desafiado: 'Sv. Fx.4#Mista', pilar: 'Volume Sucos' }] };
+// fetch devolve o texto do ajustes.json como o servidor (null = 404, número = outro HTTP); localStorage em memória
+async function comAjustes(textoPublicado, salvo, fn) {
+  const fetchOriginal = globalThis.fetch, gravados = [], dados = new Map();
+  if (salvo !== undefined) dados.set(A.AJUSTES_LOCAL, typeof salvo === 'string' ? salvo : JSON.stringify(salvo));
+  globalThis.fetch = async () => (textoPublicado === null ? { ok: false, status: 404 }
+    : typeof textoPublicado === 'number' ? { ok: false, status: textoPublicado }
+    : { ok: true, status: 200, json: async () => JSON.parse(textoPublicado) });
+  globalThis.localStorage = { getItem: (k) => (dados.has(k) ? dados.get(k) : null),
+    setItem: (k, v) => { gravados.push(['set', k]); dados.set(k, String(v)); },
+    removeItem: (k) => { gravados.push(['remove', k]); dados.delete(k); } };
+  try { return await fn({ ler: () => (dados.has(A.AJUSTES_LOCAL) ? JSON.parse(dados.get(A.AJUSTES_LOCAL)) : null), gravados }); }
+  finally { globalThis.fetch = fetchOriginal; delete globalThis.localStorage; }
+}
+
+test('ajustes: publicado inválido (dois objetos seguidos) => aviso de arquivo ilegível e nenhum ajuste publicado aplicado', async () => {
+  await comAjustes(DOIS_OBJETOS, undefined, async () => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.equal(aj.situacaoPublicado, 'erro');
+    assert.match(aj.erroPublicado, /mais de um objeto JSON seguido/);
+    assert.deepEqual([aj.publicado, aj.ativo, aj.origem, aj.existePublicado], [null, null, null, true]);
+    const regras = JSON.parse(JSON.stringify(A.MotorPadrao));
+    aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), regras);
+    assert.equal(regras.gatilhoPontos.RT, 20); // o 17 do arquivo ilegível não entra: vale o padrão, com o aviso na tela
+  });
+  // sem como comparar com o publicado, o navegador fica como está e o ajuste dele continua valendo
+  const nav = { formato: 2, atualizado_em: '2026-10-29T09:00', publicado_em: null, itens: { 'regras:bonusConfronto': 7 } };
+  await comAjustes(DOIS_OBJETOS, nav, async ({ gravados }) => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.equal(aj.ativo.regras.bonusConfronto, 7);
+    assert.deepEqual(gravados, []);
+  });
+  // outros jeitos de não poder ler; 404 é "ninguém publicou", sem aviso
+  for (const [txt, re] of [['[1, 2]', /não é um objeto JSON/], ['{"regras": ', /^JSON inválido: /], [500, /HTTP 500/]]) {
+    await comAjustes(txt, undefined, async () => assert.match((await carregarAjustes(CONFIG)).erroPublicado, re));
+  }
+  await comAjustes(null, undefined, async () => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.deepEqual([aj.erroPublicado, aj.situacaoPublicado, aj.existePublicado], [null, 'ausente', false]);
+  });
+  // a mensagem do Firefox para o mesmo erro também é reconhecida
+  assert.match(A.motivoJsonInvalido(new SyntaxError('JSON.parse: unexpected non-whitespace character after JSON data at line 5 column 1 of the JSON data')),
+    /mais de um objeto JSON seguido/);
+});
+
+test('ajustes: navegador igual ao publicado => o aviso some e nada sobra no navegador', async () => {
+  // formato novo (só as diferenças) e formato antigo (cópia completa do arquivo), os dois iguais ao publicado
+  const novo = { formato: 2, atualizado_em: '2026-10-29T16:00', publicado_em: '2026-10-29T15:00',
+    itens: { 'regras:gatilhoPontos.RT': 17, 'canais:X2': { canal: 'Segmentada', sub: 'Mini' } } };
+  for (const salvo of [novo, Object.assign({}, PUB, { atualizado_em: '2026-10-29T14:00' })]) {
+    await comAjustes(JSON.stringify(PUB), salvo, async ({ ler, gravados }) => {
+      const aj = await carregarAjustes(CONFIG);
+      assert.deepEqual([aj.origem, aj.diferencas, aj.navegador, aj.navegadorAnterior], ['publicado', [], null, false]);
+      assert.equal(aj.ativo, aj.publicado);
+      assert.equal(ler(), null);
+      assert.deepEqual(gravados, [['remove', A.AJUSTES_LOCAL]]);
+      assert.ok(aj.descartados.includes('canais:X2'));
+    });
+  }
+});
+
+test('ajustes: navegador diferente do publicado => vale por cima, item a item, e o aviso lista só as diferenças', async () => {
+  const salvo = { formato: 2, atualizado_em: '2026-10-29T16:00', publicado_em: '2026-10-29T15:00', itens: {
+    'regras:gatilhoPontos.RT': 18,                         // diferente do publicado
+    'canais:X2': { canal: 'Segmentada', sub: 'Mini' },     // igual ao publicado: sai do navegador
+    'canais:X3': { canal: 'Mista', sub: null },            // só no navegador
+    'confrontos:10|Sv. Fx.1#Mista|Sv. Fx.4#Mista': null,   // tira o confronto publicado
+  } };
+  await comAjustes(JSON.stringify(PUB), salvo, async ({ ler }) => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.equal(aj.origem, 'local');
+    assert.deepEqual(aj.diferencas.map((d) => [d.rotulo, d.textoPublicado, d.textoNovo]), [
+      ['Mínimo da Rota (pontos no mês)', '17', '18'],
+      ['Canal da rota X3', 'padrão da base', 'Mista'],
+      ['Confronto de outubro: Sv. Fx.1 · Mista × Sv. Fx.4 · Mista', 'pilar Sucos', 'não existe'],
+    ]);
+    // em uso: o publicado com as diferenças do navegador (o X2 e o mínimo do SV continuam vindo do publicado)
+    assert.deepEqual(aj.ativo.regras.gatilhoPontos, { SV: 60, RT: 18 });
+    assert.deepEqual(aj.ativo.canais, { X2: { canal: 'Segmentada', sub: 'Mini' }, X3: { canal: 'Mista', sub: null } });
+    assert.deepEqual(aj.ativo.confrontos, []);
+    assert.deepEqual(Object.keys(ler().itens), ['regras:gatilhoPontos.RT', 'canais:X3', 'confrontos:10|Sv. Fx.1#Mista|Sv. Fx.4#Mista']);
+    assert.deepEqual(aj.descartados, ['canais:X2']);
+    assert.equal(aj.navegadorAnterior, false);
+  });
+});
+
+test('ajustes: cópia antiga do navegador, anterior ao publicado => aviso, e o que falta nela continua vindo do publicado', async () => {
+  // cópia completa salva às 09:00 (formato de antes), sem o mínimo 17, o X2 e o confronto publicados às 15:00
+  const copia = { versao: 1, atualizado_em: '2026-10-29T09:00', regras: { bonusConfronto: 7 }, canais: { X3: { canal: 'Mista', sub: null, segmento: null } } };
+  await comAjustes(JSON.stringify(PUB), copia, async ({ ler }) => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.equal(aj.navegadorAnterior, true);
+    assert.deepEqual(aj.diferencas.map((d) => d.chave), ['regras:bonusConfronto', 'canais:X3']);
+    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 17); // publicado depois da cópia: vale (decisão de 29/10/2026)
+    assert.ok(aj.ativo.canais.X2);
+    assert.equal(aj.ativo.confrontos.length, 1);
+    assert.deepEqual(ler(), { formato: 2, atualizado_em: '2026-10-29T09:00', publicado_em: '2026-10-29T15:00',
+      itens: { 'regras:bonusConfronto': 7, 'canais:X3': { canal: 'Mista', sub: null } } }); // convertida para o formato novo
+  });
+  // salvo de novo depois do publicado: sem o aviso de anterior
+  await comAjustes(JSON.stringify(PUB), { formato: 2, atualizado_em: '2026-10-29T16:00', itens: { 'regras:bonusConfronto': 7 } }, async () => {
+    assert.equal((await carregarAjustes(CONFIG)).navegadorAnterior, false);
+  });
+});
+
+test('ajustes: o formulário abre com o estado em uso e "Alterações para publicar" lista só o que difere do publicado', async () => {
+  const salvo = { formato: 2, atualizado_em: '2026-10-29T16:00', publicado_em: '2026-10-29T15:00', itens: { 'regras:gatilhoPontos.RT': 18 } };
+  await comAjustes(JSON.stringify(PUB), salvo, async () => {
+    const aj = await carregarAjustes(CONFIG);
+    // a tela aplica o ativo nas REGRAS e abre o formulário com elas: mínimo 18 (navegador) e SV 60 (publicado)
+    const regras = JSON.parse(JSON.stringify(A.MotorPadrao));
+    aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), regras);
+    assert.deepEqual(regras.gatilhoPontos, { SV: 60, RT: 18 });
+    // formulário sem mexer = estado em uso: a lista para publicar é só o que o navegador muda
+    assert.deepEqual(A.diferencasAjustes(aj.publicado, aj.ativo).map((d) => d.chave), ['regras:gatilhoPontos.RT']);
+    // o admin volta o mínimo para 17 e muda o bônus para 6: só o bônus fica na lista (o que já está publicado não aparece)
+    const form = normalizarAjustes({ regras: { gatilhoPontos: { SV: 60, RT: 17 }, bonusConfronto: 6 }, canais: PUB.canais, confrontos: PUB.confrontos });
+    const dif = A.diferencasAjustes(aj.publicado, form);
+    assert.deepEqual(dif.map((d) => [d.rotulo, d.textoPublicado, d.textoNovo]), [['Bônus do confronto (pontos)', '5', '6']]);
+    // salvar neste navegador guarda só isso; tudo igual ao publicado não guarda nada
+    assert.deepEqual(A.navegadorParaSalvar(dif, aj.publicado, '2026-10-29T17:00'),
+      { formato: 2, atualizado_em: '2026-10-29T17:00', publicado_em: '2026-10-29T15:00', itens: { 'regras:bonusConfronto': 6 } });
+    assert.equal(A.navegadorParaSalvar(A.diferencasAjustes(aj.publicado, aj.publicado), aj.publicado, 'x'), null);
+    // "descartar este": sem nenhum item, o navegador fica vazio
+    assert.equal(A.semItens(salvo, ['regras:gatilhoPontos.RT']), null);
+  });
+});
+
+test('ajustes: item inválido salvo no navegador é ignorado com aviso e, nele, vale o publicado', async () => {
+  const salvo = { formato: 2, atualizado_em: '2026-10-29T16:00', itens: { 'regras:gatilhoPontos.RT': 'dezoito', 'canais:X3': { canal: 'Varejo' } } };
+  await comAjustes(JSON.stringify(PUB), salvo, async ({ ler }) => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.deepEqual(aj.diferencas, []);
+    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 17);
+    assert.equal(aj.avisos.filter((t) => t.startsWith('neste navegador:')).length, 2);
+    assert.equal(ler(), null);
+  });
+  // ajustes salvos ilegíveis: aviso, e o navegador não é apagado sozinho
+  await comAjustes(JSON.stringify(PUB), '{ruim', async ({ gravados }) => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.match(aj.avisos.join('|'), /ilegíveis/);
+    assert.deepEqual(gravados, []);
+  });
+});
+
+test('ajustes: valor inválido num ajustes.json válido vira aviso (regras, pilares, agrupadores, confrontos e campo desconhecido)', async () => {
+  const avisos = [];
+  const aj = normalizarAjustes({
+    regras: { gatilhoPontos: { RT: 17 }, faixas: [{ min: 90, pontos: 2 }], gatilhoVolumePct: '95', premiadas: { RT: { Mista: 40 } }, extra: 1 },
+    pilares: { Mista: ['Volume Sucos', 'Volume Sucos'], Varejo: [] }, agrupadores: [{ id: 'Água', nome: 'Água', agrupador: 'Agua' }],
+    confrontos: [{ mes: 9, id_sv_desafiante: 'Sv. Fx.1#Mista', id_sv_desafiado: 'Sv. Fx.4#Mista', pilar: 'Volume Sucos' }],
+    gatilhoPontos: { RT: 17 }, canais: { X1: { canal: 'Mista' } } }, avisos);
+  assert.deepEqual(aj.regras, {});
+  assert.deepEqual(Object.keys(aj.canais), ['X1']);
+  for (const re of [/campo "gatilhoPontos" desconhecido/, /regras\.extra desconhecido/, /mínimo de pontos \{"RT":17\}: precisa de SV e RT/,
+    /faixas de pontos/, /gatilho de Refrigerantes "95"/, /posições premiadas/, /pilares coringa da Mista/, /pilares coringa do canal "Varejo"/,
+    /agrupador extra "Água"/, /confronto 1 da lista: mês fora do Q4/]) assert.match(avisos.join('|'), re);
+  assert.equal(avisos.length, 10);
+  // no carregarAjustes, os avisos do publicado vão para a faixa da tela (avisosPublicado)
+  await comAjustes(JSON.stringify({ regras: { gatilhoPontos: { RT: 17 } } }), undefined, async () => {
+    const r = await carregarAjustes(CONFIG);
+    assert.deepEqual([r.avisosPublicado.length, r.situacaoPublicado, r.ativo], [1, 'vazio', null]);
+  });
+});
+
+test('ajustes: ajustes.json antigo (sem campos novos) lido pelo carregarAjustes dá o mesmo resultado de hoje (regressão de outubro)', async () => {
+  const fx = require('./fixtures/regressao-ajustes-antigo.json');
+  await comAjustes(JSON.stringify(fx.ajustes), undefined, async () => {
+    const aj = await carregarAjustes(CONFIG);
+    assert.deepEqual([aj.erroPublicado, aj.avisos, aj.diferencas, aj.origem], [null, [], [], 'publicado']);
+    assert.deepEqual(aj.ativo, normalizarAjustes(fx.ajustes));
+    const d = A.comCanais(require('../data/data.json'), aj.ativo.canais);
+    const res = M.calcular(montarEntrada(d, CONFIG).entrada);
+    assert.deepEqual(res.pessoas.map((p) => [p.id, p.canal, p.pontosMes, p.volume.pctTexto, p.elegivel, p.posicao, p.status]), fx.esperado.res);
+  });
+});
+
+test('mínimo do Consultor: com 17 (ajustes.json), quem tem 17 a 19 pontos e o gatilho de volume tem status; com 16, "-"', async () => {
+  // rotas fictícias na Mista de outubro: Missões Guiadas validada (3) + 4 pilares de volume; Refrigerantes em 96% para todas
+  const pct = { R16: [105, 105, 100, 80], R17: [105, 105, 90, 90], R19: [105, 105, 100, 100], R20: [105, 105, 105, 90] };
+  const pil = ['Volume Sabores', 'Volume Retornáveis', 'Volume Sucos', 'Volume Powerade'];
+  const entrada = { mesRef: 10, pilaresConfig: CONFIG.pilaresConfig, confrontos: [],
+    pessoas: Object.keys(pct).map((id) => ({ id, nome: id, cargo: 'RT', canal: 'Mista', unidade: 'Fx', id_supervisor: null })),
+    medidas: Object.entries(pct).flatMap(([id, ps]) => ps.map((p, i) => ({ id, mes: 10, pilar: pil[i], meta: 100, real: p, online: 0 }))
+      .concat([{ id, mes: 10, pilar: 'Refrigerantes', meta: 100, real: 96, online: 0 }])) };
+  const statusCom = async (texto) => {
+    const guardado = JSON.parse(JSON.stringify(M.REGRAS));
+    try {
+      const aj = await comAjustes(texto, undefined, () => carregarAjustes(CONFIG));
+      aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), M.REGRAS);
+      return Object.fromEntries(M.calcular(entrada).pessoas.map((p) => [p.id, [p.pontosMes, p.status]]));
+    } finally { Object.assign(M.REGRAS, guardado); }
+  };
+  const premiadas = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 2, Segmentada: 10 } }; // 2 premiadas, para ver os dois status
+  assert.deepEqual(await statusCom(JSON.stringify({ regras: { gatilhoPontos: { SV: 60, RT: 17 }, premiadas } })), {
+    R16: [16, '-'], R17: [17, 'Bateu, mas não está no total'], R19: [19, 'No total'], R20: [20, 'No total'] });
+  assert.deepEqual(await statusCom(JSON.stringify({ regras: { premiadas } })), { // padrão do motor (20)
+    R16: [16, '-'], R17: [17, '-'], R19: [19, '-'], R20: [20, 'No total'] });
+});
+
+test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gatilhoPontos)', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8').replace(/<style>[\s\S]*?<\/style>/g, '');
+  const achados = tpl.split('\n').filter((l) => /(^|[^\w.,#-])(17|20|60)(?![\w%])/.test(l)).map((l) => l.trim());
+  assert.deepEqual(achados, ['let PAGE = 17;']); // tamanho inicial da página da tabela, não é ponto
+  assert.match(tpl, /R\.gatilhoPontos\.RT/);
+  assert.match(tpl, /R\.gatilhoPontos\.SV/);
+  // o motor tem um texto com 60 fixo (avisoOutubro) que o painel não mostra; se passar a mostrar, troque por R.gatilhoPontos
+  assert.doesNotMatch(tpl, /avisoOutubro/);
+});
