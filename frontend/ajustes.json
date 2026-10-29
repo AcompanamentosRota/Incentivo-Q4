@@ -1,1 +1,27 @@
 {"versao":1,"atualizado_em":"2026-10-29T08:04","regras":{},"pilares":{},"canais":{"I19":{"canal":"Segmentada","sub":"Mini","segmento":"Mini"},"T35":{"canal":"Segmentada","sub":"Mini","segmento":"Mini"}},"canaisSV":{},"agrupadores":[],"confrontos":[]}
+{
+  "versao": 1,
+  "atualizado_em": "2026-10-29T13:56",
+  "regras": {
+    "gatilhoPontos": {
+      "SV": 60,
+      "RT": 17
+    }
+  },
+  "pilares": {},
+  "canais": {
+    "I19": {
+      "canal": "Segmentada",
+      "sub": "Mod",
+      "segmento": "Mod"
+    },
+    "T35": {
+      "canal": "Mista",
+      "sub": null,
+      "segmento": null
+    }
+  },
+  "canaisSV": {},
+  "agrupadores": [],
+  "confrontos": []
+}
