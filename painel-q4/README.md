@@ -5,7 +5,12 @@ Painel de acompanhamento do incentivo, em um único HTML para tela de PC e compa
 **Para usar:** abra o painel no site do metas-produtos (`.../desafio-q4.html`) ou, na sua máquina, rode
 `python backend/scripts/servir.py` e abra `http://localhost:8000/desafio-q4.html`. Os dados vêm da API do
 metas-produtos (atualizada a cada 15 min em dias úteis). Aberto direto do computador, sem a API, o painel usa a base
-embutida (`data/data.json`) e avisa no rodapé ("base embutida").
+embutida (`data/data.json`) só se ainda estivermos no mês dela, com o rótulo "base embutida (outubro)" no rodapé; em
+outro mês ele avisa e não calcula nada.
+
+**Topo:** "Mês de referência" (ou "Fechamento de <mês>" no 1º dia útil do mês seguinte) e, a partir de novembro,
+"Acumulado do trimestre (SV): out–<mês>" com os meses fechados usados (✓) ou o aviso "incompleto". **Rodapé:** origem
+dos dados (API ou base embutida) e o corte.
 
 ## Abas
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
@@ -68,12 +73,12 @@ Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pi
 ../frontend/desafio-q4.html  painel pronto (gerado; publicado no Pages junto com a API)
 src/app.tpl.html             tela (HTML, CSS e lógica de exibição)
 src/motor.js                 motor de cálculo (pontos, gatilhos, confronto, status, ranking)
-src/adapter.js               lê a API e liga os dados ao motor; CONFIG com o mês e os pilares
+src/adapter.js               lê a API (mês corrente e meses fechados) e liga os dados ao motor; CONFIG com os pilares por mês
 src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do painel usa Inter/fonte do sistema)
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       33 testes do motor e 21 do adaptador
+tests/                       34 testes do motor e 34 do adaptador (fixtures/: regressão de outubro)
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -87,8 +92,21 @@ docs/                        regras do incentivo (fonte de verdade)
   soma provisória de Individual + Retornável e mostra o selo "provisório".
 - **Base embutida:** o canal Mista/Segmentada (e o subtipo Mini/Mod) de cada rota, que a API ainda não traz. Rota sem
   canal na base fica fora do ranking (aba Regras > Dados e alertas).
-- **Mês:** o painel só usa a API quando ela está no mês de `CONFIG` (`src/adapter.js`). Na virada para novembro,
-  atualize `mes` e `pilaresConfig`; antes disso o painel avisa e usa a base embutida.
+- **Mês:** vem da API (`index.json` → `mes_referencia.anomes`). Os pilares de cada mês ficam em
+  `CONFIG.pilaresConfig` (`src/adapter.js`); mês com `pilares: []` não está configurado, e o painel mostra
+  "Pilares de <mês> ainda não configurados" sem calcular pontos nem ranking. API fora do ar: base embutida só no mês
+  dela ("base embutida (outubro)").
+- **Meses fechados:** o adaptador lê `index.json` → `fechados` e carrega os `fechado/AAAAMM.json` dos meses do
+  trimestre anteriores ao de referência (meta e realizado por rota, online = 0). A entrada do motor tem todos os meses
+  até o vigente: cada mês com os pilares e os confrontos dele; a mesa do SV em cada mês é a supervisão da rota naquele
+  mês, e o canal é o da base de segmentação atual (provisório). Pontos acumulados do SV = soma mês a mês; gatilho de
+  volume do SV = Σ(Real + Online) ÷ Σ Meta de Refrigerantes de outubro ao mês vigente; consultor = só o mês vigente.
+  Mês fechado que falte ou falhe: aviso, acumulado do SV marcado "incompleto" (o mês não soma nada) e SV sem posição
+  oficial até o dado chegar.
+- **Missões Guiadas:** em outubro, validada em 100% (3 pontos). Em novembro e dezembro pontua com meta, real e online
+  quando houver fonte (`CONFIG.fonteDoPilar['Missões Guiadas']` + `produtoDaApi`); sem fonte, aparece "sem dados" e
+  não pontua.
+- **Confrontos:** cada um é apurado com os dados do mês dele (fechado ou corrente); a tela Confrontos tem a escolha do mês.
 - **Totais da aba Estratégicos:** o adaptador expõe `totaisGerencia` (de `gerencias/{GC}.json` → `produtos`) e
   `totalEmpresa` (de `resumo.json` → `empresa.produtos`); se o `resumo.json` falhar, o total vira a soma das
   gerências e o painel registra o motivo em `meta.aviso`. A montagem das linhas fica em `montarEstrat()`, no

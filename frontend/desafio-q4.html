@@ -46,6 +46,10 @@ button{background:none;border:0;cursor:pointer}
 .info{position:absolute;right:60px;top:34px;text-align:right;line-height:1.1}
 .info small{display:block;font-size:16px;font-weight:600;color:var(--muted);letter-spacing:.04em}
 .info b{display:block;font-size:30px;font-weight:600;margin-bottom:10px}
+.info small.acum{margin-top:4px;color:#d8dbe2}.info small.acum .inc{color:#ffd978}
+.semcalc{margin:auto;max-width:1100px;text-align:center;padding:48px 60px;background:#3a2a00;border:2px solid #a47500;border-radius:18px;color:#ffe29a}
+.semcalc b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}.semcalc p{font-size:22px;font-weight:500;line-height:1.4;color:#ffe9b5}
+.cfmes{display:flex;gap:8px;align-items:center}
 
 /* navegação */
 .nav{position:absolute;left:60px;right:60px;top:170px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
@@ -303,7 +307,7 @@ button{background:none;border:0;cursor:pointer}
 
   <div class="logo" role="img" aria-label="Coca-Cola Bandeirantes"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 840"><path fill="#fff" d="M1423.0,734.4C1416.8,733.2 1401.8,727.7 1397.7,725.0C1388.8,719.4 1388.1,715.1 1394.9,708.0C1399.6,703.1 1403.8,702.6 1409.1,706.6C1420.8,715.5 1442.3,716.5 1447.6,708.4C1453.2,699.9 1444.9,690.8 1428.2,686.9C1410.3,682.7 1396.2,673.2 1393.2,663.2C1389.6,651.4 1393.8,637.1 1403.4,628.1C1412.6,619.4 1433.3,617.2 1451.1,622.9C1469.5,628.9 1472.4,633.9 1463.1,643.9C1458.3,649.1 1456.2,649.1 1443.5,644.0C1431.8,639.4 1422.9,640.9 1419.4,648.3C1415.9,655.7 1421.2,660.2 1440.4,666.0C1457.7,671.1 1460.6,672.6 1465.5,678.6C1471.8,686.3 1473.0,689.4 1473.0,698.5C1473.0,709.1 1471.8,712.8 1466.2,720.2C1461.8,725.9 1460.8,726.6 1452.1,730.3C1442.6,734.2 1430.6,735.9 1423.0,734.4ZM146.2,732.4C143.0,730.2 143.4,725.9 147.9,716.0C150.0,711.3 153.0,704.6 154.5,701.0C158.4,691.7 170.7,662.9 174.7,653.5C176.6,649.1 180.0,641.2 182.2,636.0C186.8,624.8 189.2,622.1 194.8,621.3C205.5,619.9 210.7,623.5 214.6,635.3C216.1,639.8 218.4,645.7 219.7,648.4C221.1,651.1 224.9,659.7 228.2,667.4C231.6,675.2 235.8,685.1 237.8,689.5C239.7,693.9 242.9,701.8 245.0,707.0C247.0,712.2 249.7,718.3 250.8,720.5C255.4,729.0 252.7,733.0 242.2,733.0C232.8,733.0 229.8,731.0 225.6,721.7C221.5,712.9 219.8,711.3 213.0,710.0C206.1,708.7 189.4,708.7 183.1,710.1C176.2,711.6 173.5,714.0 169.2,722.9C166.2,728.8 164.6,730.9 162.0,732.2C157.6,734.4 149.2,734.5 146.2,732.4ZM570.5,732.6C562.9,729.3 562.9,729.1 564.5,647.8C564.9,625.6 565.5,623.0 570.3,621.4C571.5,621.0 587.8,620.7 606.4,620.8C638.1,620.9 640.6,621.0 642.9,622.8C646.3,625.3 647.9,632.4 645.9,636.6C643.4,641.7 640.9,642.2 617.0,642.2C597.5,642.2 594.9,642.4 592.2,644.1C586.0,647.8 585.7,657.6 591.6,663.1C594.1,665.5 594.4,665.5 610.9,665.2C624.3,664.9 628.4,665.1 631.3,666.4C638.4,669.3 640.0,678.8 634.4,684.1C631.9,686.4 631.2,686.5 613.2,687.0C602.9,687.3 593.7,687.9 592.7,688.4C587.6,690.8 586.2,703.7 590.4,708.7L592.8,711.5L618.0,712.0L643.2,712.5L645.2,715.0C648.0,718.5 647.4,728.1 644.2,731.3C642.0,733.5 641.6,733.5 607.7,733.7C580.7,733.9 572.9,733.7 570.5,732.6ZM691.4,732.6C686.1,730.3 686.0,729.0 686.0,677.6C686.0,628.5 686.3,624.3 690.3,621.5C694.8,618.3 706.6,620.5 709.0,624.9C709.7,626.4 710.0,641.6 709.8,676.9C709.5,725.1 709.4,726.9 707.5,729.0C703.6,733.3 696.5,734.9 691.4,732.6ZM823.3,732.9C819.9,731.9 814.3,725.2 803.5,709.1C795.1,696.6 786.9,692.8 780.4,698.3C777.7,700.6 777.6,701.0 777.1,714.3C776.5,726.8 776.3,728.0 774.1,730.4C769.4,735.4 755.9,733.2 754.3,727.2C753.3,723.7 753.3,630.3 754.3,626.8C755.8,621.4 758.7,620.9 785.3,620.8C811.7,620.8 817.3,621.7 825.9,626.7C838.5,634.1 842.5,641.3 842.5,657.0C842.5,669.7 840.5,674.8 831.4,685.6C823.2,695.2 823.3,697.5 832.2,709.2C844.4,725.1 846.2,730.1 841.0,732.7C838.1,734.2 828.0,734.3 823.3,732.9ZM1027.0,733.1C1018.8,731.1 1019.0,732.7 1019.0,676.0L1019.0,625.9L1021.3,623.6C1024.1,620.8 1030.4,619.5 1036.8,620.5C1042.5,621.4 1044.8,623.6 1056.0,639.8C1060.7,646.6 1067.7,656.6 1071.5,662.1C1075.3,667.6 1079.7,674.1 1081.2,676.5C1084.5,682.0 1088.2,683.3 1091.3,680.1C1093.4,678.0 1093.5,677.1 1093.7,653.0C1093.9,624.3 1094.3,622.9 1101.1,620.9C1106.3,619.3 1112.3,621.2 1115.3,625.2C1117.3,627.8 1117.3,629.4 1117.4,675.2C1117.4,727.3 1117.3,728.8 1111.8,731.6C1107.7,733.7 1098.9,733.0 1095.2,730.3C1093.7,729.2 1090.9,726.2 1089.0,723.5C1087.1,720.9 1083.4,716.0 1080.8,712.6C1078.2,709.2 1070.8,698.7 1064.4,689.1C1051.9,670.7 1049.7,668.7 1045.4,671.5C1042.5,673.3 1042.7,671.0 1043.0,700.1C1043.2,727.1 1042.7,730.0 1036.6,732.5C1032.9,734.1 1031.1,734.2 1027.0,733.1ZM1188.4,732.8C1184.2,730.8 1184.0,728.6 1184.0,689.4C1184.0,641.1 1184.8,643.2 1166.1,642.0C1156.9,641.4 1155.5,641.1 1153.9,639.1C1150.3,634.7 1152.2,623.0 1156.8,621.6C1157.7,621.3 1175.8,620.9 1196.9,620.8L1235.2,620.5L1237.6,623.3C1241.1,627.4 1241.0,636.0 1237.5,639.5C1235.2,641.9 1234.4,642.0 1224.1,642.0C1213.9,642.0 1212.9,642.2 1210.3,644.4L1207.5,646.8L1207.0,687.7C1206.7,710.1 1206.1,729.2 1205.7,730.1C1203.9,733.7 1193.5,735.3 1188.4,732.8ZM1280.2,732.5C1278.4,731.7 1276.5,729.9 1276.0,728.5C1275.4,726.9 1275.0,706.8 1275.0,676.6C1275.0,621.0 1274.7,623.3 1282.8,621.0C1288.4,619.5 1347.7,620.9 1351.2,622.6C1354.9,624.5 1356.6,630.0 1355.1,635.1C1353.0,642.0 1351.5,642.4 1329.1,642.1C1302.3,641.8 1298.5,643.4 1298.5,655.2C1298.5,659.5 1298.9,660.5 1301.8,663.1L1305.0,666.0L1324.6,666.0C1344.0,666.0 1344.1,666.0 1346.5,668.5C1350.3,672.2 1350.1,680.1 1346.1,684.1L1343.2,687.0L1325.5,687.0C1301.2,687.0 1298.6,688.2 1298.8,699.6C1298.9,707.0 1300.6,710.6 1304.5,711.6C1305.9,711.9 1317.1,712.3 1329.4,712.4C1355.6,712.5 1356.0,712.7 1356.0,721.2C1356.0,727.5 1353.9,731.5 1349.9,732.9C1344.8,734.7 1284.4,734.3 1280.2,732.5ZM28.2,731.4C24.3,728.7 24.1,726.7 23.9,676.1C23.7,628.2 23.7,626.8 25.7,624.2L27.7,621.5L55.6,621.5L83.5,621.5L90.3,624.9C101.1,630.3 105.6,634.9 108.0,642.9C110.6,651.6 110.5,653.6 107.6,659.0C99.6,673.6 99.6,674.5 106.5,681.9C112.3,688.1 114.0,692.4 114.0,700.6C114.0,716.9 104.3,727.7 86.1,731.6C76.0,733.7 31.3,733.6 28.2,731.4ZM367.2,731.9C361.3,730.2 355.6,723.2 333.5,691.1C321.9,674.2 318.1,669.9 315.1,670.2C310.5,670.7 309.7,675.4 310.3,699.7C311.0,729.6 310.2,732.0 298.8,732.0C291.6,732.0 289.5,731.0 288.1,726.9C286.8,723.3 286.6,685.2 287.7,649.5C288.3,627.4 288.4,626.7 290.8,623.9C293.0,621.3 293.7,621.0 299.6,621.0C309.5,621.0 312.6,623.3 323.0,639.0C325.3,642.6 328.3,646.6 329.5,648.0C330.8,649.4 335.3,655.7 339.5,662.0C350.3,678.1 353.8,682.2 356.4,681.8C360.2,681.3 360.9,676.4 360.9,650.2C361.0,626.2 361.0,625.9 363.3,623.6C368.0,618.9 380.1,619.6 382.9,624.8C384.5,627.7 384.4,722.5 382.9,727.0C381.1,732.1 374.8,734.1 367.2,731.9ZM435.5,732.3C428.2,730.4 428.1,729.9 428.0,675.3L427.8,626.5L431.0,623.7L434.2,620.8L458.9,621.2C489.8,621.7 495.6,623.1 507.3,633.4C522.2,646.3 527.5,658.1 527.5,678.1L527.5,690.7L522.3,701.2C514.4,717.1 506.4,724.3 491.4,729.0C480.5,732.4 480.4,732.4 459.0,732.6C447.2,732.8 436.6,732.6 435.5,732.3ZM877.2,731.8C875.5,730.1 875.7,725.1 877.6,721.5C880.3,716.4 887.9,698.4 888.6,695.4C888.9,693.8 890.5,690.5 892.1,688.0C893.6,685.5 895.2,682.1 895.5,680.5C895.9,678.9 897.5,674.8 899.1,671.5C900.6,668.2 904.2,659.2 907.1,651.5C917.4,623.4 920.5,619.4 931.6,620.3C939.7,620.9 941.4,622.2 946.0,631.5C950.2,640.0 951.6,643.3 961.1,668.0C964.4,676.5 969.1,688.3 971.5,694.1C974.0,700.0 976.0,705.3 976.0,706.0C976.0,706.7 977.6,710.7 979.5,715.0C985.2,727.6 983.6,733.0 974.2,733.0C966.4,733.0 963.1,730.6 958.5,721.6C952.1,709.0 949.3,707.9 925.3,708.8C907.9,709.4 906.2,710.2 903.1,718.6C900.4,725.7 897.7,729.6 894.0,731.5C890.5,733.3 878.9,733.5 877.2,731.8ZM71.5,712.0C83.4,710.8 86.1,709.7 88.6,704.8C90.6,700.9 90.0,693.8 87.4,690.9C83.3,686.4 65.5,684.1 55.4,686.9C48.9,688.6 47.5,690.9 47.5,699.6C47.5,708.0 49.1,710.6 55.1,712.0C59.8,713.1 59.3,713.1 71.5,712.0ZM483.8,707.4C503.6,697.6 509.1,673.8 496.0,655.2C489.8,646.3 483.1,643.0 470.1,642.2C459.3,641.6 454.5,643.3 452.7,648.2C451.3,652.0 451.0,703.3 452.4,706.3C454.0,709.6 458.1,710.9 467.6,711.0C476.1,711.0 477.2,710.8 483.8,707.4ZM203.4,687.6C208.7,685.4 209.2,683.3 207.0,672.4C205.0,663.0 197.8,657.0 193.9,661.6C192.5,663.3 187.3,677.2 186.4,682.0C185.2,687.7 195.3,691.0 203.4,687.6ZM939.2,687.5C943.7,685.7 942.7,677.7 936.5,664.7C932.9,657.1 927.7,657.6 923.6,665.8C917.4,678.2 917.0,685.1 922.3,687.9C924.5,689.0 936.0,688.7 939.2,687.5ZM809.5,672.1C820.7,667.1 820.7,650.4 809.5,645.0C798.9,639.8 781.5,641.5 778.3,648.0C775.7,653.3 777.2,669.2 780.6,672.1C784.6,675.4 801.9,675.5 809.5,672.1ZM78.7,664.0C85.5,659.9 87.1,651.0 82.0,646.6C74.2,640.1 53.6,639.3 49.6,645.4C45.9,651.1 46.8,661.3 51.3,664.5C54.8,666.9 74.5,666.6 78.7,664.0ZM572.0,535.3C571.2,535.0 567.1,531.5 563.0,527.5C549.7,514.7 538.8,509.0 519.3,505.1C500.2,501.2 457.0,503.3 439.5,508.9C436.2,510.0 430.1,511.4 426.0,512.0C419.4,512.9 392.0,519.3 376.0,523.5C318.3,538.9 284.6,538.2 258.6,521.1C245.6,512.6 233.5,492.9 230.4,475.0C227.3,457.2 227.0,454.5 227.6,447.0C230.7,406.1 249.3,359.1 279.6,316.1C302.5,283.6 353.8,237.0 387.0,218.5C392.8,215.3 398.4,212.1 399.5,211.5C404.1,208.7 425.7,200.9 435.6,198.4C460.5,192.2 477.7,198.0 484.0,214.8C487.0,222.7 486.6,227.1 481.8,238.5C477.2,249.3 467.4,261.1 461.7,262.5C455.0,264.2 448.0,257.7 448.0,249.9C448.0,241.0 454.3,233.8 465.3,230.1C475.8,226.5 478.0,221.6 471.8,215.8C467.8,212.1 465.1,211.0 459.5,211.0C452.4,211.0 429.5,220.5 422.4,226.3C420.8,227.6 417.2,230.2 414.5,232.0C399.5,242.1 372.7,267.5 355.4,288.0C342.7,303.0 318.6,336.3 311.9,348.0C310.5,350.5 308.0,354.8 306.3,357.5C286.6,389.7 273.1,431.4 274.3,456.5C275.4,481.2 288.7,502.5 308.4,510.9C319.7,515.8 344.8,517.8 359.5,515.1C362.8,514.4 369.9,513.5 375.3,513.0C380.8,512.5 388.3,510.9 392.4,509.5C396.5,508.1 403.4,506.3 407.7,505.5C414.7,504.1 420.7,502.6 439.5,497.0C442.8,496.0 451.6,493.8 459.0,492.1C466.4,490.4 478.1,487.7 485.0,486.0C491.9,484.4 501.8,482.4 507.0,481.5C512.2,480.6 519.2,479.2 522.5,478.5C535.4,475.4 574.9,473.3 587.4,474.9C614.6,478.6 639.9,489.0 662.3,506.1C667.7,510.1 674.9,515.5 678.2,517.9C684.0,522.1 688.0,527.0 688.0,529.9C688.0,531.7 682.5,530.6 673.0,526.8C658.6,521.1 647.2,519.0 630.5,519.0C611.4,519.0 606.5,520.2 588.6,529.0C580.8,532.9 574.2,536.0 574.0,535.9C573.7,535.9 572.8,535.6 572.0,535.3ZM779.0,535.3C764.4,532.8 749.4,523.0 745.4,513.5C744.5,511.3 742.7,507.1 741.4,504.2C737.5,495.5 736.8,490.2 737.2,471.2C737.5,457.1 737.9,452.7 739.4,449.5C740.3,447.3 741.8,441.9 742.6,437.5C747.6,411.7 773.6,361.3 800.8,325.1C804.3,320.6 808.1,315.2 809.4,313.1C814.2,305.6 849.3,268.0 862.0,256.9C884.2,237.4 898.6,227.4 920.5,216.2C956.8,197.7 980.3,193.0 998.3,200.6C1010.1,205.5 1010.6,205.6 1021.1,202.7C1055.6,193.0 1078.5,196.8 1118.0,218.7C1160.4,242.2 1159.3,240.8 1146.4,254.1C1134.0,266.7 1129.1,267.7 1117.0,259.6C1113.4,257.2 1106.0,252.6 1100.6,249.3C1095.2,246.1 1088.0,241.8 1084.6,239.8C1081.2,237.8 1075.8,234.7 1072.6,232.9C1069.3,231.2 1065.0,228.7 1063.1,227.5C1061.1,226.2 1054.8,223.2 1049.0,220.9C1039.4,217.1 1037.7,216.7 1029.2,216.6C1016.6,216.5 1015.6,217.5 1014.7,231.6C1013.8,247.1 1008.4,261.4 992.6,290.1C983.1,307.4 966.8,323.4 951.3,330.7C941.2,335.4 936.1,335.6 929.3,331.4C921.1,326.3 919.8,323.3 920.2,311.0L920.5,300.5L926.8,288.0C935.4,270.7 938.1,266.6 949.0,254.4C965.4,235.9 969.3,231.9 975.9,226.8C986.0,219.2 989.8,211.0 983.3,211.0C979.1,211.0 966.2,215.6 960.0,219.4C957.0,221.2 952.9,223.3 951.0,224.0C929.9,232.2 873.8,286.5 850.4,321.5C848.1,324.8 843.7,331.2 840.4,335.8C837.2,340.4 833.1,346.5 831.4,349.3C829.7,352.2 825.3,359.2 821.6,365.0C814.9,375.4 811.3,382.4 802.8,401.5C794.0,421.0 792.2,425.6 790.6,431.2C789.7,434.3 788.0,439.1 786.9,441.7C782.5,452.0 780.7,479.5 783.7,490.4C786.9,502.0 797.6,510.0 809.9,510.0C826.7,510.0 857.7,488.7 876.3,464.4C896.1,438.6 908.9,403.1 902.7,391.3C898.0,382.3 888.6,382.3 878.5,391.1C873.7,395.4 864.7,408.4 862.5,414.5C856.8,430.2 853.9,433.9 839.0,444.4C833.8,448.0 826.4,453.3 822.6,456.0C811.4,464.1 810.5,462.9 814.4,445.8C818.4,428.5 823.7,418.1 839.1,397.2C852.1,379.5 878.4,364.3 892.3,366.4C900.0,367.6 908.9,372.8 911.4,377.5C914.2,382.8 914.0,404.6 911.1,415.5C906.8,431.7 895.1,454.3 882.2,471.5C861.7,498.9 850.5,510.0 832.9,520.4C815.9,530.5 791.1,537.4 779.0,535.3ZM907.6,533.6C902.6,531.7 897.4,526.7 894.4,520.8C883.9,500.3 906.6,451.0 948.1,404.0C977.4,370.8 1009.0,357.1 1023.2,371.4C1032.0,380.1 1033.8,398.5 1027.3,412.0C1021.2,424.8 1020.8,429.5 1025.5,432.6C1031.0,436.2 1035.9,432.4 1043.5,418.8C1046.7,413.1 1051.7,404.4 1054.7,399.3C1057.6,394.3 1060.9,388.2 1062.0,385.7C1064.3,380.5 1073.3,365.1 1081.5,352.5C1084.5,347.8 1088.1,341.8 1089.4,339.2C1090.8,336.6 1094.0,331.6 1096.7,328.1C1099.3,324.6 1102.7,319.9 1104.3,317.6C1113.5,304.0 1137.8,275.0 1157.4,254.2C1165.4,245.7 1181.7,231.5 1191.5,224.5C1193.8,222.8 1198.5,219.3 1202.1,216.6C1212.1,209.0 1231.8,199.7 1239.0,199.2C1244.7,198.8 1245.1,198.9 1248.3,202.1C1255.2,209.0 1255.2,218.6 1248.2,231.5C1243.0,241.1 1237.1,235.8 1241.4,225.5C1244.4,218.5 1242.7,214.0 1237.1,214.0C1231.6,214.0 1207.9,231.6 1199.0,242.4C1197.6,244.1 1195.1,246.9 1193.5,248.6C1191.8,250.3 1187.1,255.7 1183.0,260.5C1178.9,265.3 1173.8,271.1 1171.7,273.4C1169.6,275.6 1163.8,283.6 1158.8,291.0C1153.8,298.4 1149.0,305.4 1148.0,306.5C1145.2,309.6 1133.8,326.5 1130.6,332.3C1129.0,335.2 1124.5,342.7 1120.5,349.0C1109.0,367.6 1106.0,372.6 1104.5,377.0C1103.7,379.2 1102.0,382.5 1100.7,384.3C1097.6,388.3 1094.0,395.4 1094.0,397.3C1094.0,403.3 1101.5,400.5 1112.9,390.5C1117.0,386.9 1120.7,384.0 1121.2,384.0C1123.7,384.0 1184.5,320.0 1189.7,311.8C1194.7,303.9 1204.5,293.9 1206.4,294.6C1208.8,295.5 1208.4,300.4 1205.6,303.7C1204.4,305.2 1202.0,308.5 1200.5,311.0C1198.9,313.5 1196.0,317.5 1193.8,320.0C1191.7,322.5 1188.2,326.8 1185.9,329.5C1172.7,345.6 1136.0,381.5 1117.1,396.9C1113.5,399.9 1110.1,402.9 1109.5,403.5C1108.4,405.0 1099.5,412.2 1090.0,419.4C1071.9,433.3 1070.0,435.7 1064.0,453.0C1062.8,456.6 1060.7,462.2 1059.4,465.5C1056.9,471.8 1054.0,486.3 1054.0,492.1C1054.0,496.5 1057.2,501.8 1060.4,502.6C1066.5,504.1 1079.0,493.6 1088.7,478.8C1090.6,475.9 1094.8,469.9 1098.1,465.5C1101.3,461.1 1106.7,453.7 1110.1,449.0C1136.0,413.5 1159.2,388.8 1179.0,375.5C1194.0,365.5 1204.5,363.6 1215.8,369.0C1223.4,372.6 1226.7,372.7 1233.6,369.9C1238.2,368.0 1239.8,367.8 1249.4,368.5C1264.5,369.5 1264.6,369.9 1254.9,386.4C1240.6,410.7 1220.7,443.5 1210.2,460.3C1206.2,466.8 1201.5,474.9 1199.9,478.3C1198.3,481.7 1195.8,486.3 1194.5,488.5C1188.7,498.0 1194.8,504.3 1204.8,499.1C1209.6,496.6 1220.4,487.0 1226.4,480.0C1229.0,477.0 1232.6,472.9 1234.4,471.0C1236.2,469.1 1238.5,466.1 1239.5,464.5C1243.3,458.5 1250.3,451.0 1252.1,451.0C1253.3,451.0 1254.2,452.0 1254.6,453.5C1255.3,456.3 1253.9,458.8 1247.5,466.5C1245.1,469.2 1241.8,473.9 1240.0,476.8C1238.3,479.6 1236.5,482.0 1236.1,482.0C1235.6,482.0 1231.7,486.1 1227.4,491.1C1223.1,496.2 1218.2,501.5 1216.5,502.9C1214.9,504.3 1210.2,508.7 1206.0,512.5C1191.1,526.5 1175.9,534.5 1164.3,534.5C1155.7,534.5 1153.5,533.0 1149.0,523.3C1144.6,514.0 1142.1,513.8 1131.9,522.0C1107.6,541.5 1088.2,538.5 1084.5,514.7C1083.4,507.9 1078.4,508.5 1070.7,516.3C1050.4,536.7 1024.3,539.5 1016.1,522.1C1013.7,517.0 1013.5,515.4 1013.6,504.5C1013.6,491.1 1015.7,483.1 1024.6,462.3C1029.3,451.4 1029.4,448.3 1025.1,446.1C1017.9,442.2 1011.3,446.7 1003.1,461.3C989.9,485.0 968.1,508.6 946.3,523.1C930.4,533.6 917.2,537.2 907.6,533.6ZM952.2,503.0C961.8,500.3 976.8,486.7 986.8,471.5C990.4,466.0 994.9,459.8 996.7,457.7C999.2,454.9 1000.0,453.1 1000.0,450.1C1000.0,444.2 999.4,443.3 991.6,438.8C987.7,436.5 982.1,432.4 979.2,429.6C969.2,420.2 965.6,422.3 953.1,445.0C938.5,471.8 934.3,483.1 935.5,492.2C936.8,501.7 942.8,505.6 952.2,503.0ZM1144.1,499.1C1150.4,495.0 1168.2,472.0 1179.6,453.0C1182.8,447.8 1188.3,438.8 1192.0,433.0C1195.7,427.2 1201.3,418.0 1204.5,412.5C1207.7,407.0 1211.6,400.5 1213.2,398.0C1218.1,390.3 1217.9,384.8 1212.6,383.4C1196.8,379.5 1157.8,424.8 1133.3,475.5C1123.5,495.8 1129.3,508.6 1144.1,499.1ZM363.2,448.0C332.2,434.9 351.1,368.9 400.1,318.9C417.8,300.8 431.9,290.8 449.8,283.4C456.6,280.6 467.8,280.2 473.3,282.5C487.8,288.5 491.6,302.4 484.5,323.1C480.5,335.0 480.2,338.2 483.0,341.0C488.2,346.2 498.9,339.1 520.6,316.1C542.7,292.8 568.7,278.5 584.6,281.0C599.2,283.4 608.1,292.8 606.6,304.4C603.9,324.6 585.0,346.4 574.8,340.9C566.2,336.3 572.4,318.3 585.1,311.5C592.8,307.4 594.0,306.2 594.0,302.9C594.0,296.7 585.1,295.0 578.3,299.9C576.1,301.5 572.5,303.7 570.4,304.8C564.6,307.8 545.1,328.1 536.8,339.8C527.8,352.3 514.1,378.6 510.6,389.8C504.9,407.9 509.1,420.3 522.2,423.8C536.8,427.8 566.5,403.5 594.3,365.0C610.6,342.3 619.6,331.7 635.7,315.9C668.1,284.3 683.4,277.2 702.8,285.2C707.7,287.2 708.4,287.3 713.3,286.0C720.8,284.0 739.1,284.5 740.8,286.7C742.9,289.5 742.2,292.3 737.3,300.0C732.0,308.5 726.5,318.1 720.7,329.0C718.5,333.1 715.7,337.9 714.4,339.5C713.2,341.1 712.0,343.4 711.6,344.5C711.3,345.6 707.7,351.6 703.8,357.8C699.8,363.9 694.5,372.6 692.0,377.0C689.5,381.4 684.7,389.6 681.2,395.3C674.1,406.8 673.3,409.1 674.9,412.6C676.6,416.5 682.6,415.9 688.7,411.4C698.5,404.0 710.8,390.7 718.9,378.6C721.1,375.4 728.3,368.0 730.3,366.9C732.6,365.6 735.0,367.4 735.0,370.4C735.0,374.2 717.9,396.2 699.5,416.2C684.9,432.1 663.7,446.9 653.3,448.6C645.1,449.9 636.1,443.8 632.6,434.6C630.0,427.9 628.4,427.9 617.7,434.4C612.6,437.4 605.8,441.2 602.5,442.7C586.0,450.4 572.7,442.0 570.8,422.7C569.9,413.4 569.7,413.0 566.0,413.0C563.2,413.0 562.0,413.9 547.6,427.1C538.4,435.5 517.6,446.0 506.3,448.1C482.8,452.5 464.0,434.3 466.9,410.0C468.2,399.7 473.7,382.2 478.1,374.9C484.9,363.5 485.0,357.8 478.3,357.2C473.9,356.8 468.4,362.0 461.5,373.0C441.6,405.3 413.2,433.8 390.2,444.8C382.0,448.7 368.7,450.3 363.2,448.0ZM1009.6,429.8C1013.9,426.5 1014.8,425.1 1016.9,418.5C1018.0,415.2 1019.9,409.8 1021.1,406.5C1025.1,395.4 1021.0,384.6 1011.9,381.9C1000.3,378.4 983.0,394.8 983.0,409.3C983.0,415.0 983.9,416.9 989.8,423.5C997.8,432.5 1003.7,434.3 1009.6,429.8ZM417.0,410.5C426.9,402.4 435.6,392.7 442.9,381.8C446.2,376.7 450.4,370.6 452.0,368.3C458.1,360.1 457.1,354.6 448.9,350.4C446.1,349.0 441.0,345.2 437.5,342.0C430.4,335.4 426.9,334.0 423.1,336.1C420.4,337.6 411.3,349.9 408.3,356.0C407.3,357.9 405.4,361.3 403.9,363.5C385.4,391.6 385.8,418.1 404.7,416.7C409.3,416.4 410.7,415.7 417.0,410.5ZM629.7,411.1C632.0,409.5 637.6,403.8 642.3,398.5C649.9,390.0 654.2,383.9 668.1,362.2C670.1,359.1 673.7,353.4 676.2,349.5C678.7,345.6 682.5,339.4 684.7,335.5C686.9,331.6 690.0,326.2 691.7,323.5C703.0,304.7 703.8,302.6 701.4,299.2C698.2,294.6 688.3,297.6 679.6,305.8C676.8,308.4 673.6,311.2 672.4,312.0C670.5,313.5 667.0,317.5 653.6,334.5C619.0,378.3 604.8,414.0 622.0,414.0C624.5,414.0 627.0,413.1 629.7,411.1ZM467.5,338.9C470.3,336.4 471.5,334.0 474.0,326.0C477.6,314.4 477.7,309.9 474.8,304.0C468.7,292.2 457.8,292.7 446.1,305.5C435.1,317.6 436.6,328.0 450.8,337.5C459.0,343.0 462.4,343.3 467.5,338.9ZM950.3,321.3C961.5,314.9 977.6,298.8 984.6,287.0C998.4,264.0 1007.8,235.2 1004.0,228.0C1002.5,225.2 998.0,224.0 993.8,225.5C982.6,229.3 951.2,261.6 941.8,279.0C940.4,281.5 938.4,285.1 937.2,287.0C934.8,291.0 929.5,305.0 928.5,309.7C927.2,316.3 934.2,326.0 940.3,326.0C941.2,326.0 945.7,323.9 950.3,321.3ZM762.2,313.8C759.5,311.1 760.9,305.8 766.5,297.3C773.4,287.0 775.4,285.9 787.0,285.8C800.0,285.7 802.2,288.8 795.6,297.9C793.8,300.4 791.3,304.4 790.1,306.8C786.8,313.4 783.3,315.0 772.5,315.0C766.7,315.0 763.0,314.6 762.2,313.8ZM1184.2,281.5C1183.0,280.6 1182.0,278.8 1182.0,277.5C1182.0,273.2 1199.1,255.6 1204.4,254.5C1205.5,254.3 1211.0,253.8 1216.5,253.5C1226.6,252.9 1234.4,251.1 1250.0,246.0C1266.7,240.5 1270.4,238.9 1282.4,231.8C1294.0,224.9 1297.2,222.6 1309.6,211.8C1319.8,202.8 1323.3,206.7 1314.6,217.3C1296.1,239.7 1276.5,257.0 1262.0,263.8C1258.4,265.5 1253.9,267.8 1252.0,268.9C1244.0,273.5 1229.0,278.9 1220.1,280.4C1205.1,283.0 1187.0,283.6 1184.2,281.5Z"/><path fill="#E4002B" d="M303.3,825.9C293.3,824.9 288.5,820.1 291.1,813.8C293.0,809.2 297.0,807.9 313.4,806.3C346.7,803.1 1005.2,805.5 1063.5,809.0C1072.8,809.6 1093.4,810.7 1109.2,811.5C1137.1,812.8 1143.3,813.7 1143.3,816.5C1143.3,819.1 1137.1,819.9 1109.0,820.9C1092.8,821.6 1071.2,822.5 1061.0,823.0C1050.8,823.6 1027.6,824.0 1009.5,824.0C991.3,824.0 948.8,824.5 915.0,825.0C846.3,826.1 313.0,826.9 303.3,825.9Z"/></svg></div>
   <div class="hd"><div class="ttl"><span class="m">DESAFIO</span><span class="r">Q4</span></div><div class="ribbon"><span id="rib">Rota</span></div></div>
-  <div class="info"><small>Dados de</small><b id="corte"></b><small>Mês de referência</small><b id="mesref" style="margin-bottom:0"></b></div>
+  <div class="info"><small>Dados de</small><b id="corte"></b><small id="mesreflbl">Mês de referência</small><b id="mesref" style="margin-bottom:0"></b><small class="acum" id="acum"></small></div>
 
   <div class="nav">
     <div class="grp">
@@ -385,11 +389,15 @@ button{background:none;border:0;cursor:pointer}
 
   <section class="view wide" id="v-confrontos" aria-label="Confrontos entre supervisores">
     <div class="panel">
-      <div class="tt"><span id="cftitulo"></span><span class="kp" id="cfsub"></span></div>
+      <div class="tt"><span id="cftitulo"></span><span class="cfmes" id="cfmes" role="group" aria-label="Mês dos confrontos"></span><span class="kp" id="cfsub"></span></div>
       <div class="cf cfh" id="cfhead"></div>
       <div class="rows" id="cfrows" style="overflow:auto"></div>
       <div class="pager"><span class="etnota" id="cfnota"></span></div>
     </div>
+  </section>
+
+  <section class="view" id="v-semcalc" aria-label="Aviso: mês sem cálculo">
+    <div class="semcalc" role="alert"><b id="semcalc-tt"></b><p id="semcalc-tx"></p></div>
   </section>
 
   <section class="view" id="v-regras" aria-label="Regras e informações">
@@ -399,7 +407,7 @@ button{background:none;border:0;cursor:pointer}
     </div></div>
   </section>
 
-  <div class="foot"><span>Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodpts">Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rod"></span></div>
 </div>
 
 <script>/*
@@ -446,6 +454,8 @@ button{background:none;border:0;cursor:pointer}
       'Confronto vencido vale +5 para SV e mesa mesmo se o SV não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
       '% acumulado de Refrigerantes do SV = Σ(Real+Online) ÷ Σ Meta, de out até o mês vigente.',
       'Desempate no ranking do SV usa o % acumulado de Refrigerantes do trimestre (no confronto, o % do mês).',
+      'Mês do trimestre sem dado (mês fechado ausente na API): o acumulado do SV aparece como incompleto e o SV fica sem posição oficial até o dado chegar.',
+      'Canal (Mista/Segmentada) e mesas dos meses fechados: o canal é o da base de segmentação atual; a mesa de cada mês é a supervisão da rota naquele mês.',
     ],
   };
 
@@ -545,6 +555,7 @@ button{background:none;border:0;cursor:pointer}
       det.valido = true;
 
       const pa = pctPilar(a.id, c.pilar), pb = pctPilar(b.id, c.pilar);
+      Object.assign(det, { pctDesafiante: pa, pctDesafiado: pb }); // % do mês do confronto (a tela mostra o mês apurado)
       if (pa === null || pb === null) { det.motivo = 'SEM_DADO_PARA_APURAR'; continue; }
       let vencedor = null;
       if (pa !== pb) vencedor = pa > pb ? a.id : b.id;
@@ -571,11 +582,14 @@ button{background:none;border:0;cursor:pointer}
    * @param {Array}  e.pilaresConfig          {mes,canal,pilares:[{nome,tipo:'volume'|'missao'}]}
    * @param {Array}  e.medidas                {id,mes,pilar,meta,real,online}  (inclui pilar 'Refrigerantes')
    * @param {Array}  e.confrontos             {mes,id_sv_desafiante,id_sv_desafiado,pilar,ordem_registro}
+   * @param {Array}  [e.mesesIncompletos]     {mes,motivo}: meses do trimestre sem dado (fechado que faltou ou falhou)
    */
   function calcular(e) {
     if (!REGRAS.meses.includes(e.mesRef)) throw new Error('mesRef fora do Q4: ' + e.mesRef);
     const alertasGlobais = [];
     const meses = REGRAS.meses.filter((m) => m <= e.mesRef);
+    // mês do trimestre sem dado: o acumulado do SV fica incompleto (nunca soma só o que existe sem avisar)
+    const incompletos = (e.mesesIncompletos || []).filter((x) => meses.includes(x.mes));
 
     // cadastro: sem duplicados, com canal/cargo válidos
     const vistos = new Set();
@@ -638,6 +652,8 @@ button{background:none;border:0;cursor:pointer}
       if (p.cargo === 'RT' && p.id_supervisor != null && !supervisor) alertas.push('SUPERVISOR_NAO_ENCONTRADO');
 
       const porMes = meses.map((mes) => {
+        // mês sem dado não soma nada (nem a Missões validada de outubro): o acumulado fica marcado como incompleto
+        if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, pontosMes: 0 };
         const c = calc[p.id][mes];
         const pontosPilares = c.pilares.reduce((s, x) => s + x.pontos, 0);
         const idSV = p.cargo === 'SV' ? p.id : supervisor ? supervisor.id : null;
@@ -677,6 +693,7 @@ button{background:none;border:0;cursor:pointer}
         pontosConfronto: mesAtual.pontosConfronto,
         pontosMes: mesAtual.pontosMes, // valor interno (sempre numérico)
         pontosAcumulados: p.cargo === 'SV' ? acumulado : undefined, // Consultor: não se aplica
+        acumuladoIncompleto: p.cargo === 'SV' ? incompletos.map((x) => x.mes) : undefined,
         volume,
         gatilhoPontos,
         alertas,
@@ -685,7 +702,8 @@ button{background:none;border:0;cursor:pointer}
       // só status, ranking e premiação dependem dele
       r.pontosAtuaisExibidos = r.pontosMes;
       if (p.cargo === 'SV') r.pontosAcumuladosExibidos = acumulado;
-      r.elegivel = volume.atingido && gatilhoPontos.atingido;
+      // SV com mês do trimestre sem dado não entra no ranking oficial: o acumulado não está completo ⚠️
+      r.elegivel = volume.atingido && gatilhoPontos.atingido && !(p.cargo === 'SV' && incompletos.length);
       r.status = REGRAS.status.nenhum;
       r.posicao = null;
       r.premiada = false;
@@ -714,6 +732,7 @@ button{background:none;border:0;cursor:pointer}
       ranking,
       confrontos: todosDetalhes,
       alertas: alertasGlobais,
+      mesesIncompletos: incompletos,
       semVinculoSupervisor: pessoas.filter((p) => p.cargo === 'RT' && p.id_supervisor == null).length,
       notasPendentes: REGRAS.notasPendentes,
       avisoOutubro: e.mesRef === 10
@@ -754,12 +773,13 @@ button{background:none;border:0;cursor:pointer}
 </script>
 <script>/*
  * Adaptador: dados -> entrada do motor.
- * Fonte: a API do metas-produtos (./api/v1/, publicada no mesmo site do painel). Sem ela (HTML aberto direto do
- * computador, API em outro mês ou falha de rede), usa a base embutida (data/data.json, gerada dos Excel do SAP).
+ * Fonte: a API do metas-produtos (./api/v1/, publicada no mesmo site do painel). O mês de referência vem da API
+ * (index.json -> mes_referencia.anomes) e os meses anteriores do trimestre vêm dos meses fechados (index.json ->
+ * fechados). Sem a API (HTML aberto direto do computador ou falha de rede), usa a base embutida (data/data.json,
+ * gerada dos Excel do SAP), mas só no mês dela: nunca mostra um mês como se fosse outro.
  */
 const CONFIG = {
-  mes: 10,
-  ano: 2026,
+  ano: 2026, // ano do trimestre (Q4); o mês vem da API
   api: './api/v1/',
   ajustes: './ajustes.json', // ajustes do admin publicados para todos (aba Regras > Administração)
   // onde o ajustes.json é publicado por PR (botão "Publicar no GitHub (PR)" da Administração)
@@ -773,7 +793,8 @@ const CONFIG = {
     'Sabores Tt': 'sabores',
     'Sucos': 'sucos',
   },
-  // Pilares por canal e mês (coringas 4 e 5 mudam a cada mês: ler da configuração, não do código)
+  // Pilares por canal e mês (coringas 4 e 5 mudam a cada mês: ler da configuração, não do código).
+  // Mês com `pilares: []` ainda não foi configurado: o painel avisa e não calcula pontos nem ranking desse mês.
   pilaresConfig: [
     { mes: 10, canal: 'Mista', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' },
@@ -781,6 +802,11 @@ const CONFIG = {
     { mes: 10, canal: 'Segmentada', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' },
       { nome: 'Volume Powerade', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
+    // Novembro e dezembro: aguardando a definição do Back Office (pilares 1 a 3 e coringas 4 e 5 de cada canal)
+    { mes: 11, canal: 'Mista', pilares: [] },
+    { mes: 11, canal: 'Segmentada', pilares: [] },
+    { mes: 12, canal: 'Mista', pilares: [] },
+    { mes: 12, canal: 'Segmentada', pilares: [] },
   ],
   // Pilar do desafio -> agrupador de produto no modelo SAP
   fonteDoPilar: {
@@ -789,6 +815,9 @@ const CONFIG = {
     'Volume Refri Single': 'Refrigerantes Individual',
     'Volume Powerade': 'Powerade',
     'Volume Sucos': 'Sucos',
+    // 'Missões Guiadas': em outubro entra validada em 100%, sem dado. De novembro em diante pontua com meta, real e
+    // online; a fonte por rota ainda não foi definida. Quando existir, entra aqui (agrupador) e em produtoDaApi.
+    // Sem fonte, o pilar aparece como "sem dados de Missões Guiadas" e não pontua.
   },
   // Gatilho de 95% e desempate: categoria Refrigerantes do SAC (agrupador com todos os itens de refri), vinda da API.
   refri: 'Refrigerantes',
@@ -799,6 +828,21 @@ const CONFIG = {
 };
 
 const svKey = (r) => r.sv + '#' + r.canal; // Supervisão por canal (SV com rotas nos dois canais aparece nos dois)
+const NOMES_MES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const anomesDe = (ano, mes) => String(ano) + String(mes).padStart(2, '0');
+
+/** Pilares de um canal no mês; null se o mês ainda não foi configurado. */
+function pilaresDoMes(cfg, mes, canal) {
+  const c = cfg.pilaresConfig.find((x) => x.mes === mes && x.canal === canal);
+  return c && c.pilares && c.pilares.length ? c.pilares : null;
+}
+/** O mês só é calculado com os pilares dos dois canais configurados. */
+const mesConfigurado = (cfg, mes) => ['Mista', 'Segmentada'].every((c) => pilaresDoMes(cfg, mes, c));
+const avisoSemPilares = (mes) => `Pilares de ${NOMES_MES[mes]} ainda não configurados`;
+/** Missões Guiadas (ou outro pilar) sem fonte de meta e real por rota: aparece "sem dados" e não pontua. */
+const semFonte = (cfg, nome) => !cfg.fonteDoPilar[nome];
+/** Regras do motor (meses com Missões Guiadas validada): no painel vem de window.MotorQ4; no Node, de motor.js. */
+const MotorRegras = () => (typeof MotorQ4 !== 'undefined' ? MotorQ4 : require('./motor.js')).REGRAS;
 const VAZIO = [null, null, null, null, null]; // agrupador sem dado (ex.: extra que a API ainda não traz)
 const CHAVE_REFRI = '__refri__'; // coluna % Refri do Estratégicos (a categoria, ou a soma provisória)
 
@@ -826,6 +870,15 @@ function somarLinhas(linhas, I) {
   return out;
 }
 
+/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). */
+function mapaCanal(base, canais) {
+  const canal = {};
+  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
+  return Object.assign(canal, canais || {});
+}
+const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
+const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
+
 /*
  * API (index.json + gerencias/*.json) -> mesmo formato da base embutida.
  * A API ainda não traz o canal (Mista/Segmentada): ele vem da base embutida, e rota sem canal vai para semCanal.
@@ -834,17 +887,15 @@ function somarLinhas(linhas, I) {
  * `resumo` (resumo.json) traz o total da empresa; sem ele, o total vira a soma das gerências.
  * Além das rotas do incentivo, devolve os totais que a própria API já traz por gerência (`totaisGerencia`)
  * e da empresa (`totalEmpresa`): são todas as rotas com Real, inclusive as de fora do incentivo, e é o que
- * a aba Estratégicos mostra. Devolve null se a API estiver em outro mês (os pilares ficam em CONFIG.pilaresConfig).
+ * a aba Estratégicos mostra. O mês é o da API (mes_referencia.anomes); devolve null se ele estiver fora do Q4.
+ * Mês sem pilares configurados: `meta.semCalculo` traz o aviso e o painel não calcula pontos nem ranking.
  */
 function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const ref = index.mes_referencia;
-  if (ref.anomes !== cfg.ano + String(cfg.mes).padStart(2, '0')) return null;
+  const ano = Number(ref.anomes.slice(0, 4)), mes = Number(ref.anomes.slice(4));
+  if (ano !== cfg.ano || !MESES_Q4.includes(mes)) return null;
   const I = cfg.idx;
-  const canal = {};
-  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
-  Object.assign(canal, canais || {});
-  const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
-  const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
+  const canal = mapaCanal(base, canais);
   const ids = new Set(index.produtos.map((p) => p.id));
   const faltam = Object.keys(cfg.produtoDaApi).filter((ag) => !ids.has(cfg.produtoDaApi[ag]));
   const rotas = [], semCanal = [], naApi = new Set();
@@ -866,7 +917,9 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const corte = dia.split('-').reverse().join('/') + ' ' + hora.slice(0, 5);
   return {
     meta: {
-      mes: cfg.mes, ano: cfg.ano, corte, corteSeg: base.meta.corteSeg, origem: 'api', fechamento: ref.fechamento,
+      mes, ano, rotulo: ref.rotulo, corte, corteSeg: base.meta.corteSeg, origem: 'api', fechamento: !!ref.fechamento,
+      simulado: !!index.simulado,
+      semCalculo: mesConfigurado(cfg, mes) ? null : avisoSemPilares(mes),
       fonte: `API metas-produtos · SAP Datasphere · ${hora.slice(0, 5)}`,
       fonteLonga: `API metas-produtos (SAP Datasphere, atualizada a cada 15 min em dias úteis; dados de ${corte}). ` +
         `Canal Mista/Segmentada da base de segmentação de ${base.meta.corteSeg} (provisório)`,
@@ -874,14 +927,76 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       refriCategoria: !faltam.includes(cfg.refri), produtosApi: [...ids],
       totalEmpresaOrigem: temResumo ? 'resumo' : 'gerencias',
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
+      acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
     },
-    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas,
+    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
 
-function comAviso(base, aviso) {
-  return Object.assign({}, base, { meta: Object.assign({}, base.meta, { origem: 'base', aviso, fonte: base.meta.fonte + ' · base embutida' }) });
+/*
+ * Mês fechado da API (fechado/AAAAMM.json) -> rotas no mesmo formato do mês corrente, com online = 0 e sem meta dia.
+ * A mesa (supervisão) é a da rota naquele mês; o canal é o mesmo do mês corrente (base de segmentação + admin).
+ */
+function fechadoDaApi(f, base, cfg, canais) {
+  const I = cfg.idx, canal = mapaCanal(base, canais);
+  const col = (n) => f.campos.indexOf(n), cp = (n) => f.campos_produto.indexOf(n);
+  const [iRota, iGer, iSv, iProd, iMeta, iReal] = [col('rota'), col('gerencia'), col('supervisao'), col('produtos'), cp('meta'), cp('realizado')];
+  if ([iRota, iGer, iSv, iProd, iMeta, iReal].some((x) => x < 0)) throw new Error(`fechado/${f.anomes}: formato inesperado`);
+  const rotas = [];
+  for (const linha of f.rotas) {
+    const id = linha[iRota], c = canal[id];
+    if (!c || !c.canal) continue; // fora do incentivo (sem canal, eventual)
+    const prod = linha[iProd] || {}, v = {};
+    for (const [ag, pid] of Object.entries(cfg.produtoDaApi)) {
+      const x = prod[pid], l = [null, null, null, null, null];
+      if (x) { l[I.meta] = x[iMeta]; l[I.real] = x[iReal]; l[I.online] = 0; }
+      v[ag] = l;
+    }
+    rotas.push({ gc: titulo(linha[iGer]), sv: svNome(linha[iSv]), rota: id, canal: c.canal, sub: c.sub, v });
+  }
+  return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true, rotas };
+}
+
+/*
+ * Lê os meses fechados do trimestre anteriores ao de referência (index.json -> fechados). Mês que falte na lista,
+ * falhe ao carregar ou não tenha pilares configurados vai para meta.acumulado.faltando, e o acumulado do SV fica
+ * marcado como incompleto (o motor recebe a lista em mesesIncompletos).
+ */
+async function carregarFechados(d, index, ler, base, cfg, canais) {
+  const lista = index.fechados || [];
+  for (const mes of MESES_Q4.filter((m) => m < d.meta.mes)) {
+    const item = lista.find((x) => x.anomes === anomesDe(d.meta.ano, mes));
+    if (!item) { d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não está nos meses fechados da API` }); continue; }
+    try {
+      const f = fechadoDaApi(await ler(item.arquivo), base, cfg, canais);
+      if (f.anomes !== item.anomes) throw new Error(`${item.arquivo} traz o mês ${f.anomes}`);
+      d.fechados.push(f);
+      d.meta.acumulado.usados.push({ mes, rotulo: f.rotulo, final: f.final });
+      if (!mesConfigurado(cfg, mes)) d.meta.acumulado.faltando.push({ mes, motivo: avisoSemPilares(mes) });
+    } catch (e) {
+      d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não carregou (${e.message})` });
+    }
+  }
+  if (d.meta.acumulado.faltando.length) {
+    const txt = 'acumulado do trimestre incompleto: ' + d.meta.acumulado.faltando.map((x) => x.motivo).join('; ');
+    d.meta.aviso = [d.meta.aviso, txt].filter(Boolean).join('; ');
+  }
+}
+
+/** Base embutida: só no mês dela, com o rótulo "base embutida (<mês>)"; em outro mês, nada é calculado. */
+function daBase(base, canais, motivo, hoje) {
+  const rotuloBase = `base embutida (${NOMES_MES[base.meta.mes]})`;
+  const d = Object.assign({}, comCanais(base, canais), { fechados: [] });
+  d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
+                                          aviso: motivo, fonte: base.meta.fonte + ' · ' + rotuloBase,
+                                          acumulado: { meses: [base.meta.mes], usados: [], faltando: [] } });
+  const h = hoje || new Date();
+  if (h.getFullYear() !== base.meta.ano || h.getMonth() + 1 !== base.meta.mes) {
+    d.rotas = []; d.semCanal = [];
+    d.meta.semCalculo = `Sem dados de ${NOMES_MES[h.getMonth() + 1]}: ${motivo} e a ${rotuloBase} é de outro mês`;
+  }
+  return d;
 }
 
 /** Base embutida com o canal ajustado pelo admin (rota da base sem canal não tem valores: não entra). */
@@ -897,8 +1012,11 @@ function comCanais(base, canais) {
   return Object.assign({}, base, { rotas, semCanal });
 }
 
-/** Lê a API no mesmo site; qualquer falha cai na base embutida, com o motivo em meta.aviso. */
-async function carregarDados(base, cfg, ajustes) {
+/*
+ * Lê a API no mesmo site, com os meses fechados do trimestre. API fora do ar: base embutida, só no mês dela
+ * (`hoje` simula a data nos testes). API fora do Q4: aviso, sem cálculo. O motivo vai em meta.aviso.
+ */
+async function carregarDados(base, cfg, ajustes, hoje) {
   cfg = cfg || CONFIG;
   const canais = ajustes ? ajustes.canais : null;
   const ler = async (caminho) => {
@@ -906,19 +1024,26 @@ async function carregarDados(base, cfg, ajustes) {
     if (!r.ok) throw new Error(`${caminho}: HTTP ${r.status}`);
     return r.json();
   };
+  let index, gerencias, resumo = null, erroResumo = null;
   try {
-    const index = await ler('index.json');
-    const gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
-    // O resumo.json só traz o total da empresa (aba Estratégicos): se faltar, o painel segue com a soma das gerências
-    let resumo = null, erroResumo = null;
-    try { resumo = await ler('resumo.json'); } catch (e) { erroResumo = e.message; }
-    const d = dadosDaApi(index, gerencias, base, cfg, canais, resumo);
-    if (!d) return comAviso(comCanais(base, canais), `a API está em ${index.mes_referencia.rotulo} e o painel está configurado para ${cfg.mes}/${cfg.ano}`);
-    if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
-    return d;
+    index = await ler('index.json');
+    gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
   } catch (erro) {
-    return comAviso(comCanais(base, canais), `API indisponível (${erro.message})`);
+    return daBase(base, canais, `API indisponível (${erro.message})`, hoje);
   }
+  // O resumo.json só traz o total da empresa (aba Estratégicos): se faltar, o painel segue com a soma das gerências
+  try { resumo = await ler('resumo.json'); } catch (e) { erroResumo = e.message; }
+  const d = dadosDaApi(index, gerencias, base, cfg, canais, resumo);
+  if (!d) {
+    const fora = daBase(base, canais, `a API está em ${index.mes_referencia.rotulo}, fora do trimestre do painel`, hoje);
+    fora.rotas = []; fora.semCanal = [];
+    fora.meta.semCalculo = `A API está em ${index.mes_referencia.rotulo}, fora do Desafio Q4 ${cfg.ano}`;
+    return fora;
+  }
+  if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
+  if (d.meta.semCalculo) d.meta.aviso = [d.meta.semCalculo, d.meta.aviso].filter(Boolean).join('; ');
+  else await carregarFechados(d, index, ler, base, cfg, canais);
+  return d;
 }
 
 /*
@@ -1005,18 +1130,24 @@ function normalizarAjustes(aj) {
   return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores, confrontos };
 }
 
-/** Aplica os agrupadores extras e os pilares coringa do mês (em cfg) e as regras (no REGRAS do motor).
+/** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
  *  O canal entra em carregarDados. */
-function aplicarAjustes(aj, cfg, regras) {
+function aplicarAjustes(aj, cfg, regras, mes) {
   if (!aj) return;
   for (const e of aj.agrupadores || []) { cfg.produtoDaApi[e.agrupador] = e.id; cfg.fonteDoPilar[pilarDoExtra(e)] = e.agrupador; }
   const r = aj.regras;
   if (r.faixas) regras.faixas = r.faixas.concat([{ min: 0, pontos: 0 }]);
   for (const k of ['gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas']) if (r[k] !== undefined) regras[k] = r[k];
-  for (const [canal, nomes] of Object.entries(aj.pilares)) {
-    const c = cfg.pilaresConfig.find((x) => x.mes === cfg.mes && x.canal === canal);
-    if (!c || nomes.some((n) => c.pilares.slice(0, 3).some((p) => p.nome === n))) continue; // não repete os pilares 1 a 3
-    nomes.forEach((nome, i) => { c.pilares[3 + i] = { nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' }; });
+  if (mes !== undefined) aplicarCoringas(aj, cfg, mes);
+}
+
+/** Pilares coringa do admin (4 e 5): valem para o mês de referência, e só se os pilares 1 a 3 dele estão configurados. */
+function aplicarCoringas(aj, cfg, mes) {
+  if (!aj) return;
+  for (const [canal, nomes] of Object.entries(aj.pilares || {})) {
+    const lista = pilaresDoMes(cfg, mes, canal);
+    if (!lista || nomes.some((n) => lista.slice(0, 3).some((p) => p.nome === n))) continue; // não repete os pilares 1 a 3
+    nomes.forEach((nome, i) => { lista[3 + i] = { nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' }; });
   }
 }
 
@@ -1102,50 +1233,70 @@ function montarEstrat(dados, itens, cfg) {
   };
 }
 
+/*
+ * Dados do painel -> entrada do motor, com todos os meses do trimestre até o de referência: os fechados
+ * (dados.fechados, online = 0) e o corrente (dados.rotas). Cada mês usa os pilares daquele mês; a mesa do SV em
+ * cada mês é a supervisão da rota naquele mês. Pessoas = rotas e supervisões do mês corrente.
+ */
 function montarEntrada(dados, cfg, confrontos) {
   const I = cfg.idx;
   const compRefri = componentesRefri(dados, cfg);
+  const mesRef = dados.meta.mes;
+  const validada = (mes) => MotorRegras().missaoValidadaMeses.includes(mes);
   const pessoas = [];
   const medidas = [];
   const notasRefri = [];
-  const svAgg = {};
   const somar = (k, nome, v) => { const a = (k[nome] = k[nome] || { meta: 0, real: 0, online: 0, n: 0 }); a.meta += v.meta; a.real += v.real; a.online += v.online; a.n++; };
-  for (const r of dados.rotas) {
-    pessoas.push({ id: r.rota, nome: 'Rota ' + r.rota, cargo: 'RT', canal: r.canal, unidade: r.gc, sub: r.sub, id_supervisor: svKey(r) });
-    const ag = (svAgg[svKey(r)] = svAgg[svKey(r)] || { sv: r.sv, canal: r.canal, gc: r.gc, p: {} });
-    const config = cfg.pilaresConfig.find((c) => c.mes === cfg.mes && c.canal === r.canal);
-    for (const pl of config.pilares) {
-      if (pl.tipo !== 'volume') continue; // Missões Guiadas: validada em outubro, sem dado
-      const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
-      medidas.push({ id: r.rota, mes: cfg.mes, pilar: pl.nome, meta: v[I.meta], real: v[I.real], online: v[I.online], hoje: v[I.hoje], metaDia: v[I.metaDia] });
-      if (v[I.meta] > 0 && v[I.real] !== null) somar(ag.p, pl.nome, { meta: v[I.meta], real: v[I.real], online: v[I.online] || 0 });
+  const meses = (dados.fechados || []).filter((f) => f.mes < mesRef).sort((a, b) => a.mes - b.mes)
+    .concat([{ mes: mesRef, rotas: dados.rotas }]);
+  let svAtual = {};
+  for (const { mes, rotas } of meses) {
+    const corrente = mes === mesRef;
+    const svAgg = {};
+    for (const r of rotas) {
+      if (corrente) pessoas.push({ id: r.rota, nome: 'Rota ' + r.rota, cargo: 'RT', canal: r.canal, unidade: r.gc, sub: r.sub, id_supervisor: svKey(r) });
+      const ag = (svAgg[svKey(r)] = svAgg[svKey(r)] || { sv: r.sv, canal: r.canal, gc: r.gc, p: {} });
+      for (const pl of pilaresDoMes(cfg, mes, r.canal) || []) {
+        // Missões Guiadas validada (outubro) não tem dado; sem fonte (nov/dez ainda sem definição) fica "sem dados"
+        if (pl.tipo !== 'volume' && (validada(mes) || semFonte(cfg, pl.nome))) continue;
+        const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
+        medidas.push({ id: r.rota, mes, pilar: pl.nome, meta: v[I.meta], real: v[I.real], online: v[I.online], hoje: v[I.hoje], metaDia: v[I.metaDia] });
+        if (v[I.meta] > 0 && v[I.real] !== null) somar(ag.p, pl.nome, { meta: v[I.meta], real: v[I.real], online: v[I.online] || 0 });
+      }
+      // Gatilho de Refrigerantes: componentes sem meta (nula ou zero) ficam fora da soma
+      let meta = 0, real = 0, online = 0, usados = 0, realFalta = false, excluidos = [];
+      for (const g of compRefri) {
+        const v = r.v[g] || VAZIO;
+        if (!(v[I.meta] > 0)) { excluidos.push(g); continue; }
+        usados++; meta += v[I.meta];
+        if (v[I.real] === null) realFalta = true; else real += v[I.real];
+        online += v[I.online] || 0;
+      }
+      if (corrente && excluidos.length) notasRefri.push({ rota: r.rota, excluidos, usados });
+      medidas.push({ id: r.rota, mes, pilar: 'Refrigerantes', meta: usados ? meta : null, real: realFalta || !usados ? null : real, online });
+      if (usados && !realFalta) somar(ag.p, 'Refrigerantes', { meta, real, online });
     }
-    // Gatilho de Refrigerantes: componentes sem meta (nula ou zero) ficam fora da soma
-    let meta = 0, real = 0, online = 0, usados = 0, realFalta = false, excluidos = [];
-    for (const g of compRefri) {
-      const v = r.v[g] || VAZIO;
-      if (!(v[I.meta] > 0)) { excluidos.push(g); continue; }
-      usados++; meta += v[I.meta];
-      if (v[I.real] === null) realFalta = true; else real += v[I.real];
-      online += v[I.online] || 0;
+    // Supervisor (PROVISÓRIO): soma das rotas da mesa no canal; rota sem meta ou sem real fica fora da soma
+    for (const k of Object.keys(svAgg)) {
+      const a = svAgg[k];
+      const nomes = (pilaresDoMes(cfg, mes, a.canal) || [])
+        .filter((p) => p.tipo === 'volume' || !(validada(mes) || semFonte(cfg, p.nome))).map((p) => p.nome).concat(['Refrigerantes']);
+      for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
     }
-    if (excluidos.length) notasRefri.push({ rota: r.rota, excluidos, usados });
-    medidas.push({ id: r.rota, mes: cfg.mes, pilar: 'Refrigerantes', meta: usados ? meta : null, real: realFalta || !usados ? null : real, online });
-    if (usados && !realFalta) somar(ag.p, 'Refrigerantes', { meta, real, online });
+    if (corrente) svAtual = svAgg;
   }
-  // Supervisor (PROVISÓRIO): soma das rotas da mesa no canal; rota sem meta ou sem real fica fora da soma
-  for (const k of Object.keys(svAgg)) {
-    const a = svAgg[k];
+  for (const k of Object.keys(svAtual)) {
+    const a = svAtual[k];
     pessoas.push({ id: k, nome: a.sv, cargo: 'SV', canal: a.canal, unidade: a.gc, id_supervisor: null });
-    const nomes = cfg.pilaresConfig.find((c) => c.mes === cfg.mes && c.canal === a.canal).pilares.filter((p) => p.tipo === 'volume').map((p) => p.nome).concat(['Refrigerantes']);
-    for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes: cfg.mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
   }
-  return { entrada: { mesRef: cfg.mes, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
-                      confrontos: confrontos || [] }, notasRefri };
+  const mesesIncompletos = ((dados.meta.acumulado && dados.meta.acumulado.faltando) || []).map((x) => ({ mes: x.mes, motivo: x.motivo }));
+  return { entrada: { mesRef, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
+                      confrontos: confrontos || [], mesesIncompletos }, notasRefri };
 }
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
+                     fechadoDaApi, pilaresDoMes, mesConfigurado, aplicarCoringas, NOMES_MES,
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
@@ -1159,19 +1310,23 @@ if (typeof module === 'object' && module.exports) {
 const M = window.MotorQ4;
 const R = M.REGRAS;
 // padrão (antes dos ajustes do admin): a área de Administração compara com ele e só guarda o que mudou
-const coringasDe = (cfg)=>Object.fromEntries(['Mista','Segmentada'].map(c=>[c, cfg.pilaresConfig.find(x=>x.mes===cfg.mes && x.canal===c).pilares.slice(3).map(p=>p.nome)]));
-const PADRAO = { regras: JSON.parse(JSON.stringify(R)), coringas: coringasDe(CONFIG) };
+const coringasDe = (cfg, mes)=>Object.fromEntries(['Mista','Segmentada'].map(c=>[c, (pilaresDoMes(cfg, mes, c)||[]).slice(3).map(p=>p.nome)]));
+const PADRAO = { regras: JSON.parse(JSON.stringify(R)) };
 const AJ = await carregarAjustes();
 aplicarAjustes(AJ.ativo, CONFIG, R);
 const DADOS = await carregarDados(BASE_EMBUTIDA, CONFIG, AJ.ativo);
-const {entrada, notasRefri} = montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
-const RES = M.calcular(entrada);
+const MES = DADOS.meta.mes;            // mês de referência: o da API (ou o da base embutida)
+const SEMCALC = DADOS.meta.semCalculo; // mês sem pilares, API fora do Q4 ou base de outro mês: nada é calculado
+PADRAO.coringas = coringasDe(CONFIG, MES);
+aplicarCoringas(AJ.ativo, CONFIG, MES);
+const {entrada, notasRefri} = SEMCALC ? { entrada:null, notasRefri:[] } : montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
+const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], alertas:[], mesesIncompletos:[] } : M.calcular(entrada);
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
 if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
 let PAGE = 17;
 const ALT_LINHA = 32;
 const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/ALT_LINHA));
-const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null };
+const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null, cfmes:MES };
 const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
 const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
 const MESA = {}; DADOS.rotas.forEach(r=>{ (MESA[svKey(r)]=MESA[svKey(r)]||[]).push(r); });
@@ -1213,12 +1368,27 @@ fit();
   $('bg').innerHTML=h; })();
 
 $('corte').textContent = DADOS.meta.corte.replace(' ', ' · ');
-$('mesref').textContent = MESES[DADOS.meta.mes] + '/' + DADOS.meta.ano;
-$('rod').textContent = 'Fonte: ' + DADOS.meta.fonte + (AJ.ativo ? ' · ajustes do admin' : '');
+/* topo: mês de referência (ou fechamento) e, para o SV, o período do acumulado com os meses fechados usados */
+const NOME_MES = MESES[MES] + '/' + DADOS.meta.ano;
+if (DADOS.meta.fechamento) $('mesreflbl').textContent = 'Fechamento do mês';
+$('mesref').textContent = (DADOS.meta.fechamento ? 'Fechamento de ' : '') + NOME_MES;
+const ACUM = DADOS.meta.acumulado || { meses:[MES], usados:[], faltando:[] };
+const abrev = (m)=> MESES[m].slice(0,3).toLowerCase();
+const periodoAcum = 'out' + (MES>10 ? '–'+abrev(MES) : '');
+function textoAcum(){
+  const usados = ACUM.usados.map(u=>`${abrev(u.mes)} fechado${u.final?'':' (provisório)'} ✓`);
+  const falta = ACUM.faltando.map(f=>`<span class="inc">${abrev(f.mes)} sem dado: incompleto</span>`);
+  return `Acumulado do trimestre (SV): ${periodoAcum}` + (usados.length||falta.length ? ' · ' + usados.concat(falta).join(' · ') : '');
+}
+if (!SEMCALC) $('acum').innerHTML = textoAcum();
+/* rodapé: origem dos dados (API ou base embutida) e o corte */
+$('rod').textContent = 'Fonte: ' + (DADOS.meta.origem==='api' ? 'API (SAP Datasphere)' : DADOS.meta.rotuloBase) + ' · dados de ' + DADOS.meta.corte
+  + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '');
+if (DADOS.meta.fechamento) $('rodpts').textContent = `Fechamento de ${MESES[MES].toLowerCase()}: Real do mês inteiro, sem Online. O % é truncado, nunca arredondado.`;
 if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = AJ.origem==='local' ? 'Ajustes do admin (só neste navegador)' : 'Ajustes do admin'; });
 
 /* ---------- ranking ---------- */
-function pilaresDo(canal){ return CONFIG.pilaresConfig.find(c=>c.mes===CONFIG.mes && c.canal===canal).pilares; }
+function pilaresDo(canal){ return pilaresDoMes(CONFIG, MES, canal) || []; }
 // ordem das colunas nas abas Rota e Supervisão: Missões Guiadas por último (a numeração dos pilares não muda)
 const ordemTela = (l)=> l.filter(p=>p.tipo!=='missao').concat(l.filter(p=>p.tipo==='missao'));
 /* Ordem da tela: elegíveis na posição oficial e, depois, quem está fora do ranking por pontos.
@@ -1244,7 +1414,9 @@ const sgn = (n)=> n===0 ? '0,0' : (n<0?'-':'+') + numF(Math.abs(n));
 const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
+const incompleto = (r)=> r.cargo==='SV' && r.acumuladoIncompleto && r.acumuladoIncompleto.length>0;
 function statusDe(r){
+  if(incompleto(r)) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Acumulado incompleto: falta ${r.acumuladoIncompleto.map(m=>MESES[m].toLowerCase()).join(', ')}` };
   const vol = r.volume.atingido, lim = R.premiadas[r.cargo][r.canal], min = R.gatilhoPontos[r.cargo];
   if(!vol) return { pill:`<span class="pill no">-</span>`, cls:'', micro: r.volume.pct===null ? 'Refrigerantes sem dado para calcular' : `Refrigerantes em ${r.volume.pctTexto}: precisa de ${R.gatilhoVolumePct}%` };
   if(!r.gatilhoPontos.atingido) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Faltam ${min-r.gatilhoPontos.valor} pontos para o mínimo de ${min}` };
@@ -1256,7 +1428,9 @@ const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="
 const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
 const grupo = (nome)=> 'g'+(GCOL[nome] ?? 5); // g5: agrupador extra incluído pelo admin
 const rotuloPilar = (nome)=> nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase();
-const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(CONFIG.mes);
+const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(MES);
+// Missões Guiadas fora de outubro sem fonte de meta e real: "sem dados" e não pontua
+const missaoSemDados = (pl)=> pl.tipo==='missao' && !compacta(pl) && !fonteDe(pl.nome);
 let GRID = '';
 /* Largura real de um texto com a fonte das tabelas, para dimensionar cada coluna pelo maior valor que ela recebe. */
 const REG = document.createElement('div');
@@ -1350,7 +1524,7 @@ function celulas(r){
     const g=grupo(p.nome), pl = pil.find(x=>x.nome===p.nome);
     if(compacta(pl)){ h += `<div class="${g} n gs"><span class="pchip t${tier(p.pontos)}">100,0%</span></div><div class="${g} c">${chip(p.pontos, tier(p.pontos))}</div>`; return; }
     const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO, ok = p.pct!==null;
-    const mot = p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const mot = missaoSemDados(pl)?'sem dados':p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dc = !ok ? '' : p.diferenca<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
     h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div><div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div><div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
        + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n">${ok?`<span class="pchip t${tier(p.pontos)}">${p.pctTexto}</span>`:'<span class="na">'+mot+'</span>'}</div>`
@@ -1365,7 +1539,7 @@ function linha(r){
   return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>
     <div class="rt">${nome}</div>
     <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
-    <div class="tp">${tot}</div><div class="stc">${s.pill}</div></div>`;
+    <div class="tp">${tot}${incompleto(r)?'<span class="na"> incompleto</span>':''}</div><div class="stc">${s.pill}</div></div>`;
 }
 /* ---------- supervisão por gerência ---------- */
 const SPAG = { n:1 };
@@ -1377,7 +1551,9 @@ function renderSup(){
   const pages = Math.max(1, Math.ceil(base.length/PAGE)); if(SPAG.n>pages) SPAG.n=pages;
   const ini=(SPAG.n-1)*PAGE, fatia=base.slice(ini,ini+PAGE);
   $('sptitulo').textContent = `Supervisão · ${st.canal}`;
-  $('saviso').innerHTML = CONFIG.mes===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é ${5*R.faixas[0].pontos+R.bonusConfronto} pontos e o gatilho do SV é ${R.gatilhoPontos.SV} acumulados</span>` : '';
+  $('saviso').innerHTML = (MES===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é ${5*R.faixas[0].pontos+R.bonusConfronto} pontos e o gatilho do SV é ${R.gatilhoPontos.SV} acumulados</span>` : '')
+    + (MES>10 ? ` <span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Total e % Refri: acumulado ${periodoAcum}</span>` : '')
+    + (ACUM.faltando.length ? ` <span class="tag">Acumulado incompleto: falta ${ACUM.faltando.map(f=>MESES[f.mes].toLowerCase()).join(', ')}</span>` : '');
   $('srows').innerHTML = fatia.length ? fatia.map(linha).join('') : `<div class="vazio">Nenhuma supervisão encontrada neste filtro.</div>`;
   $('spinfo').textContent = base.length ? `${ini+1} a ${ini+fatia.length} de ${base.length} supervisões` : '0 supervisões';
   let nums=[]; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-SPAG.n)<=1) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
@@ -1447,7 +1623,8 @@ function renderDetalhe(){
   })();
   $('cards').innerHTML = pil.map((pl,i)=>{
     const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
-    if(pl.tipo==='missao') return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
+    if(compacta(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
+    if(missaoSemDados(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">-</div><i class="bar"><b class="t0" style="width:0%"></b></i><div class="txt"><b>Sem dados de Missões Guiadas.</b> Fonte ainda não definida: não pontua.</div></div>`;
     const a = agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
@@ -1464,7 +1641,7 @@ function renderDetalhe(){
   const linhaP = (nome, sub, x, diaTxt, isRf)=>{
     if(x && x.validada) return `<div class="dcols dr"><div>${esc(nome)}<small>${sub}</small></div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">100,0%</div><div class="c">${ch(x.pontos, tier(x.pontos))}</div></div>`;
     const ok = x && x.pct!==null;
-    const mot = !x ? '' : x.alertas.includes('REAL_AUSENTE')?'sem real':x.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const mot = !x ? '' : missaoSemDados(x)?'sem dados':x.alertas.includes('REAL_AUSENTE')?'sem real':x.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dif = ok ? `<span style="color:${x.diferenca<0?'#ffb3bd':'#7dffa0'}">${sgn(x.diferenca)}</span>` : '–';
     return `<div class="dcols dr ${isRf?'rf':''}"><div>${esc(nome)}<small${isRf?' style="color:#ffd978"':''}>${sub}</small></div>
       <div class="n">${x&&x.meta!=null?numF(x.meta):'–'}</div><div class="n">${x&&x.real!=null?numF(x.real):'–'}</div><div class="n">${x&&x.online!=null?numF(x.online):'–'}</div><div class="n" style="color:var(--muted)">${diaTxt}</div>
@@ -1477,7 +1654,7 @@ function renderDetalhe(){
     <div class="s"><small>Pontos no mês</small><b>${r.pontosAtuaisExibidos}</b></div>
     <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
     <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
-    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.tipo==='missao'?'validada em outubro':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'?'–':diaDe(fonteDe(p.nome)), false)).join('')}
+    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.validada?'validada em outubro':missaoSemDados(p)?'fonte não definida':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'&&!fonteDe(p.nome)?'–':diaDe(fonteDe(p.nome)), false)).join('')}
     ${linhaP('Refrigerantes', REFRI_CAT?'categoria · gatilho':'provisório · gatilho', r.refri, diaRf, true)}`;
 }
 $('dlist').addEventListener('click',e=>{ const b=e.target.closest('button[data-sel]'); if(!b) return; st.sel=b.dataset.sel; renderDetalhe(); });
@@ -1511,7 +1688,7 @@ function renderRank(){
   const svs = SVS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
   const suf = st.canal + (st.gc!=='Todas' ? ' · '+st.gc : '');
   $('rk-rt-tt').textContent = `Rotas · ${suf} · ${rts.length} ${rts.length===1?'rota':'rotas'}`;
-  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}`;
+  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}` + (MES>10 ? ` · acumulado ${periodoAcum}` : '') + (ACUM.faltando.length ? ' · incompleto' : '');
   $('rk-rt-h').innerHTML = RKCAB('Rota'); $('rk-sv-h').innerHTML = RKCAB('Supervisão');
   $('rk-rt').innerHTML = listaRk(rts, R.premiadas.RT[st.canal], false);
   $('rk-sv').innerHTML = listaRk(svs, R.premiadas.SV[st.canal], true);
@@ -1607,10 +1784,16 @@ function renderConfrontos(){
   const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
   const nomeSV = (id)=> porId[id] ? porId[id].nome : id;
   const infoSV = (id)=> porId[id] ? porId[id].canal+' · '+porId[id].unidade : 'não encontrado';
-  const pctP = (id, pilar)=>{ const x = porId[id]; if(!x) return '–';
-    const pl = x.pilares.find(y=>y.nome===pilar); return pl && pl.pct!==null ? pl.pctTexto : '–'; };
-  const lst = RES.confrontos || [];
-  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[CONFIG.mes]}`;
+  // % do pilar no mês do confronto (o motor apura cada mês com os dados daquele mês: fechado ou corrente)
+  const pctP = (v)=> v===null || v===undefined ? '–' : M.fmtPct(v);
+  const mesesCf = MESES_Q4.filter(m=>m<=MES);
+  if(!mesesCf.includes(st.cfmes)) st.cfmes = MES;
+  const fechado = (m)=> ACUM.usados.find(u=>u.mes===m);
+  $('cfmes').innerHTML = `<span class="seg">${mesesCf.map(m=>`<button type="button" data-cfmes="${m}" aria-pressed="${m===st.cfmes}">${MESES[m]}</button>`).join('')}</span>`;
+  const lst = (RES.confrontos || []).filter(c=>c.mes===st.cfmes);
+  const f = fechado(st.cfmes);
+  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[st.cfmes]}` + (st.cfmes===MES ? (DADOS.meta.fechamento ? ' (fechamento)' : ' (mês corrente)')
+    : f ? (f.final ? ' (mês fechado)' : ' (fechamento provisório)') : ' (sem dado do mês)');
   $('cfsub').innerHTML = `<span><b>${lst.length}</b>cadastrados</span><span><b>${lst.filter(c=>c.valido).length}</b>válidos</span>`
     + `<span><b>${lst.filter(c=>c.vencedor).length}</b>com vencedor</span>`;
   $('cfhead').innerHTML = `<div>Mês</div><div>Pilar</div><div>Desafiante</div><div class="v">%</div><div class="x"></div>`
@@ -1622,14 +1805,16 @@ function renderConfrontos(){
     return `<div class="cf cfr${c.valido?'':' invalido'}${c.vencedor===c.desafiante?' ganhou-a':''}${c.vencedor===c.desafiado?' ganhou-b':''}">`
       + `<div>${esc(MESES[c.mes].slice(0,3))}</div><div>${esc(rotuloPilar(c.pilar))}</div>`
       + `<div class="nm">${esc(nomeSV(c.desafiante))}<small>${esc(infoSV(c.desafiante))}</small></div>`
-      + `<div class="v va">${pctP(c.desafiante, c.pilar)}</div><div class="x">×</div>`
+      + `<div class="v va">${pctP(c.pctDesafiante)}</div><div class="x">×</div>`
       + `<div class="nm">${esc(nomeSV(c.desafiado))}<small>${esc(infoSV(c.desafiado))}</small></div>`
-      + `<div class="v vb">${pctP(c.desafiado, c.pilar)}</div><div>${res}</div></div>`;
-  }).join('') : `<div class="vazio">Nenhum confronto cadastrado.<br>Inclua na aba Regras &gt; Administração.</div>`;
+      + `<div class="v vb">${pctP(c.pctDesafiado)}</div><div>${res}</div></div>`;
+  }).join('') : `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
   $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
     + `Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. `
     + `Empate é decidido pelo maior % de Refrigerantes.`;
 }
+
+$('cfmes').addEventListener('click',e=>{ const b=e.target.closest('button[data-cfmes]'); if(!b) return; st.cfmes=+b.dataset.cfmes; renderConfrontos(); });
 
 /* ---------- abas ---------- */
 const ABAS = ['ranking','sup','estrat','rank','detalhe','regras','confrontos'];
@@ -1641,11 +1826,20 @@ function setTab(t){
     $('tab-'+x).setAttribute(x==='confrontos' ? 'aria-pressed' : 'aria-selected', x===t);
     $('v-'+x).classList.toggle('on', x===t);
   });
-  $('filtros').style.visibility = SEM_FILTRO.includes(t) ? 'hidden' : 'visible';
+  if(SEMCALC && t!=='regras'){ $('v-'+t).classList.remove('on'); $('v-semcalc').classList.add('on'); }
+  else $('v-semcalc').classList.remove('on');
+  $('filtros').style.visibility = SEM_FILTRO.includes(t) || SEMCALC ? 'hidden' : 'visible';
   $('lblsv').style.display = $('lblbusca').style.display = SEM_ROTA.includes(t) ? 'none' : '';
   $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',rank:'Ranking',estrat:'Estratégicos',
                            detalhe:'Detalhe por pilar',regras:'Regras e informações',confrontos:'Confrontos'})[t];
-  if(t==='regras') renderRegras(); else render();
+  if(t==='regras') renderRegras(); else if(!SEMCALC) render();
+}
+if (SEMCALC) {
+  $('semcalc-tt').textContent = SEMCALC;
+  $('semcalc-tx').textContent = (DADOS.meta.origem==='api'
+    ? `A API já está em ${NOME_MES}. Pontos, gatilhos, confrontos e ranking só aparecem com os pilares do mês configurados pelo Back Office; o painel não usa os números de outro mês no lugar.`
+    : 'O painel não usa os números de outro mês no lugar: abra o painel pelo site para ler a API.')
+    + (DADOS.meta.aviso && DADOS.meta.aviso!==SEMCALC ? ' Detalhe: ' + DADOS.meta.aviso.replace(SEMCALC+'; ','') + '.' : '');
 }
 ABAS.forEach(x=>$('tab-'+x).addEventListener('click',()=>setTab(x)));
 
@@ -1658,6 +1852,7 @@ function alertasDados(){
 }
 const T = (head, rows, cls)=>`<table class="${cls||''}"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 const pctTxt = (v)=> v.toLocaleString('pt-BR',{maximumFractionDigits:5});
+const avisoSemPilaresTela = ()=> `Pilares de ${MESES[MES].toLowerCase()} ainda não configurados`;
 const SEC = [
  { id:'pontuacao', t:'Pontuação', html:()=>{ const f=R.faixas;
   return `<h2>Pontuação por pilar</h2><div class="sub">Cada rota pontua todo mês em 5 pilares, sempre em % do total do mês sobre a meta.</div>
@@ -1684,9 +1879,12 @@ const SEC = [
  { id:'pilares', t:'Pilares do mês', html:()=>{
     const nomes=[]; ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(!nomes.includes(p.nome)) nomes.push(p.nome); }));
     const pos = (c,n)=>{ const i=pilaresDo(c).findIndex(p=>p.nome===n); return i<0 ? '–' : (i+1)+'º'+(i>=3?' (coringa)':''); };
-    const fonte = (n)=> n==='Missões Guiadas' ? 'Sem dado: validada em 100% em outubro'
+    const fonte = (n)=> n==='Missões Guiadas' && R.missaoValidadaMeses.includes(MES) ? 'Sem dado: validada em 100% em outubro'
+      : n==='Missões Guiadas' && !CONFIG.fonteDoPilar[n] ? 'Sem dados de Missões Guiadas: fonte ainda não definida <span class="pend">pendente</span>'
       : esc(CONFIG.fonteDoPilar[n]||'–') + (n==='Volume Refri Single' ? ' <span class="pend">a confirmar</span>' : '');
-    return `<h2>Pilares de ${MESES[CONFIG.mes].toLowerCase()}</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
+    if (!mesConfigurado(CONFIG, MES)) return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">${esc(avisoSemPilaresTela())}</div>
+  <p>Os pilares de cada mês ficam na configuração do painel (<code>CONFIG.pilaresConfig</code>). Enquanto o Back Office não define os pilares 1 a 5 de cada canal, o painel não calcula pontos nem ranking deste mês.</p>`;
+    return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
   ${T(['Pilar','Mista','Segmentada','Coluna na base SAP'], nomes.map(n=>[esc(n.replace('Volume ','')), pos('Mista',n), pos('Segmentada',n), fonte(n)]))}
   <p>Só os pilares de volume valem em confronto (todos, menos Missões Guiadas).</p>`; } },
  { id:'premiacao', t:'Premiação', html:()=>`<h2>Premiação dos Consultores</h2><div class="sub">Mensal (out, nov e dez). Exige ${R.gatilhoPontos.RT} pontos no mês e o gatilho de volume.</div>
@@ -1697,7 +1895,8 @@ const SEC = [
     const exc={}; notasRefri.forEach(n=>n.excluidos.forEach(e=>exc[e]=(exc[e]||0)+1));
     const api = DADOS.meta.origem==='api';
     return `<h2>Dados e alertas</h2><div class="sub">${esc(DADOS.meta.fonteLonga)}</div>
-    ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api?'':'. O painel está usando a base embutida.'}</p>` : ''}
+    ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
+    ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+(u.final?' (final)':' (provisório)')).join(', ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
       ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês, inclusive o faturado de hoje'],
@@ -1814,7 +2013,7 @@ function adminHtml(){
     <form class="adm-form" id="adm-login"><label for="adm-senha"><b>Senha</b></label>
       <input id="adm-senha" type="password" inputmode="numeric" autocomplete="off"><button class="adm-btn pri" type="submit">Entrar</button>
       <span id="adm-msg" class="micro" role="status"></span></form>`;
-  const f = R.faixas, cor = coringasDe(CONFIG);
+  const f = R.faixas, cor = coringasDe(CONFIG, MES), comCoringas = mesConfigurado(CONFIG, MES);
   const num = (id, v)=>`<input type="number" id="${id}" value="${v}" min="0" step="any">`;
   const campo = (rot, id, v)=>`<label>${rot}${num(id, v)}</label>`;
   const opcoesPilar = (canal, atual)=>{ const fixos = pilaresDo(canal).slice(0,3).map(p=>p.nome);
@@ -1855,8 +2054,9 @@ function adminHtml(){
       Agrupador <input id="adm-ext-ag" list="adm-ags" maxlength="80" placeholder="como está no Datasphere" style="width:360px;text-align:left">
       <button class="adm-btn" type="button" id="adm-ext-incluir">Incluir</button></div>
     <datalist id="adm-ags"></datalist>
-    <h3>Pilares coringa de ${MESES[CONFIG.mes].toLowerCase()}</h3><div class="adm-grid">
-      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>
+    <h3>Pilares coringa de ${MESES[MES].toLowerCase()}</h3>${comCoringas ? `<div class="adm-grid">
+      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
+      : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas só podem ser escolhidos depois que os pilares 1 a 3 do mês estiverem na configuração.</p>`}
     <h3>Confrontos entre supervisores</h3>
     <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele; quem perde não perde pontos.
       Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês.
@@ -1864,7 +2064,7 @@ function adminHtml(){
     <table id="adm-conf"><thead><tr><th>Mês</th><th>Desafiante</th><th>Desafiado</th><th>Pilar</th><th></th></tr></thead>
       <tbody>${CONFRONTOS.map(linhaConf).join('')}</tbody></table>
     <p class="sub" id="adm-conf-vazio"${CONFRONTOS.length?' hidden':''}>Nenhum confronto cadastrado.</p>
-    <div class="adm-linha">Mês <select id="adm-conf-mes">${MESES_Q4.filter(m=>m<=CONFIG.mes).map(m=>`<option value="${m}"${m===CONFIG.mes?' selected':''}>${MESES[m]}</option>`).join('')}</select>
+    <div class="adm-linha">Mês <select id="adm-conf-mes">${MESES_Q4.filter(m=>m<=MES).map(m=>`<option value="${m}"${m===MES?' selected':''}>${MESES[m]}</option>`).join('')}</select>
       Desafiante <select id="adm-conf-a">${opcoesSV()}</select>
       Desafiado <select id="adm-conf-b">${opcoesSV()}</select>
       Pilar <select id="adm-conf-p"></select>
@@ -1896,6 +2096,7 @@ function lerAjustes(){
   if (!igual(pr, { SV:{ Mista:P.premiadas.SV.Mista, Segmentada:P.premiadas.SV.Segmentada }, RT:{ Mista:P.premiadas.RT.Mista, Segmentada:P.premiadas.RT.Segmentada } })) regras.premiadas = pr;
   const pilares = {};
   for (const c of ['Mista','Segmentada']) {
+    if (!$('adm-cor-'+c+'-0')) { if (AJ.ativo && AJ.ativo.pilares[c]) pilares[c] = AJ.ativo.pilares[c]; continue; } // mês sem pilares: mantém o que estava
     const sel = [0,1].map(i=>$('adm-cor-'+c+'-'+i).value);
     if (sel[0]===sel[1]) return `${c}: os pilares 4 e 5 precisam ser diferentes.`;
     if (!igual(sel, PADRAO.coringas[c])) pilares[c] = sel;
@@ -1938,7 +2139,7 @@ function ligarAdmin(){
   });
   // agrupadores extras: incluir/excluir mexe na lista e nas opções dos pilares coringa, sem perder o resto do formulário
   const fixosNorm = new Set(AGRUPADORES_FIXOS.map(normalizarTexto));
-  const selsCoringa = ()=> ['Mista','Segmentada'].flatMap(c=>[0,1].map(i=>({ c, i, s:$('adm-cor-'+c+'-'+i) })));
+  const selsCoringa = ()=> ['Mista','Segmentada'].flatMap(c=>[0,1].map(i=>({ c, i, s:$('adm-cor-'+c+'-'+i) }))).filter(x=>x.s);
   fetch(CONFIG.api+'agrupadores.json', { cache:'no-cache' }).then(r=>r.ok ? r.json() : null).then(j=>{
     if (!j || !$('adm-ags')) return;
     $('adm-ags').innerHTML = j.agrupadores.filter(([nome])=>!fixosNorm.has(normalizarTexto(nome)))
@@ -2028,7 +2229,7 @@ function ligarAdmin(){
 popularFiltros(); setTab('ranking');
 let voltar = null; try{ voltar = sessionStorage.getItem('q4_voltar'); sessionStorage.removeItem('q4_voltar'); }catch(e){}
 if (voltar==='admin') { st.sec='admin'; setTab('regras'); }
-addEventListener('resize',()=>{ fit(); if(st.tab!=='regras') render(); });
+addEventListener('resize',()=>{ fit(); if(st.tab!=='regras' && !SEMCALC) render(); });
 window.__PAINEL__ = { RES, st, DADOS, AJ };
 })();
 </script>

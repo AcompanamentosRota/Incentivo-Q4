@@ -1,11 +1,12 @@
 /*
  * Adaptador: dados -> entrada do motor.
- * Fonte: a API do metas-produtos (./api/v1/, publicada no mesmo site do painel). Sem ela (HTML aberto direto do
- * computador, API em outro mês ou falha de rede), usa a base embutida (data/data.json, gerada dos Excel do SAP).
+ * Fonte: a API do metas-produtos (./api/v1/, publicada no mesmo site do painel). O mês de referência vem da API
+ * (index.json -> mes_referencia.anomes) e os meses anteriores do trimestre vêm dos meses fechados (index.json ->
+ * fechados). Sem a API (HTML aberto direto do computador ou falha de rede), usa a base embutida (data/data.json,
+ * gerada dos Excel do SAP), mas só no mês dela: nunca mostra um mês como se fosse outro.
  */
 const CONFIG = {
-  mes: 10,
-  ano: 2026,
+  ano: 2026, // ano do trimestre (Q4); o mês vem da API
   api: './api/v1/',
   ajustes: './ajustes.json', // ajustes do admin publicados para todos (aba Regras > Administração)
   // onde o ajustes.json é publicado por PR (botão "Publicar no GitHub (PR)" da Administração)
@@ -19,7 +20,8 @@ const CONFIG = {
     'Sabores Tt': 'sabores',
     'Sucos': 'sucos',
   },
-  // Pilares por canal e mês (coringas 4 e 5 mudam a cada mês: ler da configuração, não do código)
+  // Pilares por canal e mês (coringas 4 e 5 mudam a cada mês: ler da configuração, não do código).
+  // Mês com `pilares: []` ainda não foi configurado: o painel avisa e não calcula pontos nem ranking desse mês.
   pilaresConfig: [
     { mes: 10, canal: 'Mista', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' },
@@ -27,6 +29,11 @@ const CONFIG = {
     { mes: 10, canal: 'Segmentada', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' },
       { nome: 'Volume Powerade', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
+    // Novembro e dezembro: aguardando a definição do Back Office (pilares 1 a 3 e coringas 4 e 5 de cada canal)
+    { mes: 11, canal: 'Mista', pilares: [] },
+    { mes: 11, canal: 'Segmentada', pilares: [] },
+    { mes: 12, canal: 'Mista', pilares: [] },
+    { mes: 12, canal: 'Segmentada', pilares: [] },
   ],
   // Pilar do desafio -> agrupador de produto no modelo SAP
   fonteDoPilar: {
@@ -35,6 +42,9 @@ const CONFIG = {
     'Volume Refri Single': 'Refrigerantes Individual',
     'Volume Powerade': 'Powerade',
     'Volume Sucos': 'Sucos',
+    // 'Missões Guiadas': em outubro entra validada em 100%, sem dado. De novembro em diante pontua com meta, real e
+    // online; a fonte por rota ainda não foi definida. Quando existir, entra aqui (agrupador) e em produtoDaApi.
+    // Sem fonte, o pilar aparece como "sem dados de Missões Guiadas" e não pontua.
   },
   // Gatilho de 95% e desempate: categoria Refrigerantes do SAC (agrupador com todos os itens de refri), vinda da API.
   refri: 'Refrigerantes',
@@ -45,6 +55,21 @@ const CONFIG = {
 };
 
 const svKey = (r) => r.sv + '#' + r.canal; // Supervisão por canal (SV com rotas nos dois canais aparece nos dois)
+const NOMES_MES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const anomesDe = (ano, mes) => String(ano) + String(mes).padStart(2, '0');
+
+/** Pilares de um canal no mês; null se o mês ainda não foi configurado. */
+function pilaresDoMes(cfg, mes, canal) {
+  const c = cfg.pilaresConfig.find((x) => x.mes === mes && x.canal === canal);
+  return c && c.pilares && c.pilares.length ? c.pilares : null;
+}
+/** O mês só é calculado com os pilares dos dois canais configurados. */
+const mesConfigurado = (cfg, mes) => ['Mista', 'Segmentada'].every((c) => pilaresDoMes(cfg, mes, c));
+const avisoSemPilares = (mes) => `Pilares de ${NOMES_MES[mes]} ainda não configurados`;
+/** Missões Guiadas (ou outro pilar) sem fonte de meta e real por rota: aparece "sem dados" e não pontua. */
+const semFonte = (cfg, nome) => !cfg.fonteDoPilar[nome];
+/** Regras do motor (meses com Missões Guiadas validada): no painel vem de window.MotorQ4; no Node, de motor.js. */
+const MotorRegras = () => (typeof MotorQ4 !== 'undefined' ? MotorQ4 : require('./motor.js')).REGRAS;
 const VAZIO = [null, null, null, null, null]; // agrupador sem dado (ex.: extra que a API ainda não traz)
 const CHAVE_REFRI = '__refri__'; // coluna % Refri do Estratégicos (a categoria, ou a soma provisória)
 
@@ -72,6 +97,15 @@ function somarLinhas(linhas, I) {
   return out;
 }
 
+/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). */
+function mapaCanal(base, canais) {
+  const canal = {};
+  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
+  return Object.assign(canal, canais || {});
+}
+const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
+const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
+
 /*
  * API (index.json + gerencias/*.json) -> mesmo formato da base embutida.
  * A API ainda não traz o canal (Mista/Segmentada): ele vem da base embutida, e rota sem canal vai para semCanal.
@@ -80,17 +114,15 @@ function somarLinhas(linhas, I) {
  * `resumo` (resumo.json) traz o total da empresa; sem ele, o total vira a soma das gerências.
  * Além das rotas do incentivo, devolve os totais que a própria API já traz por gerência (`totaisGerencia`)
  * e da empresa (`totalEmpresa`): são todas as rotas com Real, inclusive as de fora do incentivo, e é o que
- * a aba Estratégicos mostra. Devolve null se a API estiver em outro mês (os pilares ficam em CONFIG.pilaresConfig).
+ * a aba Estratégicos mostra. O mês é o da API (mes_referencia.anomes); devolve null se ele estiver fora do Q4.
+ * Mês sem pilares configurados: `meta.semCalculo` traz o aviso e o painel não calcula pontos nem ranking.
  */
 function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const ref = index.mes_referencia;
-  if (ref.anomes !== cfg.ano + String(cfg.mes).padStart(2, '0')) return null;
+  const ano = Number(ref.anomes.slice(0, 4)), mes = Number(ref.anomes.slice(4));
+  if (ano !== cfg.ano || !MESES_Q4.includes(mes)) return null;
   const I = cfg.idx;
-  const canal = {};
-  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
-  Object.assign(canal, canais || {});
-  const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
-  const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
+  const canal = mapaCanal(base, canais);
   const ids = new Set(index.produtos.map((p) => p.id));
   const faltam = Object.keys(cfg.produtoDaApi).filter((ag) => !ids.has(cfg.produtoDaApi[ag]));
   const rotas = [], semCanal = [], naApi = new Set();
@@ -112,7 +144,9 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const corte = dia.split('-').reverse().join('/') + ' ' + hora.slice(0, 5);
   return {
     meta: {
-      mes: cfg.mes, ano: cfg.ano, corte, corteSeg: base.meta.corteSeg, origem: 'api', fechamento: ref.fechamento,
+      mes, ano, rotulo: ref.rotulo, corte, corteSeg: base.meta.corteSeg, origem: 'api', fechamento: !!ref.fechamento,
+      simulado: !!index.simulado,
+      semCalculo: mesConfigurado(cfg, mes) ? null : avisoSemPilares(mes),
       fonte: `API metas-produtos · SAP Datasphere · ${hora.slice(0, 5)}`,
       fonteLonga: `API metas-produtos (SAP Datasphere, atualizada a cada 15 min em dias úteis; dados de ${corte}). ` +
         `Canal Mista/Segmentada da base de segmentação de ${base.meta.corteSeg} (provisório)`,
@@ -120,14 +154,76 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       refriCategoria: !faltam.includes(cfg.refri), produtosApi: [...ids],
       totalEmpresaOrigem: temResumo ? 'resumo' : 'gerencias',
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
+      acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
     },
-    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas,
+    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
 
-function comAviso(base, aviso) {
-  return Object.assign({}, base, { meta: Object.assign({}, base.meta, { origem: 'base', aviso, fonte: base.meta.fonte + ' · base embutida' }) });
+/*
+ * Mês fechado da API (fechado/AAAAMM.json) -> rotas no mesmo formato do mês corrente, com online = 0 e sem meta dia.
+ * A mesa (supervisão) é a da rota naquele mês; o canal é o mesmo do mês corrente (base de segmentação + admin).
+ */
+function fechadoDaApi(f, base, cfg, canais) {
+  const I = cfg.idx, canal = mapaCanal(base, canais);
+  const col = (n) => f.campos.indexOf(n), cp = (n) => f.campos_produto.indexOf(n);
+  const [iRota, iGer, iSv, iProd, iMeta, iReal] = [col('rota'), col('gerencia'), col('supervisao'), col('produtos'), cp('meta'), cp('realizado')];
+  if ([iRota, iGer, iSv, iProd, iMeta, iReal].some((x) => x < 0)) throw new Error(`fechado/${f.anomes}: formato inesperado`);
+  const rotas = [];
+  for (const linha of f.rotas) {
+    const id = linha[iRota], c = canal[id];
+    if (!c || !c.canal) continue; // fora do incentivo (sem canal, eventual)
+    const prod = linha[iProd] || {}, v = {};
+    for (const [ag, pid] of Object.entries(cfg.produtoDaApi)) {
+      const x = prod[pid], l = [null, null, null, null, null];
+      if (x) { l[I.meta] = x[iMeta]; l[I.real] = x[iReal]; l[I.online] = 0; }
+      v[ag] = l;
+    }
+    rotas.push({ gc: titulo(linha[iGer]), sv: svNome(linha[iSv]), rota: id, canal: c.canal, sub: c.sub, v });
+  }
+  return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true, rotas };
+}
+
+/*
+ * Lê os meses fechados do trimestre anteriores ao de referência (index.json -> fechados). Mês que falte na lista,
+ * falhe ao carregar ou não tenha pilares configurados vai para meta.acumulado.faltando, e o acumulado do SV fica
+ * marcado como incompleto (o motor recebe a lista em mesesIncompletos).
+ */
+async function carregarFechados(d, index, ler, base, cfg, canais) {
+  const lista = index.fechados || [];
+  for (const mes of MESES_Q4.filter((m) => m < d.meta.mes)) {
+    const item = lista.find((x) => x.anomes === anomesDe(d.meta.ano, mes));
+    if (!item) { d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não está nos meses fechados da API` }); continue; }
+    try {
+      const f = fechadoDaApi(await ler(item.arquivo), base, cfg, canais);
+      if (f.anomes !== item.anomes) throw new Error(`${item.arquivo} traz o mês ${f.anomes}`);
+      d.fechados.push(f);
+      d.meta.acumulado.usados.push({ mes, rotulo: f.rotulo, final: f.final });
+      if (!mesConfigurado(cfg, mes)) d.meta.acumulado.faltando.push({ mes, motivo: avisoSemPilares(mes) });
+    } catch (e) {
+      d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não carregou (${e.message})` });
+    }
+  }
+  if (d.meta.acumulado.faltando.length) {
+    const txt = 'acumulado do trimestre incompleto: ' + d.meta.acumulado.faltando.map((x) => x.motivo).join('; ');
+    d.meta.aviso = [d.meta.aviso, txt].filter(Boolean).join('; ');
+  }
+}
+
+/** Base embutida: só no mês dela, com o rótulo "base embutida (<mês>)"; em outro mês, nada é calculado. */
+function daBase(base, canais, motivo, hoje) {
+  const rotuloBase = `base embutida (${NOMES_MES[base.meta.mes]})`;
+  const d = Object.assign({}, comCanais(base, canais), { fechados: [] });
+  d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
+                                          aviso: motivo, fonte: base.meta.fonte + ' · ' + rotuloBase,
+                                          acumulado: { meses: [base.meta.mes], usados: [], faltando: [] } });
+  const h = hoje || new Date();
+  if (h.getFullYear() !== base.meta.ano || h.getMonth() + 1 !== base.meta.mes) {
+    d.rotas = []; d.semCanal = [];
+    d.meta.semCalculo = `Sem dados de ${NOMES_MES[h.getMonth() + 1]}: ${motivo} e a ${rotuloBase} é de outro mês`;
+  }
+  return d;
 }
 
 /** Base embutida com o canal ajustado pelo admin (rota da base sem canal não tem valores: não entra). */
@@ -143,8 +239,11 @@ function comCanais(base, canais) {
   return Object.assign({}, base, { rotas, semCanal });
 }
 
-/** Lê a API no mesmo site; qualquer falha cai na base embutida, com o motivo em meta.aviso. */
-async function carregarDados(base, cfg, ajustes) {
+/*
+ * Lê a API no mesmo site, com os meses fechados do trimestre. API fora do ar: base embutida, só no mês dela
+ * (`hoje` simula a data nos testes). API fora do Q4: aviso, sem cálculo. O motivo vai em meta.aviso.
+ */
+async function carregarDados(base, cfg, ajustes, hoje) {
   cfg = cfg || CONFIG;
   const canais = ajustes ? ajustes.canais : null;
   const ler = async (caminho) => {
@@ -152,19 +251,26 @@ async function carregarDados(base, cfg, ajustes) {
     if (!r.ok) throw new Error(`${caminho}: HTTP ${r.status}`);
     return r.json();
   };
+  let index, gerencias, resumo = null, erroResumo = null;
   try {
-    const index = await ler('index.json');
-    const gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
-    // O resumo.json só traz o total da empresa (aba Estratégicos): se faltar, o painel segue com a soma das gerências
-    let resumo = null, erroResumo = null;
-    try { resumo = await ler('resumo.json'); } catch (e) { erroResumo = e.message; }
-    const d = dadosDaApi(index, gerencias, base, cfg, canais, resumo);
-    if (!d) return comAviso(comCanais(base, canais), `a API está em ${index.mes_referencia.rotulo} e o painel está configurado para ${cfg.mes}/${cfg.ano}`);
-    if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
-    return d;
+    index = await ler('index.json');
+    gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
   } catch (erro) {
-    return comAviso(comCanais(base, canais), `API indisponível (${erro.message})`);
+    return daBase(base, canais, `API indisponível (${erro.message})`, hoje);
   }
+  // O resumo.json só traz o total da empresa (aba Estratégicos): se faltar, o painel segue com a soma das gerências
+  try { resumo = await ler('resumo.json'); } catch (e) { erroResumo = e.message; }
+  const d = dadosDaApi(index, gerencias, base, cfg, canais, resumo);
+  if (!d) {
+    const fora = daBase(base, canais, `a API está em ${index.mes_referencia.rotulo}, fora do trimestre do painel`, hoje);
+    fora.rotas = []; fora.semCanal = [];
+    fora.meta.semCalculo = `A API está em ${index.mes_referencia.rotulo}, fora do Desafio Q4 ${cfg.ano}`;
+    return fora;
+  }
+  if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
+  if (d.meta.semCalculo) d.meta.aviso = [d.meta.semCalculo, d.meta.aviso].filter(Boolean).join('; ');
+  else await carregarFechados(d, index, ler, base, cfg, canais);
+  return d;
 }
 
 /*
@@ -251,18 +357,24 @@ function normalizarAjustes(aj) {
   return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores, confrontos };
 }
 
-/** Aplica os agrupadores extras e os pilares coringa do mês (em cfg) e as regras (no REGRAS do motor).
+/** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
  *  O canal entra em carregarDados. */
-function aplicarAjustes(aj, cfg, regras) {
+function aplicarAjustes(aj, cfg, regras, mes) {
   if (!aj) return;
   for (const e of aj.agrupadores || []) { cfg.produtoDaApi[e.agrupador] = e.id; cfg.fonteDoPilar[pilarDoExtra(e)] = e.agrupador; }
   const r = aj.regras;
   if (r.faixas) regras.faixas = r.faixas.concat([{ min: 0, pontos: 0 }]);
   for (const k of ['gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas']) if (r[k] !== undefined) regras[k] = r[k];
-  for (const [canal, nomes] of Object.entries(aj.pilares)) {
-    const c = cfg.pilaresConfig.find((x) => x.mes === cfg.mes && x.canal === canal);
-    if (!c || nomes.some((n) => c.pilares.slice(0, 3).some((p) => p.nome === n))) continue; // não repete os pilares 1 a 3
-    nomes.forEach((nome, i) => { c.pilares[3 + i] = { nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' }; });
+  if (mes !== undefined) aplicarCoringas(aj, cfg, mes);
+}
+
+/** Pilares coringa do admin (4 e 5): valem para o mês de referência, e só se os pilares 1 a 3 dele estão configurados. */
+function aplicarCoringas(aj, cfg, mes) {
+  if (!aj) return;
+  for (const [canal, nomes] of Object.entries(aj.pilares || {})) {
+    const lista = pilaresDoMes(cfg, mes, canal);
+    if (!lista || nomes.some((n) => lista.slice(0, 3).some((p) => p.nome === n))) continue; // não repete os pilares 1 a 3
+    nomes.forEach((nome, i) => { lista[3 + i] = { nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' }; });
   }
 }
 
@@ -348,50 +460,70 @@ function montarEstrat(dados, itens, cfg) {
   };
 }
 
+/*
+ * Dados do painel -> entrada do motor, com todos os meses do trimestre até o de referência: os fechados
+ * (dados.fechados, online = 0) e o corrente (dados.rotas). Cada mês usa os pilares daquele mês; a mesa do SV em
+ * cada mês é a supervisão da rota naquele mês. Pessoas = rotas e supervisões do mês corrente.
+ */
 function montarEntrada(dados, cfg, confrontos) {
   const I = cfg.idx;
   const compRefri = componentesRefri(dados, cfg);
+  const mesRef = dados.meta.mes;
+  const validada = (mes) => MotorRegras().missaoValidadaMeses.includes(mes);
   const pessoas = [];
   const medidas = [];
   const notasRefri = [];
-  const svAgg = {};
   const somar = (k, nome, v) => { const a = (k[nome] = k[nome] || { meta: 0, real: 0, online: 0, n: 0 }); a.meta += v.meta; a.real += v.real; a.online += v.online; a.n++; };
-  for (const r of dados.rotas) {
-    pessoas.push({ id: r.rota, nome: 'Rota ' + r.rota, cargo: 'RT', canal: r.canal, unidade: r.gc, sub: r.sub, id_supervisor: svKey(r) });
-    const ag = (svAgg[svKey(r)] = svAgg[svKey(r)] || { sv: r.sv, canal: r.canal, gc: r.gc, p: {} });
-    const config = cfg.pilaresConfig.find((c) => c.mes === cfg.mes && c.canal === r.canal);
-    for (const pl of config.pilares) {
-      if (pl.tipo !== 'volume') continue; // Missões Guiadas: validada em outubro, sem dado
-      const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
-      medidas.push({ id: r.rota, mes: cfg.mes, pilar: pl.nome, meta: v[I.meta], real: v[I.real], online: v[I.online], hoje: v[I.hoje], metaDia: v[I.metaDia] });
-      if (v[I.meta] > 0 && v[I.real] !== null) somar(ag.p, pl.nome, { meta: v[I.meta], real: v[I.real], online: v[I.online] || 0 });
+  const meses = (dados.fechados || []).filter((f) => f.mes < mesRef).sort((a, b) => a.mes - b.mes)
+    .concat([{ mes: mesRef, rotas: dados.rotas }]);
+  let svAtual = {};
+  for (const { mes, rotas } of meses) {
+    const corrente = mes === mesRef;
+    const svAgg = {};
+    for (const r of rotas) {
+      if (corrente) pessoas.push({ id: r.rota, nome: 'Rota ' + r.rota, cargo: 'RT', canal: r.canal, unidade: r.gc, sub: r.sub, id_supervisor: svKey(r) });
+      const ag = (svAgg[svKey(r)] = svAgg[svKey(r)] || { sv: r.sv, canal: r.canal, gc: r.gc, p: {} });
+      for (const pl of pilaresDoMes(cfg, mes, r.canal) || []) {
+        // Missões Guiadas validada (outubro) não tem dado; sem fonte (nov/dez ainda sem definição) fica "sem dados"
+        if (pl.tipo !== 'volume' && (validada(mes) || semFonte(cfg, pl.nome))) continue;
+        const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
+        medidas.push({ id: r.rota, mes, pilar: pl.nome, meta: v[I.meta], real: v[I.real], online: v[I.online], hoje: v[I.hoje], metaDia: v[I.metaDia] });
+        if (v[I.meta] > 0 && v[I.real] !== null) somar(ag.p, pl.nome, { meta: v[I.meta], real: v[I.real], online: v[I.online] || 0 });
+      }
+      // Gatilho de Refrigerantes: componentes sem meta (nula ou zero) ficam fora da soma
+      let meta = 0, real = 0, online = 0, usados = 0, realFalta = false, excluidos = [];
+      for (const g of compRefri) {
+        const v = r.v[g] || VAZIO;
+        if (!(v[I.meta] > 0)) { excluidos.push(g); continue; }
+        usados++; meta += v[I.meta];
+        if (v[I.real] === null) realFalta = true; else real += v[I.real];
+        online += v[I.online] || 0;
+      }
+      if (corrente && excluidos.length) notasRefri.push({ rota: r.rota, excluidos, usados });
+      medidas.push({ id: r.rota, mes, pilar: 'Refrigerantes', meta: usados ? meta : null, real: realFalta || !usados ? null : real, online });
+      if (usados && !realFalta) somar(ag.p, 'Refrigerantes', { meta, real, online });
     }
-    // Gatilho de Refrigerantes: componentes sem meta (nula ou zero) ficam fora da soma
-    let meta = 0, real = 0, online = 0, usados = 0, realFalta = false, excluidos = [];
-    for (const g of compRefri) {
-      const v = r.v[g] || VAZIO;
-      if (!(v[I.meta] > 0)) { excluidos.push(g); continue; }
-      usados++; meta += v[I.meta];
-      if (v[I.real] === null) realFalta = true; else real += v[I.real];
-      online += v[I.online] || 0;
+    // Supervisor (PROVISÓRIO): soma das rotas da mesa no canal; rota sem meta ou sem real fica fora da soma
+    for (const k of Object.keys(svAgg)) {
+      const a = svAgg[k];
+      const nomes = (pilaresDoMes(cfg, mes, a.canal) || [])
+        .filter((p) => p.tipo === 'volume' || !(validada(mes) || semFonte(cfg, p.nome))).map((p) => p.nome).concat(['Refrigerantes']);
+      for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
     }
-    if (excluidos.length) notasRefri.push({ rota: r.rota, excluidos, usados });
-    medidas.push({ id: r.rota, mes: cfg.mes, pilar: 'Refrigerantes', meta: usados ? meta : null, real: realFalta || !usados ? null : real, online });
-    if (usados && !realFalta) somar(ag.p, 'Refrigerantes', { meta, real, online });
+    if (corrente) svAtual = svAgg;
   }
-  // Supervisor (PROVISÓRIO): soma das rotas da mesa no canal; rota sem meta ou sem real fica fora da soma
-  for (const k of Object.keys(svAgg)) {
-    const a = svAgg[k];
+  for (const k of Object.keys(svAtual)) {
+    const a = svAtual[k];
     pessoas.push({ id: k, nome: a.sv, cargo: 'SV', canal: a.canal, unidade: a.gc, id_supervisor: null });
-    const nomes = cfg.pilaresConfig.find((c) => c.mes === cfg.mes && c.canal === a.canal).pilares.filter((p) => p.tipo === 'volume').map((p) => p.nome).concat(['Refrigerantes']);
-    for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes: cfg.mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
   }
-  return { entrada: { mesRef: cfg.mes, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
-                      confrontos: confrontos || [] }, notasRefri };
+  const mesesIncompletos = ((dados.meta.acumulado && dados.meta.acumulado.faltando) || []).map((x) => ({ mes: x.mes, motivo: x.motivo }));
+  return { entrada: { mesRef, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
+                      confrontos: confrontos || [], mesesIncompletos }, notasRefri };
 }
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
+                     fechadoDaApi, pilaresDoMes, mesConfigurado, aplicarCoringas, NOMES_MES,
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
