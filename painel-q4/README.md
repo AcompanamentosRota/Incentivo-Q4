@@ -14,7 +14,8 @@ dos dados (API ou base embutida) e o corte.
 
 ## Abas
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
-- **Supervisão:** mesma estrutura por supervisor (soma das rotas da mesa, provisório).
+- **Supervisão:** mesma estrutura por supervisor (soma de todas as rotas da mesa, nos pilares do canal do SV; provisório).
+  Cada SV aparece em um canal só; a etiqueta "2 canais" marca a mesa com rotas Mista e Segmentada.
 - **Estratégicos:** uma linha por gerência com as mesmas colunas das abas Rota e Supervisão (Meta, M. dia, Real, Hoje,
   Diferença e %) para os itens dos dois canais juntos, mais o % da categoria Refrigerantes. **Refri Single fica de
   fora**, por já estar dentro da coluna % Refri. A linha **TOTAL** da empresa vem logo depois da última gerência e
@@ -51,11 +52,29 @@ rótulo da coluna no cabeçalho, para ajudar a ler de ponta a ponta sem perder a
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
-Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, o canal
-(Mista/Segmentada) de cada rota, os **agrupadores extras** e os **confrontos do mês**.
+Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, a **segmentação da
+supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **confrontos do mês**.
+- **Segmentação da supervisão** (decisão de 28/10/2026): escolha o SV (busca pelo código que o painel mostra, ex.
+  "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; "Rotas sem SV" reúne as que não têm supervisão) e ajuste cada
+  rota da mesa entre **Mista · Segmentada – Mini · Segmentada – Mod · Sem canal – Neutraliza · Sem canal – Eventual ·
+  Sem canal – Coke Net · Sem canal – Virtual**. A tabela mostra canal e segmento atuais e a origem ("base" ou
+  "ajuste"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
+  confirmação quando valem para a mesa. O campo **Canal do SV** define em qual canal a supervisão aparece (uma só):
+  "Padrão" é o canal da maioria das rotas da mesa; empate deixa o SV fora do ranking, com aviso, até alguém escolher.
+  O SV soma todas as rotas da mesa, medidas nos pilares do canal dele; cada rota continua no ranking do canal dela e
+  ganha o +5 se o SV vencer o confronto. O bloco avisa quando a mesa tem rotas de canais diferentes e "restaurar
+  padrão desta mesa" também volta o canal do SV ao padrão. Antes de salvar ou publicar, o resumo
+  "Alterações pendentes" lista rota, valor da base → novo valor e se a mudança é nova, já está em uso ou volta ao padrão.
+  O **canal** é o que o motor usa (Mista, Segmentada ou sem canal); o **segmento** é só etiqueta, ao lado do canal nas
+  abas Rota, Supervisão, Ranking e Detalhe, na tela Confrontos e, para as rotas sem canal, na lista de alertas.
+  Rota sem ajuste fica exatamente como está na base (nada é renomeado). ⚠️ A confirmar no documento de regras: Mini e
+  Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido); Sem canal fica fora
+  de pontos, ranking e premiação.
 - **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
   recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
-  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também.
+  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também. Se um ajuste de canal tirar a mesa do
+  canal do confronto, ele continua cadastrado e a tela Confrontos (e a lista da Administração) mostra "canal ajustado"
+  com as rotas que mudaram.
 - **Agrupadores extras:** inclua ou exclua agrupadores do Datasphere (o campo sugere os que têm meta no mês, de
   `api/v1/agrupadores.json`). Cada um vira o pilar "Volume <nome>", com cor própria, e pode ser escolhido como pilar
   coringa 4 ou 5. Depois do merge do PR, o gerador da API passa a buscá-lo (cerca de 3 minutos). Os 6 agrupadores
@@ -78,7 +97,7 @@ src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do pa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       34 testes do motor e 34 do adaptador (fixtures/: regressão de outubro)
+tests/                       34 testes do motor e 49 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -92,6 +111,13 @@ docs/                        regras do incentivo (fonte de verdade)
   soma provisória de Individual + Retornável e mostra o selo "provisório".
 - **Base embutida:** o canal Mista/Segmentada (e o subtipo Mini/Mod) de cada rota, que a API ainda não traz. Rota sem
   canal na base fica fora do ranking (aba Regras > Dados e alertas).
+- **Canal no `ajustes.json`** (`canais`): `{"<rota>": {"canal": "Mista" | "Segmentada" | null, "sub": ..., "segmento": ...}}`.
+  `segmento` é Mini ou Mod na Segmentada e Neutraliza, Eventual, Coke Net ou Virtual com `canal: null`; `sub` é o campo
+  antigo (Mini/Mod), que o painel continua escrevendo na Segmentada. Um arquivo antigo, só com `canal` e `sub`, dá o
+  mesmo resultado de antes. **Canal do SV** (`canaisSV`): `{"Sv. An.1": "Mista" | "Segmentada"}`; SV fora da lista
+  fica no canal da maioria das rotas da mesa (também nos meses fechados). Ao carregar, canal inválido descarta o ajuste da rota e segmento que não é do canal descarta
+  só o segmento, **sempre com aviso** no rodapé, em Regras > Dados e alertas e na Administração. A lógica (filtro por
+  SV, aplicar à mesa, restaurar, resumo, validação e confronto invalidado) fica em funções puras do `src/adapter.js`.
 - **Mês:** vem da API (`index.json` → `mes_referencia.anomes`). Os pilares de cada mês ficam em
   `CONFIG.pilaresConfig` (`src/adapter.js`); mês com `pilares: []` não está configurado, e o painel mostra
   "Pilares de <mês> ainda não configurados" sem calcular pontos nem ranking. API fora do ar: base embutida só no mês
@@ -99,7 +125,7 @@ docs/                        regras do incentivo (fonte de verdade)
 - **Meses fechados:** o adaptador lê `index.json` → `fechados` e carrega os `fechado/AAAAMM.json` dos meses do
   trimestre anteriores ao de referência (meta e realizado por rota, online = 0). A entrada do motor tem todos os meses
   até o vigente: cada mês com os pilares e os confrontos dele; a mesa do SV em cada mês é a supervisão da rota naquele
-  mês, e o canal é o da base de segmentação atual (provisório). Pontos acumulados do SV = soma mês a mês; gatilho de
+  mês, o canal da rota é o da base de segmentação atual (provisório) e o canal do SV é o do mês corrente. Pontos acumulados do SV = soma mês a mês; gatilho de
   volume do SV = Σ(Real + Online) ÷ Σ Meta de Refrigerantes de outubro ao mês vigente; consultor = só o mês vigente.
   Mês fechado que falte ou falhe: aviso, acumulado do SV marcado "incompleto" (o mês não soma nada) e SV sem posição
   oficial até o dado chegar.
@@ -120,10 +146,13 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
 ```
 
 ## Pontos a confirmar (também na aba Regras > Pendências)
-1. Meta e realizado do Supervisor: usando a soma das rotas da mesa; 4 supervisões têm rotas nos dois canais.
+1. Meta e realizado do Supervisor: usando a soma de todas as rotas da mesa nos pilares do canal do SV; 4 supervisões têm
+   rotas nos dois canais e ficam no canal da maioria (Mista), salvo escolha do admin.
 2. Refri Single = Refrigerantes Individual na Segmentada.
 3. Rotas sem canal e em dois segmentos (6); Real vazio tratado como dado ausente.
-4. Canal Mista/Segmentada ainda vem da base embutida, não da API.
+4. Canal Mista/Segmentada ainda vem da base embutida, não da API (ou do ajuste do admin).
 5. Regras do Back Office: prazo dos confrontos, +5 sem gatilho de volume, % acumulado de Refri do SV, desempate do SV.
+6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada e Sem canal fora do incentivo, ainda fora do
+   documento de regras.
 
 Resolvido: a categoria Refrigerantes do gatilho de 95% vem da API (agrupador `Refrigerantes`, todos os itens de refri).
