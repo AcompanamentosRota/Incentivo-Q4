@@ -8,9 +8,9 @@ name: Atualizar dados (Datasphere)
 
 on:
   schedule:
-    # a cada 15 min, seg-sex, 07:00-18:45 de Brasília (10:00-21:45 UTC).
+    # a cada 15 min, seg-sáb, 07:00-18:45 de Brasília (10:00-21:45 UTC).
     # O GitHub pode atrasar execuções agendadas alguns minutos.
-    - cron: "*/15 10-21 * * 1-5"
+    - cron: "*/15 10-21 * * 1-6"
   workflow_dispatch:
     inputs:
       modo:
