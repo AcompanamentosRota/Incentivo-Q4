@@ -25,6 +25,7 @@ Incentivo-Q4/
 │   │   ├── modelo.py        contas de meta, realizado, tendência e status
 │   │   ├── api.py           montagem dos JSONs
 │   │   ├── validacao.py     conferência antes de publicar
+│   │   ├── fechado.py       snapshot do mês fechado (api/v1/fechado/AAAAMM.json)
 │   │   └── simulado.py      dados fictícios no mesmo formato
 │   ├── scripts/gerar.py     gera a API
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
@@ -44,6 +45,9 @@ Incentivo-Q4/
    e empresa, e **valida** o resultado.
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
+4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também
+   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota; na 1ª execução do mês novo o
+   arquivo é selado e não muda mais. É dele que sai o acumulado do trimestre. Formato em [API.md](API.md).
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com
 NF_STATUS em Acertado, Meta Neg ou Em Aberto; tendência = realizado + restante da curva de META_NEG;
@@ -108,6 +112,7 @@ pip install -r requirements.txt
 cp .env.example .env          # preencha (só para dados reais)
 
 python scripts/gerar.py --simulado --forcar      # dados fictícios em ../api/v1
+python scripts/gerar.py --simulado --hoje 2026-11-03 --forcar --saida /tmp/sim   # simula o fechamento de outubro
 python scripts/gerar.py --forcar                 # dados reais em ../api/v1
 python scripts/gerar.py --rota 111 --forcar      # uma rota só, em saida/rota_111/
 python -m unittest discover -s tests -t . -v     # testes

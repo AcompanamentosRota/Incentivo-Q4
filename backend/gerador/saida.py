@@ -45,16 +45,20 @@ def ler(caminho: Path) -> dict | None:
         return None
 
 
+# subpastas que a limpeza nunca toca: os meses fechados (gerador/fechado.py) são gravados à parte e não se apagam
+PRESERVADAS = ("v1/fechado/",)
+
+
 def gravar_api(pasta: Path, arquivos: dict[str, dict], subpasta: str = "v1") -> tuple[list[str], list[str]]:
     """Grava todos os arquivos da API (só os que mudaram) e apaga os .json de `subpasta` que não existem mais
-    (ex.: rota extinta). Devolve (gravados, apagados), com caminhos relativos a `pasta`."""
+    (ex.: rota extinta), exceto os de PRESERVADAS. Devolve (gravados, apagados), com caminhos relativos a `pasta`."""
     gravados = [rel for rel, obj in sorted(arquivos.items()) if gravar(pasta / rel, obj)]
     apagados = []
     raiz = pasta / subpasta
     if raiz.exists():
         for caminho in sorted(raiz.rglob("*.json")):
             rel = caminho.relative_to(pasta).as_posix()
-            if rel not in arquivos:
+            if rel not in arquivos and not rel.startswith(PRESERVADAS):
                 caminho.unlink()
                 apagados.append(rel)
     return gravados, apagados

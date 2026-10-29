@@ -21,6 +21,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | Pasta / arquivo | O que é | Quem altera |
 |---|---|---|
 | `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
+| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota), base do acumulado do trimestre | **só o gerador**; selado na virada, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
@@ -45,7 +46,7 @@ rotas com Real.
 # testes do painel — 54 testes (33 do motor, 21 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 26 testes, sem rede (Datasphere falso)
+# testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
@@ -149,14 +150,19 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - O que depende de fechamento de meses: os pontos acumulados do SV (gatilho de 60 no trimestre) somam os
   meses fechados mais o mês corrente. A própria API tem período de fechamento — do 1º dia do mês até o fim
   do 1º dia útil ela mostra o mês anterior, com `mes_referencia.fechamento = true` e `tendencia`,
-  `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje`.
+  `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje` (o simulado entra em fechamento
+  do dia 1 até o fim do 1º dia útil, pelos dias úteis locais).
+- **Snapshot do mês fechado** (`backend/gerador/fechado.py`): em cada rodada do fechamento o gerador grava
+  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto, `fechamento_final: false`); na 1ª rodada do mês
+  novo ele é selado (`fechamento_final: true`) e não muda mais. `index.json` → `fechados` lista esses arquivos. A
+  limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
 
 ## 8. Checklist antes do PR
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 54 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 26 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.
