@@ -71,7 +71,8 @@ O mês de referência vem da API (`index.json` → `mes_referencia`) e os pilare
 configurados: o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking — nunca usa
 os números de outro mês no lugar. O acumulado do SV soma os meses fechados (`fechado/AAAAMM.json`) e o mês corrente.
 
-**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, canal das rotas,
+**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, segmentação da supervisão (canal e
+segmento de cada rota, escolhidos por SV; o motor só vê o canal Mista/Segmentada/sem canal),
 **agrupadores extras** e os **confrontos entre supervisores**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
 merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
 desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).

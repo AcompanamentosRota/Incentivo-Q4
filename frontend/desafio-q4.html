@@ -153,12 +153,17 @@ button{background:none;border:0;cursor:pointer}
 .adm-form input{width:200px}
 .adm-btn{height:40px;padding:0 18px;border-radius:10px;font-size:18px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28)}
 .adm-btn.pri{background:var(--red);border-color:var(--red)}
+.adm-btn:disabled{opacity:.4;cursor:default}
 .adm-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 6px}
 .adm-linha{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:20px}
 .adm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,520px));gap:10px 36px}
 .adm-grid label{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:20px}
 .adm code{font-size:19px;background:rgba(255,255,255,.08);border-radius:6px;padding:0 6px}
 .adm tr.mud td{background:rgba(29,123,255,.16)}
+.sg{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:.78em;font-weight:600;line-height:1.35;vertical-align:middle;white-space:nowrap;background:rgba(29,123,255,.18);color:#cfe0ff;border:1px solid rgba(29,123,255,.55)}
+.sg.sc{background:#3a2a00;color:#ffe29a;border-color:#a47500}
+.adm .seg-av{background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;padding:6px 12px;margin:8px 0;font-size:18px}
+.adm h4{font-size:20px;margin:18px 0 6px}
 .adm td{padding:6px 14px}
 .nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
 
@@ -870,11 +875,12 @@ function somarLinhas(linhas, I) {
   return out;
 }
 
-/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). */
+/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). `sub` é o segmento. */
 function mapaCanal(base, canais) {
   const canal = {};
-  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
-  return Object.assign(canal, canais || {});
+  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub, origem: 'base' }; });
+  for (const [rota, c] of Object.entries(canais || {})) canal[rota] = Object.assign({}, c, { origem: 'ajuste' });
+  return canal;
 }
 const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
 const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
@@ -898,13 +904,14 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const canal = mapaCanal(base, canais);
   const ids = new Set(index.produtos.map((p) => p.id));
   const faltam = Object.keys(cfg.produtoDaApi).filter((ag) => !ids.has(cfg.produtoDaApi[ag]));
-  const rotas = [], semCanal = [], naApi = new Set();
+  const rotas = [], semCanal = [], naApi = new Set(), lista = [];
   for (const g of gerencias) for (const r of g.rotas) {
     if (r.tipo === 'eventual') continue; // soma dos clientes em rotas EV*: sem meta, não é um consultor
     naApi.add(r.id);
     const gc = titulo(r.gerencia), c = canal[r.id];
+    lista.push({ rota: r.id, gc, sv: r.supervisao ? svNome(r.supervisao) : null });
     if (!c || !c.canal) { semCanal.push({ gc, rota: r.id }); continue; }
-    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, v: valoresDaApi(r.produtos, cfg, I) });
+    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, origemCanal: c.origem, v: valoresDaApi(r.produtos, cfg, I) });
   }
   // Totais da API: uma linha por gerência do index.json (mesmo que nenhuma rota dela esteja no incentivo)
   const totaisGerencia = index.gerencias.map((g, i) => ({
@@ -930,6 +937,7 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
     },
     rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
+    segmentacao: linhasSegmentacao(lista, base, canais),
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
@@ -988,6 +996,8 @@ async function carregarFechados(d, index, ler, base, cfg, canais) {
 function daBase(base, canais, motivo, hoje) {
   const rotuloBase = `base embutida (${NOMES_MES[base.meta.mes]})`;
   const d = Object.assign({}, comCanais(base, canais), { fechados: [] });
+  d.segmentacao = linhasSegmentacao(base.rotas.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv }))
+    .concat(base.semCanal.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv || null }))), base, canais);
   d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
                                           aviso: motivo, fonte: base.meta.fonte + ' · ' + rotuloBase,
                                           acumulado: { meses: [base.meta.mes], usados: [], faltando: [] } });
@@ -1006,7 +1016,7 @@ function comCanais(base, canais) {
   for (const r of base.rotas) {
     const c = canais[r.rota];
     if (!c) rotas.push(r);
-    else if (c.canal) rotas.push(Object.assign({}, r, { canal: c.canal, sub: c.sub }));
+    else if (c.canal) rotas.push(Object.assign({}, r, { canal: c.canal, sub: c.sub, origemCanal: 'ajuste' }));
     else semCanal.push({ gc: r.gc, rota: r.rota });
   }
   return Object.assign({}, base, { rotas, semCanal });
@@ -1102,8 +1112,8 @@ function normalizarConfrontos(lista) {
   return out;
 }
 
-/** Só os campos válidos; o resto é ignorado. Sem nenhum campo válido, null. */
-function normalizarAjustes(aj) {
+/** Só os campos válidos; o resto é ignorado (o canal das rotas, com aviso em `avisos`). Sem nenhum campo válido, null. */
+function normalizarAjustes(aj, avisos) {
   if (!aj || typeof aj !== 'object') return null;
   const ok = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
   const r = aj.regras || {}, regras = {}, pilares = {}, canais = {};
@@ -1122,9 +1132,9 @@ function normalizarAjustes(aj) {
     const p = (aj.pilares || {})[canal];
     if (Array.isArray(p) && p.length === 2 && p[0] !== p[1] && p.every((x) => coringas.includes(x))) pilares[canal] = p.slice();
   }
-  for (const [rota, c] of Object.entries(aj.canais || {})) {
-    if (c && (c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada'))
-      canais[rota] = { canal: c.canal, sub: c.canal === 'Segmentada' && (c.sub === 'Mini' || c.sub === 'Mod') ? c.sub : null };
+  for (const [rota, c] of Object.entries(aj.canais && typeof aj.canais === 'object' ? aj.canais : {})) {
+    const v = validarCanalRota(rota, c, avisos);
+    if (v) canais[rota] = v;
   }
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !agrupadores.length && !confrontos.length) return null;
   return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores, confrontos };
@@ -1155,13 +1165,16 @@ function aplicarCoringas(aj, cfg, mes) {
 async function carregarAjustes(cfg) {
   cfg = cfg || CONFIG;
   let publicado = null, local = null, existePublicado = false;
+  const avPub = [], avLocal = [];
   try {
     const r = await fetch(cfg.ajustes, { cache: 'no-cache' });
     existePublicado = r.ok;
-    if (r.ok) publicado = normalizarAjustes(await r.json());
+    if (r.ok) publicado = normalizarAjustes(await r.json(), avPub);
   } catch (e) { /* sem ajustes publicados (ou HTML aberto direto do computador) */ }
-  try { local = normalizarAjustes(JSON.parse(localStorage.getItem(AJUSTES_LOCAL) || 'null')); } catch (e) { /* sem localStorage */ }
-  return { publicado, local, existePublicado, ativo: local || publicado, origem: local ? 'local' : publicado ? 'publicado' : null };
+  try { local = normalizarAjustes(JSON.parse(localStorage.getItem(AJUSTES_LOCAL) || 'null'), avLocal); } catch (e) { /* sem localStorage */ }
+  // valores inválidos ignorados: a tela mostra os avisos dos ajustes em uso (nunca em silêncio)
+  return { publicado, local, existePublicado, ativo: local || publicado, origem: local ? 'local' : publicado ? 'publicado' : null,
+           avisos: local ? avLocal : avPub };
 }
 
 /** Página do GitHub para publicar o ajustes.json por PR: edição do arquivo (se já existe) ou criação já preenchida. */
@@ -1170,6 +1183,135 @@ function urlPublicacao(cfg, texto, existe) {
   if (existe) return `${base}/edit/${cfg.branch}/${cfg.arquivoAjustes}`;
   return `${base}/new/${cfg.branch}/${cfg.arquivoAjustes.slice(0, i)}?filename=${encodeURIComponent(cfg.arquivoAjustes.slice(i + 1))}` +
     `&value=${encodeURIComponent(texto)}`;
+}
+
+/*
+ * Segmentação da supervisão (decisão de 28/10/2026). O motor só vê o CANAL: Mista, Segmentada ou sem canal (null).
+ * O SEGMENTO é só descrição: Segmentada -> Mini ou Mod; sem canal -> Neutraliza, Eventual, Coke Net ou Virtual;
+ * Mista não tem. No ajustes.json cada rota vira {canal, sub, segmento}: `sub` é o campo antigo (Mini/Mod, só na
+ * Segmentada) e `segmento` o novo, que vale também para sem canal; um arquivo antigo, só com `sub`, continua igual.
+ * Dentro do painel o segmento fica em `sub`. Rota sem ajuste fica exatamente como está na base (nada é renomeado).
+ * Valor de tela: 'Mista', 'Segmentada|Mini', '|Neutraliza' ('' = sem canal e sem segmento, como vem da base).
+ */
+const SEGMENTOS = { Mista: [], Segmentada: ['Mini', 'Mod'], '': ['Neutraliza', 'Eventual', 'Coke Net', 'Virtual'] };
+const OPCOES_SEGMENTACAO = ['Mista', 'Segmentada|Mini', 'Segmentada|Mod', '|Neutraliza', '|Eventual', '|Coke Net', '|Virtual'];
+const SEM_SV = '__sem_sv__'; // opção "Rotas sem SV" do filtro
+const valorSeg = (canal, sub) => (canal || '') + (sub ? '|' + sub : '');
+function deValorSeg(v) { const [c, s] = String(v).split('|'); return { canal: c || null, sub: s || null }; }
+function rotuloSeg(v) {
+  const { canal, sub } = deValorSeg(v);
+  return (canal || 'Sem canal') + (sub ? ' – ' + sub : '');
+}
+
+/** Canal e segmento de uma rota no ajustes.json -> {canal, sub}; inválido é ignorado e vira aviso, nunca em silêncio.
+ *  Canal fora de Mista/Segmentada/null: a rota inteira fica de fora. Segmento que não é do canal: só o segmento cai. */
+function validarCanalRota(rota, c, avisos) {
+  const av = (t) => { if (avisos) avisos.push(`rota ${rota}: ${t}`); };
+  if (!c || typeof c !== 'object' || !(c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada')) {
+    av(`canal ${JSON.stringify(c && typeof c === 'object' ? c.canal : c)} não é Mista, Segmentada nem sem canal (null): ajuste ignorado`);
+    return null;
+  }
+  const seg = c.segmento !== undefined && c.segmento !== null ? c.segmento : c.sub;
+  if (seg === undefined || seg === null || seg === '') return { canal: c.canal, sub: null };
+  if (SEGMENTOS[c.canal || ''].includes(seg)) return { canal: c.canal, sub: seg };
+  av(`segmento ${JSON.stringify(seg)} não vale para ${c.canal || 'sem canal'}: segmento ignorado, canal mantido`);
+  return { canal: c.canal, sub: null };
+}
+
+/** Todas as rotas que o admin pode segmentar, com o valor em uso, o da base e a origem ("base" ou "ajuste"). */
+function linhasSegmentacao(lista, base, canais) {
+  const padrao = mapaCanal(base, null), aj = canais || {};
+  return lista.map(({ rota, gc, sv }) => {
+    const p = padrao[rota] || { canal: null, sub: null };
+    const a = Object.prototype.hasOwnProperty.call(aj, rota) ? aj[rota] : null;
+    const c = a || p;
+    return { rota, gc, sv: sv || null, canal: c.canal || null, sub: c.sub || null, origem: a ? 'ajuste' : 'base',
+             atual: valorSeg(c.canal, c.sub), padrao: valorSeg(p.canal, p.sub) };
+  });
+}
+
+/** SVs do filtro (código exibido no painel), com as gerências e o nº de rotas; "Rotas sem SV" no fim, se houver. */
+function svsDaSegmentacao(linhas) {
+  const por = {};
+  for (const l of linhas) {
+    const k = l.sv || SEM_SV;
+    const s = (por[k] = por[k] || { sv: k, rotulo: l.sv || 'Rotas sem SV', gcs: [], n: 0 });
+    s.n++; if (!s.gcs.includes(l.gc)) s.gcs.push(l.gc);
+  }
+  return Object.values(por).sort((a, b) => (a.sv === SEM_SV) - (b.sv === SEM_SV) || a.sv.localeCompare(b.sv, 'pt-BR', { numeric: true }));
+}
+/** Busca por código do SV como o painel mostra ("Sv. An.1") ou como a API traz ("SV.AN.1"), e pela gerência. */
+function buscarSVs(svs, texto) {
+  const t = normalizarTexto(texto || '').replace(/[\s.]/g, '');
+  if (!t) return svs;
+  return svs.filter((s) => [s.rotulo, s.sv === SEM_SV ? 'sem sv' : s.sv].concat(s.gcs)
+    .some((x) => normalizarTexto(x).replace(/[\s.]/g, '').includes(t)));
+}
+/** Rotas da mesa de um SV (ou as sem SV), na ordem do código. */
+const rotasDoFiltro = (linhas, filtro) => linhas.filter((l) => (l.sv || SEM_SV) === filtro)
+  .sort((a, b) => a.rota.localeCompare(b.rota, 'pt-BR', { numeric: true }));
+
+/** Canais das rotas de uma mesa (com a edição em curso): o canal do SV e se a mesa tem canais diferentes. */
+function canalDaMesa(rotas, edicao) {
+  const canais = [...new Set(rotas.map((l) => deValorSeg(edicao && l.rota in edicao ? edicao[l.rota] : l.atual).canal || 'Sem canal'))];
+  const comPonto = canais.filter((c) => c !== 'Sem canal');
+  return { canais, mista: comPonto.length > 1 };
+}
+
+/** "Aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota ou pela mesa): devolvem uma edição nova. */
+function aplicarNaMesa(edicao, rotas, valor) {
+  const out = Object.assign({}, edicao);
+  rotas.forEach((l) => { out[l.rota] = valor; });
+  return out;
+}
+function restaurarPadrao(edicao, rotas) {
+  const out = Object.assign({}, edicao);
+  rotas.forEach((l) => { out[l.rota] = l.padrao; });
+  return out;
+}
+
+/** Resumo antes de publicar: rotas fora do padrão da base (ou que voltam a ele), com "base -> novo". */
+function pendenciasSegmentacao(linhas, edicao) {
+  const out = [];
+  for (const l of linhas) {
+    const novo = l.rota in edicao ? edicao[l.rota] : l.atual;
+    if (novo === l.padrao && l.atual === l.padrao) continue;
+    out.push({ rota: l.rota, sv: l.sv, base: l.padrao, novo,
+               situacao: novo === l.atual ? 'em uso' : novo === l.padrao ? 'volta ao padrão' : 'nova' });
+  }
+  return out.sort((a, b) => a.rota.localeCompare(b.rota, 'pt-BR', { numeric: true }));
+}
+/** Edição -> `canais` do ajustes.json: só o que difere da base; ajustes de rotas fora da lista são mantidos. */
+function canaisDaEdicao(linhas, edicao, anteriores) {
+  const canais = {}, naLista = new Set(linhas.map((l) => l.rota));
+  const noArquivo = ({ canal, sub }) => ({ canal, sub: canal === 'Segmentada' ? sub : null, segmento: sub });
+  for (const [rota, c] of Object.entries(anteriores || {})) if (!naLista.has(rota)) canais[rota] = noArquivo(c);
+  for (const l of linhas) {
+    const novo = l.rota in edicao ? edicao[l.rota] : l.atual;
+    if (novo !== l.padrao) canais[l.rota] = noArquivo(deValorSeg(novo));
+  }
+  return canais;
+}
+
+/** Segmentos das rotas de uma mesa (SV no canal): ex. ['Mini', 'Mod'] na Segmentada; [] na Mista. */
+const segmentosDaMesa = (rotas, idSV) => [...new Set(rotas.filter((r) => svKey(r) === idSV && r.sub).map((r) => r.sub))].sort();
+
+/*
+ * Confronto cadastrado que um ajuste de canal invalidou. O id do SV leva o canal ("Sv. An.1#Mista"); se o ajuste tirou
+ * a mesa daquele canal, o motor não acha o SV (SV_NAO_ENCONTRADO). Aqui o motivo vira "canal ajustado", com as rotas,
+ * e o cadastro continua no ajustes.json. Devolve null quando o ajuste não explica o motivo.
+ */
+function confrontoInvalidadoPorAjuste(det, linhas) {
+  if (det.valido || !['SV_NAO_ENCONTRADO', 'CANAIS_DIFERENTES'].includes(det.motivo)) return null;
+  for (const id of [det.desafiante, det.desafiado]) {
+    const i = String(id).lastIndexOf('#');
+    if (i < 0) continue;
+    const sv = id.slice(0, i), canal = id.slice(i + 1);
+    const saiu = linhas.filter((l) => l.sv === sv && l.origem === 'ajuste' && deValorSeg(l.padrao).canal === canal && l.canal !== canal);
+    if (saiu.length) return { motivo: 'CANAL_AJUSTADO', sv, canal, rotas: saiu.map((l) => l.rota),
+      texto: `canal ajustado: a mesa de ${sv} saiu da ${canal} (rota${saiu.length > 1 ? 's' : ''} ${saiu.map((l) => l.rota).join(', ')})` };
+  }
+  return null;
 }
 
 /** Agrupadores que formam o Refrigerantes do gatilho: a categoria (API) ou, sem ela, a soma provisória. */
@@ -1300,7 +1442,10 @@ if (typeof module === 'object' && module.exports) {
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
-                     carregarAjustes, urlPublicacao };
+                     carregarAjustes, urlPublicacao,
+                     SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
+                     svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
+                     canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste };
 }
 </script>
 <script>const BASE_EMBUTIDA={"meta":{"mes":10,"ano":2026,"corte":"25/10/2026 10:29","corteSeg":"25/10/2026 13:11","fonte":"SAP Analytics Cloud · metas e volumes 10:29 · segmentação 13:11","fonteLonga":"SAP Analytics Cloud · modelo \"Infos modelo\" (metas e volumes, Data 202610, 10:29) e modelo \"base\" (gerência, supervisão e segmentação, 13:11)","medidas":["Meta","Real","WF Online","Hoje","MetaDia"],"produtos":["Powerade","Refrigerantes Individual","Refrigerantes Retornavel","Sabores Tt","Sucos"],"totalRotasModelo":228},"rotas":[{"gc":"An","sv":"Sv. An.1","rota":"A11","canal":"Segmentada","sub":"Mod","v":{"Powerade":[424.56,295.74,null,null,null],"Refrigerantes Individual":[0.0,2575.6252,null,null,null],"Refrigerantes Retornavel":[4173.29,3396.8858,null,null,null],"Sabores Tt":[12417.81,6324.3939,null,null,null],"Sucos":[1378.96,1354.8182,null,null,null]}},{"gc":"An","sv":"Sv. An.1","rota":"A12","canal":"Segmentada","sub":"Mod","v":{"Powerade":[1076.39,83.21,null,null,null],"Refrigerantes Individual":[0.0,6097.6777,null,null,null],"Refrigerantes Retornavel":[677.38,1077.5552,null,null,null],"Sabores Tt":[18925.09,8219.882,null,null,null],"Sucos":[2494.97,1235.9589,null,null,null]}},{"gc":"An","sv":"Sv. An.1","rota":"A13","canal":"Mista","sub":null,"v":{"Powerade":[125.61,58.3,null,null,null],"Refrigerantes Individual":[0.0,1024.7697,null,null,null],"Refrigerantes Retornavel":[3559.04,2682.3154,null,null,null],"Sabores Tt":[2582.34,1789.7604,null,null,null],"Sucos":[1289.71,473.381,null,null,null]}},{"gc":"An","sv":"Sv. An.1","rota":"A14","canal":"Mista","sub":null,"v":{"Powerade":[100.49,76.32,null,null,null],"Refrigerantes Individual":[0.0,907.0962,null,null,null],"Refrigerantes Retornavel":[3995.39,2893.3832,null,null,null],"Sabores Tt":[2393.93,1880.3371,null,null,null],"Sucos":[1266.53,575.1879,null,null,null]}},{"gc":"An","sv":"Sv. An.1","rota":"A15","canal":"Mista","sub":null,"v":{"Powerade":[121.91,47.17,null,null,null],"Refrigerantes Individual":[0.0,1597.1976,null,null,null],"Refrigerantes Retornavel":[4097.65,2786.1396,null,null,null],"Sabores Tt":[2210.14,1293.6607,null,null,null],"Sucos":[1112.82,522.9738,null,null,null]}},{"gc":"An","sv":"Sv. An.1","rota":"A16","canal":"Mista","sub":null,"v":{"Powerade":[79.46,50.88,null,null,null],"Refrigerantes Individual":[0.0,963.5522,null,null,null],"Refrigerantes Retornavel":[3808.2,2378.5674,null,null,null],"Sabores Tt":[9658.9,3661.903,null,null,null],"Sucos":[1162.5,328.5473,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A21","canal":"Mista","sub":null,"v":{"Powerade":[89.52,75.26,null,null,null],"Refrigerantes Individual":[0.0,734.3422,null,null,null],"Refrigerantes Retornavel":[4390.5,2820.8404,null,null,null],"Sabores Tt":[1380.69,1577.1663,null,null,null],"Sucos":[877.2,608.656,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A22","canal":"Mista","sub":null,"v":{"Powerade":[96.39,58.3,null,null,null],"Refrigerantes Individual":[0.0,1179.064,null,null,null],"Refrigerantes Retornavel":[3126.24,1810.9282,null,null,null],"Sabores Tt":[1121.65,1136.5261,null,null,null],"Sucos":[937.86,416.276,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A23","canal":"Mista","sub":null,"v":{"Powerade":[80.71,42.93,null,null,null],"Refrigerantes Individual":[0.0,731.7343,null,null,null],"Refrigerantes Retornavel":[3241.25,1827.208,null,null,null],"Sabores Tt":[1168.5,1129.1843,null,null,null],"Sucos":[789.87,722.2091,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A24","canal":"Mista","sub":null,"v":{"Powerade":[71.72,36.04,null,null,null],"Refrigerantes Individual":[0.0,794.1806,null,null,null],"Refrigerantes Retornavel":[4836.77,2861.5506,null,null,null],"Sabores Tt":[1780.25,2314.9471,null,null,null],"Sucos":[969.99,361.9361,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A25","canal":"Mista","sub":null,"v":{"Powerade":[74.25,43.99,null,null,null],"Refrigerantes Individual":[0.0,808.2149,null,null,null],"Refrigerantes Retornavel":[4671.58,2628.821,null,null,null],"Sabores Tt":[985.93,810.2753,null,null,null],"Sucos":[776.73,423.4619,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A26","canal":"Mista","sub":null,"v":{"Powerade":[57.09,20.14,null,null,null],"Refrigerantes Individual":[0.0,2220.6244,null,null,null],"Refrigerantes Retornavel":[14553.44,9049.277,null,null,null],"Sabores Tt":[7964.14,3976.2811,null,null,null],"Sucos":[958.6,622.5628,null,null,null]}},{"gc":"An","sv":"Sv. An.2","rota":"A27","canal":"Mista","sub":null,"v":{"Powerade":[117.71,81.62,null,null,null],"Refrigerantes Individual":[0.0,797.485,null,null,null],"Refrigerantes Retornavel":[6079.66,3080.4928,null,null,null],"Sabores Tt":[2026.22,1937.5769,null,null,null],"Sucos":[1133.36,618.2475,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A31","canal":"Mista","sub":null,"v":{"Powerade":[150.69,91.69,null,null,null],"Refrigerantes Individual":[0.0,1631.8773,null,null,null],"Refrigerantes Retornavel":[3302.32,2527.7834,null,null,null],"Sabores Tt":[1475.03,1181.8257,null,null,null],"Sucos":[1027.87,548.05,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A32","canal":"Mista","sub":null,"v":{"Powerade":[167.26,118.72,null,null,null],"Refrigerantes Individual":[0.0,1515.7455,null,null,null],"Refrigerantes Retornavel":[4939.09,3430.9744,null,null,null],"Sabores Tt":[3172.4,2407.4652,null,null,null],"Sucos":[1126.73,606.4632,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A33","canal":"Mista","sub":null,"v":{"Powerade":[178.75,109.71,null,null,null],"Refrigerantes Individual":[0.0,1646.3356,null,null,null],"Refrigerantes Retornavel":[3331.08,2612.4238,null,null,null],"Sabores Tt":[3756.98,2359.8303,null,null,null],"Sucos":[978.21,449.0313,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A34","canal":"Mista","sub":null,"v":{"Powerade":[245.58,150.52,null,null,null],"Refrigerantes Individual":[0.0,2031.8019,null,null,null],"Refrigerantes Retornavel":[3412.54,2648.594,null,null,null],"Sabores Tt":[4029.45,2579.6618,null,null,null],"Sucos":[1159.21,710.8442,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A35","canal":"Mista","sub":null,"v":{"Powerade":[113.46,66.78,null,null,null],"Refrigerantes Individual":[0.0,1758.6259,null,null,null],"Refrigerantes Retornavel":[2473.85,1505.7084,null,null,null],"Sabores Tt":[10857.3,4614.099,null,null,null],"Sucos":[1336.53,792.2588,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A36","canal":"Mista","sub":null,"v":{"Powerade":[159.52,133.03,null,null,null],"Refrigerantes Individual":[0.0,1821.4418,null,null,null],"Refrigerantes Retornavel":[1134.23,908.706,null,null,null],"Sabores Tt":[3071.77,2217.2195,null,null,null],"Sucos":[1245.0,733.4015,null,null,null]}},{"gc":"An","sv":"Sv. An.3","rota":"A37","canal":"Mista","sub":null,"v":{"Powerade":[89.48,46.11,null,null,null],"Refrigerantes Individual":[0.0,572.506,null,null,null],"Refrigerantes Retornavel":[2094.2,1547.519,null,null,null],"Sabores Tt":[1821.63,1383.7299,null,null,null],"Sucos":[860.52,304.0483,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.1","rota":"511","canal":"Segmentada","sub":"Mini","v":{"Powerade":[312.58,136.74,null,null,null],"Refrigerantes Individual":[3880.83,2979.7709,null,null,null],"Refrigerantes Retornavel":[7131.63,4642.4228,null,null,null],"Sabores Tt":[30152.34,16050.1472,null,null,null],"Sucos":[3267.95,1746.0943,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.1","rota":"512","canal":"Segmentada","sub":"Mini","v":{"Powerade":[270.1,94.34,null,null,null],"Refrigerantes Individual":[4383.11,2680.8603,null,null,null],"Refrigerantes Retornavel":[6243.67,3979.622,null,null,null],"Sabores Tt":[11410.34,5219.3268,null,null,null],"Sucos":[2016.87,621.4381,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.1","rota":"513","canal":"Segmentada","sub":"Mini","v":{"Powerade":[327.8,218.36,null,null,null],"Refrigerantes Individual":[5722.83,4461.4746,null,null,null],"Refrigerantes Retornavel":[9028.49,6607.6824,null,null,null],"Sabores Tt":[18080.58,9056.1937,null,null,null],"Sucos":[2341.81,1277.003,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.1","rota":"514","canal":"Segmentada","sub":"Mini","v":{"Powerade":[190.57,140.98,null,null,null],"Refrigerantes Individual":[2260.83,1847.6233,null,null,null],"Refrigerantes Retornavel":[6039.41,4402.9828,null,null,null],"Sabores Tt":[10050.08,6019.7624,null,null,null],"Sucos":[1480.92,1124.1803,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.1","rota":"515","canal":"Segmentada","sub":"Mini","v":{"Powerade":[222.33,61.48,null,null,null],"Refrigerantes Individual":[2176.63,1040.0402,null,null,null],"Refrigerantes Retornavel":[8685.13,4511.9378,null,null,null],"Sabores Tt":[9223.59,3530.2973,null,null,null],"Sucos":[1423.97,431.8401,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"521","canal":"Mista","sub":null,"v":{"Powerade":[80.31,45.05,null,null,null],"Refrigerantes Individual":[2097.66,985.4012,null,null,null],"Refrigerantes Retornavel":[8046.91,3358.0782,null,null,null],"Sabores Tt":[8392.4,1713.6423,null,null,null],"Sucos":[427.47,196.378,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"522","canal":"Mista","sub":null,"v":{"Powerade":[57.03,49.29,null,null,null],"Refrigerantes Individual":[1072.29,859.7752,null,null,null],"Refrigerantes Retornavel":[4865.06,3436.8356,null,null,null],"Sabores Tt":[2236.76,1150.9341,null,null,null],"Sucos":[423.0,379.9558,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"523","canal":"Mista","sub":null,"v":{"Powerade":[64.67,41.34,null,null,null],"Refrigerantes Individual":[1404.59,788.7393,null,null,null],"Refrigerantes Retornavel":[6767.34,4108.3468,null,null,null],"Sabores Tt":[6159.03,3407.6755,null,null,null],"Sucos":[553.09,182.0433,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"524","canal":"Mista","sub":null,"v":{"Powerade":[88.49,58.83,null,null,null],"Refrigerantes Individual":[1253.91,776.5976,null,null,null],"Refrigerantes Retornavel":[4075.25,2939.8106,null,null,null],"Sabores Tt":[3530.83,1330.4583,null,null,null],"Sucos":[513.31,181.8112,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"525","canal":"Mista","sub":null,"v":{"Powerade":[81.03,49.82,null,null,null],"Refrigerantes Individual":[1897.62,1030.8246,null,null,null],"Refrigerantes Retornavel":[5728.83,3216.8382,null,null,null],"Sabores Tt":[6446.14,1626.199,null,null,null],"Sucos":[528.74,359.2944,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"526","canal":"Mista","sub":null,"v":{"Powerade":[70.2,38.16,null,null,null],"Refrigerantes Individual":[1625.22,1356.7674,null,null,null],"Refrigerantes Retornavel":[3930.39,3410.727,null,null,null],"Sabores Tt":[2824.65,1970.3306,null,null,null],"Sucos":[523.56,360.0871,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"527","canal":"Mista","sub":null,"v":{"Powerade":[96.49,78.97,null,null,null],"Refrigerantes Individual":[1768.31,1200.0064,null,null,null],"Refrigerantes Retornavel":[4716.08,3301.6178,null,null,null],"Sabores Tt":[4485.68,3001.9073,null,null,null],"Sucos":[708.66,440.7707,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.2","rota":"528","canal":"Mista","sub":null,"v":{"Powerade":[63.34,37.63,null,null,null],"Refrigerantes Individual":[2166.22,1681.053,null,null,null],"Refrigerantes Retornavel":[4091.88,3128.6982,null,null,null],"Sabores Tt":[2626.92,1586.0002,null,null,null],"Sucos":[508.84,346.6916,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"531","canal":"Mista","sub":null,"v":{"Powerade":[74.98,55.12,null,null,null],"Refrigerantes Individual":[2042.84,1530.5691,null,null,null],"Refrigerantes Retornavel":[4968.81,3498.5946,null,null,null],"Sabores Tt":[2685.77,1721.6044,null,null,null],"Sucos":[511.27,319.2688,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"532","canal":"Mista","sub":null,"v":{"Powerade":[56.54,37.63,null,null,null],"Refrigerantes Individual":[3088.17,1912.203,null,null,null],"Refrigerantes Retornavel":[3811.99,2704.5066,null,null,null],"Sabores Tt":[1402.85,631.2164,null,null,null],"Sucos":[382.51,226.0044,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"533","canal":"Mista","sub":null,"v":{"Powerade":[85.95,55.65,null,null,null],"Refrigerantes Individual":[2524.06,1596.4211,null,null,null],"Refrigerantes Retornavel":[4050.6,2232.9068,null,null,null],"Sabores Tt":[2014.02,1099.3192,null,null,null],"Sucos":[428.56,247.8034,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"534","canal":"Mista","sub":null,"v":{"Powerade":[79.11,34.98,null,null,null],"Refrigerantes Individual":[1800.26,1269.6024,null,null,null],"Refrigerantes Retornavel":[4057.68,2774.211,null,null,null],"Sabores Tt":[1478.69,701.7534,null,null,null],"Sucos":[300.31,207.6254,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"535","canal":"Mista","sub":null,"v":{"Powerade":[56.54,48.76,null,null,null],"Refrigerantes Individual":[1957.95,1412.9524,null,null,null],"Refrigerantes Retornavel":[4414.44,3084.7382,null,null,null],"Sabores Tt":[5682.44,1093.204,null,null,null],"Sucos":[625.56,280.188,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"536","canal":"Mista","sub":null,"v":{"Powerade":[49.25,36.57,null,null,null],"Refrigerantes Individual":[1449.03,871.4062,null,null,null],"Refrigerantes Retornavel":[3484.77,2169.5326,null,null,null],"Sabores Tt":[1512.3,649.547,null,null,null],"Sucos":[488.07,247.1066,null,null,null]}},{"gc":"Ap","sv":"Sv. Ap.3","rota":"537","canal":"Mista","sub":null,"v":{"Powerade":[76.54,48.76,null,null,null],"Refrigerantes Individual":[2409.24,1414.9518,null,null,null],"Refrigerantes Retornavel":[3468.89,2161.5078,null,null,null],"Sabores Tt":[3511.73,1855.897,null,null,null],"Sucos":[528.64,304.6118,null,null,null]}},{"gc":"At","sv":"Sv. At.1","rota":"411","canal":"Segmentada","sub":"Mini","v":{"Powerade":[229.62,null,null,null,null],"Refrigerantes Individual":[9464.33,4828.3556,null,null,null],"Refrigerantes Retornavel":[19371.08,12665.6228,null,null,null],"Sabores Tt":[69078.07,24622.3898,null,null,null],"Sucos":[2246.32,80.1782,null,null,null]}},{"gc":"At","sv":"Sv. At.2","rota":"421","canal":"Segmentada","sub":"Mod","v":{"Powerade":[3682.2,1871.96,null,null,null],"Refrigerantes Individual":[56787.88,55508.1389,null,null,null],"Refrigerantes Retornavel":[null,null,null,null,null],"Sabores Tt":[64931.39,60371.8838,null,null,null],"Sucos":[9420.99,4634.5181,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"111","canal":"Mista","sub":null,"v":{"Powerade":[160.73,82.68,null,null,null],"Refrigerantes Individual":[2143.18,1265.9544,null,null,null],"Refrigerantes Retornavel":[4281.95,2669.9224,null,null,null],"Sabores Tt":[3907.24,2335.2229,null,null,null],"Sucos":[1248.74,933.4723,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"112","canal":"Mista","sub":null,"v":{"Powerade":[117.52,98.58,null,null,null],"Refrigerantes Individual":[2144.51,1262.5619,null,null,null],"Refrigerantes Retornavel":[4369.7,2419.4854,null,null,null],"Sabores Tt":[3433.59,2141.634,null,null,null],"Sucos":[977.28,569.8866,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"113","canal":"Mista","sub":null,"v":{"Powerade":[127.56,64.66,null,null,null],"Refrigerantes Individual":[8180.62,3815.4921,null,null,null],"Refrigerantes Retornavel":[8590.84,5281.147,null,null,null],"Sabores Tt":[27400.45,5019.2678,null,null,null],"Sucos":[675.6,320.6359,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"114","canal":"Mista","sub":null,"v":{"Powerade":[96.04,53.53,null,null,null],"Refrigerantes Individual":[1618.55,834.5653,null,null,null],"Refrigerantes Retornavel":[5164.94,2927.182,null,null,null],"Sabores Tt":[2204.78,930.1966,null,null,null],"Sucos":[506.77,212.1141,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"115","canal":"Mista","sub":null,"v":{"Powerade":[75.43,24.91,null,null,null],"Refrigerantes Individual":[1357.83,602.2448,null,null,null],"Refrigerantes Retornavel":[5601.86,3502.8094,null,null,null],"Sabores Tt":[3342.92,1884.4371,null,null,null],"Sucos":[673.07,258.6271,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"116","canal":"Mista","sub":null,"v":{"Powerade":[138.03,92.22,null,null,null],"Refrigerantes Individual":[2177.44,1455.667,null,null,null],"Refrigerantes Retornavel":[5057.59,4350.1054,null,null,null],"Sabores Tt":[5677.33,3006.6701,null,null,null],"Sucos":[913.96,319.9654,null,null,null]}},{"gc":"G1","sv":"Sv. G1.1","rota":"117","canal":"Mista","sub":null,"v":{"Powerade":[157.77,54.59,null,null,null],"Refrigerantes Individual":[1683.27,728.4365,null,null,null],"Refrigerantes Retornavel":[5260.09,2560.7338,null,null,null],"Sabores Tt":[3417.28,828.8807,null,null,null],"Sucos":[446.75,423.056,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"121","canal":"Mista","sub":null,"v":{"Powerade":[100.81,55.65,null,null,null],"Refrigerantes Individual":[3072.51,2000.703,null,null,null],"Refrigerantes Retornavel":[5351.95,3425.6408,null,null,null],"Sabores Tt":[3034.2,1656.4265,null,null,null],"Sucos":[520.03,310.5032,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"122","canal":"Mista","sub":null,"v":{"Powerade":[63.77,49.82,null,null,null],"Refrigerantes Individual":[2073.98,1311.8165,null,null,null],"Refrigerantes Retornavel":[4464.73,2959.9434,null,null,null],"Sabores Tt":[1761.63,1267.2952,null,null,null],"Sucos":[449.64,275.633,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"123","canal":"Mista","sub":null,"v":{"Powerade":[81.2,42.4,null,null,null],"Refrigerantes Individual":[2581.24,1349.6481,null,null,null],"Refrigerantes Retornavel":[5040.35,2989.3992,null,null,null],"Sabores Tt":[2678.85,1051.6515,null,null,null],"Sucos":[676.17,368.5934,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"124","canal":"Mista","sub":null,"v":{"Powerade":[107.93,55.65,null,null,null],"Refrigerantes Individual":[2329.84,1504.7895,null,null,null],"Refrigerantes Retornavel":[6135.78,3375.5032,null,null,null],"Sabores Tt":[2013.5,1050.7266,null,null,null],"Sucos":[424.73,283.8125,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"125","canal":"Mista","sub":null,"v":{"Powerade":[133.47,116.6,null,null,null],"Refrigerantes Individual":[2770.76,1601.7898,null,null,null],"Refrigerantes Retornavel":[6187.57,4899.6346,null,null,null],"Sabores Tt":[5527.64,2796.1053,null,null,null],"Sucos":[568.1,314.4384,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"126","canal":"Mista","sub":null,"v":{"Powerade":[68.57,27.03,null,null,null],"Refrigerantes Individual":[2294.81,1412.3262,null,null,null],"Refrigerantes Retornavel":[4574.93,3126.0412,null,null,null],"Sabores Tt":[1482.33,959.9191,null,null,null],"Sucos":[359.03,197.011,null,null,null]}},{"gc":"G1","sv":"Sv. G1.2","rota":"127","canal":"Mista","sub":null,"v":{"Powerade":[149.7,86.39,null,null,null],"Refrigerantes Individual":[3092.76,2298.5226,null,null,null],"Refrigerantes Retornavel":[9766.84,8230.421,null,null,null],"Sabores Tt":[6102.27,4269.6632,null,null,null],"Sucos":[745.76,277.6953,null,null,null]}},{"gc":"G1","sv":"Sv. G1.3","rota":"131","canal":"Segmentada","sub":"Mini","v":{"Powerade":[469.46,131.44,null,null,null],"Refrigerantes Individual":[3955.97,2568.2624,null,null,null],"Refrigerantes Retornavel":[4792.41,3821.7942,null,null,null],"Sabores Tt":[25465.47,18047.7853,null,null,null],"Sucos":[2660.6,948.9163,null,null,null]}},{"gc":"G1","sv":"Sv. G1.3","rota":"132","canal":"Segmentada","sub":"Mod","v":{"Powerade":[525.8,112.36,null,null,null],"Refrigerantes Individual":[6190.27,6495.1773,null,null,null],"Refrigerantes Retornavel":[216.14,270.4404,null,null,null],"Sabores Tt":[37780.16,4973.1869,null,null,null],"Sucos":[2671.24,956.3373,null,null,null]}},{"gc":"G1","sv":"Sv. G1.3","rota":"133","canal":"Segmentada","sub":"Mod","v":{"Powerade":[882.59,94.87,null,null,null],"Refrigerantes Individual":[17018.88,6965.4382,null,null,null],"Refrigerantes Retornavel":[2.07,null,null,null,null],"Sabores Tt":[15434.15,8460.5699,null,null,null],"Sucos":[4146.19,1807.0565,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"211","canal":"Mista","sub":null,"v":{"Powerade":[56.62,46.64,null,null,null],"Refrigerantes Individual":[2041.39,1602.2,null,null,null],"Refrigerantes Retornavel":[4314.94,3121.9684,null,null,null],"Sabores Tt":[2084.9,1370.6189,null,null,null],"Sucos":[480.04,230.6435,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"212","canal":"Mista","sub":null,"v":{"Powerade":[77.42,62.01,null,null,null],"Refrigerantes Individual":[2348.78,1540.5275,null,null,null],"Refrigerantes Retornavel":[3500.51,2079.2228,null,null,null],"Sabores Tt":[1999.24,1455.6242,null,null,null],"Sucos":[845.84,411.5129,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"213","canal":"Mista","sub":null,"v":{"Powerade":[73.84,71.55,null,null,null],"Refrigerantes Individual":[1693.16,1064.4616,null,null,null],"Refrigerantes Retornavel":[3331.41,1830.7328,null,null,null],"Sabores Tt":[2031.58,1226.4296,null,null,null],"Sucos":[650.43,428.5712,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"214","canal":"Mista","sub":null,"v":{"Powerade":[86.18,87.98,null,null,null],"Refrigerantes Individual":[1443.66,1147.5836,null,null,null],"Refrigerantes Retornavel":[4816.36,3087.614,null,null,null],"Sabores Tt":[2283.88,1684.9782,null,null,null],"Sucos":[438.84,321.2822,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"215","canal":"Mista","sub":null,"v":{"Powerade":[60.18,63.6,null,null,null],"Refrigerantes Individual":[1178.95,914.2803,null,null,null],"Refrigerantes Retornavel":[5184.98,3560.9686,null,null,null],"Sabores Tt":[3974.71,2943.1543,null,null,null],"Sucos":[491.89,388.5322,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"216","canal":"Mista","sub":null,"v":{"Powerade":[75.29,53.53,null,null,null],"Refrigerantes Individual":[999.77,930.3263,null,null,null],"Refrigerantes Retornavel":[4428.98,3487.0762,null,null,null],"Sabores Tt":[3844.31,1752.1014,null,null,null],"Sucos":[271.57,237.6274,null,null,null]}},{"gc":"G2","sv":"Sv. G2.1","rota":"217","canal":"Mista","sub":null,"v":{"Powerade":[48.85,40.28,null,null,null],"Refrigerantes Individual":[1186.86,851.1697,null,null,null],"Refrigerantes Retornavel":[3898.49,2441.8778,null,null,null],"Sabores Tt":[3107.91,1703.813,null,null,null],"Sucos":[459.18,255.4841,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"221","canal":"Mista","sub":null,"v":{"Powerade":[70.22,54.06,null,null,null],"Refrigerantes Individual":[2581.53,1759.9511,0.8454,null,null],"Refrigerantes Retornavel":[8415.3,4835.492,2.9588,null,null],"Sabores Tt":[5972.44,3394.4792,null,null,null],"Sucos":[527.36,289.3698,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"222","canal":"Mista","sub":null,"v":{"Powerade":[60.3,61.48,null,null,null],"Refrigerantes Individual":[5409.38,2588.3738,null,null,null],"Refrigerantes Retornavel":[3976.04,2392.8356,null,null,null],"Sabores Tt":[2940.76,1706.3892,null,null,null],"Sucos":[569.25,365.2882,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"223","canal":"Mista","sub":null,"v":{"Powerade":[48.53,31.27,null,null,null],"Refrigerantes Individual":[1551.18,1060.0228,null,null,null],"Refrigerantes Retornavel":[4470.82,2618.2462,null,null,null],"Sabores Tt":[2607.77,1395.1247,null,null,null],"Sucos":[527.9,286.1183,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"224","canal":"Mista","sub":null,"v":{"Powerade":[119.11,51.41,null,null,null],"Refrigerantes Individual":[3847.56,3072.4218,null,null,null],"Refrigerantes Retornavel":[11893.24,10965.4668,null,null,null],"Sabores Tt":[7790.27,2026.1136,null,null,null],"Sucos":[538.04,985.5514,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"225","canal":"Mista","sub":null,"v":{"Powerade":[94.0,33.92,null,null,null],"Refrigerantes Individual":[2387.33,1542.4253,null,null,null],"Refrigerantes Retornavel":[6683.6,4531.0248,null,null,null],"Sabores Tt":[2862.99,1365.982,null,null,null],"Sucos":[292.08,260.456,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"226","canal":"Mista","sub":null,"v":{"Powerade":[51.6,43.46,null,null,null],"Refrigerantes Individual":[1783.67,1162.2519,null,null,null],"Refrigerantes Retornavel":[4140.79,2368.6618,null,null,null],"Sabores Tt":[2632.0,1610.7102,null,null,null],"Sucos":[394.6,261.6741,null,null,null]}},{"gc":"G2","sv":"Sv. G2.2","rota":"227","canal":"Mista","sub":null,"v":{"Powerade":[67.66,48.23,null,null,null],"Refrigerantes Individual":[1470.35,872.1918,null,null,null],"Refrigerantes Retornavel":[3582.77,2411.5184,null,null,null],"Sabores Tt":[3219.29,1181.7573,null,null,null],"Sucos":[466.73,337.332,null,null,null]}},{"gc":"G2","sv":"Sv. G2.3","rota":"231","canal":"Segmentada","sub":"Mod","v":{"Powerade":[2356.89,1221.12,null,null,null],"Refrigerantes Individual":[13522.52,10427.0421,null,null,null],"Refrigerantes Retornavel":[3373.39,1632.9624,null,null,null],"Sabores Tt":[55337.39,25744.3887,null,null,null],"Sucos":[7463.22,5030.8683,null,null,null]}},{"gc":"G2","sv":"Sv. G2.3","rota":"232","canal":"Segmentada","sub":"Mod","v":{"Powerade":[211.06,169.07,null,null,null],"Refrigerantes Individual":[5323.13,3018.4816,null,null,null],"Refrigerantes Retornavel":[4200.73,2542.704,null,null,null],"Sabores Tt":[11820.41,5895.638,null,null,null],"Sucos":[2157.68,1058.3031,null,null,null]}},{"gc":"G2","sv":"Sv. G2.3","rota":"233","canal":"Segmentada","sub":"Mod","v":{"Powerade":[246.24,199.81,null,null,null],"Refrigerantes Individual":[2776.41,1930.1817,null,null,null],"Refrigerantes Retornavel":[897.78,637.9884,null,null,null],"Sabores Tt":[9366.98,5024.5272,null,null,null],"Sucos":[1285.81,668.3283,null,null,null]}},{"gc":"G2","sv":"Sv. G2.3","rota":"234","canal":"Segmentada","sub":"Mod","v":{"Powerade":[703.55,834.22,null,null,null],"Refrigerantes Individual":[9934.04,7455.8887,null,null,null],"Refrigerantes Retornavel":[759.39,782.008,null,null,null],"Sabores Tt":[21732.55,9851.6466,null,null,null],"Sucos":[3719.99,2454.5758,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"311","canal":"Mista","sub":null,"v":{"Powerade":[111.12,81.09,null,null,null],"Refrigerantes Individual":[3302.24,2706.5549,1.226,null,null],"Refrigerantes Retornavel":[2390.06,1987.2186,3.3394,null,null],"Sabores Tt":[1267.17,964.6431,null,null,null],"Sucos":[429.71,340.2276,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"312","canal":"Mista","sub":null,"v":{"Powerade":[113.04,54.06,null,null,null],"Refrigerantes Individual":[3271.28,2376.6519,null,null,null],"Refrigerantes Retornavel":[2439.44,1527.615,null,null,null],"Sabores Tt":[1042.83,655.8897,null,null,null],"Sucos":[437.06,267.6818,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"313","canal":"Mista","sub":null,"v":{"Powerade":[42.41,25.97,null,null,null],"Refrigerantes Individual":[3367.92,2499.6656,null,null,null],"Refrigerantes Retornavel":[3634.4,2271.807,null,null,null],"Sabores Tt":[680.57,571.0153,null,null,null],"Sucos":[213.72,147.788,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"314","canal":"Mista","sub":null,"v":{"Powerade":[68.14,25.97,null,null,null],"Refrigerantes Individual":[2557.92,1716.292,null,null,null],"Refrigerantes Retornavel":[2557.16,1479.5384,null,null,null],"Sabores Tt":[619.38,367.178,null,null,null],"Sucos":[192.93,91.8713,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"315","canal":"Mista","sub":null,"v":{"Powerade":[57.74,28.09,null,null,null],"Refrigerantes Individual":[3235.31,2547.1624,3.3286,null,null],"Refrigerantes Retornavel":[2716.13,1898.593,null,null,null],"Sabores Tt":[771.01,564.5887,1.4794,null,null],"Sucos":[256.99,165.2385,1.2252,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"316","canal":"Mista","sub":null,"v":{"Powerade":[74.46,32.33,null,null,null],"Refrigerantes Individual":[3813.61,3120.1047,null,null,null],"Refrigerantes Retornavel":[2321.24,1515.76,null,null,null],"Sabores Tt":[878.19,702.8699,null,null,null],"Sucos":[257.1,241.0772,null,null,null]}},{"gc":"G3","sv":"Sv. G3.1","rota":"317","canal":"Mista","sub":null,"v":{"Powerade":[50.9,21.73,null,null,null],"Refrigerantes Individual":[3364.46,2787.2965,null,null,null],"Refrigerantes Retornavel":[1964.95,1261.4688,null,null,null],"Sabores Tt":[543.0,391.3056,null,null,null],"Sucos":[193.0,118.8896,null,null,null]}},{"gc":"G3","sv":"Sv. G3.2","rota":"321","canal":"Mista","sub":null,"v":{"Powerade":[68.05,32.86,null,null,null],"Refrigerantes Individual":[4960.94,3317.3417,null,null,null],"Refrigerantes Retornavel":[2847.65,1873.1182,null,null,null],"Sabores Tt":[1210.82,870.5119,null,null,null],"Sucos":[471.04,293.338,null,null,null]}},{"gc":"G3","sv":"Sv. G3.2","rota":"322","canal":"Mista","sub":null,"v":{"Powerade":[79.74,51.41,null,null,null],"Refrigerantes Individual":[5076.56,3624.4014,null,null,null],"Refrigerantes Retornavel":[3337.29,2232.7062,null,null,null],"Sabores Tt":[1840.04,968.2541,null,null,null],"Sucos":[381.01,241.1111,null,null,null]}},{"gc":"G3","sv":"Sv. G3.2","rota":"323","canal":"Mista","sub":null,"v":{"Powerade":[104.39,32.86,null,null,null],"Refrigerantes Individual":[5247.95,4231.0979,null,null,null],"Refrigerantes Retornavel":[1717.65,1297.7286,null,null,null],"Sabores Tt":[3055.79,3105.6926,null,null,null],"Sucos":[261.91,276.8934,null,null,null]}},{"gc":"G3","sv":"Sv. G3.2","rota":"324","canal":"Mista","sub":null,"v":{"Powerade":[49.71,18.55,null,null,null],"Refrigerantes Individual":[3844.24,3068.1452,null,null,null],"Refrigerantes Retornavel":[2870.33,2741.7292,null,null,null],"Sabores Tt":[2158.37,1636.2961,null,null,null],"Sucos":[462.47,269.8172,null,null,null]}},{"gc":"G3","sv":"Sv. G3.2","rota":"325","canal":"Mista","sub":null,"v":{"Powerade":[195.21,190.8,null,null,null],"Refrigerantes Individual":[5293.18,3534.644,null,null,null],"Refrigerantes Retornavel":[2471.84,1536.7356,null,null,null],"Sabores Tt":[2236.86,1256.9476,null,null,null],"Sucos":[849.43,540.7182,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G11","canal":"Segmentada","sub":"Mini","v":{"Powerade":[651.61,352.45,null,null,null],"Refrigerantes Individual":[7943.73,5336.447,4.7762,null,null],"Refrigerantes Retornavel":[489.74,307.635,12.6804,null,null],"Sabores Tt":[18728.93,7667.1722,4.3112,null,null],"Sucos":[4615.07,1758.5558,1.24,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G12","canal":"Mista","sub":null,"v":{"Powerade":[64.17,43.99,null,null,null],"Refrigerantes Individual":[1992.41,1463.4405,null,null,null],"Refrigerantes Retornavel":[617.83,362.057,null,null,null],"Sabores Tt":[1607.98,1146.3424,null,null,null],"Sucos":[615.08,526.5637,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G13","canal":"Mista","sub":null,"v":{"Powerade":[44.51,29.15,null,null,null],"Refrigerantes Individual":[1462.89,936.1674,null,null,null],"Refrigerantes Retornavel":[598.36,312.9782,null,null,null],"Sabores Tt":[1392.65,805.6975,null,null,null],"Sucos":[727.45,452.3748,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G14","canal":"Mista","sub":null,"v":{"Powerade":[45.61,40.81,null,null,null],"Refrigerantes Individual":[1224.66,815.3791,null,null,null],"Refrigerantes Retornavel":[694.0,337.8242,null,null,null],"Sabores Tt":[1376.96,1053.494,null,null,null],"Sucos":[661.98,480.4172,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G15","canal":"Mista","sub":null,"v":{"Powerade":[79.96,45.58,null,null,null],"Refrigerantes Individual":[2398.23,1610.0546,null,null,null],"Refrigerantes Retornavel":[614.64,290.958,null,null,null],"Sabores Tt":[2572.41,1741.7635,null,null,null],"Sucos":[829.4,539.6883,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G16","canal":"Mista","sub":null,"v":{"Powerade":[142.58,64.13,null,null,null],"Refrigerantes Individual":[2441.58,1807.5409,null,null,null],"Refrigerantes Retornavel":[888.52,525.9224,null,null,null],"Sabores Tt":[4520.94,3276.9532,null,null,null],"Sucos":[1883.76,801.4859,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.1","rota":"G17","canal":"Mista","sub":null,"v":{"Powerade":[68.03,51.94,null,null,null],"Refrigerantes Individual":[1809.17,1228.2688,null,null,null],"Refrigerantes Retornavel":[805.52,428.3284,null,null,null],"Sabores Tt":[3631.96,1924.8893,null,null,null],"Sucos":[980.89,576.9305,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G21","canal":"Mista","sub":null,"v":{"Powerade":[105.34,84.8,null,null,null],"Refrigerantes Individual":[2724.97,2123.9671,null,null,null],"Refrigerantes Retornavel":[663.8,500.0592,null,null,null],"Sabores Tt":[7381.02,5183.1898,null,null,null],"Sucos":[1433.0,1087.6633,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G22","canal":"Mista","sub":null,"v":{"Powerade":[93.84,63.07,null,null,null],"Refrigerantes Individual":[2196.04,1653.8741,null,null,null],"Refrigerantes Retornavel":[1259.93,629.1136,null,null,null],"Sabores Tt":[4639.7,3068.6934,null,null,null],"Sucos":[1035.34,645.8183,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G23","canal":"Mista","sub":null,"v":{"Powerade":[86.22,64.66,null,null,null],"Refrigerantes Individual":[1584.22,969.9952,null,null,null],"Refrigerantes Retornavel":[684.14,347.4166,null,null,null],"Sabores Tt":[3854.7,1945.7445,null,null,null],"Sucos":[1306.63,929.4497,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G24","canal":"Mista","sub":null,"v":{"Powerade":[86.67,43.99,null,null,null],"Refrigerantes Individual":[1121.66,595.8356,null,null,null],"Refrigerantes Retornavel":[502.4,207.254,null,null,null],"Sabores Tt":[3875.35,1477.7227,null,null,null],"Sucos":[1391.54,492.4991,null,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G25","canal":"Mista","sub":null,"v":{"Powerade":[76.12,45.05,null,null,null],"Refrigerantes Individual":[1507.24,952.8752,48.3163,null,null],"Refrigerantes Retornavel":[795.33,470.1124,46.623,null,null],"Sabores Tt":[3379.73,1366.822,109.4548,null,null],"Sucos":[1136.03,699.9425,21.4588,null,null]}},{"gc":"Gu","sv":"Sv. Gu.2","rota":"G26","canal":"Mista","sub":null,"v":{"Powerade":[49.63,25.44,null,null,null],"Refrigerantes Individual":[1477.02,786.5096,null,null,null],"Refrigerantes Retornavel":[456.08,203.3128,null,null,null],"Sabores Tt":[2334.08,1002.9909,null,null,null],"Sucos":[981.98,448.8671,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O11","canal":"Mista","sub":null,"v":{"Powerade":[141.8,95.4,null,null,null],"Refrigerantes Individual":[2194.2,1214.7397,null,null,null],"Refrigerantes Retornavel":[3396.42,1768.0682,null,null,null],"Sabores Tt":[2944.82,1604.9696,null,null,null],"Sucos":[755.93,518.3221,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O12","canal":"Mista","sub":null,"v":{"Powerade":[248.0,185.5,null,null,null],"Refrigerantes Individual":[3566.37,2045.6627,null,null,null],"Refrigerantes Retornavel":[3886.1,2382.8324,null,null,null],"Sabores Tt":[4664.9,3847.7166,null,null,null],"Sucos":[1316.66,648.6176,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O13","canal":"Mista","sub":null,"v":{"Powerade":[63.61,44.52,null,null,null],"Refrigerantes Individual":[979.29,720.0294,null,null,null],"Refrigerantes Retornavel":[1768.68,1377.6228,null,null,null],"Sabores Tt":[2491.08,2059.0446,null,null,null],"Sucos":[524.51,301.7888,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O14","canal":"Mista","sub":null,"v":{"Powerade":[120.67,96.99,null,null,null],"Refrigerantes Individual":[1618.68,1074.0829,null,null,null],"Refrigerantes Retornavel":[2923.48,1654.767,null,null,null],"Sabores Tt":[2562.53,1769.2049,null,null,null],"Sucos":[929.85,447.6862,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O15","canal":"Mista","sub":null,"v":{"Powerade":[137.08,133.56,null,null,null],"Refrigerantes Individual":[2858.1,1811.9675,null,null,null],"Refrigerantes Retornavel":[2222.56,1450.1212,null,null,null],"Sabores Tt":[3688.77,2184.0773,null,null,null],"Sucos":[1221.87,746.8914,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O16","canal":"Mista","sub":null,"v":{"Powerade":[140.41,93.28,null,null,null],"Refrigerantes Individual":[2954.18,2391.8035,null,null,null],"Refrigerantes Retornavel":[4998.27,3314.8436,null,null,null],"Sabores Tt":[4169.8,2519.4665,null,null,null],"Sucos":[1286.44,604.3809,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O17","canal":"Mista","sub":null,"v":{"Powerade":[79.91,54.59,null,null,null],"Refrigerantes Individual":[1642.23,1075.1174,null,null,null],"Refrigerantes Retornavel":[2697.89,1715.8312,null,null,null],"Sabores Tt":[2560.49,1701.8342,null,null,null],"Sucos":[682.87,425.8859,null,null,null]}},{"gc":"Po","sv":"Sv. Po.1","rota":"O18","canal":"Mista","sub":null,"v":{"Powerade":[134.19,74.73,null,null,null],"Refrigerantes Individual":[2962.01,1160.6363,null,null,null],"Refrigerantes Retornavel":[2286.45,1807.4346,null,null,null],"Sabores Tt":[3739.52,1536.8296,null,null,null],"Sucos":[1857.87,878.1716,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I11","canal":"Mista","sub":null,"v":{"Powerade":[82.28,69.96,null,null,null],"Refrigerantes Individual":[1151.6,972.1731,null,null,null],"Refrigerantes Retornavel":[3956.1,2580.7986,null,null,null],"Sabores Tt":[2515.05,2027.8464,null,null,null],"Sucos":[1053.23,744.1489,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I12","canal":"Mista","sub":null,"v":{"Powerade":[125.27,43.99,null,null,null],"Refrigerantes Individual":[1854.02,1240.9427,null,null,null],"Refrigerantes Retornavel":[2370.42,1293.6884,null,null,null],"Sabores Tt":[3635.74,1558.2324,null,null,null],"Sucos":[1397.43,557.9473,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I13","canal":"Mista","sub":null,"v":{"Powerade":[91.0,73.67,null,null,null],"Refrigerantes Individual":[2403.77,1504.1327,null,null,null],"Refrigerantes Retornavel":[1301.27,898.7348,null,null,null],"Sabores Tt":[4016.28,2495.3069,null,null,null],"Sucos":[1515.57,910.3374,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I14","canal":"Mista","sub":null,"v":{"Powerade":[66.45,42.4,null,null,null],"Refrigerantes Individual":[1083.63,797.547,null,null,null],"Refrigerantes Retornavel":[1327.52,935.818,null,null,null],"Sabores Tt":[1576.75,753.4125,null,null,null],"Sucos":[916.74,415.0875,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I15","canal":"Mista","sub":null,"v":{"Powerade":[110.18,85.33,null,null,null],"Refrigerantes Individual":[1064.93,753.6349,null,null,null],"Refrigerantes Retornavel":[2716.31,2014.635,null,null,null],"Sabores Tt":[4429.24,1357.3002,null,null,null],"Sucos":[1458.65,780.1459,null,null,null]}},{"gc":"It","sv":"Sv. It.1","rota":"I16","canal":"Mista","sub":null,"v":{"Powerade":[60.97,52.47,null,null,null],"Refrigerantes Individual":[1287.52,997.6131,null,null,null],"Refrigerantes Retornavel":[1842.14,1285.7396,null,null,null],"Sabores Tt":[1221.61,650.5003,null,null,null],"Sucos":[664.35,593.7674,null,null,null]}},{"gc":"It","sv":"Sv. It.2","rota":"I21","canal":"Mista","sub":null,"v":{"Powerade":[70.68,50.88,null,null,null],"Refrigerantes Individual":[1270.0,936.0783,null,null,null],"Refrigerantes Retornavel":[1519.24,1120.6196,null,null,null],"Sabores Tt":[1184.3,734.7306,null,null,null],"Sucos":[706.35,399.478,null,null,null]}},{"gc":"It","sv":"Sv. It.2","rota":"I22","canal":"Mista","sub":null,"v":{"Powerade":[187.04,151.05,null,null,null],"Refrigerantes Individual":[2243.48,1397.5162,null,null,null],"Refrigerantes Retornavel":[2218.81,1594.4722,null,null,null],"Sabores Tt":[3574.46,2214.1299,null,null,null],"Sucos":[1825.54,1172.5891,null,null,null]}},{"gc":"It","sv":"Sv. It.2","rota":"I23","canal":"Mista","sub":null,"v":{"Powerade":[80.29,60.95,null,null,null],"Refrigerantes Individual":[2583.47,1832.5057,null,null,null],"Refrigerantes Retornavel":[1677.93,1119.653,null,null,null],"Sabores Tt":[1744.31,1192.2191,null,null,null],"Sucos":[798.01,503.6417,null,null,null]}},{"gc":"It","sv":"Sv. It.2","rota":"I24","canal":"Mista","sub":null,"v":{"Powerade":[288.03,183.38,null,null,null],"Refrigerantes Individual":[3549.21,1774.0019,null,null,null],"Refrigerantes Retornavel":[4861.93,3326.1654,null,null,null],"Sabores Tt":[9020.32,4331.1481,null,null,null],"Sucos":[3357.17,2578.916,null,null,null]}},{"gc":"It","sv":"Sv. It.2","rota":"I25","canal":"Mista","sub":null,"v":{"Powerade":[102.59,73.14,null,null,null],"Refrigerantes Individual":[1458.94,1122.9672,null,null,null],"Refrigerantes Retornavel":[1550.69,1101.261,null,null,null],"Sabores Tt":[2435.73,1770.2524,null,null,null],"Sucos":[1340.67,977.0752,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.1","rota":"M11","canal":"Mista","sub":null,"v":{"Powerade":[41.93,37.63,null,null,null],"Refrigerantes Individual":[1762.06,1066.0475,null,null,null],"Refrigerantes Retornavel":[2964.53,1808.9028,null,null,null],"Sabores Tt":[930.46,636.7696,null,null,null],"Sucos":[552.89,283.1538,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.1","rota":"M12","canal":"Mista","sub":null,"v":{"Powerade":[144.33,136.74,null,null,null],"Refrigerantes Individual":[2526.46,1433.4294,null,null,null],"Refrigerantes Retornavel":[3613.83,2193.2392,null,null,null],"Sabores Tt":[2477.09,1349.662,null,null,null],"Sucos":[1264.83,673.5111,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.1","rota":"M13","canal":"Mista","sub":null,"v":{"Powerade":[106.26,166.42,null,null,null],"Refrigerantes Individual":[3097.1,1929.8545,null,null,null],"Refrigerantes Retornavel":[3226.77,2222.2464,null,null,null],"Sabores Tt":[3562.85,1984.4605,null,null,null],"Sucos":[2075.19,1266.1487,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.1","rota":"M14","canal":"Mista","sub":null,"v":{"Powerade":[54.95,72.61,null,null,null],"Refrigerantes Individual":[2179.72,946.343,null,null,null],"Refrigerantes Retornavel":[4003.14,1261.8098,null,null,null],"Sabores Tt":[1856.53,1432.2712,null,null,null],"Sucos":[1138.75,494.6192,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.1","rota":"M15","canal":"Mista","sub":null,"v":{"Powerade":[124.19,153.17,null,null,null],"Refrigerantes Individual":[1792.51,930.0092,null,null,null],"Refrigerantes Retornavel":[2326.68,1225.1592,null,null,null],"Sabores Tt":[2389.65,2360.949,null,null,null],"Sucos":[640.94,444.331,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M21","canal":"Mista","sub":null,"v":{"Powerade":[225.84,188.15,null,null,null],"Refrigerantes Individual":[6724.79,4085.2056,null,null,null],"Refrigerantes Retornavel":[949.0,607.5306,null,null,null],"Sabores Tt":[5631.79,2730.565,null,null,null],"Sucos":[1489.41,604.9543,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M22","canal":"Mista","sub":null,"v":{"Powerade":[119.42,58.3,null,null,null],"Refrigerantes Individual":[4242.49,2255.759,null,null,null],"Refrigerantes Retornavel":[4284.4,2791.71,null,null,null],"Sabores Tt":[5117.67,4384.9012,null,null,null],"Sucos":[1669.54,889.3304,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M23","canal":"Mista","sub":null,"v":{"Powerade":[65.0,39.22,null,null,null],"Refrigerantes Individual":[3565.32,2669.04,null,null,null],"Refrigerantes Retornavel":[7379.93,5873.7496,null,null,null],"Sabores Tt":[16384.02,2101.3453,null,null,null],"Sucos":[1348.34,848.6389,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M24","canal":"Mista","sub":null,"v":{"Powerade":[78.39,164.3,null,null,null],"Refrigerantes Individual":[2144.66,1633.8283,null,null,null],"Refrigerantes Retornavel":[2594.44,1996.8456,null,null,null],"Sabores Tt":[2169.29,1258.8368,null,null,null],"Sucos":[1102.04,682.867,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M25","canal":"Mista","sub":null,"v":{"Powerade":[214.64,312.17,null,null,null],"Refrigerantes Individual":[4417.52,4956.3768,null,null,null],"Refrigerantes Retornavel":[1673.89,1196.3384,null,null,null],"Sabores Tt":[3752.46,4593.9589,null,null,null],"Sucos":[1257.85,1781.5105,null,null,null]}},{"gc":"Mo","sv":"Sv. Mo.2","rota":"M26","canal":"Mista","sub":null,"v":{"Powerade":[76.27,120.31,null,null,null],"Refrigerantes Individual":[2582.4,1461.7538,null,null,null],"Refrigerantes Retornavel":[1798.23,1255.0824,null,null,null],"Sabores Tt":[2503.23,1778.9181,null,null,null],"Sucos":[715.38,481.5531,null,null,null]}},{"gc":"Di","sv":"Sv. Di.1","rota":"D11","canal":"Mista","sub":null,"v":{"Powerade":[133.46,76.85,null,null,null],"Refrigerantes Individual":[2246.96,1535.2883,null,null,null],"Refrigerantes Retornavel":[465.0,207.313,null,null,null],"Sabores Tt":[5397.53,3659.5496,null,null,null],"Sucos":[1474.96,775.1372,null,null,null]}},{"gc":"Di","sv":"Sv. Di.1","rota":"D12","canal":"Mista","sub":null,"v":{"Powerade":[142.45,84.27,null,null,null],"Refrigerantes Individual":[1918.74,1097.9004,null,null,null],"Refrigerantes Retornavel":[626.1,415.503,null,null,null],"Sabores Tt":[4360.93,2508.5922,null,null,null],"Sucos":[1176.27,729.1472,null,null,null]}},{"gc":"Di","sv":"Sv. Di.1","rota":"D13","canal":"Mista","sub":null,"v":{"Powerade":[117.52,62.54,null,null,null],"Refrigerantes Individual":[1755.05,1066.0159,null,null,null],"Refrigerantes Retornavel":[452.29,451.9832,null,null,null],"Sabores Tt":[4078.96,2289.1278,null,null,null],"Sucos":[1316.11,1024.7955,null,null,null]}},{"gc":"Di","sv":"Sv. Di.1","rota":"D14","canal":"Mista","sub":null,"v":{"Powerade":[76.71,59.36,null,null,null],"Refrigerantes Individual":[1341.35,799.9056,null,null,null],"Refrigerantes Retornavel":[690.54,444.459,null,null,null],"Sabores Tt":[3084.26,1871.771,null,null,null],"Sucos":[1151.64,738.083,null,null,null]}},{"gc":"Di","sv":"Sv. Di.1","rota":"D15","canal":"Mista","sub":null,"v":{"Powerade":[113.67,77.38,null,null,null],"Refrigerantes Individual":[1849.74,1252.9357,null,null,null],"Refrigerantes Retornavel":[424.29,219.6348,null,null,null],"Sabores Tt":[4187.54,2236.285,null,null,null],"Sucos":[1134.43,702.262,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.1","rota":"P11","canal":"Segmentada","sub":"Mini","v":{"Powerade":[872.08,223.13,null,null,null],"Refrigerantes Individual":[11499.55,7001.4392,null,null,null],"Refrigerantes Retornavel":[3941.95,2193.244,null,null,null],"Sabores Tt":[31590.54,17677.1497,null,null,null],"Sucos":[4464.89,2824.3418,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.1","rota":"P12","canal":"Mista","sub":null,"v":{"Powerade":[73.28,57.24,null,null,null],"Refrigerantes Individual":[3272.37,2352.4324,null,null,null],"Refrigerantes Retornavel":[2572.41,1400.727,null,null,null],"Sabores Tt":[4384.33,2498.4311,null,null,null],"Sucos":[659.54,563.4131,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.1","rota":"P13","canal":"Mista","sub":null,"v":{"Powerade":[80.0,63.6,null,null,null],"Refrigerantes Individual":[3623.13,2587.8214,null,null,null],"Refrigerantes Retornavel":[2889.98,1551.559,null,null,null],"Sabores Tt":[4700.37,2802.2524,null,null,null],"Sucos":[607.93,453.5196,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.1","rota":"P14","canal":"Mista","sub":null,"v":{"Powerade":[142.33,59.89,null,null,null],"Refrigerantes Individual":[4930.15,4402.1931,null,null,null],"Refrigerantes Retornavel":[3331.19,1947.249,null,null,null],"Sabores Tt":[4307.74,4713.1561,null,null,null],"Sucos":[716.05,533.7342,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.1","rota":"P15","canal":"Mista","sub":null,"v":{"Powerade":[124.07,69.96,null,null,null],"Refrigerantes Individual":[4090.97,2742.8267,null,null,null],"Refrigerantes Retornavel":[2498.71,1238.3448,null,null,null],"Sabores Tt":[2686.4,1821.9973,null,null,null],"Sucos":[693.41,504.7784,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P21","canal":"Mista","sub":null,"v":{"Powerade":[213.78,157.41,null,null,null],"Refrigerantes Individual":[4381.93,3776.5295,null,null,null],"Refrigerantes Retornavel":[1430.64,1031.1258,null,null,null],"Sabores Tt":[9230.66,5907.0744,null,null,null],"Sucos":[1913.21,1158.5182,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P22","canal":"Mista","sub":null,"v":{"Powerade":[73.09,45.58,null,null,null],"Refrigerantes Individual":[2746.63,2681.6512,null,null,null],"Refrigerantes Retornavel":[1845.24,1200.2708,null,null,null],"Sabores Tt":[3135.05,1995.0376,null,null,null],"Sucos":[1011.06,763.1836,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P23","canal":"Mista","sub":null,"v":{"Powerade":[84.46,29.15,null,null,null],"Refrigerantes Individual":[1635.16,1278.5077,null,null,null],"Refrigerantes Retornavel":[583.43,357.938,null,null,null],"Sabores Tt":[2303.62,1236.5839,null,null,null],"Sucos":[1097.67,701.8735,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P24","canal":"Mista","sub":null,"v":{"Powerade":[59.43,40.81,null,null,null],"Refrigerantes Individual":[1315.24,1084.4032,null,null,null],"Refrigerantes Retornavel":[1575.32,773.9492,null,null,null],"Sabores Tt":[3878.77,2777.1897,null,null,null],"Sucos":[590.19,460.6364,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P25","canal":"Mista","sub":null,"v":{"Powerade":[55.78,37.63,null,null,null],"Refrigerantes Individual":[2046.39,1608.3528,null,null,null],"Refrigerantes Retornavel":[2119.59,1015.4036,null,null,null],"Sabores Tt":[3580.84,2278.4127,null,null,null],"Sucos":[602.11,451.5272,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P26","canal":"Mista","sub":null,"v":{"Powerade":[86.67,72.61,null,null,null],"Refrigerantes Individual":[4614.61,3030.622,null,null,null],"Refrigerantes Retornavel":[3605.3,1834.8044,null,null,null],"Sabores Tt":[3586.99,2183.4101,null,null,null],"Sucos":[526.87,393.9079,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.2","rota":"P27","canal":"Mista","sub":null,"v":{"Powerade":[119.87,82.15,null,null,null],"Refrigerantes Individual":[4048.91,2732.1315,null,null,null],"Refrigerantes Retornavel":[2334.26,1443.5524,null,null,null],"Sabores Tt":[5593.66,3646.1203,null,null,null],"Sucos":[1019.72,762.4696,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P31","canal":"Mista","sub":null,"v":{"Powerade":[100.66,87.98,null,null,null],"Refrigerantes Individual":[2948.54,2228.8639,null,null,null],"Refrigerantes Retornavel":[1330.35,650.5944,null,null,null],"Sabores Tt":[5493.19,3295.2145,null,null,null],"Sucos":[980.66,678.7421,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P32","canal":"Mista","sub":null,"v":{"Powerade":[209.87,220.48,null,null,null],"Refrigerantes Individual":[5065.18,4382.281,null,null,null],"Refrigerantes Retornavel":[2187.82,1424.2786,null,null,null],"Sabores Tt":[13375.71,7218.7308,null,null,null],"Sucos":[1577.86,1197.3183,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P33","canal":"Mista","sub":null,"v":{"Powerade":[82.27,68.37,null,null,null],"Refrigerantes Individual":[2280.57,1515.4628,null,null,null],"Refrigerantes Retornavel":[1670.23,805.1674,null,null,null],"Sabores Tt":[5294.18,3713.2786,null,null,null],"Sucos":[920.69,574.6585,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P34","canal":"Mista","sub":null,"v":{"Powerade":[103.51,95.4,null,null,null],"Refrigerantes Individual":[2557.7,2101.5147,null,null,null],"Refrigerantes Retornavel":[1173.1,733.5408,null,null,null],"Sabores Tt":[4754.24,3366.6985,null,null,null],"Sucos":[1207.91,927.2503,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P35","canal":"Mista","sub":null,"v":{"Powerade":[51.72,49.82,null,null,null],"Refrigerantes Individual":[2513.63,1649.8083,null,null,null],"Refrigerantes Retornavel":[1032.12,536.1294,null,null,null],"Sabores Tt":[4359.56,2454.319,null,null,null],"Sucos":[757.63,395.7347,null,null,null]}},{"gc":"Pa","sv":"Sv. Pa.3","rota":"P36","canal":"Mista","sub":null,"v":{"Powerade":[85.82,71.55,null,null,null],"Refrigerantes Individual":[1697.83,1494.1799,null,null,null],"Refrigerantes Retornavel":[1345.58,674.1096,null,null,null],"Sabores Tt":[3625.0,2963.2448,null,null,null],"Sucos":[857.49,649.7608,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R11","canal":"Segmentada","sub":"Mod","v":{"Powerade":[946.57,302.1,null,null,null],"Refrigerantes Individual":[8306.35,3464.5035,null,null,null],"Refrigerantes Retornavel":[3951.3,1819.2566,null,null,null],"Sabores Tt":[21772.66,12801.9373,null,null,null],"Sucos":[4417.31,2160.4425,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R12","canal":"Mista","sub":null,"v":{"Powerade":[66.6,78.44,null,null,null],"Refrigerantes Individual":[2201.18,1531.3287,null,null,null],"Refrigerantes Retornavel":[3331.98,2702.0804,null,null,null],"Sabores Tt":[3452.21,1886.3905,null,null,null],"Sucos":[1960.42,695.5429,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R13","canal":"Mista","sub":null,"v":{"Powerade":[55.45,68.37,null,null,null],"Refrigerantes Individual":[2315.45,1550.4372,null,null,null],"Refrigerantes Retornavel":[3844.94,2468.952,null,null,null],"Sabores Tt":[2815.33,1428.3193,null,null,null],"Sucos":[1529.33,849.174,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R14","canal":"Mista","sub":null,"v":{"Powerade":[87.73,68.37,null,null,null],"Refrigerantes Individual":[3180.59,1705.5175,null,null,null],"Refrigerantes Retornavel":[5108.28,2711.7522,null,null,null],"Sabores Tt":[2865.87,1517.6948,null,null,null],"Sucos":[457.43,605.8253,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R15","canal":"Mista","sub":null,"v":{"Powerade":[68.65,67.84,null,null,null],"Refrigerantes Individual":[2775.87,2020.566,null,null,null],"Refrigerantes Retornavel":[3049.13,2084.3472,null,null,null],"Sabores Tt":[3064.25,2076.6954,null,null,null],"Sucos":[1187.72,722.9431,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.1","rota":"R16","canal":"Mista","sub":null,"v":{"Powerade":[45.98,41.87,null,null,null],"Refrigerantes Individual":[2827.1,1629.9148,null,null,null],"Refrigerantes Retornavel":[3891.85,2391.7596,null,null,null],"Sabores Tt":[1260.7,628.6839,null,null,null],"Sucos":[530.04,270.7194,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R21","canal":"Mista","sub":null,"v":{"Powerade":[107.15,113.95,null,null,null],"Refrigerantes Individual":[2183.62,1697.4334,null,null,null],"Refrigerantes Retornavel":[2687.01,1957.8568,null,null,null],"Sabores Tt":[4999.71,2905.6932,null,null,null],"Sucos":[1813.93,961.5079,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R22","canal":"Mista","sub":null,"v":{"Powerade":[64.79,66.25,null,null,null],"Refrigerantes Individual":[1938.86,1279.7601,null,null,null],"Refrigerantes Retornavel":[2684.93,1678.733,null,null,null],"Sabores Tt":[3915.27,2656.3211,null,null,null],"Sucos":[1266.5,933.1217,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R23","canal":"Mista","sub":null,"v":{"Powerade":[100.67,92.75,null,null,null],"Refrigerantes Individual":[2618.81,1619.7501,null,null,null],"Refrigerantes Retornavel":[5449.66,3140.223,null,null,null],"Sabores Tt":[7368.46,3626.2465,null,null,null],"Sucos":[1863.85,746.2544,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R24","canal":"Mista","sub":null,"v":{"Powerade":[46.77,48.23,null,null,null],"Refrigerantes Individual":[1293.04,767.782,null,null,null],"Refrigerantes Retornavel":[2242.67,1265.3422,null,null,null],"Sabores Tt":[2027.09,887.7499,null,null,null],"Sucos":[838.69,477.8773,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R25","canal":"Mista","sub":null,"v":{"Powerade":[70.22,98.58,null,null,null],"Refrigerantes Individual":[1677.01,1209.3414,null,null,null],"Refrigerantes Retornavel":[1836.97,1176.4718,null,null,null],"Sabores Tt":[3171.73,2668.9052,null,null,null],"Sucos":[1897.53,1361.5803,null,null,null]}},{"gc":"Rv","sv":"Sv. Rv.2","rota":"R26","canal":"Mista","sub":null,"v":{"Powerade":[51.17,59.36,null,null,null],"Refrigerantes Individual":[1747.33,1376.0585,null,null,null],"Refrigerantes Retornavel":[1840.79,1429.403,null,null,null],"Sabores Tt":[3954.94,2293.6913,null,null,null],"Sucos":[1087.63,775.9669,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S11","canal":"Mista","sub":null,"v":{"Powerade":[123.87,66.25,null,null,null],"Refrigerantes Individual":[1820.64,1005.6199,null,null,null],"Refrigerantes Retornavel":[2241.03,1848.9896,null,null,null],"Sabores Tt":[5534.88,2238.3665,null,null,null],"Sucos":[2061.4,478.9988,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S12","canal":"Mista","sub":null,"v":{"Powerade":[107.02,68.9,null,null,null],"Refrigerantes Individual":[1915.47,1175.96,null,null,null],"Refrigerantes Retornavel":[5283.28,3430.8652,null,null,null],"Sabores Tt":[2586.24,963.1508,null,null,null],"Sucos":[940.47,438.733,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S13","canal":"Mista","sub":null,"v":{"Powerade":[128.8,73.14,null,null,null],"Refrigerantes Individual":[2226.01,1513.6837,null,null,null],"Refrigerantes Retornavel":[3339.99,2310.5514,null,null,null],"Sabores Tt":[5537.33,3886.7858,null,null,null],"Sucos":[1433.16,570.5059,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S14","canal":"Mista","sub":null,"v":{"Powerade":[111.41,73.67,null,null,null],"Refrigerantes Individual":[1750.43,1123.3702,null,null,null],"Refrigerantes Retornavel":[3018.48,2274.6702,null,null,null],"Sabores Tt":[2249.0,1440.0002,null,null,null],"Sucos":[1065.68,470.9055,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S15","canal":"Mista","sub":null,"v":{"Powerade":[105.59,93.81,null,null,null],"Refrigerantes Individual":[1828.96,1136.6657,null,null,null],"Refrigerantes Retornavel":[2429.93,1552.3436,null,null,null],"Sabores Tt":[2610.52,1798.2591,null,null,null],"Sucos":[1041.47,705.842,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.1","rota":"S16","canal":"Mista","sub":null,"v":{"Powerade":[108.05,81.09,null,null,null],"Refrigerantes Individual":[1817.32,1262.3379,null,null,null],"Refrigerantes Retornavel":[3471.43,2346.6786,null,null,null],"Sabores Tt":[4901.44,2077.4893,null,null,null],"Sucos":[771.42,552.6546,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.2","rota":"S21","canal":"Mista","sub":null,"v":{"Powerade":[135.54,108.12,null,null,null],"Refrigerantes Individual":[2670.89,1523.1839,null,null,null],"Refrigerantes Retornavel":[3500.46,2148.1084,null,null,null],"Sabores Tt":[3074.1,1060.4715,null,null,null],"Sucos":[1909.24,609.4622,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.2","rota":"S22","canal":"Mista","sub":null,"v":{"Powerade":[76.97,51.41,null,null,null],"Refrigerantes Individual":[1933.62,1145.6334,null,null,null],"Refrigerantes Retornavel":[2395.33,1955.0132,null,null,null],"Sabores Tt":[2072.19,1010.0258,null,null,null],"Sucos":[1135.08,586.3845,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.2","rota":"S23","canal":"Mista","sub":null,"v":{"Powerade":[118.08,90.63,null,null,null],"Refrigerantes Individual":[1393.42,961.0986,null,null,null],"Refrigerantes Retornavel":[3021.16,2301.1912,null,null,null],"Sabores Tt":[2491.72,1471.8192,null,null,null],"Sucos":[1429.41,736.7335,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.2","rota":"S24","canal":"Mista","sub":null,"v":{"Powerade":[100.21,55.12,null,null,null],"Refrigerantes Individual":[1256.52,889.2585,null,null,null],"Refrigerantes Retornavel":[2697.97,1958.0366,null,null,null],"Sabores Tt":[2181.75,852.2819,null,null,null],"Sucos":[885.73,480.5915,null,null,null]}},{"gc":"Sl","sv":"Sv. Sl.2","rota":"S25","canal":"Mista","sub":null,"v":{"Powerade":[83.32,57.77,null,null,null],"Refrigerantes Individual":[2199.59,1274.8764,null,null,null],"Refrigerantes Retornavel":[4232.77,2610.0278,null,null,null],"Sabores Tt":[3780.52,1594.9243,null,null,null],"Sucos":[773.74,412.8291,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C11","canal":"Mista","sub":null,"v":{"Powerade":[213.42,120.84,null,null,null],"Refrigerantes Individual":[1935.01,1180.2665,null,null,null],"Refrigerantes Retornavel":[4231.68,2836.1304,null,null,null],"Sabores Tt":[2557.01,1024.4266,null,null,null],"Sucos":[954.84,398.6144,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C12","canal":"Mista","sub":null,"v":{"Powerade":[186.68,109.71,null,null,null],"Refrigerantes Individual":[2785.33,1730.9795,null,null,null],"Refrigerantes Retornavel":[4847.28,2698.79,null,null,null],"Sabores Tt":[4025.19,1477.361,null,null,null],"Sucos":[1565.02,707.8892,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C13","canal":"Mista","sub":null,"v":{"Powerade":[233.84,156.35,null,null,null],"Refrigerantes Individual":[1965.66,1189.4403,null,null,null],"Refrigerantes Retornavel":[4482.92,2647.2032,null,null,null],"Sabores Tt":[3870.58,2534.024,null,null,null],"Sucos":[1487.47,943.7012,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C14","canal":"Mista","sub":null,"v":{"Powerade":[232.81,160.06,null,null,null],"Refrigerantes Individual":[1585.13,1142.5279,null,null,null],"Refrigerantes Retornavel":[2419.38,1804.675,null,null,null],"Sabores Tt":[4263.76,2923.5339,null,null,null],"Sucos":[1645.68,1400.4515,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C15","canal":"Mista","sub":null,"v":{"Powerade":[146.41,54.06,null,null,null],"Refrigerantes Individual":[1129.73,842.105,null,null,null],"Refrigerantes Retornavel":[2099.64,1763.88,null,null,null],"Sabores Tt":[3854.37,1864.3996,null,null,null],"Sucos":[1304.33,677.8072,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.1","rota":"C16","canal":"Mista","sub":null,"v":{"Powerade":[134.25,66.78,null,null,null],"Refrigerantes Individual":[1111.84,604.7888,null,null,null],"Refrigerantes Retornavel":[2378.77,1391.547,null,null,null],"Sabores Tt":[2720.56,767.0956,null,null,null],"Sucos":[1075.09,449.257,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C21","canal":"Mista","sub":null,"v":{"Powerade":[203.51,171.72,null,null,null],"Refrigerantes Individual":[1887.33,1295.76,null,null,null],"Refrigerantes Retornavel":[3099.59,2512.0988,null,null,null],"Sabores Tt":[5831.45,2987.0686,null,null,null],"Sucos":[1595.89,931.687,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C22","canal":"Mista","sub":null,"v":{"Powerade":[193.86,126.67,null,null,null],"Refrigerantes Individual":[2808.15,1995.1849,null,null,null],"Refrigerantes Retornavel":[6236.87,4151.9314,null,null,null],"Sabores Tt":[4277.31,2066.28,null,null,null],"Sucos":[1181.62,496.5179,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C23","canal":"Mista","sub":null,"v":{"Powerade":[97.17,72.61,null,null,null],"Refrigerantes Individual":[1567.45,714.2359,null,null,null],"Refrigerantes Retornavel":[4070.59,1755.188,null,null,null],"Sabores Tt":[2305.51,1308.9971,null,null,null],"Sucos":[704.84,375.3114,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C24","canal":"Mista","sub":null,"v":{"Powerade":[191.45,139.92,null,null,null],"Refrigerantes Individual":[1436.03,917.1745,null,null,null],"Refrigerantes Retornavel":[2094.57,1226.722,null,null,null],"Sabores Tt":[3481.21,964.7567,null,null,null],"Sucos":[1301.85,527.9156,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C25","canal":"Mista","sub":null,"v":{"Powerade":[184.85,140.98,null,null,null],"Refrigerantes Individual":[1730.36,1008.7379,null,null,null],"Refrigerantes Retornavel":[4990.13,3224.4884,null,null,null],"Sabores Tt":[2827.85,1292.4483,null,null,null],"Sucos":[1567.92,601.2306,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C26","canal":"Mista","sub":null,"v":{"Powerade":[210.59,107.06,null,null,null],"Refrigerantes Individual":[2081.83,1051.0406,null,null,null],"Refrigerantes Retornavel":[3929.18,2682.8864,null,null,null],"Sabores Tt":[2686.67,1321.8084,null,null,null],"Sucos":[1048.7,533.4106,null,null,null]}},{"gc":"Ri","sv":"Sv. Ri.2","rota":"C27","canal":"Mista","sub":null,"v":{"Powerade":[221.69,158.47,null,null,null],"Refrigerantes Individual":[1573.18,987.2006,4.988,null,null],"Refrigerantes Retornavel":[4303.34,2819.9184,15.1322,null,null],"Sabores Tt":[3518.41,2226.091,1.2258,null,null],"Sucos":[1453.37,609.0215,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.1","rota":"U11","canal":"Mista","sub":null,"v":{"Powerade":[333.66,199.28,null,null,null],"Refrigerantes Individual":[1946.6,1533.7026,null,null,null],"Refrigerantes Retornavel":[2728.24,2111.4956,null,null,null],"Sabores Tt":[5327.67,4102.9228,null,null,null],"Sucos":[2064.91,1662.9943,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.1","rota":"U12","canal":"Mista","sub":null,"v":{"Powerade":[831.93,135.15,null,null,null],"Refrigerantes Individual":[3626.62,2201.0502,null,null,null],"Refrigerantes Retornavel":[3458.89,2349.0454,null,null,null],"Sabores Tt":[6269.26,3625.5358,null,null,null],"Sucos":[2415.41,1191.5415,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.1","rota":"U13","canal":"Mista","sub":null,"v":{"Powerade":[291.4,114.48,null,null,null],"Refrigerantes Individual":[1815.63,1490.6662,null,null,null],"Refrigerantes Retornavel":[2187.42,1539.9282,null,null,null],"Sabores Tt":[2136.5,1672.7358,null,null,null],"Sucos":[788.75,657.2865,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.1","rota":"U14","canal":"Mista","sub":null,"v":{"Powerade":[516.06,135.15,null,null,null],"Refrigerantes Individual":[2194.69,1348.8326,null,null,null],"Refrigerantes Retornavel":[1310.72,927.6624,null,null,null],"Sabores Tt":[3849.43,2147.2499,null,null,null],"Sucos":[1418.38,871.1667,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.1","rota":"U15","canal":"Mista","sub":null,"v":{"Powerade":[251.36,60.95,null,null,null],"Refrigerantes Individual":[1343.29,806.4241,null,null,null],"Refrigerantes Retornavel":[1625.65,1160.9784,null,null,null],"Sabores Tt":[2846.22,1653.3188,null,null,null],"Sucos":[796.45,429.0725,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.2","rota":"U21","canal":"Mista","sub":null,"v":{"Powerade":[438.28,109.71,null,null,null],"Refrigerantes Individual":[2469.04,1930.2722,null,null,null],"Refrigerantes Retornavel":[2432.92,1266.1288,null,null,null],"Sabores Tt":[3880.95,2615.3795,null,null,null],"Sucos":[1326.37,500.8505,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.2","rota":"U22","canal":"Mista","sub":null,"v":{"Powerade":[454.7,224.19,null,null,null],"Refrigerantes Individual":[2496.31,1889.7084,null,null,null],"Refrigerantes Retornavel":[2598.87,2361.5754,null,null,null],"Sabores Tt":[3980.56,2330.6944,null,null,null],"Sucos":[1346.97,896.8416,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.2","rota":"U23","canal":"Mista","sub":null,"v":{"Powerade":[193.6,93.28,null,null,null],"Refrigerantes Individual":[1612.05,1036.4333,null,null,null],"Refrigerantes Retornavel":[2284.49,1505.8588,null,null,null],"Sabores Tt":[2626.06,2669.8724,null,null,null],"Sucos":[1201.4,870.5012,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.2","rota":"U24","canal":"Mista","sub":null,"v":{"Powerade":[327.27,118.72,null,null,null],"Refrigerantes Individual":[2110.72,1347.7728,null,null,null],"Refrigerantes Retornavel":[2664.72,1731.6918,null,null,null],"Sabores Tt":[3531.01,2693.5149,null,null,null],"Sucos":[1458.56,1020.1875,null,null,null]}},{"gc":"Ur","sv":"Sv. Ur.2","rota":"U25","canal":"Mista","sub":null,"v":{"Powerade":[228.25,97.52,null,null,null],"Refrigerantes Individual":[1366.56,1079.6501,null,null,null],"Refrigerantes Retornavel":[1907.2,1473.9682,null,null,null],"Sabores Tt":[2763.12,2244.2389,null,null,null],"Sucos":[1122.23,812.1122,null,null,null]}}],"semCanal":[{"gc":"An","rota":"A41"},{"gc":"An","rota":"A42"},{"gc":"An","rota":"A43"},{"gc":"An","rota":"A44"},{"gc":"An","rota":"T29"},{"gc":"At","rota":"431"},{"gc":"G2","rota":"251"},{"gc":"G3","rota":"331"},{"gc":"G3","rota":"T07"},{"gc":"G3","rota":"T17"},{"gc":"Gu/Po","rota":"T31"},{"gc":"Gu/Po","rota":"T61"},{"gc":"It/Mo","rota":"I19"},{"gc":"It/Mo","rota":"I31"},{"gc":"It/Mo","rota":"T35"},{"gc":"It/Mo","rota":"T40"},{"gc":"Pa/Di","rota":"P41"},{"gc":"Pa/Di","rota":"P42"},{"gc":"Pa/Di","rota":"T24"},{"gc":"Rv","rota":"R31"},{"gc":"Rv","rota":"R32"},{"gc":"Rv","rota":"T39"},{"gc":"Sl","rota":"T37"},{"gc":"Ur/Ri","rota":"C28"},{"gc":"Ur/Ri","rota":"C31"},{"gc":"Ur/Ri","rota":"T30"},{"gc":"Ur/Ri","rota":"T59"}],"duplicadas":[{"rota":"131","escolhida":"Segmentada Mini","opcoes":[{"seg":"Segmentada Mini","vol":468611.5},{"seg":"Mista","vol":1691.5}]},{"rota":"232","escolhida":"Segmentada Mod","opcoes":[{"seg":"Segmentada Mod","vol":514227.0},{"seg":"Mista","vol":1682.5}]},{"rota":"321","escolhida":"Mista","opcoes":[{"seg":"Mista","vol":183916.6},{"seg":"Segmentada Mini","vol":144.5}]},{"rota":"411","escolhida":"Segmentada Mini","opcoes":[{"seg":"Segmentada Mini","vol":1686026.0},{"seg":"Mista","vol":6056.0}]},{"rota":"522","escolhida":"Mista","opcoes":[{"seg":"Mista","vol":81295.2},{"seg":"Segmentada Mini","vol":507.1}]},{"rota":"R14","escolhida":"Mista","opcoes":[{"seg":"Mista","vol":143022.0},{"seg":"Segmentada Mod","vol":1292.8}]}],"segSemInfos":["326"]};</script>
@@ -1328,6 +1473,9 @@ const ALT_LINHA = 32;
 const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/ALT_LINHA));
 const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null, cfmes:MES };
 const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
+// segmentação de todas as rotas (com e sem canal): valor em uso, o da base e a origem; o segmento é só etiqueta
+const SEG = DADOS.segmentacao || [], SEG_POR = {}; SEG.forEach(l=>{ SEG_POR[l.rota]=l; });
+const AVISOS_AJ = AJ.avisos || []; // valores inválidos do ajustes.json, ignorados
 const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
 const MESA = {}; DADOS.rotas.forEach(r=>{ (MESA[svKey(r)]=MESA[svKey(r)]||[]).push(r); });
 const $ = (id)=>document.getElementById(id);
@@ -1383,7 +1531,8 @@ function textoAcum(){
 if (!SEMCALC) $('acum').innerHTML = textoAcum();
 /* rodapé: origem dos dados (API ou base embutida) e o corte */
 $('rod').textContent = 'Fonte: ' + (DADOS.meta.origem==='api' ? 'API (SAP Datasphere)' : DADOS.meta.rotuloBase) + ' · dados de ' + DADOS.meta.corte
-  + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '');
+  + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '')
+  + (AVISOS_AJ.length ? ` · ${AVISOS_AJ.length} ${AVISOS_AJ.length===1?'valor inválido ignorado':'valores inválidos ignorados'} nos ajustes (ver Regras > Dados e alertas)` : '');
 if (DADOS.meta.fechamento) $('rodpts').textContent = `Fechamento de ${MESES[MES].toLowerCase()}: Real do mês inteiro, sem Online. O % é truncado, nunca arredondado.`;
 if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = AJ.origem==='local' ? 'Ajustes do admin (só neste navegador)' : 'Ajustes do admin'; });
 
@@ -1412,6 +1561,11 @@ function filtrada(){
 const numF = (n)=> M.fmtVolume(n);
 const sgn = (n)=> n===0 ? '0,0' : (n<0?'-':'+') + numF(Math.abs(n));
 const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
+// etiqueta do segmento ao lado do canal (Mini/Mod na Segmentada; Neutraliza, Eventual, Coke Net ou Virtual sem canal)
+const segTag = (seg, semCanal)=> seg ? `<span class="sg${semCanal?' sc':''}" title="Segmento ${esc(seg)}">${esc(seg)}</span>` : '';
+const segsDe = (r)=> r.cargo==='RT' ? (INFO[r.id] && INFO[r.id].sub ? [INFO[r.id].sub] : []) : segmentosDaMesa(DADOS.rotas, r.id);
+const segsTag = (r)=> segsDe(r).map(x=>segTag(x)).join('');
+const segTxt = (r)=> segsDe(r).join(' ');
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
 const incompleto = (r)=> r.cargo==='SV' && r.acumuladoIncompleto && r.acumuladoIncompleto.length>0;
@@ -1484,7 +1638,7 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   nomeCol = nomeCol||'Rota'; alvo = alvo||'thead';
   const sv = nomeCol!=='Rota', ex = extremos(linhas, pil), cols = [], grupos = [];
   cols.push({ textos:['Rank','Top '+lim+'º','999'] });
-  cols.push({ textos: [nomeCol].concat(linhas.map(r=> sv ? r.nome : r.id)), extra:18 });
+  cols.push({ textos: [nomeCol].concat(linhas.map(r=> (sv ? r.nome : r.id) + (segTxt(r) ? '  ' + segTxt(r) : ''))), extra:18 + (linhas.some(r=>segTxt(r)) ? 16 : 0) });
   cols.push({ textos:['% Refri','mín. '+R.gatilhoVolumePct+'%','100,0%'] });
   pil.forEach(pl=>{
     const a = ex[pl.nome], ini = cols.length;
@@ -1537,7 +1691,7 @@ function linha(r){
   const nome = sv ? `<button class="rbtn" data-sv="${esc(r.nome)}" aria-label="Ver a mesa do ${esc(r.nome)}">${esc(r.nome)}${CHEV}</button>` : `<button class="rbtn" data-rota="${esc(r.id)}" aria-label="Ver detalhe da ${esc(r.nome)}">${esc(r.id)}${CHEV}</button>`;
   const tot = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>
-    <div class="rt">${nome}</div>
+    <div class="rt">${nome}${segsTag(r)}</div>
     <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
     <div class="tp">${tot}${incompleto(r)?'<span class="na"> incompleto</span>':''}</div><div class="stc">${s.pill}</div></div>`;
 }
@@ -1606,7 +1760,8 @@ function fonteDe(nome){ return CONFIG.fonteDoPilar[nome]; }
 function renderDetalhe(){
   const sc = filtrada(), pil = pilaresDo(st.canal);
   const nome = st.sv!=='Todas' ? 'Mesa '+st.sv : st.gc!=='Todas' ? 'Gerência '+st.gc : 'Todas as rotas';
-  $('dtitulo').textContent = `${nome} · ${st.canal} · ${sc.length} ${sc.length===1?'rota':'rotas'}`;
+  const segsSel = [...new Set(sc.map(p=>INFO[p.id].sub).filter(Boolean))].sort();
+  $('dtitulo').innerHTML = `${esc(nome)} · ${esc(st.canal)}${segsSel.map(x=>segTag(x)).join('')} · ${sc.length} ${sc.length===1?'rota':'rotas'}`;
   const agg = (get)=>{ let m=0,r=0,o=0; sc.forEach(p=>{ const x=get(p); if(x && x.pct!==null){ m+=x.meta; r+=x.real; o+=x.online; } }); return {m,r,o,pct:m>0?(r+o)/m*100:null,tf:m>0?M.faixaPontos(r+o,m):0}; };
   const dia = (fonte)=>{ let s=0,any=false; sc.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
   const ar = agg(p=>p.refri);
@@ -1632,7 +1787,7 @@ function renderDetalhe(){
   }).join('') + cardRefri;
   if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
   $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
-    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${inf.sub?' · Seg. '+esc(inf.sub):''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
+    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}${segTag(inf.sub)}<small>${esc(inf.sv)} · ${esc(r.unidade)}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
     : `<div class="vazio">Nenhuma rota no filtro.</div>`;
   const r = sc.find(p=>p.id===st.sel);
   if(!r){ $('ddet').innerHTML=`<div class="vazio">Selecione uma rota.</div>`; return; }
@@ -1651,6 +1806,7 @@ function renderDetalhe(){
   const diaDe = (fonte)=>{ const v=inf.v[fonte]; return v && v[4]!=null ? numF(v[4]) : '–'; };
   const diaRf = (()=>{ let s=0,any=false; REFRI_COMP.forEach(g=>{ const v=inf.v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; })();
   $('ddet').innerHTML = `<div class="sumr">
+    <div class="s"><small>${esc(r.nome)} · ${esc(r.canal)}</small><b style="font-size:22px">${segTag(inf.sub)||'<span style="color:var(--muted);font-weight:400">sem segmento</span>'}</b></div>
     <div class="s"><small>Pontos no mês</small><b>${r.pontosAtuaisExibidos}</b></div>
     <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
     <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
@@ -1666,7 +1822,7 @@ function linhaRk(r, sv){
   const s = statusDe(r), sub = sv ? esc(r.unidade) : esc(INFO[r.id].sv)+' · '+esc(r.unidade);
   const pts = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="rkr ${s.cls}${r.elegivel?'':' fora'}"><div class="p${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>`
-    + `<div class="nm">${esc(sv?r.nome:r.id)}<small>${sub}</small></div>`
+    + `<div class="nm">${esc(sv?r.nome:r.id)}${segsTag(r)}<small>${sub}</small></div>`
     + `<div class="v">${r.volume.pctTexto}</div><div class="pt">${pts}</div><div>${s.pill}</div></div>`;
 }
 function listaRk(arr, lim, sv){
@@ -1686,7 +1842,7 @@ function renderRank(){
   const naGer = (p)=> st.gc==='Todas' || p.unidade===st.gc;
   const rts = RTS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
   const svs = SVS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
-  const suf = st.canal + (st.gc!=='Todas' ? ' · '+st.gc : '');
+  const suf = st.canal + (st.canal==='Segmentada' ? ' (Mini e Mod)' : '') + (st.gc!=='Todas' ? ' · '+st.gc : '');
   $('rk-rt-tt').textContent = `Rotas · ${suf} · ${rts.length} ${rts.length===1?'rota':'rotas'}`;
   $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}` + (MES>10 ? ` · acumulado ${periodoAcum}` : '') + (ACUM.faltando.length ? ' · incompleto' : '');
   $('rk-rt-h').innerHTML = RKCAB('Rota'); $('rk-sv-h').innerHTML = RKCAB('Supervisão');
@@ -1780,10 +1936,14 @@ const MOTIVOS = {
   EMPATE_SEM_VENCEDOR:'empate: ninguém pontua',
   DESEMPATE_REFRI:'decidido no desempate por % de Refrigerantes',
 };
+// confronto que um ajuste de canal invalidou: o cadastro continua; o motivo diz qual mesa saiu de qual canal
+const motivoConf = (c)=>{ const a = confrontoInvalidadoPorAjuste(c, SEG); return a ? a.texto : (MOTIVOS[c.motivo]||c.motivo||'—'); };
+const nomeSVId = (id)=> String(id).replace('#',' · ');
 function renderConfrontos(){
   const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
-  const nomeSV = (id)=> porId[id] ? porId[id].nome : id;
+  const nomeSV = (id)=> porId[id] ? porId[id].nome : nomeSVId(id);
   const infoSV = (id)=> porId[id] ? porId[id].canal+' · '+porId[id].unidade : 'não encontrado';
+  const segSV = (id)=> porId[id] ? segsTag(porId[id]) : '';
   // % do pilar no mês do confronto (o motor apura cada mês com os dados daquele mês: fechado ou corrente)
   const pctP = (v)=> v===null || v===undefined ? '–' : M.fmtPct(v);
   const mesesCf = MESES_Q4.filter(m=>m<=MES);
@@ -1799,19 +1959,20 @@ function renderConfrontos(){
   $('cfhead').innerHTML = `<div>Mês</div><div>Pilar</div><div>Desafiante</div><div class="v">%</div><div class="x"></div>`
     + `<div>Desafiado</div><div class="v">%</div><div>Resultado</div>`;
   $('cfrows').innerHTML = lst.length ? lst.map(c=>{
-    const res = !c.valido ? `<span class="mt">Não vale: ${esc(MOTIVOS[c.motivo]||c.motivo||'—')}</span>`
+    const res = !c.valido ? `<span class="mt">Não vale: ${esc(motivoConf(c))}</span>`
       : c.vencedor ? `<span class="pill tot">${CK}${esc(nomeSV(c.vencedor))} +${R.bonusConfronto}</span>`
       : `<span class="mt">${esc(MOTIVOS[c.motivo]||'sem vencedor')}</span>`;
     return `<div class="cf cfr${c.valido?'':' invalido'}${c.vencedor===c.desafiante?' ganhou-a':''}${c.vencedor===c.desafiado?' ganhou-b':''}">`
       + `<div>${esc(MESES[c.mes].slice(0,3))}</div><div>${esc(rotuloPilar(c.pilar))}</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiante))}<small>${esc(infoSV(c.desafiante))}</small></div>`
+      + `<div class="nm">${esc(nomeSV(c.desafiante))}${segSV(c.desafiante)}<small>${esc(infoSV(c.desafiante))}</small></div>`
       + `<div class="v va">${pctP(c.pctDesafiante)}</div><div class="x">×</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiado))}<small>${esc(infoSV(c.desafiado))}</small></div>`
+      + `<div class="nm">${esc(nomeSV(c.desafiado))}${segSV(c.desafiado)}<small>${esc(infoSV(c.desafiado))}</small></div>`
       + `<div class="v vb">${pctP(c.pctDesafiado)}</div><div>${res}</div></div>`;
   }).join('') : `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
   $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
-    + `Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. `
-    + `Empate é decidido pelo maior % de Refrigerantes.`;
+    + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
+    + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
+    + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
 }
 
 $('cfmes').addEventListener('click',e=>{ const b=e.target.closest('button[data-cfmes]'); if(!b) return; st.cfmes=+b.dataset.cfmes; renderConfrontos(); });
@@ -1896,6 +2057,7 @@ const SEC = [
     const api = DADOS.meta.origem==='api';
     return `<h2>Dados e alertas</h2><div class="sub">${esc(DADOS.meta.fonteLonga)}</div>
     ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
+    ${AVISOS_AJ.length ? `<p><b>Ajustes do admin com valor inválido (ignorado):</b> ${AVISOS_AJ.map(esc).join('; ')}.</p>` : ''}
     ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+(u.final?' (final)':' (provisório)')).join(', ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
@@ -1918,9 +2080,10 @@ const SEC = [
       ['Rotas sem canal na base de segmentação (ficam fora do ranking)',sc.length],
       ['Rotas em dois segmentos (vale o de maior volume realizado)',du.length],
       [api?'Rota com segmento que não está na API':'Rota com segmento e sem meta no modelo',DADOS.segSemInfos.map(r=>'Rota '+esc(r)).join(', ')||'0']])}
-    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o subtipo aparece na linha da rota.</p>
+    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o segmento aparece como etiqueta ao lado da rota. ⚠️</p>
     <h3>Rotas sem canal (${sc.length})</h3>
-    <div class="chips">${sc.map(x=>`<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small></span>`).join('')}</div>
+    <p>Ficam fora de pontos, ranking e premiação. A etiqueta mostra o segmento quando o admin o definiu (Neutraliza, Eventual, Coke Net ou Virtual); sem etiqueta, a rota está como veio da base. ⚠️</p>
+    <div class="chips">${sc.map(x=>{ const l = SEG_POR[x.rota]; return `<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small>${segTag(l && l.sub, true)}</span>`; }).join('')}</div>
     <h3>Rotas em dois segmentos (${du.length})</h3>
     ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${numF(o.vol)}`).join(' · ')]))}
     <h3>Pilares sem meta ou sem real (${al.length})</h3>
@@ -1947,7 +2110,8 @@ const SEC = [
      ['6','<b>Rotas sem canal</b> ('+DADOS.semCanal.length+') e <b>rotas em dois segmentos</b> ('+DADOS.duplicadas.length+'): confirmar o critério de maior volume.','IM',P],
      ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
      ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
-     ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada.','IM',P],
+     ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada, ou pelo ajuste do admin (Segmentação da supervisão).','IM',P],
+     ['10','⚠️ <b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). Sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Ainda não está no documento de regras.','Back Office',P],
      ...bo], 'pd')}`; } },
  { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
     return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
@@ -1974,27 +2138,54 @@ async function hashSenha(s){
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('q4-admin:'+s));
   return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
-const valCanal = (c, sub)=> !c ? '' : c==='Mista' ? 'Mista' : 'Segmentada|'+(sub||'');
-const rotuloCanal = (v)=> v==='' ? 'Sem canal' : v==='Mista' ? 'Mista' : 'Segmentada'+(v.split('|')[1] ? ' '+v.split('|')[1] : '');
-const OPC_CANAL = ['Mista','Segmentada|Mini','Segmentada|Mod',''];
-const opcoesCanal = (atual)=> (OPC_CANAL.includes(atual) ? OPC_CANAL : OPC_CANAL.concat([atual]))
-  .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloCanal(v))}</option>`).join('');
-const PADRAO_CANAL = {}; BASE_EMBUTIDA.rotas.forEach(r=>{ PADRAO_CANAL[r.rota] = valCanal(r.canal, r.sub); });
-const padraoCanal = (rota)=> PADRAO_CANAL[rota] ?? '';
-function segLinhas(){
-  const out = DADOS.rotas.map(r=>({ rota:r.rota, gc:r.gc, atual:valCanal(r.canal, r.sub) }))
-    .concat(DADOS.semCanal.map(x=>({ rota:x.rota, gc:x.gc, atual:'' })));
-  return out.sort((a,b)=> a.gc.localeCompare(b.gc,'pt-BR') || a.rota.localeCompare(b.rota,'pt-BR',{numeric:true}));
+/* segmentação da supervisão: o admin escolhe o SV e ajusta canal e segmento das rotas da mesa (lógica em adapter.js) */
+let EDIC = {};                                  // rota -> valor escolhido na tela (só as que mudaram em relação ao uso)
+const SEGADM = { sv:null, busca:'' };
+const SVS_SEG = svsDaSegmentacao(SEG);
+const valEdic = (l)=> l.rota in EDIC ? EDIC[l.rota] : l.atual;
+const opcoesSeg = (atual)=> (OPCOES_SEGMENTACAO.includes(atual) ? OPCOES_SEGMENTACAO : OPCOES_SEGMENTACAO.concat([atual]))
+  .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloSeg(v))}${OPCOES_SEGMENTACAO.includes(v)?'':' (como na base)'}</option>`).join('');
+function segSvOpcoes(){
+  const lst = buscarSVs(SVS_SEG, SEGADM.busca);
+  if (!lst.some(x=>x.sv===SEGADM.sv)) SEGADM.sv = lst.length ? lst[0].sv : null;
+  return lst.length ? lst.map(x=>`<option value="${esc(x.sv)}"${x.sv===SEGADM.sv?' selected':''}>${esc(x.rotulo)} · ${esc(x.gcs.join(', '))} · ${x.n} ${x.n===1?'rota':'rotas'}</option>`).join('')
+    : '<option value="">Nenhum SV encontrado</option>';
+}
+function segMesaHtml(){
+  if (!SEGADM.sv) return '<p class="sub">Nenhum SV no filtro.</p>';
+  const rotas = rotasDoFiltro(SEG, SEGADM.sv), semSv = SEGADM.sv===SEM_SV, cm = canalDaMesa(rotas, EDIC);
+  const cab = semSv ? `<p><b>Rotas sem SV</b>: não formam mesa nem supervisão no ranking.</p>`
+    : `<p><b>Canal do SV ${esc(SEGADM.sv)}</b> (com as alterações desta tela): ${cm.canais.map(esc).join(' e ')}.</p>`
+      + (cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV aparece nos dois rankings, cada um só com as rotas do canal.</div>` : '');
+  return cab + `<div class="adm-linha">Para todas as rotas ${semSv?'sem SV':'desta mesa'}: <select id="seg-todas" aria-label="Valor para todas as rotas">${opcoesSeg(OPCOES_SEGMENTACAO[0])}</select>
+      <button class="adm-btn" type="button" id="seg-aplicar">Aplicar a todas as rotas ${semSv?'sem SV':'desta mesa'}</button>
+      <button class="adm-btn" type="button" id="seg-restaurar-mesa">Restaurar padrão ${semSv?'das rotas sem SV':'desta mesa'}</button></div>
+    <table id="adm-seg"><thead><tr><th>Rota</th><th>Gerência</th><th>Canal atual</th><th>Segmento atual</th><th>Origem</th><th>Novo valor</th><th></th></tr></thead><tbody>
+    ${rotas.map(l=>`<tr data-rota="${esc(l.rota)}" class="${valEdic(l)!==l.atual?'mud':''}"><td>${esc(l.rota)}</td><td>${esc(l.gc)}</td>
+      <td>${esc(l.canal||'Sem canal')}</td><td>${l.sub?segTag(l.sub, !l.canal):'–'}</td><td>${l.origem==='ajuste'?'<b>ajuste</b>':'base'}</td>
+      <td><select data-rota="${esc(l.rota)}" aria-label="Canal e segmento da rota ${esc(l.rota)}">${opcoesSeg(valEdic(l))}</select></td>
+      <td><button class="adm-btn" type="button" data-restaurar="${esc(l.rota)}"${valEdic(l)===l.padrao?' disabled':''} title="Base: ${esc(rotuloSeg(l.padrao))}">Restaurar padrão</button></td></tr>`).join('')}
+    </tbody></table>`;
+}
+function segPendHtml(){
+  const pend = pendenciasSegmentacao(SEG, EDIC);
+  if (!pend.length) return '<p class="sub">Nenhuma rota fora do padrão da base.</p>';
+  return `<table><thead><tr><th>Rota</th><th>SV</th><th>Base</th><th></th><th>Novo valor</th><th>Situação</th></tr></thead><tbody>
+    ${pend.map(x=>`<tr${x.situacao==='em uso'?'':' class="mud"'}><td>${esc(x.rota)}</td><td>${esc(x.sv||'sem SV')}</td><td>${esc(rotuloSeg(x.base))}</td><td>→</td>
+      <td>${esc(rotuloSeg(x.novo))}</td><td>${x.situacao==='em uso'?'já em uso':x.situacao==='nova'?'<b>nova</b>':'<b>volta ao padrão</b>'}</td></tr>`).join('')}</tbody></table>`;
 }
 // agrupadores extras em edição (começa pelos ajustes em uso); viram o pilar "Volume <nome>"
 let EXTRAS = ((AJ.ativo && AJ.ativo.agrupadores) || []).map(e=>Object.assign({}, e));
 // confrontos em edição (começa pelos ajustes em uso); o motor apura o vencedor e o bônus
 let CONFRONTOS = ((AJ.ativo && AJ.ativo.confrontos) || []).map(c=>Object.assign({}, c));
 const SV_POR_ID = {}; SVS.forEach(s=>{ SV_POR_ID[s.id] = s; });
-const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[id].canal : id;
+const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[id].canal + (segTxt(SV_POR_ID[id]) ? ' ' + segTxt(SV_POR_ID[id]) : '') : String(id).replace('#',' · ');
 const chaveConf = (c)=> c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
+// confronto cadastrado que um ajuste de canal invalidou: continua na lista, com o motivo
+const avisoConf = (c)=>{ const d = (RES.confrontos||[]).find(x=>x.mes===c.mes && x.desafiante===c.id_sv_desafiante && x.desafiado===c.id_sv_desafiado);
+  const a = d && confrontoInvalidadoPorAjuste(d, SEG); return a ? `<br><small class="pend">⚠️ não vale: ${esc(a.texto)}</small>` : ''; };
 const linhaConf = (c)=>`<tr><td>${esc(MESES[c.mes])}</td><td>${esc(nomeDoSV(c.id_sv_desafiante))}</td>
-  <td>${esc(nomeDoSV(c.id_sv_desafiado))}</td><td>${esc(rotuloPilar(c.pilar))}</td>
+  <td>${esc(nomeDoSV(c.id_sv_desafiado))}${avisoConf(c)}</td><td>${esc(rotuloPilar(c.pilar))}</td>
   <td><button class="adm-btn" type="button" data-conf="${esc(chaveConf(c))}">Excluir</button></td></tr>`;
 const opcoesSV = ()=> SVS.slice().sort((a,b)=> a.canal.localeCompare(b.canal) || a.nome.localeCompare(b.nome,'pt-BR',{numeric:true}))
   .map(s=>`<option value="${esc(s.id)}">${esc(s.nome)} · ${esc(s.canal)} · ${esc(s.unidade)}</option>`).join('');
@@ -2069,14 +2260,20 @@ function adminHtml(){
       Desafiado <select id="adm-conf-b">${opcoesSV()}</select>
       Pilar <select id="adm-conf-p"></select>
       <button class="adm-btn" type="button" id="adm-conf-incluir">Incluir</button></div>
-    <h3>Segmentação das rotas</h3>
-    <p class="sub">O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}. Linhas em azul estão diferentes do padrão.
-      Rota sem canal só pode entrar quando o painel está lendo a API.</p>
-    <label class="adm-linha">Buscar rota <input id="adm-busca" type="search" autocomplete="off" style="width:170px;text-align:left"></label>
-    <table id="adm-seg"><thead><tr><th>Rota</th><th>Gerência</th><th>Padrão</th><th>Canal</th></tr></thead><tbody>
-      ${segLinhas().map(x=>`<tr data-rota="${esc(x.rota)}" class="${x.atual!==padraoCanal(x.rota)?'mud':''}"><td>${esc(x.rota)}</td><td>${esc(x.gc)}</td>
-        <td>${esc(rotuloCanal(padraoCanal(x.rota)))}</td><td><select data-rota="${esc(x.rota)}" aria-label="Canal da rota ${esc(x.rota)}">${opcoesCanal(x.atual)}</select></td></tr>`).join('')}
-    </tbody></table>
+    <h3>Segmentação da supervisão</h3>
+    <p class="sub">Escolha o SV e ajuste o canal e o segmento de cada rota da mesa. O <b>canal</b> é o que conta para pilares, ranking,
+      confrontos e premiação (Mista, Segmentada ou sem canal); o <b>segmento</b> é só a etiqueta (Mini ou Mod na Segmentada; Neutraliza,
+      Eventual, Coke Net ou Virtual sem canal). O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}; rota sem ajuste fica
+      como está na base. Linhas em azul mudam em relação ao que está em uso. Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
+    <div class="seg-av">⚠️ A confirmar no documento de regras (decisão de 28/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
+      premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.</div>
+    ${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
+    <div class="adm-linha"><label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
+      <label for="seg-sv">SV</label><select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></div>
+    <div id="seg-mesa">${segMesaHtml()}</div>
+    <h4>Alterações pendentes (base → novo valor)</h4>
+    <p class="sub">É o que vai para o <code>${esc(CONFIG.arquivoAjustes)}</code> ao salvar neste navegador ou publicar por PR.</p>
+    <div id="seg-pend">${segPendHtml()}</div>
    </div>`;
 }
 /** Formulário -> ajustes (só o que difere do padrão). Texto = erro para mostrar; null = tudo no padrão. */
@@ -2101,10 +2298,7 @@ function lerAjustes(){
     if (sel[0]===sel[1]) return `${c}: os pilares 4 e 5 precisam ser diferentes.`;
     if (!igual(sel, PADRAO.coringas[c])) pilares[c] = sel;
   }
-  const canais = {};
-  document.querySelectorAll('#adm-seg select[data-rota]').forEach(s=>{
-    if (s.value !== padraoCanal(s.dataset.rota)) { const [c, sub] = s.value.split('|'); canais[s.dataset.rota] = { canal:c||null, sub:sub||null }; }
-  });
+  const canais = canaisDaEdicao(SEG, EDIC, AJ.ativo && AJ.ativo.canais);
   const agrupadores = EXTRAS.map(e=>({ id:e.id, nome:e.nome, agrupador:e.agrupador }));
   const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length
@@ -2128,9 +2322,27 @@ function ligarAdmin(){
     $('adm-senha').focus();
     return;
   }
-  $('adm-busca').addEventListener('input', e=>{ const t=e.target.value.trim().toLowerCase();
-    document.querySelectorAll('#adm-seg tbody tr').forEach(tr=>{ tr.hidden = !!t && !tr.dataset.rota.toLowerCase().includes(t); }); });
-  $('adm-seg').addEventListener('change', e=>{ const s=e.target.closest('select[data-rota]'); if(s) s.closest('tr').classList.toggle('mud', s.value!==padraoCanal(s.dataset.rota)); });
+  // segmentação da supervisão: filtro de SV, seletor por rota, aplicar à mesa e restaurar padrão
+  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); $('seg-pend').innerHTML = segPendHtml(); };
+  const editar = (nova)=>{ EDIC = {}; SEG.forEach(l=>{ if (l.rota in nova && nova[l.rota]!==l.atual) EDIC[l.rota] = nova[l.rota]; }); refazSeg(); };
+  $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-sv').innerHTML = segSvOpcoes(); refazSeg(); });
+  $('seg-sv').addEventListener('change', e=>{ SEGADM.sv = e.target.value || null; refazSeg(); });
+  $('seg-mesa').addEventListener('change', e=>{ const s=e.target.closest('select[data-rota]'); if(!s) return;
+    editar(Object.assign({}, EDIC, { [s.dataset.rota]: s.value })); });
+  $('seg-mesa').addEventListener('click', e=>{
+    const rotas = rotasDoFiltro(SEG, SEGADM.sv), nome = SEGADM.sv===SEM_SV ? 'as rotas sem SV' : 'a mesa de '+SEGADM.sv;
+    const b = e.target.closest('button'); if(!b) return;
+    const edAtual = Object.assign({}, ...SEG.map(l=>({ [l.rota]: valEdic(l) })));
+    if (b.dataset.restaurar) { editar(restaurarPadrao(edAtual, rotas.filter(l=>l.rota===b.dataset.restaurar))); msg(`Rota ${b.dataset.restaurar} volta ao padrão da base. Salve ou publique para valer.`); }
+    else if (b.id==='seg-aplicar') {
+      const v = $('seg-todas').value;
+      if (!confirm(`Aplicar "${rotuloSeg(v)}" a ${rotas.length} ${rotas.length===1?'rota':'rotas'} (${nome})?`)) return;
+      editar(aplicarNaMesa(edAtual, rotas, v)); msg(`"${rotuloSeg(v)}" aplicado a ${nome}. Confira o resumo e salve ou publique para valer.`);
+    } else if (b.id==='seg-restaurar-mesa') {
+      if (!confirm(`Voltar ${nome} (${rotas.length} ${rotas.length===1?'rota':'rotas'}) ao padrão da base?`)) return;
+      editar(restaurarPadrao(edAtual, rotas)); msg(`${nome.charAt(0).toUpperCase()+nome.slice(1)} volta ao padrão da base. Salve ou publique para valer.`);
+    }
+  });
   $('adm-salvar').addEventListener('click', ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
     try { if (aj) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(aj)); else localStorage.removeItem(AJUSTES_LOCAL); }

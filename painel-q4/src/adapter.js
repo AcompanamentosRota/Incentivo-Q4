@@ -97,11 +97,12 @@ function somarLinhas(linhas, I) {
   return out;
 }
 
-/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). */
+/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). `sub` é o segmento. */
 function mapaCanal(base, canais) {
   const canal = {};
-  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub }; });
-  return Object.assign(canal, canais || {});
+  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub, origem: 'base' }; });
+  for (const [rota, c] of Object.entries(canais || {})) canal[rota] = Object.assign({}, c, { origem: 'ajuste' });
+  return canal;
 }
 const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
 const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
@@ -125,13 +126,14 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const canal = mapaCanal(base, canais);
   const ids = new Set(index.produtos.map((p) => p.id));
   const faltam = Object.keys(cfg.produtoDaApi).filter((ag) => !ids.has(cfg.produtoDaApi[ag]));
-  const rotas = [], semCanal = [], naApi = new Set();
+  const rotas = [], semCanal = [], naApi = new Set(), lista = [];
   for (const g of gerencias) for (const r of g.rotas) {
     if (r.tipo === 'eventual') continue; // soma dos clientes em rotas EV*: sem meta, não é um consultor
     naApi.add(r.id);
     const gc = titulo(r.gerencia), c = canal[r.id];
+    lista.push({ rota: r.id, gc, sv: r.supervisao ? svNome(r.supervisao) : null });
     if (!c || !c.canal) { semCanal.push({ gc, rota: r.id }); continue; }
-    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, v: valoresDaApi(r.produtos, cfg, I) });
+    rotas.push({ gc, sv: svNome(r.supervisao), rota: r.id, canal: c.canal, sub: c.sub, origemCanal: c.origem, v: valoresDaApi(r.produtos, cfg, I) });
   }
   // Totais da API: uma linha por gerência do index.json (mesmo que nenhuma rota dela esteja no incentivo)
   const totaisGerencia = index.gerencias.map((g, i) => ({
@@ -157,6 +159,7 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
     },
     rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
+    segmentacao: linhasSegmentacao(lista, base, canais),
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
@@ -215,6 +218,8 @@ async function carregarFechados(d, index, ler, base, cfg, canais) {
 function daBase(base, canais, motivo, hoje) {
   const rotuloBase = `base embutida (${NOMES_MES[base.meta.mes]})`;
   const d = Object.assign({}, comCanais(base, canais), { fechados: [] });
+  d.segmentacao = linhasSegmentacao(base.rotas.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv }))
+    .concat(base.semCanal.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv || null }))), base, canais);
   d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
                                           aviso: motivo, fonte: base.meta.fonte + ' · ' + rotuloBase,
                                           acumulado: { meses: [base.meta.mes], usados: [], faltando: [] } });
@@ -233,7 +238,7 @@ function comCanais(base, canais) {
   for (const r of base.rotas) {
     const c = canais[r.rota];
     if (!c) rotas.push(r);
-    else if (c.canal) rotas.push(Object.assign({}, r, { canal: c.canal, sub: c.sub }));
+    else if (c.canal) rotas.push(Object.assign({}, r, { canal: c.canal, sub: c.sub, origemCanal: 'ajuste' }));
     else semCanal.push({ gc: r.gc, rota: r.rota });
   }
   return Object.assign({}, base, { rotas, semCanal });
@@ -329,8 +334,8 @@ function normalizarConfrontos(lista) {
   return out;
 }
 
-/** Só os campos válidos; o resto é ignorado. Sem nenhum campo válido, null. */
-function normalizarAjustes(aj) {
+/** Só os campos válidos; o resto é ignorado (o canal das rotas, com aviso em `avisos`). Sem nenhum campo válido, null. */
+function normalizarAjustes(aj, avisos) {
   if (!aj || typeof aj !== 'object') return null;
   const ok = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
   const r = aj.regras || {}, regras = {}, pilares = {}, canais = {};
@@ -349,9 +354,9 @@ function normalizarAjustes(aj) {
     const p = (aj.pilares || {})[canal];
     if (Array.isArray(p) && p.length === 2 && p[0] !== p[1] && p.every((x) => coringas.includes(x))) pilares[canal] = p.slice();
   }
-  for (const [rota, c] of Object.entries(aj.canais || {})) {
-    if (c && (c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada'))
-      canais[rota] = { canal: c.canal, sub: c.canal === 'Segmentada' && (c.sub === 'Mini' || c.sub === 'Mod') ? c.sub : null };
+  for (const [rota, c] of Object.entries(aj.canais && typeof aj.canais === 'object' ? aj.canais : {})) {
+    const v = validarCanalRota(rota, c, avisos);
+    if (v) canais[rota] = v;
   }
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !agrupadores.length && !confrontos.length) return null;
   return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, agrupadores, confrontos };
@@ -382,13 +387,16 @@ function aplicarCoringas(aj, cfg, mes) {
 async function carregarAjustes(cfg) {
   cfg = cfg || CONFIG;
   let publicado = null, local = null, existePublicado = false;
+  const avPub = [], avLocal = [];
   try {
     const r = await fetch(cfg.ajustes, { cache: 'no-cache' });
     existePublicado = r.ok;
-    if (r.ok) publicado = normalizarAjustes(await r.json());
+    if (r.ok) publicado = normalizarAjustes(await r.json(), avPub);
   } catch (e) { /* sem ajustes publicados (ou HTML aberto direto do computador) */ }
-  try { local = normalizarAjustes(JSON.parse(localStorage.getItem(AJUSTES_LOCAL) || 'null')); } catch (e) { /* sem localStorage */ }
-  return { publicado, local, existePublicado, ativo: local || publicado, origem: local ? 'local' : publicado ? 'publicado' : null };
+  try { local = normalizarAjustes(JSON.parse(localStorage.getItem(AJUSTES_LOCAL) || 'null'), avLocal); } catch (e) { /* sem localStorage */ }
+  // valores inválidos ignorados: a tela mostra os avisos dos ajustes em uso (nunca em silêncio)
+  return { publicado, local, existePublicado, ativo: local || publicado, origem: local ? 'local' : publicado ? 'publicado' : null,
+           avisos: local ? avLocal : avPub };
 }
 
 /** Página do GitHub para publicar o ajustes.json por PR: edição do arquivo (se já existe) ou criação já preenchida. */
@@ -397,6 +405,135 @@ function urlPublicacao(cfg, texto, existe) {
   if (existe) return `${base}/edit/${cfg.branch}/${cfg.arquivoAjustes}`;
   return `${base}/new/${cfg.branch}/${cfg.arquivoAjustes.slice(0, i)}?filename=${encodeURIComponent(cfg.arquivoAjustes.slice(i + 1))}` +
     `&value=${encodeURIComponent(texto)}`;
+}
+
+/*
+ * Segmentação da supervisão (decisão de 28/10/2026). O motor só vê o CANAL: Mista, Segmentada ou sem canal (null).
+ * O SEGMENTO é só descrição: Segmentada -> Mini ou Mod; sem canal -> Neutraliza, Eventual, Coke Net ou Virtual;
+ * Mista não tem. No ajustes.json cada rota vira {canal, sub, segmento}: `sub` é o campo antigo (Mini/Mod, só na
+ * Segmentada) e `segmento` o novo, que vale também para sem canal; um arquivo antigo, só com `sub`, continua igual.
+ * Dentro do painel o segmento fica em `sub`. Rota sem ajuste fica exatamente como está na base (nada é renomeado).
+ * Valor de tela: 'Mista', 'Segmentada|Mini', '|Neutraliza' ('' = sem canal e sem segmento, como vem da base).
+ */
+const SEGMENTOS = { Mista: [], Segmentada: ['Mini', 'Mod'], '': ['Neutraliza', 'Eventual', 'Coke Net', 'Virtual'] };
+const OPCOES_SEGMENTACAO = ['Mista', 'Segmentada|Mini', 'Segmentada|Mod', '|Neutraliza', '|Eventual', '|Coke Net', '|Virtual'];
+const SEM_SV = '__sem_sv__'; // opção "Rotas sem SV" do filtro
+const valorSeg = (canal, sub) => (canal || '') + (sub ? '|' + sub : '');
+function deValorSeg(v) { const [c, s] = String(v).split('|'); return { canal: c || null, sub: s || null }; }
+function rotuloSeg(v) {
+  const { canal, sub } = deValorSeg(v);
+  return (canal || 'Sem canal') + (sub ? ' – ' + sub : '');
+}
+
+/** Canal e segmento de uma rota no ajustes.json -> {canal, sub}; inválido é ignorado e vira aviso, nunca em silêncio.
+ *  Canal fora de Mista/Segmentada/null: a rota inteira fica de fora. Segmento que não é do canal: só o segmento cai. */
+function validarCanalRota(rota, c, avisos) {
+  const av = (t) => { if (avisos) avisos.push(`rota ${rota}: ${t}`); };
+  if (!c || typeof c !== 'object' || !(c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada')) {
+    av(`canal ${JSON.stringify(c && typeof c === 'object' ? c.canal : c)} não é Mista, Segmentada nem sem canal (null): ajuste ignorado`);
+    return null;
+  }
+  const seg = c.segmento !== undefined && c.segmento !== null ? c.segmento : c.sub;
+  if (seg === undefined || seg === null || seg === '') return { canal: c.canal, sub: null };
+  if (SEGMENTOS[c.canal || ''].includes(seg)) return { canal: c.canal, sub: seg };
+  av(`segmento ${JSON.stringify(seg)} não vale para ${c.canal || 'sem canal'}: segmento ignorado, canal mantido`);
+  return { canal: c.canal, sub: null };
+}
+
+/** Todas as rotas que o admin pode segmentar, com o valor em uso, o da base e a origem ("base" ou "ajuste"). */
+function linhasSegmentacao(lista, base, canais) {
+  const padrao = mapaCanal(base, null), aj = canais || {};
+  return lista.map(({ rota, gc, sv }) => {
+    const p = padrao[rota] || { canal: null, sub: null };
+    const a = Object.prototype.hasOwnProperty.call(aj, rota) ? aj[rota] : null;
+    const c = a || p;
+    return { rota, gc, sv: sv || null, canal: c.canal || null, sub: c.sub || null, origem: a ? 'ajuste' : 'base',
+             atual: valorSeg(c.canal, c.sub), padrao: valorSeg(p.canal, p.sub) };
+  });
+}
+
+/** SVs do filtro (código exibido no painel), com as gerências e o nº de rotas; "Rotas sem SV" no fim, se houver. */
+function svsDaSegmentacao(linhas) {
+  const por = {};
+  for (const l of linhas) {
+    const k = l.sv || SEM_SV;
+    const s = (por[k] = por[k] || { sv: k, rotulo: l.sv || 'Rotas sem SV', gcs: [], n: 0 });
+    s.n++; if (!s.gcs.includes(l.gc)) s.gcs.push(l.gc);
+  }
+  return Object.values(por).sort((a, b) => (a.sv === SEM_SV) - (b.sv === SEM_SV) || a.sv.localeCompare(b.sv, 'pt-BR', { numeric: true }));
+}
+/** Busca por código do SV como o painel mostra ("Sv. An.1") ou como a API traz ("SV.AN.1"), e pela gerência. */
+function buscarSVs(svs, texto) {
+  const t = normalizarTexto(texto || '').replace(/[\s.]/g, '');
+  if (!t) return svs;
+  return svs.filter((s) => [s.rotulo, s.sv === SEM_SV ? 'sem sv' : s.sv].concat(s.gcs)
+    .some((x) => normalizarTexto(x).replace(/[\s.]/g, '').includes(t)));
+}
+/** Rotas da mesa de um SV (ou as sem SV), na ordem do código. */
+const rotasDoFiltro = (linhas, filtro) => linhas.filter((l) => (l.sv || SEM_SV) === filtro)
+  .sort((a, b) => a.rota.localeCompare(b.rota, 'pt-BR', { numeric: true }));
+
+/** Canais das rotas de uma mesa (com a edição em curso): o canal do SV e se a mesa tem canais diferentes. */
+function canalDaMesa(rotas, edicao) {
+  const canais = [...new Set(rotas.map((l) => deValorSeg(edicao && l.rota in edicao ? edicao[l.rota] : l.atual).canal || 'Sem canal'))];
+  const comPonto = canais.filter((c) => c !== 'Sem canal');
+  return { canais, mista: comPonto.length > 1 };
+}
+
+/** "Aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota ou pela mesa): devolvem uma edição nova. */
+function aplicarNaMesa(edicao, rotas, valor) {
+  const out = Object.assign({}, edicao);
+  rotas.forEach((l) => { out[l.rota] = valor; });
+  return out;
+}
+function restaurarPadrao(edicao, rotas) {
+  const out = Object.assign({}, edicao);
+  rotas.forEach((l) => { out[l.rota] = l.padrao; });
+  return out;
+}
+
+/** Resumo antes de publicar: rotas fora do padrão da base (ou que voltam a ele), com "base -> novo". */
+function pendenciasSegmentacao(linhas, edicao) {
+  const out = [];
+  for (const l of linhas) {
+    const novo = l.rota in edicao ? edicao[l.rota] : l.atual;
+    if (novo === l.padrao && l.atual === l.padrao) continue;
+    out.push({ rota: l.rota, sv: l.sv, base: l.padrao, novo,
+               situacao: novo === l.atual ? 'em uso' : novo === l.padrao ? 'volta ao padrão' : 'nova' });
+  }
+  return out.sort((a, b) => a.rota.localeCompare(b.rota, 'pt-BR', { numeric: true }));
+}
+/** Edição -> `canais` do ajustes.json: só o que difere da base; ajustes de rotas fora da lista são mantidos. */
+function canaisDaEdicao(linhas, edicao, anteriores) {
+  const canais = {}, naLista = new Set(linhas.map((l) => l.rota));
+  const noArquivo = ({ canal, sub }) => ({ canal, sub: canal === 'Segmentada' ? sub : null, segmento: sub });
+  for (const [rota, c] of Object.entries(anteriores || {})) if (!naLista.has(rota)) canais[rota] = noArquivo(c);
+  for (const l of linhas) {
+    const novo = l.rota in edicao ? edicao[l.rota] : l.atual;
+    if (novo !== l.padrao) canais[l.rota] = noArquivo(deValorSeg(novo));
+  }
+  return canais;
+}
+
+/** Segmentos das rotas de uma mesa (SV no canal): ex. ['Mini', 'Mod'] na Segmentada; [] na Mista. */
+const segmentosDaMesa = (rotas, idSV) => [...new Set(rotas.filter((r) => svKey(r) === idSV && r.sub).map((r) => r.sub))].sort();
+
+/*
+ * Confronto cadastrado que um ajuste de canal invalidou. O id do SV leva o canal ("Sv. An.1#Mista"); se o ajuste tirou
+ * a mesa daquele canal, o motor não acha o SV (SV_NAO_ENCONTRADO). Aqui o motivo vira "canal ajustado", com as rotas,
+ * e o cadastro continua no ajustes.json. Devolve null quando o ajuste não explica o motivo.
+ */
+function confrontoInvalidadoPorAjuste(det, linhas) {
+  if (det.valido || !['SV_NAO_ENCONTRADO', 'CANAIS_DIFERENTES'].includes(det.motivo)) return null;
+  for (const id of [det.desafiante, det.desafiado]) {
+    const i = String(id).lastIndexOf('#');
+    if (i < 0) continue;
+    const sv = id.slice(0, i), canal = id.slice(i + 1);
+    const saiu = linhas.filter((l) => l.sv === sv && l.origem === 'ajuste' && deValorSeg(l.padrao).canal === canal && l.canal !== canal);
+    if (saiu.length) return { motivo: 'CANAL_AJUSTADO', sv, canal, rotas: saiu.map((l) => l.rota),
+      texto: `canal ajustado: a mesa de ${sv} saiu da ${canal} (rota${saiu.length > 1 ? 's' : ''} ${saiu.map((l) => l.rota).join(', ')})` };
+  }
+  return null;
 }
 
 /** Agrupadores que formam o Refrigerantes do gatilho: a categoria (API) ou, sem ela, a soma provisória. */
@@ -527,5 +664,8 @@ if (typeof module === 'object' && module.exports) {
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
-                     carregarAjustes, urlPublicacao };
+                     carregarAjustes, urlPublicacao,
+                     SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
+                     svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
+                     canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste };
 }
