@@ -21,7 +21,8 @@ const CONFIG = {
     'Sucos': 'sucos',
   },
   // Pilares por canal e mês (coringas 4 e 5 mudam a cada mês: ler da configuração, não do código).
-  // Mês com `pilares: []` ainda não foi configurado: o painel avisa e não calcula pontos nem ranking desse mês.
+  // Mês sem os 5 pilares (lista vazia ou só os pilares 1 a 3) ainda não foi configurado: o painel avisa e não calcula
+  // pontos nem ranking desse mês, nem como mês fechado no acumulado do SV.
   pilaresConfig: [
     { mes: 10, canal: 'Mista', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' },
@@ -29,11 +30,17 @@ const CONFIG = {
     { mes: 10, canal: 'Segmentada', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' },
       { nome: 'Volume Powerade', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
-    // Novembro e dezembro: aguardando a definição do Back Office (pilares 1 a 3 e coringas 4 e 5 de cada canal)
-    { mes: 11, canal: 'Mista', pilares: [] },
-    { mes: 11, canal: 'Segmentada', pilares: [] },
-    { mes: 12, canal: 'Mista', pilares: [] },
-    { mes: 12, canal: 'Segmentada', pilares: [] },
+    // Novembro e dezembro: pilares 1 a 3 definidos pelo Back Office (informados pela Karen em 29/10/2026), iguais aos
+    // de outubro ("Volume Individuais" da Segmentada = Volume Refri Single). Coringas 4 e 5 ainda a decidir: até
+    // entrarem aqui, o mês fica "ainda não configurado". Missões Guiadas sem fonte: "sem dados", não pontua.
+    { mes: 11, canal: 'Mista', pilares: [
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
+    { mes: 11, canal: 'Segmentada', pilares: [
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
+    { mes: 12, canal: 'Mista', pilares: [
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
+    { mes: 12, canal: 'Segmentada', pilares: [
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
   ],
   // Pilar do desafio -> agrupador de produto no modelo SAP
   fonteDoPilar: {
@@ -59,10 +66,16 @@ const svKey = (r) => r.sv + '#' + (r.svCanal !== undefined ? r.svCanal : r.canal
 const NOMES_MES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const anomesDe = (ano, mes) => String(ano) + String(mes).padStart(2, '0');
 
-/** Pilares de um canal no mês; null se o mês ainda não foi configurado. */
-function pilaresDoMes(cfg, mes, canal) {
+const PILARES_NO_MES = 5; // pontos por desempenho em 5 pilares (regras, seção 1): 3 do mês + 2 coringas
+/** Pilares já definidos de um canal no mês, mesmo incompletos (ex.: só os pilares 1 a 3); [] se nenhum. */
+function pilaresDefinidos(cfg, mes, canal) {
   const c = cfg.pilaresConfig.find((x) => x.mes === mes && x.canal === canal);
-  return c && c.pilares && c.pilares.length ? c.pilares : null;
+  return c && Array.isArray(c.pilares) ? c.pilares : [];
+}
+/** Pilares de um canal no mês; null se o mês ainda não tem os 5 (nunca calcula com parte dos pilares). */
+function pilaresDoMes(cfg, mes, canal) {
+  const p = pilaresDefinidos(cfg, mes, canal);
+  return p.length === PILARES_NO_MES && p.every((x) => x && x.nome) ? p : null;
 }
 /** O mês só é calculado com os pilares dos dois canais configurados. */
 const mesConfigurado = (cfg, mes) => ['Mista', 'Segmentada'].every((c) => pilaresDoMes(cfg, mes, c));
@@ -447,7 +460,8 @@ function aplicarAjustes(aj, cfg, regras, mes) {
   if (mes !== undefined) aplicarCoringas(aj, cfg, mes);
 }
 
-/** Pilares coringa do admin (4 e 5): valem para o mês de referência, e só se os pilares 1 a 3 dele estão configurados. */
+/** Pilares coringa do admin (4 e 5): trocam os do mês de referência, e só se ele já tem os 5 pilares na configuração
+ *  (o admin nunca completa sozinho um mês que só tem os pilares 1 a 3). */
 function aplicarCoringas(aj, cfg, mes) {
   if (!aj) return;
   for (const [canal, nomes] of Object.entries(aj.pilares || {})) {
@@ -978,7 +992,7 @@ function montarEntrada(dados, cfg, confrontos) {
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
-                     fechadoDaApi, pilaresDoMes, mesConfigurado, aplicarCoringas, NOMES_MES,
+                     fechadoDaApi, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,

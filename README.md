@@ -67,9 +67,11 @@ computador, sem a API, o painel usa essa base embutida inteira e avisa no rodap�
 Mudou algo em `painel-q4/src/` ou `painel-q4/data/`: rode `python painel-q4/scripts/build.py` e envie também o
 `frontend/desafio-q4.html` gerado. Testes: `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js`.
 O mês de referência vem da API (`index.json` → `mes_referencia`) e os pilares de cada mês ficam em
-`painel-q4/src/adapter.js` → `CONFIG.pilaresConfig` (entradas de outubro, novembro e dezembro). Mês sem pilares
-configurados: o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking — nunca usa
-os números de outro mês no lugar. O acumulado do SV soma os meses fechados (`fechado/AAAAMM.json`) e o mês corrente.
+`painel-q4/src/adapter.js` → `CONFIG.pilaresConfig` (entradas de outubro, novembro e dezembro; em novembro e dezembro,
+por enquanto, só os pilares 1 a 3, com os coringas 4 e 5 a decidir). Mês sem os 5 pilares configurados: o painel
+mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking — nunca usa os números de outro mês
+no lugar nem calcula com parte dos pilares. O acumulado do SV soma os meses fechados (`fechado/AAAAMM.json`) e o mês
+corrente.
 
 **Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, segmentação da supervisão (canal e
 segmento de cada rota, escolhidos por SV, e o canal do SV, um só por supervisão; o motor só vê o canal),

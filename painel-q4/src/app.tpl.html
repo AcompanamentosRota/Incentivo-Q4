@@ -1054,8 +1054,17 @@ const SEC = [
     const fonte = (n)=> n==='Missões Guiadas' && R.missaoValidadaMeses.includes(MES) ? 'Sem dado: validada em 100% em outubro'
       : n==='Missões Guiadas' && !CONFIG.fonteDoPilar[n] ? 'Sem dados de Missões Guiadas: fonte ainda não definida <span class="pend">pendente</span>'
       : esc(CONFIG.fonteDoPilar[n]||'–') + (n==='Volume Refri Single' ? ' <span class="pend">a confirmar</span>' : '');
-    if (!mesConfigurado(CONFIG, MES)) return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">${esc(avisoSemPilaresTela())}</div>
-  <p>Os pilares de cada mês ficam na configuração do painel (<code>CONFIG.pilaresConfig</code>). Enquanto o Back Office não define os pilares 1 a 5 de cada canal, o painel não calcula pontos nem ranking deste mês.</p>`;
+    if (!mesConfigurado(CONFIG, MES)) {
+      // mês incompleto (ex.: só os pilares 1 a 3): mostra o que já foi definido e o que falta, sem calcular nada
+      const def = (c)=> pilaresDefinidos(CONFIG, MES, c), defs=[];
+      ['Mista','Segmentada'].forEach(c=>def(c).forEach(p=>{ if(!defs.includes(p.nome)) defs.push(p.nome); }));
+      const posDef = (c,n)=>{ const i=def(c).findIndex(p=>p.nome===n); return i<0 ? '–' : (i+1)+'º'; };
+      const falta = (c)=> Array.from({length:PILARES_NO_MES}, (_,i)=>i).filter(i=>!def(c)[i]).map(i=>(i+1)+'º').join(' e ') || '–';
+      return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">${esc(avisoSemPilaresTela())}</div>
+  ${defs.length ? T(['Pilar','Mista','Segmentada','Coluna na base SAP'], defs.map(n=>[esc(n.replace('Volume ','')), posDef('Mista',n), posDef('Segmentada',n), fonte(n)])
+    .concat([['A definir <span class="pend">pendente</span>', falta('Mista'), falta('Segmentada'), '–']])) : ''}
+  <p>Os pilares de cada mês ficam na configuração do painel (<code>CONFIG.pilaresConfig</code>). Enquanto o Back Office não define os ${PILARES_NO_MES} pilares de cada canal, o painel não calcula pontos nem ranking deste mês.</p>`;
+    }
     return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
   ${T(['Pilar','Mista','Segmentada','Coluna na base SAP'], nomes.map(n=>[esc(n.replace('Volume ','')), pos('Mista',n), pos('Segmentada',n), fonte(n)]))}
   <p>Só os pilares de volume valem em confronto (todos, menos Missões Guiadas).</p>`; } },
@@ -1287,7 +1296,7 @@ function adminHtml(){
     <datalist id="adm-ags"></datalist>
     <h3>Pilares coringa de ${MESES[MES].toLowerCase()}</h3>${comCoringas ? `<div class="adm-grid">
       ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}${i===0?`<span class="pv" data-pv="pilares:${c}"></span>`:''}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
-      : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas só podem ser escolhidos depois que os pilares 1 a 3 do mês estiverem na configuração.</p>`}
+      : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas do admin só trocam os pilares 4 e 5 de um mês que já tem os ${PILARES_NO_MES} pilares na configuração (<code>CONFIG.pilaresConfig</code>).</p>`}
     <h3>Confrontos entre supervisores</h3>
     <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele; quem perde não perde pontos.
       Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês.

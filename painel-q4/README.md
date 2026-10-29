@@ -116,7 +116,7 @@ src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do pa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       34 testes do motor e 59 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       34 testes do motor e 66 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -138,9 +138,15 @@ docs/                        regras do incentivo (fonte de verdade)
   só o segmento, **sempre com aviso** no rodapé, em Regras > Dados e alertas e na Administração. A lógica (filtro por
   SV, aplicar à mesa, restaurar, resumo, validação e confronto invalidado) fica em funções puras do `src/adapter.js`.
 - **Mês:** vem da API (`index.json` → `mes_referencia.anomes`). Os pilares de cada mês ficam em
-  `CONFIG.pilaresConfig` (`src/adapter.js`); mês com `pilares: []` não está configurado, e o painel mostra
-  "Pilares de <mês> ainda não configurados" sem calcular pontos nem ranking. API fora do ar: base embutida só no mês
-  dela ("base embutida (outubro)").
+  `CONFIG.pilaresConfig` (`src/adapter.js`); mês sem os 5 pilares (lista vazia ou só os pilares 1 a 3) não está
+  configurado, e o painel mostra "Pilares de <mês> ainda não configurados" sem calcular pontos nem ranking (a aba
+  Regras > Pilares mostra o que já foi definido e o que falta). Como mês fechado, ele deixa o acumulado do SV
+  "incompleto": nunca é calculado com parte dos pilares. API fora do ar: base embutida só no mês dela ("base embutida
+  (outubro)").
+- **Pilares de novembro e dezembro (Back Office, 29/10/2026):** 1 a 3 iguais aos de outubro (Mista: Sabores,
+  Retornáveis, Missões Guiadas; Segmentada: Sabores, Refri Single, Powerade; "Volume Individuais" = Refri Single).
+  Coringas 4 e 5 a decidir: até entrarem no `CONFIG`, os dois meses ficam "ainda não configurados". Os coringas da
+  Administração só trocam os 4 e 5 de um mês que já tem os 5 pilares no `CONFIG`.
 - **Meses fechados:** o adaptador lê `index.json` → `fechados` e carrega os `fechado/AAAAMM.json` dos meses do
   trimestre anteriores ao de referência (meta e realizado por rota, online = 0). A entrada do motor tem todos os meses
   até o vigente: cada mês com os pilares e os confrontos dele; a mesa do SV em cada mês é a supervisão da rota naquele
