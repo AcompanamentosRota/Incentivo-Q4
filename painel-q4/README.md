@@ -29,7 +29,9 @@ dos dados (API ou base embutida) e o corte.
   as duas origens nunca se misturam na mesma tabela.
 - **Ranking:** as duas listas premiadas lado a lado (rotas e supervisões), com posição, % de Refrigerantes, pontos,
   status e a linha de corte das posições premiadas. Feita para print.
-- **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Os cards do topo trazem os cinco pilares
+- **Detalhe:** totais do grupo filtrado e a rota selecionada, pilar a pilar. Com uma supervisão no filtro, a lista traz
+  **todas as rotas da mesa** (também as do outro canal, marcadas) e os cards mostram os totais do SV calculados pelo
+  motor, nos pilares do canal do SV: os mesmos números da aba Supervisão. Os cards do topo trazem os cinco pilares
   e mais um de **Refrigerantes**, com o gatilho do mês.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
 - **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês, com o % de cada lado, o vencedor e o

@@ -1827,15 +1827,29 @@ $('busca').addEventListener('input',e=>{ st.busca=e.target.value; st.pag=1; rend
 
 /* ---------- detalhe: totais do grupo + rota selecionada ---------- */
 function fonteDe(nome){ return CONFIG.fonteDoPilar[nome]; }
+/* Mesa de um SV no Detalhe: todas as rotas da mesa (de qualquer canal) e o resultado do SV calculado pelo motor,
+   o mesmo da aba Supervisão (soma da mesa inteira nos pilares do canal do SV). Sem SV (empate de canais): null. */
+function mesaDetalhe(){
+  if(st.sv==='Todas') return null;
+  const sv = SVS.find(p=>p.nome===st.sv); if(!sv) return null;
+  const rotas = RTS.filter(p=>INFO[p.id].sv===st.sv).sort(ordenaRanking);
+  return { sv, rotas, outras: rotas.filter(p=>p.canal!==sv.canal).length };
+}
 function renderDetalhe(){
-  const sc = filtrada(), pil = pilaresDo(st.canal);
+  const mesa = mesaDetalhe(), b = st.busca.trim().toLowerCase();
+  const sc = mesa ? mesa.rotas.filter(p=>!b || p.id.toLowerCase().includes(b)) : filtrada();
+  const canalTela = mesa ? mesa.sv.canal : st.canal, pil = pilaresDo(canalTela), base = mesa ? mesa.rotas : sc;
   const nome = st.sv!=='Todas' ? 'Mesa '+st.sv : st.gc!=='Todas' ? 'Gerência '+st.gc : 'Todas as rotas';
   const segsSel = [...new Set(sc.map(p=>INFO[p.id].sub).filter(Boolean))].sort();
-  $('dtitulo').innerHTML = `${esc(nome)} · ${esc(st.canal)}${segsSel.map(x=>segTag(x)).join('')} · ${sc.length} ${sc.length===1?'rota':'rotas'}`;
+  const n = mesa ? mesa.rotas.length : sc.length;
+  $('dtitulo').innerHTML = `${esc(nome)} · ${esc(canalTela)}${segsSel.map(x=>segTag(x)).join('')} · ${n} ${n===1?'rota':'rotas'}`
+    + (mesa && mesa.outras ? `<span class="sg sc" title="O SV soma todas as rotas da mesa nos pilares da ${esc(canalTela)}">inclui ${mesa.outras} ${mesa.outras===1?'rota':'rotas'} da ${canalTela==='Mista'?'Segmentada':'Mista'}</span>` : '');
   const agg = (get)=>{ let m=0,r=0,o=0; sc.forEach(p=>{ const x=get(p); if(x && x.pct!==null){ m+=x.meta; r+=x.real; o+=x.online; } }); return {m,r,o,pct:m>0?(r+o)/m*100:null,tf:m>0?M.faixaPontos(r+o,m):0}; };
-  const dia = (fonte)=>{ let s=0,any=false; sc.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
-  const ar = agg(p=>p.refri);
-  const diaRfGrupo = (()=>{ let s=0,any=false; sc.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
+  // mesa: os totais são os do SV no motor (iguais aos da aba Supervisão), não a soma da lista filtrada
+  const doSV = (x)=> !x ? {m:0,r:0,o:0,pct:null,tf:0} : {m:x.meta||0, r:x.real||0, o:x.online||0, pct:x.pct, tf:x.pontos};
+  const dia = (fonte)=>{ let s=0,any=false; base.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
+  const ar = mesa ? doSV(mesa.sv.refri) : agg(p=>p.refri);
+  const diaRfGrupo = (()=>{ let s=0,any=false; base.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
   $('dsub').innerHTML = REFRI_CAT ? '' : `Refrigerantes<span class="tag">provisório</span>`;
   const cardRefri = (()=>{
     const bate = ar.pct!==null && ar.pct>=R.gatilhoVolumePct;
@@ -1850,14 +1864,14 @@ function renderDetalhe(){
     const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
     if(compacta(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
     if(missaoSemDados(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">-</div><i class="bar"><b class="t0" style="width:0%"></b></i><div class="txt"><b>Sem dados de Missões Guiadas.</b> Fonte ainda não definida: não pontua.</div></div>`;
-    const a = agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
+    const a = mesa ? doSV(mesa.sv.pilares.find(x=>x.nome===pl.nome)) : agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
       <div class="mg"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div><div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div></div></div>`;
   }).join('') + cardRefri;
   if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
   $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
-    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}${segTag(inf.sub)}<small>${esc(inf.sv)} · ${esc(r.unidade)}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
+    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}${segTag(inf.sub)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${mesa && r.canal!==canalTela ? ' · '+esc(r.canal) : ''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
     : `<div class="vazio">Nenhuma rota no filtro.</div>`;
   const r = sc.find(p=>p.id===st.sel);
   if(!r){ $('ddet').innerHTML=`<div class="vazio">Selecione uma rota.</div>`; return; }
