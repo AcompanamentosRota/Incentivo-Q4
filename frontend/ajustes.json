@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-10-29T15:00",
+  "atualizado_em": "2026-10-29T23:09",
   "regras": {
     "gatilhoPontos": {
       "SV": 60,
@@ -20,7 +20,9 @@
       "segmento": "Mini"
     }
   },
-  "canaisSV": {},
+  "canaisSV": {
+    "Sv. An.1": "Segmentada"
+  },
   "agrupadores": [],
   "confrontos": []
 }
