@@ -32,28 +32,30 @@ button{background:none;border:0;cursor:pointer}
 .bg i{position:absolute;border-radius:50%;opacity:.5}
 .arcs{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
 
-/* cabeçalho */
-.logo{position:absolute;left:60px;top:30px;width:190px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+/* cabeçalho compacto (logo, letreiro e dados numa faixa; abas e filtros logo abaixo): sobra altura para as tabelas
+   e cada aba sai inteira num print da janela maximizada do navegador (~1920×940) */
+.logo{position:absolute;left:60px;top:16px;width:150px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
 .logo svg{width:100%;height:auto;display:block}
-.hd{position:absolute;left:0;right:0;top:14px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
-.ttl{font-family:Anton,Impact,sans-serif;font-size:92px;line-height:96px;letter-spacing:.01em;transform:skewX(-9deg);display:flex;gap:22px;filter:drop-shadow(0 0 16px rgba(228,0,43,.6));position:relative}
+.hd{position:absolute;left:0;right:0;top:4px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ttl{font-family:Anton,Impact,sans-serif;font-size:66px;line-height:70px;letter-spacing:.01em;transform:skewX(-9deg);display:flex;gap:16px;filter:drop-shadow(0 0 12px rgba(228,0,43,.6));position:relative}
 .ttl .m{background:linear-gradient(180deg,#fff 0%,#eceff5 36%,#9aa0ad 52%,#f4f6fa 70%,#c7ccd6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ttl .r{background:linear-gradient(180deg,#ff5c78 0%,#E4002B 55%,#8a0016 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ttl::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%);background-size:300% 100%;background-position:120% 0;-webkit-mask:linear-gradient(#000,#000);mix-blend-mode:overlay;animation:shine 1.8s ease .6s 1 both}
 @keyframes shine{from{background-position:120% 0}to{background-position:-20% 0}}
 @media (prefers-reduced-motion:reduce){.ttl::after{animation:none}}
-.ribbon{margin-top:-6px;padding:4px 46px 6px;background:linear-gradient(90deg,#8a0016,var(--red) 18%,var(--red2) 50%,var(--red) 82%,#8a0016);transform:skewX(-14deg);box-shadow:0 8px 28px rgba(228,0,43,.5),inset 0 1px 0 rgba(255,255,255,.35)}
-.ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:26px;letter-spacing:.14em;text-transform:uppercase}
-.info{position:absolute;right:60px;top:34px;text-align:right;line-height:1.1}
-.info small{display:block;font-size:16px;font-weight:600;color:var(--muted);letter-spacing:.04em}
-.info b{display:block;font-size:30px;font-weight:600;margin-bottom:10px}
-.info small.acum{margin-top:4px;color:#d8dbe2}.info small.acum .inc{color:#ffd978}
+.ribbon{margin-top:-5px;padding:2px 34px 3px;background:linear-gradient(90deg,#8a0016,var(--red) 18%,var(--red2) 50%,var(--red) 82%,#8a0016);transform:skewX(-14deg);box-shadow:0 8px 28px rgba(228,0,43,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:19px;letter-spacing:.14em;text-transform:uppercase}
+/* dados à direita em duas linhas de rótulo + valor ("Dados de  30/10/2026 · 11:09"), e o acumulado do SV embaixo */
+.info{position:absolute;right:60px;top:12px;text-align:right;line-height:1.1;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:baseline;justify-items:end}
+.info small{display:block;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.info b{display:block;font-size:24px;font-weight:600;margin-bottom:3px}
+.info small.acum{grid-column:1 / -1;margin-top:1px;color:#d8dbe2}.info small.acum .inc{color:#ffd978}
 .semcalc{margin:auto;max-width:1100px;text-align:center;padding:48px 60px;background:#3a2a00;border:2px solid #a47500;border-radius:18px;color:#ffe29a}
 .semcalc b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}.semcalc p{font-size:22px;font-weight:500;line-height:1.4;color:#ffe9b5}
 .cfmes{display:flex;gap:8px;align-items:center}
 
 /* navegação */
-.nav{position:absolute;left:60px;right:60px;top:170px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.nav{position:absolute;left:60px;right:60px;top:102px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
 .seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px}
 .seg button{padding:4px 15px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted);min-height:32px}
 .seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(228,0,43,.5)}
@@ -67,7 +69,7 @@ button{background:none;border:0;cursor:pointer}
 .fld input::placeholder{color:#9aa0ad}
 
 /* vistas */
-.view{position:absolute;left:60px;right:60px;top:222px;bottom:58px;display:none;flex-direction:column;gap:14px}
+.view{position:absolute;left:60px;right:60px;top:150px;bottom:48px;display:none;flex-direction:column;gap:14px}
 .view.on{display:flex}
 .kpis{display:flex;gap:0;height:58px;align-items:center}
 .kpi{display:flex;align-items:baseline;gap:12px;padding:0 34px;border-left:1px solid var(--line)}
@@ -167,10 +169,10 @@ button{background:none;border:0;cursor:pointer}
 .adm h4{font-size:20px;margin:18px 0 6px}
 .adm td{padding:6px 14px}
 /* ajustes do admin: faixa de aviso (ajustes.json ilegível ou com valor inválido) e o que difere do publicado */
-#alerta-aj{position:absolute;left:12px;right:12px;top:222px;display:flex;align-items:center;gap:10px;padding:7px 18px;border-radius:12px;font-size:18px;font-weight:600;line-height:1.3;background:#5a0010;border:2px solid var(--red2);color:#fff;z-index:5}
+#alerta-aj{position:absolute;left:12px;right:12px;top:150px;display:flex;align-items:center;gap:10px;padding:7px 18px;border-radius:12px;font-size:18px;font-weight:600;line-height:1.3;background:#5a0010;border:2px solid var(--red2);color:#fff;z-index:5}
 #alerta-aj.amb{background:#3a2a00;border-color:#a47500;color:#ffe29a}
 #alerta-aj[hidden]{display:none}
-#stage.com-alerta .view{top:calc(230px + var(--alerta-h, 44px))}
+#stage.com-alerta .view{top:calc(158px + var(--alerta-h, 44px))}
 .aj-erro{background:#5a0010;border:2px solid var(--red2);color:#fff;border-radius:10px;padding:8px 14px;margin:10px 0;font-size:19px}
 .aj-nav{background:rgba(29,123,255,.12);border:1px solid var(--blue);border-radius:10px;padding:8px 14px;margin:10px 0}
 .aj-nav table{margin:6px 0}
@@ -179,7 +181,12 @@ button{background:none;border:0;cursor:pointer}
 .adm .colar{font-weight:700;color:#ffe29a}
 .nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
 
-.foot{position:absolute;left:60px;right:60px;bottom:16px;font-size:17px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
+.foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:15px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.foot #rod{flex:none}
+/* na aba Confrontos o texto da esquerda do rodapé dá lugar à legenda (até 2 linhas cabem acima do bottom:10px) */
+#rodleg i{display:inline-block;width:12px;height:12px;margin-right:5px;border-radius:3px;vertical-align:-1px}
+#rodleg i.a{background:#ff5a70}#rodleg i.b{background:#52a8ff;margin-left:12px}
+#rodleg b{font-weight:600;color:#d6d6df}
 
 .rbtn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:22px;text-align:left;padding:0;line-height:1.1;color:#fff;min-height:30px}
 .rbtn svg{opacity:.55;flex:none}.rbtn:hover svg,.rbtn:focus-visible svg{opacity:1}
@@ -303,7 +310,7 @@ button{background:none;border:0;cursor:pointer}
 #v-confrontos .cfmes .seg button{min-height:30px;height:30px;padding:0 20px;font-size:15px;font-weight:700}
 #v-confrontos .kp{justify-self:end;align-items:baseline;gap:18px;font-size:16px;font-weight:500;color:#d6d6df}
 #v-confrontos .kp b{font-size:20px;font-weight:800;color:#fff;margin-right:6px}
-#cfrows{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:10px 12px}
+#cfrows{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:8px 12px}
 #cfrows .vazio{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .cfcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
 .cfcol{display:grid;grid-template-rows:repeat(var(--cf-k),var(--cf-h));row-gap:6px;min-width:0}
@@ -343,11 +350,6 @@ button{background:none;border:0;cursor:pointer}
 .cfres.s1{background:#0e3a23;border-color:#2aa862}.cfres.s1 .rl{color:#6df0a8}
 .cfres.s2{background:#23262e;border-color:#454a56}.cfres.s2 .rl{color:#e4e6ea}.cfres.s2 .rm{color:#d2d5db}
 .cfres.s3{background:#2e2306;border-color:#a47500}.cfres.s3 .rl{color:#ffd978}.cfres.s3 .rm{color:#f1e6c8}
-.cfleg{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0;padding:6px 14px;background:#0f0f14;border:1px solid #2c2c38;border-radius:10px;font-size:14px;line-height:1.25;color:#cfcfd8}
-.cfcol>.cfleg{grid-row:-2}
-.cfleg i{display:inline-block;width:12px;height:12px;margin-right:5px;border-radius:3px;vertical-align:-1px}
-.cfleg i.a{background:#ff5a70}.cfleg i.b{background:#52a8ff;margin-left:12px}
-.cffaixa{flex:none;flex-direction:row;gap:22px;margin:0 12px 8px;white-space:nowrap;overflow:hidden}
 #v-confrontos .pager{height:auto;display:block;padding:8px 16px 9px;border-top:1px solid #2c2c38}
 #cfnota{display:block;font-size:13px;font-weight:400;line-height:1.35;color:#cfcfd8}
 #cfrows::-webkit-scrollbar{width:10px}#cfrows::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}#cfrows::-webkit-scrollbar-track{background:transparent}
@@ -453,7 +455,6 @@ button{background:none;border:0;cursor:pointer}
     <div class="panel">
       <div class="tt"><span id="cftitulo"></span><span class="cfmes" id="cfmes" role="group" aria-label="Mês dos confrontos"></span><span class="kp" id="cfsub"></span></div>
       <div id="cfrows"></div>
-      <div class="cfleg cffaixa" id="cffaixa" hidden></div>
       <div class="pager"><span id="cfnota"></span></div>
     </div>
   </section>
@@ -469,7 +470,7 @@ button{background:none;border:0;cursor:pointer}
     </div></div>
   </section>
 
-  <div class="foot"><span id="rodpts">Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodpts">Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rodleg" hidden></span><span id="rod"></span></div>
 </div>
 
 <script>/*
@@ -1701,21 +1702,18 @@ function confrontoInvalidadoPorAjuste(det, linhas, canaisSV) {
  * Aba Confrontos (cartões de duelo): funções só de apresentação. Nada aqui apura vencedor, ponto ou %: tudo vem do
  * motor (RES.confrontos); aqui só se distribui na tela, conta linhas e escolhe o estado visual.
  */
-const CF_LEGENDA_NO_ESPACO = 17; // até este número de confrontos a legenda ocupa o último espaço da coluna direita
 const CF_ALTURA_MAX = 84, CF_ALTURA_MIN = 62; // px por linha; abaixo do mínimo as duas colunas rolam juntas
 
 /**
- * Duas colunas, na ordem do motor e numeradas em sequência (1 a k na esquerda, o resto na direita).
- * n <= 17: k = ceil((n+1)/2) e a legenda ocupa o último espaço da coluna direita. n >= 18: k = ceil(n/2) e a legenda vira
- * uma faixa abaixo das colunas. Com `disp` (px para as linhas) e `entre` (px entre linhas), devolve também a altura da
- * linha (o que sobra ÷ k, de 62 a 84 px) e se as colunas rolam.
+ * Duas colunas, na ordem do motor e numeradas em sequência (1 a k na esquerda, o resto na direita), com k = ceil(n/2):
+ * a legenda fica fora do quadro, no rodapé da página. Com `disp` (px para as linhas) e `entre` (px entre linhas),
+ * devolve também a altura da linha (o que sobra ÷ k, de 62 a 84 px) e se as colunas rolam.
  */
 function distribuirConfrontos(n, disp, entre) {
   n = Math.max(0, Math.floor(Number(n) || 0));
-  if (!n) return { linhas: 0, esquerda: 0, direita: 0, legenda: null, altura: null, rola: false };
-  const espaco = n <= CF_LEGENDA_NO_ESPACO;
-  const k = espaco ? Math.ceil((n + 1) / 2) : Math.ceil(n / 2);
-  const out = { linhas: k, esquerda: k, direita: n - k, legenda: espaco ? 'espaco' : 'faixa', altura: null, rola: false };
+  if (!n) return { linhas: 0, esquerda: 0, direita: 0, altura: null, rola: false };
+  const k = Math.ceil(n / 2);
+  const out = { linhas: k, esquerda: k, direita: n - k, altura: null, rola: false };
   if (disp !== undefined) {
     const sobra = (disp - (entre || 0) * (k - 1)) / k;
     out.altura = Math.floor(Math.max(CF_ALTURA_MIN, Math.min(CF_ALTURA_MAX, sobra)));
@@ -1910,7 +1908,7 @@ if (typeof module === 'object' && module.exports) {
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,
                      canaisDosSVs, aplicarCanalSV, pendenciasCanalSV,
-                     CF_LEGENDA_NO_ESPACO, CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
+                     CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
                      estadoConfronto, larguraBarra, lugarEtiquetas };
 }
 </script>
@@ -2495,18 +2493,16 @@ function renderConfrontos(){
       + cartao(c.desafiante, e.desafiante, 'Desafiante', c.pctDesafiante) + `<div class="cfvs" aria-hidden="true">×</div>`
       + cartao(c.desafiado, e.desafiado, 'Desafiado', c.pctDesafiado) + caixa(c, e) + `</div>`;
   };
+  // legenda fora do quadro, no rodapé da página (no lugar do texto sobre os pontos); sem confronto, sem legenda
   const contagem = (l)=> l.map(x=>`${esc(x.rotulo)} ${x.n}`).join(' · ');
-  const legenda = `<span><i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = vencedor</span>`
-    + `<span>Por canal: ${contagem(rs.porCanal)}</span><span>Por pilar: ${contagem(rs.porPilar)}</span>`;
-  // a nota e a faixa entram antes de medir: a altura das linhas é o que sobra no cartão
+  $('rodleg').innerHTML = lst.length ? `<i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = vencedor`
+    + ` · <b>Por canal:</b> ${contagem(rs.porCanal)} · <b>Por pilar:</b> ${contagem(rs.porPilar)}` : '';
+  // a nota entra antes de medir: a altura das linhas é o que sobra no cartão
   $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
     + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
     + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
     + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
-  const corpo = $('cfrows'), faixa = $('cffaixa');
-  const d0 = distribuirConfrontos(lst.length);
-  faixa.hidden = d0.legenda !== 'faixa';
-  faixa.innerHTML = faixa.hidden ? '' : legenda;
+  const corpo = $('cfrows');
   if(!lst.length) corpo.innerHTML = `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
   else {
     const cs = getComputedStyle(corpo);
@@ -2515,7 +2511,7 @@ function renderConfrontos(){
     corpo.style.setProperty('--cf-h', d.altura + 'px');
     corpo.style.setProperty('--cf-lin', d.altura >= CF_MOTIVO_3 ? 3 : 2);
     const esq = lst.slice(0, d.esquerda).map((c,i)=>linha(c, i)).join('');
-    const dir = lst.slice(d.esquerda).map((c,i)=>linha(c, d.esquerda + i)).join('') + (d.legenda==='espaco' ? `<div class="cfleg">${legenda}</div>` : '');
+    const dir = lst.slice(d.esquerda).map((c,i)=>linha(c, d.esquerda + i)).join('');
     corpo.innerHTML = `<div class="cfcols"><div class="cfcol">${esq}</div><div class="cfcol">${dir}</div></div>`;
   }
 }
@@ -2536,6 +2532,9 @@ function setTab(t){
   else $('v-semcalc').classList.remove('on');
   $('filtros').style.visibility = SEM_FILTRO.includes(t) || SEMCALC ? 'hidden' : 'visible';
   $('lblsv').style.display = $('lblbusca').style.display = SEM_ROTA.includes(t) ? 'none' : '';
+  // na aba Confrontos o rodapé da esquerda mostra a legenda dos cartões (preenchida por renderConfrontos)
+  const comLegenda = t==='confrontos' && !SEMCALC;
+  $('rodleg').hidden = !comLegenda; $('rodpts').hidden = comLegenda;
   $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',rank:'Ranking',estrat:'Estratégicos',
                            detalhe:'Detalhe por pilar',regras:'Regras e informações',confrontos:'Confrontos'})[t];
   if(t==='regras') renderRegras(); else if(!SEMCALC) render();

@@ -8,9 +8,12 @@ metas-produtos (atualizada a cada 15 min em dias úteis). Aberto direto do compu
 embutida (`data/data.json`) só se ainda estivermos no mês dela, com o rótulo "base embutida (outubro)" no rodapé; em
 outro mês ele avisa e não calcula nada.
 
-**Topo:** "Mês de referência" (ou "Fechamento de <mês>" no 1º dia útil do mês seguinte) e, a partir de novembro,
-"Acumulado do trimestre (SV): out–<mês>" com os meses fechados usados (✓) ou o aviso "incompleto". **Rodapé:** origem
-dos dados (API ou base embutida) e o corte.
+**Topo (compacto, desde 30/10/2026):** numa faixa só, o logo à esquerda, o letreiro "DESAFIO Q4" ao centro e, à direita,
+"Dados de" e "Mês de referência" (ou "Fechamento de <mês>" no 1º dia útil do mês seguinte) e, a partir de novembro,
+"Acumulado do trimestre (SV): out–<mês>" com os meses fechados usados (✓) ou o aviso "incompleto"; logo abaixo, as abas
+(sob o logo) e os filtros. Assim cada aba sai inteira num print da **janela maximizada do navegador** (1920×1080 de tela,
+~1920×940 de página) e num notebook 1366×768. **Rodapé:** origem dos dados (API ou base embutida) e o corte; na aba
+Confrontos, a legenda dos cartões fica no lugar do texto da esquerda.
 
 ## Abas
 - **Rota:** uma linha por rota, com Meta, Meta dia, Real, Hoje (online), Diferença, % e Pontos por pilar, total e status.
@@ -36,7 +39,8 @@ dos dados (API ou base embutida) e o corte.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
 - **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês em **cartões de duelo**, com o % de cada
   lado, o vencedor e o bônus, ou o motivo quando o confronto não vale. Feita para print: com 17 confrontos (outubro) cabe
-  inteira em 1920×1080, sem rolagem. Detalhes em "Aba Confrontos" abaixo.
+  inteira, sem rolagem, na janela maximizada do navegador (~1920×940) e num notebook 1366×768. Detalhes em "Aba
+  Confrontos" abaixo.
 
 Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre, e **todas as linhas são numeradas**; só o
 status, a posição oficial e a premiação dependem do gatilho de Refrigerantes (quem está fora aparece em cinza).
@@ -55,7 +59,7 @@ rótulo da coluna no cabeçalho, para ajudar a ler de ponta a ponta sem perder a
 
 ## Aba Confrontos (cartões de duelo)
 Só a aparência mudou (etapa 11): vencedor, %, bônus e motivo continuam vindo do motor (`RES.confrontos`), e o cabeçalho
-do painel, o rodapé e o cartão (`.panel`) são os mesmos das outras abas.
+do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a legenda entra no lugar do texto da esquerda.
 - **Cabeçalho do cartão:** título com o mês e a situação (mês corrente, fechado, provisório), o seletor de mês ao centro e
   as contagens à direita (cadastrados, válidos, com vencedor).
 - **Linha de cada confronto:** número (posição na lista do mês), pílula do pilar (mesma cor dos cabeçalhos das outras abas,
@@ -68,12 +72,12 @@ do painel, o rodapé e o cartão (`.panel`) são os mesmos das outras abas.
   **Não vale** (motivo do motor ou "canal ajustado: ..."; até 3 linhas, texto inteiro no `title` e no `aria-label`); S4
   **SV não encontrado** (nome do id cadastrado, "não encontrado" e "–"). Em S2, S3 e S4 os cartões ficam neutros (cinza),
   para não parecer apuração válida. A cor nunca é a única informação: sempre há texto (e a taça no vencedor).
-- **Distribuição:** duas colunas, na ordem do motor, numeradas em sequência (1 a k na esquerda, o resto na direita).
-  Até 17 confrontos, k = ⌈(n+1)/2⌉ e a **legenda** ocupa o último espaço da coluna direita (17 dá 9 + 8 + legenda). De
-  18 em diante, k = ⌈n/2⌉ e a legenda vira uma faixa de uma linha abaixo das colunas. A altura da linha é o que sobra
-  dividido por k, de 62 a 84 px; abaixo de 62 px as duas colunas rolam juntas (limite: 60 confrontos).
-- **Legenda:** desafiante/desafiado/vencedor e quantos confrontos há **por canal** (o do desafiante; SV não encontrado =
-  "Sem canal") e **por pilar**, do maior para o menor. São contagens de linhas que o motor já apurou.
+- **Distribuição:** duas colunas, na ordem do motor, numeradas em sequência: k = ⌈n/2⌉ na esquerda e o resto na direita
+  (17 dá 9 + 8). A altura da linha é o que sobra dividido por k, de 62 a 84 px; abaixo de 62 px as duas colunas rolam
+  juntas (limite: 60 confrontos).
+- **Legenda (fora do quadro, no rodapé da página):** desafiante/desafiado/vencedor e quantos confrontos há **por canal** (o
+  do desafiante; SV não encontrado = "Sem canal") e **por pilar**, do maior para o menor. São contagens de linhas que o
+  motor já apurou. Sem confronto no mês, não há legenda.
 - Sem confronto no mês: "Nenhum confronto cadastrado em <mês>. Inclua na aba Regras > Administração."
 - A lógica de tela fica em funções puras do `src/adapter.js`, testadas: `distribuirConfrontos`, `resumoConfrontos`,
   `estadoConfronto`, `larguraBarra` e `lugarEtiquetas`. O `renderConfrontos` (no template) só monta o HTML.

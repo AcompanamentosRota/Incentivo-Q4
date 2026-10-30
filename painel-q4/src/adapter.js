@@ -866,21 +866,18 @@ function confrontoInvalidadoPorAjuste(det, linhas, canaisSV) {
  * Aba Confrontos (cartões de duelo): funções só de apresentação. Nada aqui apura vencedor, ponto ou %: tudo vem do
  * motor (RES.confrontos); aqui só se distribui na tela, conta linhas e escolhe o estado visual.
  */
-const CF_LEGENDA_NO_ESPACO = 17; // até este número de confrontos a legenda ocupa o último espaço da coluna direita
 const CF_ALTURA_MAX = 84, CF_ALTURA_MIN = 62; // px por linha; abaixo do mínimo as duas colunas rolam juntas
 
 /**
- * Duas colunas, na ordem do motor e numeradas em sequência (1 a k na esquerda, o resto na direita).
- * n <= 17: k = ceil((n+1)/2) e a legenda ocupa o último espaço da coluna direita. n >= 18: k = ceil(n/2) e a legenda vira
- * uma faixa abaixo das colunas. Com `disp` (px para as linhas) e `entre` (px entre linhas), devolve também a altura da
- * linha (o que sobra ÷ k, de 62 a 84 px) e se as colunas rolam.
+ * Duas colunas, na ordem do motor e numeradas em sequência (1 a k na esquerda, o resto na direita), com k = ceil(n/2):
+ * a legenda fica fora do quadro, no rodapé da página. Com `disp` (px para as linhas) e `entre` (px entre linhas),
+ * devolve também a altura da linha (o que sobra ÷ k, de 62 a 84 px) e se as colunas rolam.
  */
 function distribuirConfrontos(n, disp, entre) {
   n = Math.max(0, Math.floor(Number(n) || 0));
-  if (!n) return { linhas: 0, esquerda: 0, direita: 0, legenda: null, altura: null, rola: false };
-  const espaco = n <= CF_LEGENDA_NO_ESPACO;
-  const k = espaco ? Math.ceil((n + 1) / 2) : Math.ceil(n / 2);
-  const out = { linhas: k, esquerda: k, direita: n - k, legenda: espaco ? 'espaco' : 'faixa', altura: null, rola: false };
+  if (!n) return { linhas: 0, esquerda: 0, direita: 0, altura: null, rola: false };
+  const k = Math.ceil(n / 2);
+  const out = { linhas: k, esquerda: k, direita: n - k, altura: null, rola: false };
   if (disp !== undefined) {
     const sobra = (disp - (entre || 0) * (k - 1)) / k;
     out.altura = Math.floor(Math.max(CF_ALTURA_MIN, Math.min(CF_ALTURA_MAX, sobra)));
@@ -1075,6 +1072,6 @@ if (typeof module === 'object' && module.exports) {
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,
                      canaisDosSVs, aplicarCanalSV, pendenciasCanalSV,
-                     CF_LEGENDA_NO_ESPACO, CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
+                     CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
                      estadoConfronto, larguraBarra, lugarEtiquetas };
 }
