@@ -68,7 +68,9 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
   Etiquetas de segmento: **uma** (Mini, Mod ou "2 canais") fica ao lado do nome; **duas ou mais** vão para a linha do
   subtexto, que então usa a largura toda do cartão, e o % sobe para a linha do nome (26 px).
 - **Resultado:** S1 **Vencedor** (taça, nome e `+<bônus> pts · SV e mesa`, ou `· desempate` quando decidido pelo % de
-  Refrigerantes, com o motivo no `title`); S2 **Sem vencedor** (empate sem vencedor ou sem dado, com o motivo); S3
+  Refrigerantes, com o motivo no `title`). No **mês aberto** o S1 é **parcial**: "Vencendo" e `+<bônus> pts · no
+  fechamento`, porque o bônus só entra depois do fechamento do mês (regra de 30/10/2026; o motor diz isso em
+  `mesFechado`), e as contagens e a legenda falam em "vencendo"; S2 **Sem vencedor** (empate sem vencedor ou sem dado, com o motivo); S3
   **Não vale** (motivo do motor ou "canal ajustado: ..."; até 3 linhas, texto inteiro no `title` e no `aria-label`); S4
   **SV não encontrado** (nome do id cadastrado, "não encontrado" e "–"). Em S2, S3 e S4 os cartões ficam neutros (cinza),
   para não parecer apuração válida. A cor nunca é a única informação: sempre há texto (e a taça no vencedor).
@@ -107,7 +109,7 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
   de pontos, ranking e premiação.
 - **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
   recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
-  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também. Se um ajuste de canal tirar a mesa do
+  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também, só depois do fechamento do mês. Se um ajuste de canal tirar a mesa do
   canal do confronto, ele continua cadastrado e a tela Confrontos (e a lista da Administração) mostra "canal ajustado"
   com as rotas que mudaram.
 - **Agrupadores extras:** inclua ou exclua agrupadores do Datasphere (o campo sugere os que têm meta no mês, de
@@ -149,7 +151,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       34 testes do motor e 74 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       36 testes do motor e 74 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -196,6 +198,9 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   quando houver fonte (`CONFIG.fonteDoPilar['Missões Guiadas']` + `produtoDaApi`); sem fonte, aparece "sem dados" e
   não pontua.
 - **Confrontos:** cada um é apurado com os dados do mês dele (fechado ou corrente); a tela Confrontos tem a escolha do mês.
+  **O +5 só entra com o mês fechado (30/10/2026):** os meses anteriores do trimestre e, no período de fechamento da API
+  (`meta.fechamento`), o próprio mês de referência. O SV soma o +5 no acumulado; cada rota da mesa, nos pontos daquele mês.
+  No mês aberto o motor devolve o bônus em `bonusPendente`, fora dos pontos, do gatilho, do status e do ranking.
 - **Totais da aba Estratégicos:** o adaptador expõe `totaisGerencia` (de `gerencias/{GC}.json` → `produtos`) e
   `totalEmpresa` (de `resumo.json` → `empresa.produtos`); se o `resumo.json` falhar, o total vira a soma das
   gerências e o painel registra o motivo em `meta.aviso`. A montagem das linhas fica em `montarEstrat()`, no
@@ -214,7 +219,8 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
 2. Refri Single = Refrigerantes Individual na Segmentada.
 3. Rotas sem canal e em dois segmentos (6); Real vazio tratado como dado ausente.
 4. Canal Mista/Segmentada ainda vem da base embutida, não da API (ou do ajuste do admin).
-5. Regras do Back Office: prazo dos confrontos, +5 sem gatilho de volume, % acumulado de Refri do SV, desempate do SV.
+5. Regras do Back Office: prazo dos confrontos, +5 sem gatilho de volume, % acumulado de Refri do SV, desempate do SV,
+   e se o período de fechamento da API já conta como mês fechado para o +5 do confronto (adotado: conta).
 6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada e Sem canal fora do incentivo, ainda fora do
    documento de regras.
 

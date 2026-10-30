@@ -212,7 +212,10 @@ test('Consultor: 20 pontos no mês é o mínimo (19 = "-", 20 = ranqueado)', () 
   // SV1 vence SV2 em Sabores (precisa ter pct maior): ajustar SV1 a 101%
   medidas.find((m) => m.id === 'SV1' && m.pilar === 'Volume Sabores').real = vol(101);
   const confrontos = [{ mes: 10, id_sv_desafiante: 'SV1', id_sv_desafiado: 'SV2', pilar: 'Volume Sabores', ordem_registro: 1 }];
-  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos });
+  // o +5 só entra com o mês fechado (30/10/2026): no mês aberto a rota fica com 15 e o +5 pendente
+  const aberto = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos }).pessoas.find((p) => p.id === 'RT1');
+  assert.deepEqual([aberto.pontosMes, aberto.bonusPendente, aberto.gatilhoPontos.atingido, aberto.status], [15, 5, false, '-']);
+  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento: true });
   const rt1 = res.pessoas.find((p) => p.id === 'RT1'), rt2 = res.pessoas.find((p) => p.id === 'RT2');
   assert.equal(rt1.pontosMes, 20);
   assert.equal(rt1.gatilhoPontos.atingido, true);
@@ -265,21 +268,52 @@ function cenarioConfronto(pctA, pctB, refriA = 100, refriB = 100, extra = {}) {
   const medidas = [];
   for (const [id, pct, refri] of [['A', pctA, refriA], ['B', pctB, refriB], ['RA', 100, 100], ['RB', 100, 100]]) medidas.push(...med(id, 10, CFG_OUT, 'Mista', pct, refri));
   const confrontos = [{ mes: 10, id_sv_desafiante: 'A', id_sv_desafiado: 'B', pilar: 'Volume Sabores', ordem_registro: 1 }];
-  return calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: extra.confrontos || confrontos });
+  return calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: extra.confrontos || confrontos, fechamento: extra.fechamento });
 }
 
-test('confronto: vencedor ganha +5 e a mesa dele também; quem perde não perde pontos', () => {
-  const res = cenarioConfronto(110, 100);
+test('confronto: vencedor ganha +5 no fechamento do mês e a mesa dele também; quem perde não perde pontos', () => {
+  const res = cenarioConfronto(110, 100, 100, 100, { fechamento: true });
   const g = (id) => res.pessoas.find((p) => p.id === id);
   assert.equal(g('A').pontosConfronto, 5);
   assert.equal(g('RA').pontosConfronto, 5);
   assert.equal(g('B').pontosConfronto, 0);
   assert.equal(g('RB').pontosConfronto, 0);
   assert.equal(g('RB').pontosMes, 15, 'mesa do perdedor mantém os 15 de pilares');
+  assert.equal(res.confrontos[0].mesFechado, true);
+});
+
+test('confronto (regra de 30/10/2026): no mês aberto o vencedor é parcial e o +5 fica pendente, fora dos pontos', () => {
+  const res = cenarioConfronto(110, 100);
+  const g = (id) => res.pessoas.find((p) => p.id === id);
+  assert.deepEqual([res.confrontos[0].vencedor, res.confrontos[0].mesFechado], ['A', false]); // o motor já sabe quem está vencendo
+  assert.deepEqual(['A', 'RA', 'B', 'RB'].map((id) => [g(id).pontosConfronto, g(id).bonusPendente]), [[0, 5], [0, 5], [0, 0], [0, 0]]);
+  assert.deepEqual([g('A').pontosMes, g('A').pontosAcumulados, g('RA').pontosMes], [23, 23, 15]); // só pilares: nem no mês, nem no acumulado
+  assert.deepEqual(conferir(res), []);
+});
+
+test('confronto (regra de 30/10/2026): o +5 de um mês fechado entra no acumulado do SV; o do mês aberto, só quando ele fechar', () => {
+  const pessoas = [pessoa('A', 'SV', 'Mista'), pessoa('B', 'SV', 'Mista'), pessoa('RA', 'RT', 'Mista', 'A')];
+  const medidas = [];
+  for (const [id, pct] of [['A', 110], ['B', 100], ['RA', 100]]) {
+    medidas.push(...med(id, 10, CFG_OUT, 'Mista', pct), ...med(id, 11, CFG_NOV, 'Mista', pct), { id, mes: 11, pilar: 'Missões Guiadas', meta: 100, real: 100 });
+  }
+  const confrontos = [10, 11].map((mes) => ({ mes, id_sv_desafiante: 'A', id_sv_desafiado: 'B', pilar: 'Volume Sabores', ordem_registro: 1 }));
+  const e = { mesRef: 11, pessoas, pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas, confrontos };
+  const nov = calcular(e), a = nov.pessoas.find((p) => p.id === 'A'), ra = nov.pessoas.find((p) => p.id === 'RA');
+  // A: 3 pilares a 110% (Sabores, Retornáveis, Powerade/coringas) etc.; o que importa é o +5: outubro entra, novembro não
+  assert.deepEqual(a.porMes.map((m) => [m.mes, m.pontosConfronto, m.bonusPendente]), [[10, 5, 0], [11, 0, 5]]);
+  assert.equal(a.pontosAcumulados, a.porMes[0].pontosPilares + 5 + a.porMes[1].pontosPilares);
+  assert.deepEqual(nov.confrontos.map((c) => [c.mes, c.mesFechado]), [[10, true], [11, false]]);
+  assert.deepEqual([ra.pontosConfronto, ra.bonusPendente], [0, 5]); // a rota zera todo mês: o +5 de novembro só no fechamento
+  // no período de fechamento de novembro (a API mostra novembro fechado) os dois +5 já valem
+  const fech = calcular({ ...e, fechamento: true }), a2 = fech.pessoas.find((p) => p.id === 'A');
+  assert.deepEqual(a2.porMes.map((m) => m.pontosConfronto), [5, 5]);
+  assert.equal(a2.pontosAcumulados, a.pontosAcumulados + 5);
+  assert.equal(fech.pessoas.find((p) => p.id === 'RA').pontosConfronto, 5);
 });
 
 test('confronto: empate no pilar desempata pelo maior % de Refrigerantes', () => {
-  const res = cenarioConfronto(100, 100, 98, 101);
+  const res = cenarioConfronto(100, 100, 98, 101, { fechamento: true });
   assert.equal(res.confrontos[0].vencedor, 'B');
   assert.equal(res.pessoas.find((p) => p.id === 'RB').pontosConfronto, 5);
 });
