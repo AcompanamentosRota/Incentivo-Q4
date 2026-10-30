@@ -862,6 +862,79 @@ function confrontoInvalidadoPorAjuste(det, linhas, canaisSV) {
   return null;
 }
 
+/*
+ * Aba Confrontos (cartões de duelo): funções só de apresentação. Nada aqui apura vencedor, ponto ou %: tudo vem do
+ * motor (RES.confrontos); aqui só se distribui na tela, conta linhas e escolhe o estado visual.
+ */
+const CF_LEGENDA_NO_ESPACO = 17; // até este número de confrontos a legenda ocupa o último espaço da coluna direita
+const CF_ALTURA_MAX = 84, CF_ALTURA_MIN = 62; // px por linha; abaixo do mínimo as duas colunas rolam juntas
+
+/**
+ * Duas colunas, na ordem do motor e numeradas em sequência (1 a k na esquerda, o resto na direita).
+ * n <= 17: k = ceil((n+1)/2) e a legenda ocupa o último espaço da coluna direita. n >= 18: k = ceil(n/2) e a legenda vira
+ * uma faixa abaixo das colunas. Com `disp` (px para as linhas) e `entre` (px entre linhas), devolve também a altura da
+ * linha (o que sobra ÷ k, de 62 a 84 px) e se as colunas rolam.
+ */
+function distribuirConfrontos(n, disp, entre) {
+  n = Math.max(0, Math.floor(Number(n) || 0));
+  if (!n) return { linhas: 0, esquerda: 0, direita: 0, legenda: null, altura: null, rola: false };
+  const espaco = n <= CF_LEGENDA_NO_ESPACO;
+  const k = espaco ? Math.ceil((n + 1) / 2) : Math.ceil(n / 2);
+  const out = { linhas: k, esquerda: k, direita: n - k, legenda: espaco ? 'espaco' : 'faixa', altura: null, rola: false };
+  if (disp !== undefined) {
+    const sobra = (disp - (entre || 0) * (k - 1)) / k;
+    out.altura = Math.floor(Math.max(CF_ALTURA_MIN, Math.min(CF_ALTURA_MAX, sobra)));
+    out.rola = sobra < CF_ALTURA_MIN;
+  }
+  return out;
+}
+
+/**
+ * Contagens do cabeçalho e da legenda, sobre os confrontos do mês que o motor já apurou (válidos ou não): cadastrados,
+ * válidos, com vencedor, por canal (o do desafiante; SV não encontrado ou sem canal = "Sem canal") e por pilar (sem
+ * "Volume "). Ordem: mais confrontos primeiro, empate pelo rótulo. As duas listas somam os cadastrados.
+ */
+function resumoConfrontos(lista, porId) {
+  const l = lista || [], mapa = porId || {};
+  const sv = (id) => (Object.prototype.hasOwnProperty.call(mapa, id) ? mapa[id] : null);
+  const contar = (rotulo) => l.reduce((m, c) => { const k = rotulo(c); m[k] = (m[k] || 0) + 1; return m; }, {});
+  const ordenar = (m) => Object.entries(m).map(([rotulo, n]) => ({ rotulo, n }))
+    .sort((a, b) => b.n - a.n || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+  return {
+    cadastrados: l.length,
+    validos: l.filter((c) => c.valido).length,
+    comVencedor: l.filter((c) => c.vencedor).length,
+    porCanal: ordenar(contar((c) => (sv(c.desafiante) && sv(c.desafiante).canal) || 'Sem canal')),
+    porPilar: ordenar(contar((c) => String(c.pilar || '').replace(/^Volume /, '') || 'Sem pilar')),
+  };
+}
+
+/**
+ * Estado visual de um confronto apurado pelo motor: caixa S1 (vencedor), S2 (válido sem vencedor: empate sem vencedor
+ * ou sem dado) ou S3 (não vale). Cada lado é 'vencedor' ou 'normal' (S1), 'neutro' (S2 e S3) ou 'S4' (SV não encontrado
+ * no mês: `encontrado(id)` diz se o SV existe); `estado` é S4 quando algum lado é S4. `vencedor` diz o lado que venceu e
+ * `desempate`, se ele venceu pelo % de Refrigerantes.
+ */
+function estadoConfronto(c, encontrado) {
+  const caixa = !c.valido ? 'S3' : c.vencedor ? 'S1' : 'S2';
+  const vencedor = caixa !== 'S1' ? null : c.vencedor === c.desafiante ? 'desafiante' : c.vencedor === c.desafiado ? 'desafiado' : null;
+  const lado = (id, qual) => (encontrado && !encontrado(id) ? 'S4' : caixa !== 'S1' ? 'neutro' : vencedor === qual ? 'vencedor' : 'normal');
+  const out = { caixa, vencedor, desempate: caixa === 'S1' && c.motivo === 'DESEMPATE_REFRI',
+                desafiante: lado(c.desafiante, 'desafiante'), desafiado: lado(c.desafiado, 'desafiado') };
+  out.estado = out.desafiante === 'S4' || out.desafiado === 'S4' ? 'S4' : caixa;
+  return out;
+}
+
+/** Largura (%) da barra do SV: 0 sem valor, negativo ou NaN; no máximo 100 (a barra não passa de 100%). Não arredonda. */
+const larguraBarra = (pct) => (typeof pct === 'number' && pct > 0 ? Math.min(100, pct) : 0);
+
+/** Etiquetas do SV no cartão (regra fixa, sem medir texto): uma só fica na linha do nome; duas ou mais vão juntas para a
+ *  linha do subtexto, à direita do "canal · unidade". */
+const lugarEtiquetas = (etiquetas) => {
+  const l = (etiquetas || []).slice();
+  return l.length === 1 ? { nome: l, sub: [] } : { nome: [], sub: l };
+};
+
 /** Agrupadores que formam o Refrigerantes do gatilho: a categoria (API) ou, sem ela, a soma provisória. */
 const componentesRefri = (dados, cfg) => (dados.meta.refriCategoria ? [cfg.refri] : cfg.refriProvisorio);
 
@@ -1001,5 +1074,7 @@ if (typeof module === 'object' && module.exports) {
                      SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,
-                     canaisDosSVs, aplicarCanalSV, pendenciasCanalSV };
+                     canaisDosSVs, aplicarCanalSV, pendenciasCanalSV,
+                     CF_LEGENDA_NO_ESPACO, CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
+                     estadoConfronto, larguraBarra, lugarEtiquetas };
 }

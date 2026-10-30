@@ -34,8 +34,9 @@ dos dados (API ou base embutida) e o corte.
   motor, nos pilares do canal do SV: os mesmos números da aba Supervisão. Os cards do topo trazem os cinco pilares
   e mais um de **Refrigerantes**, com o gatilho do mês.
 - **Regras:** pontuação, gatilhos, pilares, premiação, dados e alertas, pendências, anotações livres e **Administração**.
-- **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês, com o % de cada lado, o vencedor e o
-  bônus, ou o motivo quando o confronto não vale.
+- **Confrontos** (botão ao lado das abas): os desafios entre supervisores do mês em **cartões de duelo**, com o % de cada
+  lado, o vencedor e o bônus, ou o motivo quando o confronto não vale. Feita para print: com 17 confrontos (outubro) cabe
+  inteira em 1920×1080, sem rolagem. Detalhes em "Aba Confrontos" abaixo.
 
 Nas abas Rota e Supervisão, os pontos de cada pilar e o total aparecem sempre, e **todas as linhas são numeradas**; só o
 status, a posição oficial e a premiação dependem do gatilho de Refrigerantes (quem está fora aparece em cinza).
@@ -51,6 +52,34 @@ linha. Diferença negativa aparece em vermelho e positiva em verde.
 
 Nas tabelas de Rota, Supervisão e Estratégicos, passar o mouse **acende a linha e a coluna** sob o cursor, junto com o
 rótulo da coluna no cabeçalho, para ajudar a ler de ponta a ponta sem perder a linha.
+
+## Aba Confrontos (cartões de duelo)
+Só a aparência mudou (etapa 11): vencedor, %, bônus e motivo continuam vindo do motor (`RES.confrontos`), e o cabeçalho
+do painel, o rodapé e o cartão (`.panel`) são os mesmos das outras abas.
+- **Cabeçalho do cartão:** título com o mês e a situação (mês corrente, fechado, provisório), o seletor de mês ao centro e
+  as contagens à direita (cadastrados, válidos, com vencedor).
+- **Linha de cada confronto:** número (posição na lista do mês), pílula do pilar (mesma cor dos cabeçalhos das outras abas,
+  classes `g0` a `g5`), cartão do desafiante (vermelho) × cartão do desafiado (azul) e a caixa de resultado. Cada cartão
+  traz o nome do SV, "canal · unidade", o % do pilar (truncado, como em todo o painel) e uma barra que vai até 100%.
+  Etiquetas de segmento: **uma** (Mini, Mod ou "2 canais") fica ao lado do nome; **duas ou mais** vão para a linha do
+  subtexto, que então usa a largura toda do cartão, e o % sobe para a linha do nome (26 px).
+- **Resultado:** S1 **Vencedor** (taça, nome e `+<bônus> pts · SV e mesa`, ou `· desempate` quando decidido pelo % de
+  Refrigerantes, com o motivo no `title`); S2 **Sem vencedor** (empate sem vencedor ou sem dado, com o motivo); S3
+  **Não vale** (motivo do motor ou "canal ajustado: ..."; até 3 linhas, texto inteiro no `title` e no `aria-label`); S4
+  **SV não encontrado** (nome do id cadastrado, "não encontrado" e "–"). Em S2, S3 e S4 os cartões ficam neutros (cinza),
+  para não parecer apuração válida. A cor nunca é a única informação: sempre há texto (e a taça no vencedor).
+- **Distribuição:** duas colunas, na ordem do motor, numeradas em sequência (1 a k na esquerda, o resto na direita).
+  Até 17 confrontos, k = ⌈(n+1)/2⌉ e a **legenda** ocupa o último espaço da coluna direita (17 dá 9 + 8 + legenda). De
+  18 em diante, k = ⌈n/2⌉ e a legenda vira uma faixa de uma linha abaixo das colunas. A altura da linha é o que sobra
+  dividido por k, de 62 a 84 px; abaixo de 62 px as duas colunas rolam juntas (limite: 60 confrontos).
+- **Legenda:** desafiante/desafiado/vencedor e quantos confrontos há **por canal** (o do desafiante; SV não encontrado =
+  "Sem canal") e **por pilar**, do maior para o menor. São contagens de linhas que o motor já apurou.
+- Sem confronto no mês: "Nenhum confronto cadastrado em <mês>. Inclua na aba Regras > Administração."
+- A lógica de tela fica em funções puras do `src/adapter.js`, testadas: `distribuirConfrontos`, `resumoConfrontos`,
+  `estadoConfronto`, `larguraBarra` e `lugarEtiquetas`. O `renderConfrontos` (no template) só monta o HTML.
+- **Fontes:** o texto é Inter, como no resto do painel; só os números grandes (% de cada lado e número da linha) usam
+  **Barlow Condensed 800**, embutida (subset latino, licença OFL, do pacote npm `@fontsource/barlow-condensed`, +28 KB no
+  HTML). O "×" usa a Barlow 800 itálico do letreiro. Nenhuma fonte vem de site externo.
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
@@ -112,13 +141,18 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
 src/app.tpl.html             tela (HTML, CSS e lógica de exibição)
 src/motor.js                 motor de cálculo (pontos, gatilhos, confronto, status, ranking)
 src/adapter.js               lê a API (mês corrente e meses fechados) e liga os dados ao motor; CONFIG com os pilares por mês
-src/assets/                  Anton e Barlow do letreiro, e o logo (o resto do painel usa Inter/fonte do sistema)
+src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa Inter/fonte do sistema
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
-scripts/build.py             monta o HTML final
+scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       34 testes do motor e 66 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       34 testes do motor e 74 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
+
+**Fontes embutidas** (`src/assets/fonts.json`, entradas `{fam, w, st, b64}` em woff2): o `build.py` só embute as da lista
+`manter`: Anton 400 ("DESAFIO Q4"), Barlow 800 itálico (faixa vermelha e "×" dos confrontos) e Barlow Condensed 800 (números
+da aba Confrontos). As outras entradas do `fonts.json` (Barlow 500 a 800 e itálicos 700 e 900) ficam fora do HTML; trazer a
+Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site externo.
 
 ## Dados
 - **API** (`../api/v1/index.json` e `gerencias/*.json`): meta (META_VOLUME), real (faturado no mês, inclusive o de

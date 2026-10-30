@@ -1168,3 +1168,147 @@ test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gat
   // o motor tem um texto com 60 fixo (avisoOutubro) que o painel não mostra; se passar a mostrar, troque por R.gatilhoPontos
   assert.doesNotMatch(tpl, /avisoOutubro/);
 });
+
+// ── aba Confrontos (etapa 11): cartões de duelo; só apresentação, o resultado continua vindo do motor ──
+// Fixture sintética: SVs fictícios Sv. Fa.* (Mista) e Sv. Fb.* (Segmentada).
+const { distribuirConfrontos, resumoConfrontos, estadoConfronto, larguraBarra, lugarEtiquetas, confrontoInvalidadoPorAjuste,
+        CF_LEGENDA_NO_ESPACO, CF_ALTURA_MAX, CF_ALTURA_MIN, CONFRONTOS_MAX } = require('../src/adapter.js');
+
+test('confrontos na tela: duas colunas na ordem do motor; até 17 a legenda ocupa o último espaço, de 18 em diante vira faixa', () => {
+  const ver = (n) => { const d = distribuirConfrontos(n); return [d.linhas, d.esquerda, d.direita, d.legenda]; };
+  assert.deepEqual(ver(0), [0, 0, 0, null]);
+  assert.deepEqual(ver(1), [1, 1, 0, 'espaco']);
+  assert.deepEqual(ver(4), [3, 3, 1, 'espaco']);
+  assert.deepEqual(ver(16), [9, 9, 7, 'espaco']);
+  assert.deepEqual(ver(17), [9, 9, 8, 'espaco']); // o caso de outubro: 9 + 8 + legenda, como no mockup
+  assert.deepEqual(ver(18), [9, 9, 9, 'faixa']);
+  assert.deepEqual(ver(30), [15, 15, 15, 'faixa']);
+  assert.deepEqual(ver(CONFRONTOS_MAX), [30, 30, 30, 'faixa']);
+  for (const n of [0, 1, 4, 16, 17, 18, 30, 60]) {
+    const d = distribuirConfrontos(n);
+    assert.equal(d.esquerda + d.direita, n, `n=${n}: as colunas somam n`);
+    if (d.legenda === 'espaco') assert.ok(d.direita < d.linhas, `n=${n}: sobra o último espaço da coluna direita para a legenda`);
+  }
+  assert.equal(CF_LEGENDA_NO_ESPACO, 17);
+});
+
+test('confrontos na tela: altura da linha = o que sobra ÷ linhas, de 62 a 84 px; abaixo do mínimo as colunas rolam', () => {
+  const alt = (n, disp) => { const d = distribuirConfrontos(n, disp, 6); return [d.altura, d.rola]; };
+  assert.deepEqual(alt(17, 678), [70, false]);            // 1920×1080: 9 linhas de 70 px, sem rolagem
+  assert.deepEqual(alt(1, 678), [CF_ALTURA_MAX, false]);   // poucas linhas: no máximo 84 px, alinhadas ao topo
+  assert.deepEqual(alt(4, 678), [CF_ALTURA_MAX, false]);
+  assert.deepEqual(alt(18, 638), [65, false]);             // 18: a faixa da legenda tira espaço, mas ainda cabe
+  assert.deepEqual(alt(30, 638), [CF_ALTURA_MIN, true]);   // 30 e 60: 62 px e as duas colunas rolam juntas
+  assert.deepEqual(alt(60, 638), [CF_ALTURA_MIN, true]);
+  assert.equal(distribuirConfrontos(0, 678, 6).altura, null);
+});
+
+const CF_PESSOAS = {
+  'Sv. Fa.1#Mista': { id: 'Sv. Fa.1#Mista', canal: 'Mista' }, 'Sv. Fa.2#Mista': { id: 'Sv. Fa.2#Mista', canal: 'Mista' },
+  'Sv. Fa.3#Mista': { id: 'Sv. Fa.3#Mista', canal: 'Mista' }, 'Sv. Fb.1#Segmentada': { id: 'Sv. Fb.1#Segmentada', canal: 'Segmentada' },
+  'Sv. Fb.2#Segmentada': { id: 'Sv. Fb.2#Segmentada', canal: 'Segmentada' },
+};
+const cf = (desafiante, desafiado, pilar, extra) => Object.assign({ mes: 10, desafiante, desafiado, pilar, valido: true, motivo: null, vencedor: null }, extra);
+
+test('confrontos na tela: contagens por canal (do desafiante) e por pilar somam os cadastrados; empate pelo rótulo', () => {
+  const lista = [
+    cf('Sv. Fa.1#Mista', 'Sv. Fa.2#Mista', 'Volume Sabores', { vencedor: 'Sv. Fa.1#Mista', pctDesafiante: 90, pctDesafiado: 80 }),
+    cf('Sv. Fa.2#Mista', 'Sv. Fa.3#Mista', 'Volume Sucos', { motivo: 'EMPATE_SEM_VENCEDOR', pctDesafiante: 80, pctDesafiado: 80 }),
+    cf('Sv. Fb.1#Segmentada', 'Sv. Fb.2#Segmentada', 'Volume Refri Single', { vencedor: 'Sv. Fb.2#Segmentada' }),
+    cf('Sv. Fb.2#Segmentada', 'Sv. Fa.1#Mista', 'Volume Sabores', { valido: false, motivo: 'CANAIS_DIFERENTES' }),
+    cf('Sv. Fz.9#Mista', 'Sv. Fa.3#Mista', 'Volume Retornáveis', { valido: false, motivo: 'SV_NAO_ENCONTRADO' }), // SV fora do mês
+    cf('Sv. Fa.3#Mista', 'Sv. Fa.1#Mista', 'Missões Guiadas', { valido: false, motivo: 'PILAR_NAO_VOLUME' }),
+  ];
+  const r = resumoConfrontos(lista, CF_PESSOAS);
+  assert.deepEqual([r.cadastrados, r.validos, r.comVencedor], [6, 3, 2]);
+  assert.deepEqual(r.porCanal, [{ rotulo: 'Mista', n: 3 }, { rotulo: 'Segmentada', n: 2 }, { rotulo: 'Sem canal', n: 1 }]);
+  // Sabores 2; os outros empatam em 1 e seguem a ordem do rótulo (sem "Volume ")
+  assert.deepEqual(r.porPilar, [{ rotulo: 'Sabores', n: 2 }, { rotulo: 'Missões Guiadas', n: 1 }, { rotulo: 'Refri Single', n: 1 },
+                                { rotulo: 'Retornáveis', n: 1 }, { rotulo: 'Sucos', n: 1 }]);
+  const soma = (l) => l.reduce((s, x) => s + x.n, 0);
+  assert.equal(soma(r.porCanal), r.cadastrados);
+  assert.equal(soma(r.porPilar), r.cadastrados);
+  assert.deepEqual(resumoConfrontos([], CF_PESSOAS), { cadastrados: 0, validos: 0, comVencedor: 0, porCanal: [], porPilar: [] });
+  assert.equal(lista[0].vencedor, 'Sv. Fa.1#Mista'); // só lê o que o motor devolveu
+});
+
+test('confrontos na tela: estado S1 a S4 de cada confronto e o lado vencedor, só a partir do que o motor apurou', () => {
+  const achou = (id) => Object.prototype.hasOwnProperty.call(CF_PESSOAS, id);
+  const ver = (c) => { const e = estadoConfronto(c, achou); return [e.estado, e.caixa, e.vencedor, e.desempate, e.desafiante, e.desafiado]; };
+  const A = 'Sv. Fa.1#Mista', B = 'Sv. Fa.2#Mista';
+  assert.deepEqual(ver(cf(A, B, 'Volume Sabores', { vencedor: A })), ['S1', 'S1', 'desafiante', false, 'vencedor', 'normal']);
+  assert.deepEqual(ver(cf(A, B, 'Volume Sabores', { vencedor: B })), ['S1', 'S1', 'desafiado', false, 'normal', 'vencedor']);
+  assert.deepEqual(ver(cf(A, B, 'Volume Sabores', { vencedor: B, motivo: 'DESEMPATE_REFRI' })), ['S1', 'S1', 'desafiado', true, 'normal', 'vencedor']);
+  assert.deepEqual(ver(cf(A, B, 'Volume Sabores', { motivo: 'EMPATE_SEM_VENCEDOR' })), ['S2', 'S2', null, false, 'neutro', 'neutro']);
+  assert.deepEqual(ver(cf(A, B, 'Volume Sucos', { motivo: 'SEM_DADO_PARA_APURAR' })), ['S2', 'S2', null, false, 'neutro', 'neutro']);
+  assert.deepEqual(ver(cf(A, 'Sv. Fb.1#Segmentada', 'Volume Sabores', { valido: false, motivo: 'CANAIS_DIFERENTES' })),
+    ['S3', 'S3', null, false, 'neutro', 'neutro']);
+  // canal ajustado: a mesa de Sv. Fa.3 saiu da Mista; o id antigo não é mais encontrado (S4) e o motivo explica o ajuste
+  const det = cf('Sv. Fa.3#Mista', B, 'Volume Sabores', { valido: false, motivo: 'SV_NAO_ENCONTRADO' });
+  const semFa3 = (id) => id !== 'Sv. Fa.3#Mista' && achou(id);
+  const linhas = [{ rota: 'F31', sv: 'Sv. Fa.3', origem: 'ajuste', padrao: 'Mista', canal: 'Segmentada' }];
+  assert.equal(confrontoInvalidadoPorAjuste(det, linhas, {}).texto, 'canal ajustado: a mesa de Sv. Fa.3 saiu da Mista (rota F31)');
+  const e = estadoConfronto(det, semFa3);
+  assert.deepEqual([e.estado, e.caixa, e.desafiante, e.desafiado], ['S4', 'S3', 'S4', 'neutro']);
+  // SV não encontrado no mês (sem ajuste de canal): o lado que falta é S4, a caixa segue o motor (não vale)
+  assert.deepEqual(ver(cf(A, 'Sv. Fz.9#Mista', 'Volume Sabores', { valido: false, motivo: 'SV_NAO_ENCONTRADO' })),
+    ['S4', 'S3', null, false, 'neutro', 'S4']);
+  // sem a função de busca, os dois lados contam como encontrados
+  assert.equal(estadoConfronto(cf(A, B, 'Volume Sabores', { vencedor: A })).desafiado, 'normal');
+});
+
+test('confrontos na tela: barra do SV vai de 0 a 100 (sem valor, negativo ou NaN = 0) e não arredonda', () => {
+  assert.deepEqual([0, 3.5, 61.8, 99.96, 100, 110.7, -4, NaN, null, undefined, '80'].map(larguraBarra),
+    [0, 3.5, 61.8, 99.96, 100, 100, 0, 0, 0, 0, 0]);
+  assert.ok(larguraBarra(99.96) < 100); // 99,96% não enche a barra
+});
+
+test('confrontos na tela: uma etiqueta fica na linha do nome; duas ou mais vão juntas para o subtexto', () => {
+  assert.deepEqual(lugarEtiquetas([]), { nome: [], sub: [] });
+  assert.deepEqual(lugarEtiquetas(undefined), { nome: [], sub: [] });
+  assert.deepEqual(lugarEtiquetas(['Mod']), { nome: ['Mod'], sub: [] });
+  assert.deepEqual(lugarEtiquetas(['2 canais']), { nome: ['2 canais'], sub: [] });
+  assert.deepEqual(lugarEtiquetas(['Mini', 'Mod']), { nome: [], sub: ['Mini', 'Mod'] });
+  assert.deepEqual(lugarEtiquetas(['Mini', 'Mod', '2 canais']), { nome: [], sub: ['Mini', 'Mod', '2 canais'] });
+  const l = ['Mod']; lugarEtiquetas(l).nome.push('x'); assert.deepEqual(l, ['Mod']); // não altera a lista recebida
+});
+
+test('confrontos na tela: o bloco da aba não tem bônus fixo, "Mockup", fonte externa nem emoji; o HTML gerado está em dia', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  const trecho = (t, ini, fim) => { const i = t.indexOf(ini), j = t.indexOf(fim, i); assert.ok(i >= 0 && j > i, `trecho ${ini}`); return t.slice(i, j); };
+  const blocos = (t) => [trecho(t, '/* confrontos: cartões de duelo', '/* pendencias'),
+                         trecho(t, '<section class="view wide" id="v-confrontos"', '</section>'),
+                         trecho(t, '/* ---------- confrontos entre supervisores ---------- */', '/* ---------- abas ---------- */')];
+  const [css, sec, js] = blocos(tpl);
+  for (const b of [css, sec, js]) {
+    assert.doesNotMatch(b, /\+\s*5(?![\d%])|\b5\s*(pts|pontos)\b/, 'bônus do confronto fixo: use R.bonusConfronto');
+    assert.doesNotMatch(b, /mockup/i);
+    assert.doesNotMatch(b, /https?:|fonts\.googleapis|fonts\.gstatic|@import/);
+    assert.doesNotMatch(b, /\p{Extended_Pictographic}/u, 'sem emoji: ícones em SVG');
+  }
+  assert.match(js, /\+\$\{R\.bonusConfronto\} pts · /);
+  for (const f of ['distribuirConfrontos', 'resumoConfrontos', 'estadoConfronto', 'larguraBarra', 'lugarEtiquetas']) assert.match(js, new RegExp(f + '\\('));
+  assert.doesNotMatch(js, /\.vencedor\s*=[^=]|pctDesafiante\s*=[^=]/, 'a tela não apura vencedor nem %');
+  // as etiquetas só mudam de estilo dentro da aba: a regra geral de .sg continua igual
+  assert.match(tpl, /\n\.sg\{display:inline-block;margin-left:6px;/);
+  // o HTML gerado é o build do template atual e não carrega fonte de fora
+  assert.deepEqual(blocos(html), [css, sec, js], 'rode python painel-q4/scripts/build.py');
+  assert.doesNotMatch(html, /mockup/i);
+  assert.doesNotMatch(html, /fonts\.googleapis|fonts\.gstatic|@import\s+url/);
+  const faces = html.match(/@font-face\{[^}]*\}/g) || [];
+  assert.ok(faces.length >= 3 && faces.every((f) => /src:url\(data:font\/woff2;base64,/.test(f)), 'fontes só embutidas');
+  assert.ok(faces.some((f) => /font-family:Barlow Condensed;.*font-weight:800;font-style:normal/.test(f)));
+});
+
+test('fonte nova: Barlow Condensed 800 (subset latino, woff2) no fonts.json e na lista manter do build.py', () => {
+  const fs = require('fs'), path = require('path');
+  const fontes = JSON.parse(fs.readFileSync(path.join(__dirname, '../src/assets/fonts.json'), 'utf8'));
+  const bc = fontes.filter((f) => f.fam === 'Barlow Condensed');
+  assert.deepEqual(bc.map((f) => [f.w, f.st]), [[800, 'normal']]);
+  assert.deepEqual(Object.keys(bc[0]).sort(), ['b64', 'fam', 'st', 'w']);
+  assert.equal(Buffer.from(bc[0].b64, 'base64').subarray(0, 4).toString('latin1'), 'wOF2');
+  const build = fs.readFileSync(path.join(__dirname, '../scripts/build.py'), 'utf8');
+  assert.match(build, /manter = \[\('Anton', 400, 'normal'\), \('Barlow', 800, 'italic'\), \('Barlow Condensed', 800, 'normal'\)\]/);
+});

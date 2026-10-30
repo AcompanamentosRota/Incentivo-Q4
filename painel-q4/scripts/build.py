@@ -9,9 +9,10 @@ src = raiz / 'src'
 ler = lambda p: p.read_text(encoding='utf-8')
 t = ler(src / 'app.tpl.html')
 fontes = json.loads(ler(src / 'assets' / 'fonts.json'))
-# Só o letreiro usa fonte embutida: Anton no 'DESAFIO Q4' e Barlow 800 itálico na faixa vermelha.
+# Fontes embutidas: Anton no 'DESAFIO Q4', Barlow 800 itálico na faixa vermelha (e no "×" da aba Confrontos) e
+# Barlow Condensed 800 só nos números grandes da aba Confrontos (% de cada lado e número da linha).
 # O resto do painel usa Inter, com reserva na fonte do sistema (Segoe UI), sem baixar nada.
-manter = [('Anton', 400, 'normal'), ('Barlow', 800, 'italic')]
+manter = [('Anton', 400, 'normal'), ('Barlow', 800, 'italic'), ('Barlow Condensed', 800, 'normal')]
 css = ''
 for f in fontes:
     if (f['fam'], f['w'], f['st']) in manter:
