@@ -292,18 +292,62 @@ button{background:none;border:0;cursor:pointer}
 .th>div.cl{background:rgba(255,255,255,.17)}
 .th>div.gh.cl{background:var(--gc)}
 
-/* confrontos */
-.cf{display:grid;grid-template-columns:54px 150px minmax(0,1fr) 92px 30px minmax(0,1fr) 92px minmax(180px,250px);align-items:center;padding:0 16px}
-.cfh{height:34px;flex:none;font-size:15px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
-.cfr{height:46px;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px;font-weight:500}
-.cfr .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.cfr .nm small{display:block;font-weight:400;font-size:14px;color:var(--muted)}
-.cf .v{text-align:right;padding-right:14px}
-.cfr .v{font-weight:600}
-.cf .x{text-align:center;color:var(--muted);font-weight:600}
-.cfr.ganhou-a .va,.cfr.ganhou-b .vb{color:#7dffa0}
-.cfr.invalido{background:rgba(255,255,255,.03);color:#9aa0ad}
-.cfr .mt{font-size:14px;font-weight:500;color:var(--muted);line-height:1.2}
+/* confrontos: cartões de duelo em duas colunas (só a aparência; vencedor, % e bônus vêm do motor).
+   Texto em Inter (--cf-ff); só os números grandes (% de cada lado e número da linha) em Barlow Condensed (--cf-num). */
+#v-confrontos{--cf-ff:var(--ff);--cf-num:'Barlow Condensed',var(--ff);font-family:var(--cf-ff)}
+#v-confrontos .tt{height:46px;display:grid;grid-template-columns:1fr auto 1fr;gap:16px;padding:0 16px;border-bottom:1px solid #2c2c38;font-size:20px;font-weight:700}
+#v-confrontos .cfmes .seg{padding:2px}
+#v-confrontos .cfmes .seg button{min-height:30px;height:30px;padding:0 20px;font-size:15px;font-weight:700}
+#v-confrontos .kp{justify-self:end;align-items:baseline;gap:18px;font-size:16px;font-weight:500;color:#d6d6df}
+#v-confrontos .kp b{font-size:20px;font-weight:800;color:#fff;margin-right:6px}
+#cfrows{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:10px 12px}
+#cfrows .vazio{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cfcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+.cfcol{display:grid;grid-template-rows:repeat(var(--cf-k),var(--cf-h));row-gap:6px;min-width:0}
+/* caixa de resultado com 190 px (a referência tem 160): o motivo "canal ajustado" com a lista de rotas só cabe em 3 linhas assim */
+.cfrow{display:grid;grid-template-columns:34px 112px minmax(0,1fr) 26px minmax(0,1fr) 190px;gap:8px;align-items:stretch;min-width:0;min-height:0;padding:3px 8px;background:#13131a;border:1px solid #2c2c38;border-radius:10px}
+.cfnum{display:flex;align-items:center;justify-content:center;font-family:var(--cf-num);font-weight:800;font-size:24px;color:#f2f2f5;background:#0b0b10;border:1px solid #34343f;border-radius:8px}
+.cfpil{display:flex;align-items:center;justify-content:center;align-self:center;height:30px;padding:0 6px;border-radius:15px;font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--gc);color:var(--gf,#fff)}
+.cfsv{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;align-content:center;min-width:0;padding:3px 8px 4px;border:1px solid;border-radius:8px;--cf-bar:#7b7f8c}
+.cfsv.a{background:#2a0d14;border-color:#8a1f33;--cf-bar:#ff5a70}
+.cfsv.b{background:#0c1b33;border-color:#1f5a9e;--cf-bar:#52a8ff}
+.cfsv.neutro{background:#17171d;border-color:#3a3a46}
+.cfsv.win{border-width:2px;border-color:#3ddc84;padding:2px 7px 3px}
+.cfsv .nl,.cfsv .sb{grid-column:1;display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
+.cfsv .nl{grid-row:1}.cfsv .sb{grid-row:2}
+/* reticências só na horizontal: o padding de baixo (desfeito na margem) deixa as descendentes (g, p) fora do corte */
+.cfsv .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;padding-bottom:3px;margin-bottom:-3px;font-size:18px;font-weight:700;line-height:1.1;color:#f2f2f5}
+.cfsv .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;padding-bottom:3px;margin-bottom:-3px;font-size:13px;line-height:1.15;color:#a9a9b6}
+.cfsv .sb .sg{margin:-3px 0}
+.cfsv .pc{grid-column:2;grid-row:1 / 3;align-self:center;font-family:var(--cf-num);font-size:29px;font-weight:800;line-height:1;color:#d8d8e0}
+/* duas ou mais etiquetas no subtexto: ele usa a largura toda do cartão e o % sobe para a linha do nome (26 px) */
+.cfsv.e2{padding-top:1px;padding-bottom:2px}.cfsv.e2.win{padding-top:0;padding-bottom:1px}
+.cfsv.e2 .sb{grid-column:1 / 3;margin-top:2px}
+.cfsv.e2 .pc{grid-row:1;font-size:26px;line-height:.9}
+.cfsv.win .pc{color:#6df0a8}
+.cfsv.neutro .nm{color:#cfcfd8}.cfsv.neutro .pc{color:#b4b4c0}
+.cfsv .tr{grid-column:1 / 3;grid-row:3;height:6px;margin-top:3px;background:#2b2b36;border-radius:3px;overflow:hidden}
+.cfsv .tr b{display:block;height:100%;border-radius:3px;background:var(--cf-bar)}
+#v-confrontos .sg{flex:none;margin-left:0;vertical-align:baseline;padding:3px 6px;border-radius:5px;font-size:12px;font-weight:700;line-height:1;background:#0f2447;color:#a8ccff;border:1px solid #3d6fb8}
+#v-confrontos .sg.sc{background:#2a2110;color:#ffd77a;border-color:#a87a1a}
+.cfvs{display:flex;align-items:center;justify-content:center;font-family:Barlow,var(--ff);font-style:italic;font-weight:800;font-size:22px;color:#8e8e9c}
+.cfres{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:1px 10px;border:1px solid;border-radius:8px}
+.cfres .rl{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;letter-spacing:.08em;line-height:1;text-transform:uppercase}
+.cfres .rl svg{flex:none;margin:-2px 0}
+.cfres .rn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:3px;margin-bottom:-3px;font-size:21px;font-weight:800;line-height:1.05;color:#fff}
+.cfres .rp{white-space:nowrap;margin-top:2px;font-size:13px;font-weight:600;line-height:1.05;color:#c3efd3}
+.cfres .rm{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:var(--cf-lin,3);overflow:hidden;margin-top:1px;font-size:12px;font-weight:500;line-height:1.15}
+.cfres.s1{background:#0e3a23;border-color:#2aa862}.cfres.s1 .rl{color:#6df0a8}
+.cfres.s2{background:#23262e;border-color:#454a56}.cfres.s2 .rl{color:#e4e6ea}.cfres.s2 .rm{color:#d2d5db}
+.cfres.s3{background:#2e2306;border-color:#a47500}.cfres.s3 .rl{color:#ffd978}.cfres.s3 .rm{color:#f1e6c8}
+.cfleg{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:0;padding:6px 14px;background:#0f0f14;border:1px solid #2c2c38;border-radius:10px;font-size:14px;line-height:1.25;color:#cfcfd8}
+.cfcol>.cfleg{grid-row:-2}
+.cfleg i{display:inline-block;width:12px;height:12px;margin-right:5px;border-radius:3px;vertical-align:-1px}
+.cfleg i.a{background:#ff5a70}.cfleg i.b{background:#52a8ff;margin-left:12px}
+.cffaixa{flex:none;flex-direction:row;gap:22px;margin:0 12px 8px;white-space:nowrap;overflow:hidden}
+#v-confrontos .pager{height:auto;display:block;padding:8px 16px 9px;border-top:1px solid #2c2c38}
+#cfnota{display:block;font-size:13px;font-weight:400;line-height:1.35;color:#cfcfd8}
+#cfrows::-webkit-scrollbar{width:10px}#cfrows::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}#cfrows::-webkit-scrollbar-track{background:transparent}
 
 /* pendencias: responsaveis e estado separados da descricao */
 .rg table.pd td:first-child{width:46px;color:var(--muted);font-weight:600}
@@ -405,9 +449,9 @@ button{background:none;border:0;cursor:pointer}
   <section class="view wide" id="v-confrontos" aria-label="Confrontos entre supervisores">
     <div class="panel">
       <div class="tt"><span id="cftitulo"></span><span class="cfmes" id="cfmes" role="group" aria-label="Mês dos confrontos"></span><span class="kp" id="cfsub"></span></div>
-      <div class="cf cfh" id="cfhead"></div>
-      <div class="rows" id="cfrows" style="overflow:auto"></div>
-      <div class="pager"><span class="etnota" id="cfnota"></span></div>
+      <div id="cfrows"></div>
+      <div class="cfleg cffaixa" id="cffaixa" hidden></div>
+      <div class="pager"><span id="cfnota"></span></div>
     </div>
   </section>
 
@@ -560,8 +604,10 @@ const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
 const segTag = (seg, semCanal)=> seg ? `<span class="sg${semCanal?' sc':''}" title="Segmento ${esc(seg)}">${esc(seg)}</span>` : '';
 const segsDe = (r)=> r.cargo==='RT' ? (INFO[r.id] && INFO[r.id].sub ? [INFO[r.id].sub] : []) : segmentosDaMesa(DADOS.rotas, r.id);
 const CANAIS_SV = DADOS.canaisSV || {};   // canal de cada SV: ajuste do admin ou maioria das rotas da mesa
-const segsTag = (r)=> segsDe(r).map(x=>segTag(x)).join('')
-  + (r.cargo==='SV' && CANAIS_SV[r.nome] && CANAIS_SV[r.nome].misto ? `<span class="sg sc" title="Mesa com rotas Mista e Segmentada: o SV soma todas nos pilares da ${esc(r.canal)}">2 canais</span>` : '');
+// etiquetas (HTML) de uma linha: segmentos e, no SV com rotas dos dois canais na mesa, "2 canais"
+const etiquetasDe = (r)=> segsDe(r).map(x=>segTag(x))
+  .concat(r.cargo==='SV' && CANAIS_SV[r.nome] && CANAIS_SV[r.nome].misto ? [`<span class="sg sc" title="Mesa com rotas Mista e Segmentada: o SV soma todas nos pilares da ${esc(r.canal)}">2 canais</span>`] : []);
+const segsTag = (r)=> etiquetasDe(r).join('');
 const segTxt = (r)=> segsDe(r).join(' ');
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
@@ -950,40 +996,85 @@ const MOTIVOS = {
 // confronto que um ajuste de canal invalidou: o cadastro continua; o motivo diz qual mesa saiu de qual canal
 const motivoConf = (c)=>{ const a = confrontoInvalidadoPorAjuste(c, SEG, CANAIS_SV); return a ? a.texto : (MOTIVOS[c.motivo]||c.motivo||'—'); };
 const nomeSVId = (id)=> String(id).replace('#',' · ');
+const TACA='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>';
+const CF_ENTRE = 6;     // px entre as linhas (row-gap de .cfcol)
+const CF_MOTIVO_3 = 69; // px de linha a partir dos quais o motivo do "Não vale" mostra 3 linhas (abaixo, 2)
+/* Cartões de duelo em duas colunas. A distribuição, as contagens e o estado de cada confronto vêm de funções puras do
+   adaptador (distribuirConfrontos, resumoConfrontos, estadoConfronto, larguraBarra, lugarEtiquetas); vencedor, % e
+   bônus vêm do motor (RES.confrontos). Aqui só se monta o HTML. */
 function renderConfrontos(){
   const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
+  const achou = (id)=> !!porId[id];
   const nomeSV = (id)=> porId[id] ? porId[id].nome : nomeSVId(id);
   const infoSV = (id)=> porId[id] ? porId[id].canal+' · '+porId[id].unidade : 'não encontrado';
-  const segSV = (id)=> porId[id] ? segsTag(porId[id]) : '';
   // % do pilar no mês do confronto (o motor apura cada mês com os dados daquele mês: fechado ou corrente)
-  const pctP = (v)=> v===null || v===undefined ? '–' : M.fmtPct(v);
+  const temPct = (v)=> typeof v === 'number' && Number.isFinite(v);
+  const pctP = (v)=> temPct(v) ? M.fmtPct(v) : '–';
   const mesesCf = MESES_Q4.filter(m=>m<=MES);
   if(!mesesCf.includes(st.cfmes)) st.cfmes = MES;
   const fechado = (m)=> ACUM.usados.find(u=>u.mes===m);
   $('cfmes').innerHTML = `<span class="seg">${mesesCf.map(m=>`<button type="button" data-cfmes="${m}" aria-pressed="${m===st.cfmes}">${MESES[m]}</button>`).join('')}</span>`;
   const lst = (RES.confrontos || []).filter(c=>c.mes===st.cfmes);
+  const rs = resumoConfrontos(lst, porId);
   const f = fechado(st.cfmes);
   $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[st.cfmes]}` + (st.cfmes===MES ? (DADOS.meta.fechamento ? ' (fechamento)' : ' (mês corrente)')
     : f ? (f.final ? ' (mês fechado)' : ' (fechamento provisório)') : ' (sem dado do mês)');
-  $('cfsub').innerHTML = `<span><b>${lst.length}</b>cadastrados</span><span><b>${lst.filter(c=>c.valido).length}</b>válidos</span>`
-    + `<span><b>${lst.filter(c=>c.vencedor).length}</b>com vencedor</span>`;
-  $('cfhead').innerHTML = `<div>Mês</div><div>Pilar</div><div>Desafiante</div><div class="v">%</div><div class="x"></div>`
-    + `<div>Desafiado</div><div class="v">%</div><div>Resultado</div>`;
-  $('cfrows').innerHTML = lst.length ? lst.map(c=>{
-    const res = !c.valido ? `<span class="mt">Não vale: ${esc(motivoConf(c))}</span>`
-      : c.vencedor ? `<span class="pill tot">${CK}${esc(nomeSV(c.vencedor))} +${R.bonusConfronto}</span>`
-      : `<span class="mt">${esc(MOTIVOS[c.motivo]||'sem vencedor')}</span>`;
-    return `<div class="cf cfr${c.valido?'':' invalido'}${c.vencedor===c.desafiante?' ganhou-a':''}${c.vencedor===c.desafiado?' ganhou-b':''}">`
-      + `<div>${esc(MESES[c.mes].slice(0,3))}</div><div>${esc(rotuloPilar(c.pilar))}</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiante))}${segSV(c.desafiante)}<small>${esc(infoSV(c.desafiante))}</small></div>`
-      + `<div class="v va">${pctP(c.pctDesafiante)}</div><div class="x">×</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiado))}${segSV(c.desafiado)}<small>${esc(infoSV(c.desafiado))}</small></div>`
-      + `<div class="v vb">${pctP(c.pctDesafiado)}</div><div>${res}</div></div>`;
-  }).join('') : `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
+  $('cfsub').innerHTML = `<span><b>${rs.cadastrados}</b>cadastrados</span><span><b>${rs.validos}</b>válidos</span>`
+    + `<span><b>${rs.comVencedor}</b>com vencedor</span>`;
+  // cartão de um lado: nome (uma etiqueta ao lado; duas ou mais no subtexto), canal · unidade, % e barra até 100%
+  const cartao = (id, lado, papel, pct)=>{
+    const etq = lugarEtiquetas(porId[id] ? etiquetasDe(porId[id]) : []);
+    const cls = (lado==='S4' || lado==='neutro' ? 'neutro' : (papel==='Desafiante' ? 'a' : 'b') + (lado==='vencedor' ? ' win' : ''))
+      + (etq.sub.length ? ' e2' : '');
+    const rot = `${papel} ${nomeSV(id)}, ` + (lado==='S4' ? 'não encontrado' : temPct(pct) ? pctP(pct) : 'sem %') + (lado==='vencedor' ? ', vencedor' : '');
+    return `<div class="cfsv ${cls}" role="group" aria-label="${esc(rot)}">`
+      + `<div class="nl"><span class="nm" title="${esc(nomeSV(id))}">${esc(nomeSV(id))}</span>${etq.nome.join('')}</div>`
+      + `<div class="sb"><span class="tx">${esc(infoSV(id))}</span>${etq.sub.join('')}</div>`
+      + `<div class="pc">${pctP(pct)}</div>`
+      + (temPct(pct) && lado!=='S4' ? `<div class="tr"><b style="width:${larguraBarra(pct)}%"></b></div>` : '') + `</div>`;
+  };
+  // caixa de resultado: S1 vencedor, S2 válido sem vencedor, S3 não vale (sempre com texto, além da cor)
+  const caixa = (c, e)=>{
+    if(e.caixa==='S1'){
+      const nm = nomeSV(c.vencedor), des = e.desempate ? MOTIVOS.DESEMPATE_REFRI : '';
+      const rot = `Vencedor ${nm}: +${R.bonusConfronto} pontos no mês para o SV e toda a mesa` + (des ? `, ${des}` : '');
+      return `<div class="cfres s1" role="group" aria-label="${esc(rot)}"${des ? ` title="${esc(des)}"` : ''}>`
+        + `<div class="rl">${TACA}Vencedor</div><div class="rn">${esc(nm)}</div>`
+        + `<div class="rp">+${R.bonusConfronto} pts · ${des ? 'desempate' : 'SV e mesa'}</div></div>`;
+    }
+    const s3 = e.caixa==='S3', mot = s3 ? motivoConf(c) : (MOTIVOS[c.motivo] || 'sem vencedor');
+    return `<div class="cfres ${s3 ? 's3' : 's2'}" role="group" aria-label="${esc((s3 ? 'Não vale: ' : 'Sem vencedor: ') + mot)}" title="${esc(mot)}">`
+      + `<div class="rl">${s3 ? 'Não vale' : 'Sem vencedor'}</div><div class="rm">${esc(mot)}</div></div>`;
+  };
+  const linha = (c, i)=>{
+    const e = estadoConfronto(c, achou);
+    return `<div class="cfrow"><div class="cfnum">${i+1}</div><div class="cfpil ${grupo(c.pilar)}" title="${esc(c.pilar)}">${esc(rotuloPilar(c.pilar))}</div>`
+      + cartao(c.desafiante, e.desafiante, 'Desafiante', c.pctDesafiante) + `<div class="cfvs" aria-hidden="true">×</div>`
+      + cartao(c.desafiado, e.desafiado, 'Desafiado', c.pctDesafiado) + caixa(c, e) + `</div>`;
+  };
+  const contagem = (l)=> l.map(x=>`${esc(x.rotulo)} ${x.n}`).join(' · ');
+  const legenda = `<span><i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = vencedor</span>`
+    + `<span>Por canal: ${contagem(rs.porCanal)}</span><span>Por pilar: ${contagem(rs.porPilar)}</span>`;
+  // a nota e a faixa entram antes de medir: a altura das linhas é o que sobra no cartão
   $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
     + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
     + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
     + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
+  const corpo = $('cfrows'), faixa = $('cffaixa');
+  const d0 = distribuirConfrontos(lst.length);
+  faixa.hidden = d0.legenda !== 'faixa';
+  faixa.innerHTML = faixa.hidden ? '' : legenda;
+  if(!lst.length) corpo.innerHTML = `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
+  else {
+    const cs = getComputedStyle(corpo);
+    const d = distribuirConfrontos(lst.length, corpo.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), CF_ENTRE);
+    corpo.style.setProperty('--cf-k', d.linhas);
+    corpo.style.setProperty('--cf-h', d.altura + 'px');
+    corpo.style.setProperty('--cf-lin', d.altura >= CF_MOTIVO_3 ? 3 : 2);
+    const esq = lst.slice(0, d.esquerda).map((c,i)=>linha(c, i)).join('');
+    const dir = lst.slice(d.esquerda).map((c,i)=>linha(c, d.esquerda + i)).join('') + (d.legenda==='espaco' ? `<div class="cfleg">${legenda}</div>` : '');
+    corpo.innerHTML = `<div class="cfcols"><div class="cfcol">${esq}</div><div class="cfcol">${dir}</div></div>`;
+  }
 }
 
 $('cfmes').addEventListener('click',e=>{ const b=e.target.closest('button[data-cfmes]'); if(!b) return; st.cfmes=+b.dataset.cfmes; renderConfrontos(); });
