@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 108 testes (34 do motor, 74 do adaptador); precisa de Node 18+
+# testes do painel — 110 testes (36 do motor, 74 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -95,7 +95,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.1). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.2, 30/10/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -121,7 +121,11 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   **todas** as rotas da mesa, medidas nos pilares do canal dele (`aplicarCanalSV` no adaptador); cada rota continua
   no ranking do canal dela e ganha o +5 se o SV vencer.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
-  O vencedor leva +5 no mês, e toda a mesa dele também; quem perde não perde pontos.
+  O vencedor leva +5, e toda a mesa dele também; quem perde não perde pontos. **O +5 só entra depois do fechamento do
+  mês (30/10/2026):** o SV, nos pontos acumulados; cada rota da mesa, nos pontos daquele mês. No mês aberto o motor
+  devolve o vencedor parcial e o bônus em `bonusPendente` (fora de pontos, gatilho, status e ranking), e a tela mostra
+  "vencendo · +5 pts no fechamento". ⚠️ O mês conta como fechado já no período de fechamento da API
+  (`entrada.fechamento`, de `meta.fechamento`); os meses anteriores do trimestre, sempre.
   Desempate (confronto e ranking): maior % de Refrigerantes.
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
@@ -204,7 +208,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 108 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 110 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.1
+ * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.2
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorQ4.
  *
  * Princípios:
@@ -18,7 +18,7 @@
 
   // ───────────────────────── REGRAS (fonte única) ─────────────────────────
   const REGRAS = {
-    versao: '3.1',
+    versao: '3.2',
     meses: [10, 11, 12],
     faixas: [ // ordem decrescente; limite inferior inclusivo, em % sobre a meta
       { min: 105, pontos: 5 },
@@ -40,6 +40,7 @@
     notasPendentes: [
       'Prazo de registro dos confrontos em cada mês: todos os confrontos registrados estão sendo considerados.',
       'Confronto vencido vale +5 para SV e mesa mesmo se o SV não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
+      'O +5 do confronto só entra depois do fechamento do mês (30/10/2026): o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte); até lá o vencedor é parcial.',
       '% acumulado de Refrigerantes do SV = Σ(Real+Online) ÷ Σ Meta, de out até o mês vigente.',
       'Desempate no ranking do SV usa o % acumulado de Refrigerantes do trimestre (no confronto, o % do mês).',
       'Mês do trimestre sem dado (mês fechado ausente na API): o acumulado do SV aparece como incompleto e o SV fica sem posição oficial até o dado chegar.',
@@ -171,6 +172,7 @@
    * @param {Array}  e.medidas                {id,mes,pilar,meta,real,online}  (inclui pilar 'Refrigerantes')
    * @param {Array}  e.confrontos             {mes,id_sv_desafiante,id_sv_desafiado,pilar,ordem_registro}
    * @param {Array}  [e.mesesIncompletos]     {mes,motivo}: meses do trimestre sem dado (fechado que faltou ou falhou)
+   * @param {boolean} [e.fechamento]          o mês de referência já fechou (período de fechamento da API)
    */
   function calcular(e) {
     if (!REGRAS.meses.includes(e.mesRef)) throw new Error('mesRef fora do Q4: ' + e.mesRef);
@@ -222,13 +224,16 @@
       }
     }
 
-    // 2) confrontos por mês
+    // 2) confrontos por mês. O +5 só entra depois do fechamento do mês (decisão de 30/10/2026): os meses anteriores do
+    //    trimestre já fecharam; o de referência, só no período de fechamento da API ⚠️. Até lá o vencedor é parcial.
+    const mesFechado = (mes) => mes < e.mesRef || !!e.fechamento;
     const confrontoMes = {}; // mes -> {resultado, detalhes}
     const todosDetalhes = [];
     for (const mes of meses) {
       const pctPilar = (id, nome) => { const pl = calc[id] && calc[id][mes].pilares.find((x) => x.nome === nome); return pl ? pl.pct : null; };
       const pctRefri = (id) => (calc[id] ? calc[id][mes].refri.pct : null);
       confrontoMes[mes] = apurarConfrontos(mes, e.confrontos, svPorId, (sv) => pilaresDe(sv, mes), pctPilar, pctRefri);
+      confrontoMes[mes].detalhes.forEach((d) => { d.mesFechado = mesFechado(mes); });
       todosDetalhes.push(...confrontoMes[mes].detalhes);
     }
 
@@ -241,14 +246,16 @@
 
       const porMes = meses.map((mes) => {
         // mês sem dado não soma nada (nem a Missões validada de outubro): o acumulado fica marcado como incompleto
-        if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, pontosMes: 0 };
+        if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, bonusPendente: 0, pontosMes: 0 };
         const c = calc[p.id][mes];
         const pontosPilares = c.pilares.reduce((s, x) => s + x.pontos, 0);
         const idSV = p.cargo === 'SV' ? p.id : supervisor ? supervisor.id : null;
         const venceu = !!(idSV && confrontoMes[mes].resultado[idSV] && confrontoMes[mes].resultado[idSV].venceu);
-        const pontosConfronto = venceu ? REGRAS.bonusConfronto : 0;
+        // SV e mesa: o +5 entra nos pontos (e daí no acumulado do SV e no gatilho da rota) só com o mês fechado
+        const pontosConfronto = venceu && mesFechado(mes) ? REGRAS.bonusConfronto : 0;
+        const bonusPendente = venceu && !mesFechado(mes) ? REGRAS.bonusConfronto : 0;
         c.alertas.forEach((a) => alertas.push('M' + mes + ':' + a));
-        return { mes, pontosPilares, confrontoVencido: venceu, pontosConfronto, pontosMes: pontosPilares + pontosConfronto };
+        return { mes, pontosPilares, confrontoVencido: venceu, pontosConfronto, bonusPendente, pontosMes: pontosPilares + pontosConfronto };
       });
       const mesAtual = porMes[porMes.length - 1];
       const atual = calc[p.id][e.mesRef];
@@ -279,6 +286,7 @@
         porMes,
         pontosPilares: mesAtual.pontosPilares,
         pontosConfronto: mesAtual.pontosConfronto,
+        bonusPendente: mesAtual.bonusPendente, // +5 de confronto que o SV (ou a mesa) está vencendo e que só entra no fechamento
         pontosMes: mesAtual.pontosMes, // valor interno (sempre numérico)
         pontosAcumulados: p.cargo === 'SV' ? acumulado : undefined, // Consultor: não se aplica
         acumuladoIncompleto: p.cargo === 'SV' ? incompletos.map((x) => x.mes) : undefined,

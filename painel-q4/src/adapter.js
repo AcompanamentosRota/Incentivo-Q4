@@ -1056,8 +1056,9 @@ function montarEntrada(dados, cfg, confrontos) {
     pessoas.push({ id: k, nome: a.sv, cargo: 'SV', canal: a.canal, unidade: a.gc, id_supervisor: null });
   }
   const mesesIncompletos = ((dados.meta.acumulado && dados.meta.acumulado.faltando) || []).map((x) => ({ mes: x.mes, motivo: x.motivo }));
+  // fechamento: o mês de referência já fechou (a API mostra o mês anterior fechado); só então o +5 do confronto dele entra
   return { entrada: { mesRef, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
-                      confrontos: confrontos || [], mesesIncompletos }, notasRefri };
+                      confrontos: confrontos || [], mesesIncompletos, fechamento: !!dados.meta.fechamento }, notasRefri };
 }
 
 if (typeof module === 'object' && module.exports) {
