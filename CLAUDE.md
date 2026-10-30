@@ -21,6 +21,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | Pasta / arquivo | O que é | Quem altera |
 |---|---|---|
 | `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
+| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota), base do acumulado do trimestre | **só o gerador**; selado na virada, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
@@ -43,14 +44,15 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 54 testes (33 do motor, 21 do adaptador); precisa de Node 18+
+# testes do painel — 110 testes (36 do motor, 74 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 56 testes, sem rede (Datasphere falso)
+# testes do back-end — 71 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
-# por que o Real do Total Band não bate com o SAC (só leitura; relatório em saida/descoberta/)
-cd backend && python scripts/diagnosticar_real.py                # só a API publicada
+# Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
+cd backend && python scripts/diagnosticar_real.py                # API publicada x último SAC informado
+cd backend && python scripts/diagnosticar_real.py --sac sac.json # outra leitura do SAC (formato no script)
 cd backend && python scripts/diagnosticar_real.py --datasphere   # + consulta direta ao modelo (precisa de .env)
 
 # regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
@@ -99,7 +101,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.1). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.2, 30/10/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -111,11 +113,25 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Missões Guiadas:** em outubro entra validada em 100% (3 pontos); em novembro e dezembro passa a ter
   meta, real e online.
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
-  **Gatilho de pontos:** SV 60 acumulados no trimestre, consultor 20 no mês (zera todo mês).
+  **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor no mês (zera todo mês), hoje **17** pelo
+  `ajustes.json` (decisão da Karen em 29/10/2026, a confirmar com o Back Office; o padrão do motor continua 20 e o
+  documento de regras v3.1 ainda diz 20). O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
+  texto (na tela, `R.gatilhoPontos`; um teste varre o template atrás de 17, 20 e 60 fixos).
 - **Os pontos sempre aparecem.** Só status, posição oficial e premiação dependem dos gatilhos (26/10).
   Todas as linhas são numeradas; a posição oficial é só de quem bate os dois gatilhos (27/10).
+- **Canal × segmento (28/10, ⚠️ ainda fora do documento de regras):** o motor só vê o canal (Mista, Segmentada ou sem
+  canal). O segmento é etiqueta: Segmentada → Mini ou Mod; sem canal → Neutraliza, Eventual, Coke Net ou Virtual; Mista
+  não tem. Mini e Mod são o mesmo canal (pilares, ranking, premiação e confronto). Rota sem ajuste fica como na base.
+- **Canal do SV (29/10, ⚠️):** cada SV aparece em **um canal só**: o do admin (`ajustes.json` → `canaisSV`) ou, sem
+  ajuste, o da maioria das rotas da mesa; empate fica fora do ranking, com aviso, até o admin escolher. O SV soma
+  **todas** as rotas da mesa, medidas nos pilares do canal dele (`aplicarCanalSV` no adaptador); cada rota continua
+  no ranking do canal dela e ganha o +5 se o SV vencer.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
-  O vencedor leva +5 no mês, e toda a mesa dele também; quem perde não perde pontos.
+  O vencedor leva +5, e toda a mesa dele também; quem perde não perde pontos. **O +5 só entra depois do fechamento do
+  mês (30/10/2026):** o SV, nos pontos acumulados; cada rota da mesa, nos pontos daquele mês. No mês aberto o motor
+  devolve o vencedor parcial e o bônus em `bonusPendente` (fora de pontos, gatilho, status e ranking), e a tela mostra
+  "vencendo · +5 pts no fechamento". ⚠️ O mês conta como fechado já no período de fechamento da API
+  (`entrada.fechamento`, de `meta.fechamento`); os meses anteriores do trimestre, sempre.
   Desempate (confronto e ranking): maior % de Refrigerantes.
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
@@ -132,9 +148,19 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **O botão "Atualizar dados" do `servir.py` grava em `api/`.** O `POST /atualizar` roda `gerar.py --forcar`
   sem `--saida`, ou seja, no destino padrão, que é a pasta publicada. É a forma mais fácil de sujar a árvore
   com 200+ JSONs sem perceber. O mesmo vale para `gerar.py` rodado sem `--saida`.
+- **O id do SV leva o canal do SV** (`svKey`: "Sv. An.1#Mista"). Ajuste que muda o canal do SV (escolha do admin ou
+  nova maioria das rotas) faz o confronto cadastrado com o id antigo não valer: a tela mostra "canal ajustado" (`confrontoInvalidadoPorAjuste`), sem apagar.
 - **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração). Ele não
   existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
   é esperado e inofensivo.
+- **`frontend/ajustes.json` tem de ser UM único objeto JSON.** Em 29/10/2026 ele ficou com dois e três objetos
+  seguidos (texto colado depois do antigo, no editor do GitHub) e o painel ignorou o arquivo em silêncio. Hoje,
+  ilegível (ou HTTP ≠ 200/404), nenhum ajuste publicado vale e o painel mostra uma **faixa vermelha** em todas as abas;
+  valor inválido dentro de um arquivo válido vira **faixa amarela** e aviso em Regras > Dados e alertas.
+- **Precedência dos ajustes (29/10/2026):** padrão < `ajustes.json` publicado < navegador, **item a item**
+  (`carregarAjustes` no adaptador). O navegador (`localStorage["q4_ajustes"]`, formato 2) guarda **só o que difere do
+  publicado**; ao abrir, o que ficou igual ao publicado sai sozinho. Para limpar o navegador: Regras > Administração >
+  "Descartar todos os do navegador (usar o publicado)", ou apagar a chave `q4_ajustes` do localStorage do site.
 - **A senha do admin existe só como hash** (SHA-256) dentro do HTML. Ela evita mudança por engano; não é
   proteção forte e nunca deve ser escrita em texto claro em lugar nenhum.
 - **`.env` nunca é versionado** (já está no `.gitignore`). Nunca imprima credenciais. Se a autenticação no
@@ -142,26 +168,54 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Dados de clientes e de pessoas** estão nos JSONs da API (nomes e códigos de clientes, nomes de vendedores
   e supervisores). Não os copie para fora do repositório, para issues, PRs ou capturas de tela.
 - Use fixtures sintéticas, com nomes fictícios, em todo teste novo.
+- **Fontes:** o painel usa Inter (`--ff`) em todas as telas, sem baixar nada. Só entram no HTML as fontes da lista `manter`
+  do `painel-q4/scripts/build.py` (base64 de `painel-q4/src/assets/fonts.json`): Anton 400 e Barlow 800 itálico do letreiro
+  e Barlow Condensed 800 dos números da aba Confrontos (`--cf-num`). Nunca carregue fonte de site externo; fonte nova entra
+  no `fonts.json` (woff2, subset latino, licença livre) e na lista `manter`. Cada peso custa uns 28 KB no HTML.
+- **Layout de tela (feito para print):** o palco tem 1920 px de largura e a altura da janela (`fit()`); o cabeçalho é
+  compacto (logo, letreiro e dados numa faixa; abas e filtros em `top:102px`) e as abas ficam em `.view` (top 150, bottom
+  48). Confira sempre na **janela maximizada do navegador** (~1920×940) e em 1366×768, não só em 1920×1080 de tela cheia.
+  Cabeçalho, rodapé e `.panel` são comuns a todas as abas: mude-os só em PR próprio. A aba Confrontos
+  (cartões de duelo) tem de caber sem rolagem com 17 confrontos (legenda no rodapé); a distribuição, as contagens e o estado de cada
+  confronto vêm de funções puras do adaptador (`distribuirConfrontos`, `resumoConfrontos`, `estadoConfronto`,
+  `larguraBarra`, `lugarEtiquetas`), e o CSS dela fica todo sob `#v-confrontos` e classes `cf*`. Detalhes no
+  `painel-q4/README.md`.
 
 ## 7. Virada de mês
 
-- O painel só usa a API quando ela está no mês de `CONFIG` — `painel-q4/src/adapter.js`, campos `mes` e `ano`.
-  Fora disso ele avisa e cai para a base embutida.
-- Em 1º de novembro e 1º de dezembro: atualize `CONFIG.mes` e acrescente a entrada do mês em
-  `CONFIG.pilaresConfig` (um bloco por canal, com os coringas 4 e 5 daquele mês), rode o `build.py` e comite
-  o HTML gerado.
-- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online.
+- O mês de referência vem da API (`index.json` → `mes_referencia.anomes`); não há mais `CONFIG.mes`. `CONFIG.ano`
+  é o ano do trimestre. Mês sem os **5 pilares** em `CONFIG.pilaresConfig` (lista vazia ou só os pilares 1 a 3;
+  `pilaresDoMes` devolve null): o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem
+  ranking; como mês fechado, ele deixa o acumulado do SV "incompleto". Nunca calcula com parte dos pilares. API fora do
+  ar: base embutida só no mês dela, rotulada "base embutida (outubro)"; em outro mês, aviso e nada calculado. Nunca
+  mostrar um mês como se fosse outro.
+- **Pilares de novembro e dezembro (29/10/2026):** os pilares 1 a 3 do Back Office já estão no `CONFIG` (Mista: Sabores,
+  Retornáveis, Missões Guiadas; Segmentada: Sabores, Refri Single, Powerade; "Volume Individuais" = Refri Single).
+  Os **coringas 4 e 5 ainda não foram decididos**: quando forem, acrescente-os nas entradas do mês (os dois canais), rode
+  o `build.py` e comite o HTML gerado. Os coringas do admin (`ajustes.json` → `pilares`, sem mês) só **trocam** os 4 e 5
+  do mês de referência quando ele já tem os 5 no `CONFIG`; nunca completam um mês sozinhos.
+- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online. A fonte
+  por rota ainda não foi definida; quando for, entra em `CONFIG.fonteDoPilar['Missões Guiadas']` (+ `produtoDaApi`).
+  Sem fonte, o pilar aparece "sem dados" e não pontua.
+- **Acumulado do SV:** o adaptador lê os meses fechados do trimestre (`index.json` → `fechados`), cada mês é
+  calculado com os pilares e os confrontos dele, e o motor recebe todos os meses até o vigente. Mês fechado ausente
+  ou com falha: aviso, acumulado "incompleto" (`mesesIncompletos` na entrada do motor) e SV sem posição oficial.
 - O que depende de fechamento de meses: os pontos acumulados do SV (gatilho de 60 no trimestre) somam os
   meses fechados mais o mês corrente. A própria API tem período de fechamento — do 1º dia do mês até o fim
   do 1º dia útil ela mostra o mês anterior, com `mes_referencia.fechamento = true` e `tendencia`,
-  `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje`.
+  `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje` (o simulado entra em fechamento
+  do dia 1 até o fim do 1º dia útil, pelos dias úteis locais).
+- **Snapshot do mês fechado** (`backend/gerador/fechado.py`): em cada rodada do fechamento o gerador grava
+  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto, `fechamento_final: false`); na 1ª rodada do mês
+  novo ele é selado (`fechamento_final: true`) e não muda mais. `index.json` → `fechados` lista esses arquivos. A
+  limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
 
 ## 8. Checklist antes do PR
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 54 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 56 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 110 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 71 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

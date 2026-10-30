@@ -29,24 +29,30 @@ button{background:none;border:0;cursor:pointer}
 .bg i{position:absolute;border-radius:50%;opacity:.5}
 .arcs{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
 
-/* cabeçalho */
-.logo{position:absolute;left:60px;top:30px;width:190px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+/* cabeçalho compacto (logo, letreiro e dados numa faixa; abas e filtros logo abaixo): sobra altura para as tabelas
+   e cada aba sai inteira num print da janela maximizada do navegador (~1920×940) */
+.logo{position:absolute;left:60px;top:16px;width:150px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
 .logo svg{width:100%;height:auto;display:block}
-.hd{position:absolute;left:0;right:0;top:14px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
-.ttl{font-family:Anton,Impact,sans-serif;font-size:92px;line-height:96px;letter-spacing:.01em;transform:skewX(-9deg);display:flex;gap:22px;filter:drop-shadow(0 0 16px rgba(228,0,43,.6));position:relative}
+.hd{position:absolute;left:0;right:0;top:4px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ttl{font-family:Anton,Impact,sans-serif;font-size:66px;line-height:70px;letter-spacing:.01em;transform:skewX(-9deg);display:flex;gap:16px;filter:drop-shadow(0 0 12px rgba(228,0,43,.6));position:relative}
 .ttl .m{background:linear-gradient(180deg,#fff 0%,#eceff5 36%,#9aa0ad 52%,#f4f6fa 70%,#c7ccd6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ttl .r{background:linear-gradient(180deg,#ff5c78 0%,#E4002B 55%,#8a0016 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ttl::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%);background-size:300% 100%;background-position:120% 0;-webkit-mask:linear-gradient(#000,#000);mix-blend-mode:overlay;animation:shine 1.8s ease .6s 1 both}
 @keyframes shine{from{background-position:120% 0}to{background-position:-20% 0}}
 @media (prefers-reduced-motion:reduce){.ttl::after{animation:none}}
-.ribbon{margin-top:-6px;padding:4px 46px 6px;background:linear-gradient(90deg,#8a0016,var(--red) 18%,var(--red2) 50%,var(--red) 82%,#8a0016);transform:skewX(-14deg);box-shadow:0 8px 28px rgba(228,0,43,.5),inset 0 1px 0 rgba(255,255,255,.35)}
-.ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:26px;letter-spacing:.14em;text-transform:uppercase}
-.info{position:absolute;right:60px;top:34px;text-align:right;line-height:1.1}
-.info small{display:block;font-size:16px;font-weight:600;color:var(--muted);letter-spacing:.04em}
-.info b{display:block;font-size:30px;font-weight:600;margin-bottom:10px}
+.ribbon{margin-top:-5px;padding:2px 34px 3px;background:linear-gradient(90deg,#8a0016,var(--red) 18%,var(--red2) 50%,var(--red) 82%,#8a0016);transform:skewX(-14deg);box-shadow:0 8px 28px rgba(228,0,43,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.ribbon span{display:block;transform:skewX(14deg);font-family:Barlow;font-weight:800;font-style:italic;font-size:19px;letter-spacing:.14em;text-transform:uppercase}
+/* dados à direita em duas linhas de rótulo + valor ("Dados de  30/10/2026 · 11:09"), e o acumulado do SV embaixo */
+.info{position:absolute;right:60px;top:12px;text-align:right;line-height:1.1;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:baseline;justify-items:end}
+.info small{display:block;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.info b{display:block;font-size:24px;font-weight:600;margin-bottom:3px}
+.info small.acum{grid-column:1 / -1;margin-top:1px;color:#d8dbe2}.info small.acum .inc{color:#ffd978}
+.semcalc{margin:auto;max-width:1100px;text-align:center;padding:48px 60px;background:#3a2a00;border:2px solid #a47500;border-radius:18px;color:#ffe29a}
+.semcalc b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}.semcalc p{font-size:22px;font-weight:500;line-height:1.4;color:#ffe9b5}
+.cfmes{display:flex;gap:8px;align-items:center}
 
 /* navegação */
-.nav{position:absolute;left:60px;right:60px;top:170px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.nav{position:absolute;left:60px;right:60px;top:102px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
 .seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px}
 .seg button{padding:4px 15px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted);min-height:32px}
 .seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(228,0,43,.5)}
@@ -60,7 +66,7 @@ button{background:none;border:0;cursor:pointer}
 .fld input::placeholder{color:#9aa0ad}
 
 /* vistas */
-.view{position:absolute;left:60px;right:60px;top:222px;bottom:58px;display:none;flex-direction:column;gap:14px}
+.view{position:absolute;left:60px;right:60px;top:150px;bottom:48px;display:none;flex-direction:column;gap:14px}
 .view.on{display:flex}
 .kpis{display:flex;gap:0;height:58px;align-items:center}
 .kpi{display:flex;align-items:baseline;gap:12px;padding:0 34px;border-left:1px solid var(--line)}
@@ -147,16 +153,37 @@ button{background:none;border:0;cursor:pointer}
 .adm-form input{width:200px}
 .adm-btn{height:40px;padding:0 18px;border-radius:10px;font-size:18px;font-weight:600;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28)}
 .adm-btn.pri{background:var(--red);border-color:var(--red)}
+.adm-btn:disabled{opacity:.4;cursor:default}
 .adm-acoes{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 6px}
 .adm-linha{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:20px}
 .adm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,520px));gap:10px 36px}
 .adm-grid label{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:20px}
 .adm code{font-size:19px;background:rgba(255,255,255,.08);border-radius:6px;padding:0 6px}
 .adm tr.mud td{background:rgba(29,123,255,.16)}
+.sg{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:.78em;font-weight:600;line-height:1.35;vertical-align:middle;white-space:nowrap;background:rgba(29,123,255,.18);color:#cfe0ff;border:1px solid rgba(29,123,255,.55)}
+.sg.sc{background:#3a2a00;color:#ffe29a;border-color:#a47500}
+.adm .seg-av{background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;padding:6px 12px;margin:8px 0;font-size:18px}
+.adm h4{font-size:20px;margin:18px 0 6px}
 .adm td{padding:6px 14px}
+/* ajustes do admin: faixa de aviso (ajustes.json ilegível ou com valor inválido) e o que difere do publicado */
+#alerta-aj{position:absolute;left:12px;right:12px;top:150px;display:flex;align-items:center;gap:10px;padding:7px 18px;border-radius:12px;font-size:18px;font-weight:600;line-height:1.3;background:#5a0010;border:2px solid var(--red2);color:#fff;z-index:5}
+#alerta-aj.amb{background:#3a2a00;border-color:#a47500;color:#ffe29a}
+#alerta-aj[hidden]{display:none}
+#stage.com-alerta .view{top:calc(158px + var(--alerta-h, 44px))}
+.aj-erro{background:#5a0010;border:2px solid var(--red2);color:#fff;border-radius:10px;padding:8px 14px;margin:10px 0;font-size:19px}
+.aj-nav{background:rgba(29,123,255,.12);border:1px solid var(--blue);border-radius:10px;padding:8px 14px;margin:10px 0}
+.aj-nav table{margin:6px 0}
+.adm .difpub{outline:2px solid var(--blue);outline-offset:2px}
+.adm .pv{font-size:15px;font-weight:600;color:#9cc4ff;white-space:nowrap}
+.adm .colar{font-weight:700;color:#ffe29a}
 .nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
 
-.foot{position:absolute;left:60px;right:60px;bottom:16px;font-size:17px;font-weight:500;color:var(--muted);display:flex;justify-content:space-between}
+.foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:15px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.foot #rod{flex:none}
+/* na aba Confrontos o texto da esquerda do rodapé dá lugar à legenda (até 2 linhas cabem acima do bottom:10px) */
+#rodleg i{display:inline-block;width:12px;height:12px;margin-right:5px;border-radius:3px;vertical-align:-1px}
+#rodleg i.a{background:#ff5a70}#rodleg i.b{background:#52a8ff;margin-left:12px}
+#rodleg b{font-weight:600;color:#d6d6df}
 
 .rbtn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:22px;text-align:left;padding:0;line-height:1.1;color:#fff;min-height:30px}
 .rbtn svg{opacity:.55;flex:none}.rbtn:hover svg,.rbtn:focus-visible svg{opacity:1}
@@ -272,18 +299,57 @@ button{background:none;border:0;cursor:pointer}
 .th>div.cl{background:rgba(255,255,255,.17)}
 .th>div.gh.cl{background:var(--gc)}
 
-/* confrontos */
-.cf{display:grid;grid-template-columns:54px 150px minmax(0,1fr) 92px 30px minmax(0,1fr) 92px minmax(180px,250px);align-items:center;padding:0 16px}
-.cfh{height:34px;flex:none;font-size:15px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.03)}
-.cfr{height:46px;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px;font-weight:500}
-.cfr .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.cfr .nm small{display:block;font-weight:400;font-size:14px;color:var(--muted)}
-.cf .v{text-align:right;padding-right:14px}
-.cfr .v{font-weight:600}
-.cf .x{text-align:center;color:var(--muted);font-weight:600}
-.cfr.ganhou-a .va,.cfr.ganhou-b .vb{color:#7dffa0}
-.cfr.invalido{background:rgba(255,255,255,.03);color:#9aa0ad}
-.cfr .mt{font-size:14px;font-weight:500;color:var(--muted);line-height:1.2}
+/* confrontos: cartões de duelo em duas colunas (só a aparência; vencedor, % e bônus vêm do motor).
+   Texto em Inter (--cf-ff); só os números grandes (% de cada lado e número da linha) em Barlow Condensed (--cf-num). */
+#v-confrontos{--cf-ff:var(--ff);--cf-num:'Barlow Condensed',var(--ff);font-family:var(--cf-ff)}
+#v-confrontos .tt{height:46px;display:grid;grid-template-columns:1fr auto 1fr;gap:16px;padding:0 16px;border-bottom:1px solid #2c2c38;font-size:20px;font-weight:700}
+#v-confrontos .cfmes .seg{padding:2px}
+#v-confrontos .cfmes .seg button{min-height:30px;height:30px;padding:0 20px;font-size:15px;font-weight:700}
+#v-confrontos .kp{justify-self:end;align-items:baseline;gap:18px;font-size:16px;font-weight:500;color:#d6d6df}
+#v-confrontos .kp b{font-size:20px;font-weight:800;color:#fff;margin-right:6px}
+#cfrows{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding:8px 12px}
+#cfrows .vazio{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cfcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
+.cfcol{display:grid;grid-template-rows:repeat(var(--cf-k),var(--cf-h));row-gap:6px;min-width:0}
+/* caixa de resultado com 190 px (a referência tem 160): o motivo "canal ajustado" com a lista de rotas só cabe em 3 linhas assim */
+.cfrow{display:grid;grid-template-columns:34px 112px minmax(0,1fr) 26px minmax(0,1fr) 190px;gap:8px;align-items:stretch;min-width:0;min-height:0;padding:3px 8px;background:#13131a;border:1px solid #2c2c38;border-radius:10px}
+.cfnum{display:flex;align-items:center;justify-content:center;font-family:var(--cf-num);font-weight:800;font-size:24px;color:#f2f2f5;background:#0b0b10;border:1px solid #34343f;border-radius:8px}
+.cfpil{display:flex;align-items:center;justify-content:center;align-self:center;height:30px;padding:0 6px;border-radius:15px;font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--gc);color:var(--gf,#fff)}
+.cfsv{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;column-gap:8px;align-content:center;min-width:0;padding:3px 8px 4px;border:1px solid;border-radius:8px;--cf-bar:#7b7f8c}
+.cfsv.a{background:#2a0d14;border-color:#8a1f33;--cf-bar:#ff5a70}
+.cfsv.b{background:#0c1b33;border-color:#1f5a9e;--cf-bar:#52a8ff}
+.cfsv.neutro{background:#17171d;border-color:#3a3a46}
+.cfsv.win{border-width:2px;border-color:#3ddc84;padding:2px 7px 3px}
+.cfsv .nl,.cfsv .sb{grid-column:1;display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
+.cfsv .nl{grid-row:1}.cfsv .sb{grid-row:2}
+/* reticências só na horizontal: o padding de baixo (desfeito na margem) deixa as descendentes (g, p) fora do corte */
+.cfsv .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;padding-bottom:3px;margin-bottom:-3px;font-size:18px;font-weight:700;line-height:1.1;color:#f2f2f5}
+.cfsv .tx{min-width:0;overflow:hidden;text-overflow:ellipsis;padding-bottom:3px;margin-bottom:-3px;font-size:13px;line-height:1.15;color:#a9a9b6}
+.cfsv .sb .sg{margin:-3px 0}
+.cfsv .pc{grid-column:2;grid-row:1 / 3;align-self:center;font-family:var(--cf-num);font-size:29px;font-weight:800;line-height:1;color:#d8d8e0}
+/* duas ou mais etiquetas no subtexto: ele usa a largura toda do cartão e o % sobe para a linha do nome (26 px) */
+.cfsv.e2{padding-top:1px;padding-bottom:2px}.cfsv.e2.win{padding-top:0;padding-bottom:1px}
+.cfsv.e2 .sb{grid-column:1 / 3;margin-top:2px}
+.cfsv.e2 .pc{grid-row:1;font-size:26px;line-height:.9}
+.cfsv.win .pc{color:#6df0a8}
+.cfsv.neutro .nm{color:#cfcfd8}.cfsv.neutro .pc{color:#b4b4c0}
+.cfsv .tr{grid-column:1 / 3;grid-row:3;height:6px;margin-top:3px;background:#2b2b36;border-radius:3px;overflow:hidden}
+.cfsv .tr b{display:block;height:100%;border-radius:3px;background:var(--cf-bar)}
+#v-confrontos .sg{flex:none;margin-left:0;vertical-align:baseline;padding:3px 6px;border-radius:5px;font-size:12px;font-weight:700;line-height:1;background:#0f2447;color:#a8ccff;border:1px solid #3d6fb8}
+#v-confrontos .sg.sc{background:#2a2110;color:#ffd77a;border-color:#a87a1a}
+.cfvs{display:flex;align-items:center;justify-content:center;font-family:Barlow,var(--ff);font-style:italic;font-weight:800;font-size:22px;color:#8e8e9c}
+.cfres{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:1px 10px;border:1px solid;border-radius:8px}
+.cfres .rl{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;letter-spacing:.08em;line-height:1;text-transform:uppercase}
+.cfres .rl svg{flex:none;margin:-2px 0}
+.cfres .rn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:3px;margin-bottom:-3px;font-size:21px;font-weight:800;line-height:1.05;color:#fff}
+.cfres .rp{white-space:nowrap;margin-top:2px;font-size:13px;font-weight:600;line-height:1.05;color:#c3efd3}
+.cfres .rm{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:var(--cf-lin,3);overflow:hidden;margin-top:1px;font-size:12px;font-weight:500;line-height:1.15}
+.cfres.s1{background:#0e3a23;border-color:#2aa862}.cfres.s1 .rl{color:#6df0a8}
+.cfres.s2{background:#23262e;border-color:#454a56}.cfres.s2 .rl{color:#e4e6ea}.cfres.s2 .rm{color:#d2d5db}
+.cfres.s3{background:#2e2306;border-color:#a47500}.cfres.s3 .rl{color:#ffd978}.cfres.s3 .rm{color:#f1e6c8}
+#v-confrontos .pager{height:auto;display:block;padding:8px 16px 9px;border-top:1px solid #2c2c38}
+#cfnota{display:block;font-size:13px;font-weight:400;line-height:1.35;color:#cfcfd8}
+#cfrows::-webkit-scrollbar{width:10px}#cfrows::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}#cfrows::-webkit-scrollbar-track{background:transparent}
 
 /* pendencias: responsaveis e estado separados da descricao */
 .rg table.pd td:first-child{width:46px;color:var(--muted);font-weight:600}
@@ -301,7 +367,7 @@ button{background:none;border:0;cursor:pointer}
 
   <div class="logo" role="img" aria-label="Coca-Cola Bandeirantes">/*__LOGO__*/</div>
   <div class="hd"><div class="ttl"><span class="m">DESAFIO</span><span class="r">Q4</span></div><div class="ribbon"><span id="rib">Rota</span></div></div>
-  <div class="info"><small>Dados de</small><b id="corte"></b><small>Mês de referência</small><b id="mesref" style="margin-bottom:0"></b></div>
+  <div class="info"><small>Dados de</small><b id="corte"></b><small id="mesreflbl">Mês de referência</small><b id="mesref" style="margin-bottom:0"></b><small class="acum" id="acum"></small></div>
 
   <div class="nav">
     <div class="grp">
@@ -325,6 +391,7 @@ button{background:none;border:0;cursor:pointer}
       <label class="fld" id="lblbusca">Rota <input id="busca" type="search" placeholder="Buscar" autocomplete="off" style="min-width:150px;width:150px"></label>
     </div>
   </div>
+  <div id="alerta-aj" role="alert" hidden></div>
 
   <section class="view on wide" id="v-ranking" aria-label="Rota">
     <div class="panel">
@@ -383,11 +450,14 @@ button{background:none;border:0;cursor:pointer}
 
   <section class="view wide" id="v-confrontos" aria-label="Confrontos entre supervisores">
     <div class="panel">
-      <div class="tt"><span id="cftitulo"></span><span class="kp" id="cfsub"></span></div>
-      <div class="cf cfh" id="cfhead"></div>
-      <div class="rows" id="cfrows" style="overflow:auto"></div>
-      <div class="pager"><span class="etnota" id="cfnota"></span></div>
+      <div class="tt"><span id="cftitulo"></span><span class="cfmes" id="cfmes" role="group" aria-label="Mês dos confrontos"></span><span class="kp" id="cfsub"></span></div>
+      <div id="cfrows"></div>
+      <div class="pager"><span id="cfnota"></span></div>
     </div>
+  </section>
+
+  <section class="view" id="v-semcalc" aria-label="Aviso: mês sem cálculo">
+    <div class="semcalc" role="alert"><b id="semcalc-tt"></b><p id="semcalc-tx"></p></div>
   </section>
 
   <section class="view" id="v-regras" aria-label="Regras e informações">
@@ -397,7 +467,7 @@ button{background:none;border:0;cursor:pointer}
     </div></div>
   </section>
 
-  <div class="foot"><span>Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodpts">Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês. O % é truncado, nunca arredondado.</span><span id="rodleg" hidden></span><span id="rod"></span></div>
 </div>
 
 <script>/*__MOTOR__*/</script>
@@ -409,20 +479,30 @@ button{background:none;border:0;cursor:pointer}
 const M = window.MotorQ4;
 const R = M.REGRAS;
 // padrão (antes dos ajustes do admin): a área de Administração compara com ele e só guarda o que mudou
-const coringasDe = (cfg)=>Object.fromEntries(['Mista','Segmentada'].map(c=>[c, cfg.pilaresConfig.find(x=>x.mes===cfg.mes && x.canal===c).pilares.slice(3).map(p=>p.nome)]));
-const PADRAO = { regras: JSON.parse(JSON.stringify(R)), coringas: coringasDe(CONFIG) };
+const coringasDe = (cfg, mes)=>Object.fromEntries(['Mista','Segmentada'].map(c=>[c, (pilaresDoMes(cfg, mes, c)||[]).slice(3).map(p=>p.nome)]));
+const PADRAO = { regras: JSON.parse(JSON.stringify(R)) };
 const AJ = await carregarAjustes();
 aplicarAjustes(AJ.ativo, CONFIG, R);
 const DADOS = await carregarDados(BASE_EMBUTIDA, CONFIG, AJ.ativo);
-const {entrada, notasRefri} = montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
-const RES = M.calcular(entrada);
+const MES = DADOS.meta.mes;            // mês de referência: o da API (ou o da base embutida)
+const SEMCALC = DADOS.meta.semCalculo; // mês sem pilares, API fora do Q4 ou base de outro mês: nada é calculado
+PADRAO.coringas = coringasDe(CONFIG, MES);
+aplicarCoringas(AJ.ativo, CONFIG, MES);
+const {entrada, notasRefri} = SEMCALC ? { entrada:null, notasRefri:[] } : montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
+const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], alertas:[], mesesIncompletos:[] } : M.calcular(entrada);
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
 if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
 let PAGE = 17;
 const ALT_LINHA = 32;
 const capac = (id)=> Math.max(4, Math.floor($(id).clientHeight/ALT_LINHA));
-const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null };
+const st = { tab:'ranking', canal:'Mista', gc:'Todas', sv:'Todas', busca:'', pag:1, sec:'pontuacao', sel:null, cfmes:MES };
 const INFO = {}; DADOS.rotas.forEach(r=>{ INFO[r.rota]=r; });
+// segmentação de todas as rotas (com e sem canal): valor em uso, o da base e a origem; o segmento é só etiqueta
+const SEG = DADOS.segmentacao || [], SEG_POR = {}; SEG.forEach(l=>{ SEG_POR[l.rota]=l; });
+const AVISOS_AJ = AJ.avisos || []; // valores inválidos do ajustes.json (e do navegador), ignorados
+const AVISOS_PUB = AJ.avisosPublicado || [];
+const N_NAV = (AJ.diferencas || []).length; // ajustes que só valem neste navegador (o que difere do publicado)
+const quandoAj = (s)=> s ? s.replace(/^(\d{4})-(\d\d)-(\d\d)T?/, '$3/$2/$1 ').trim() : ''; // '2026-10-29T15:00' -> '29/10/2026 15:00'
 const RTS = RES.pessoas.filter(p=>p.cargo==='RT'), SVS = RES.pessoas.filter(p=>p.cargo==='SV');
 const MESA = {}; DADOS.rotas.forEach(r=>{ (MESA[svKey(r)]=MESA[svKey(r)]||[]).push(r); });
 const $ = (id)=>document.getElementById(id);
@@ -463,12 +543,43 @@ fit();
   $('bg').innerHTML=h; })();
 
 $('corte').textContent = DADOS.meta.corte.replace(' ', ' · ');
-$('mesref').textContent = MESES[DADOS.meta.mes] + '/' + DADOS.meta.ano;
-$('rod').textContent = 'Fonte: ' + DADOS.meta.fonte + (AJ.ativo ? ' · ajustes do admin' : '');
-if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = AJ.origem==='local' ? 'Ajustes do admin (só neste navegador)' : 'Ajustes do admin'; });
+/* topo: mês de referência (ou fechamento) e, para o SV, o período do acumulado com os meses fechados usados */
+const NOME_MES = MESES[MES] + '/' + DADOS.meta.ano;
+if (DADOS.meta.fechamento) $('mesreflbl').textContent = 'Fechamento do mês';
+$('mesref').textContent = (DADOS.meta.fechamento ? 'Fechamento de ' : '') + NOME_MES;
+const ACUM = DADOS.meta.acumulado || { meses:[MES], usados:[], faltando:[] };
+const abrev = (m)=> MESES[m].slice(0,3).toLowerCase();
+const periodoAcum = 'out' + (MES>10 ? '–'+abrev(MES) : '');
+function textoAcum(){
+  const usados = ACUM.usados.map(u=>`${abrev(u.mes)} fechado${u.final?'':' (provisório)'} ✓`);
+  const falta = ACUM.faltando.map(f=>`<span class="inc">${abrev(f.mes)} sem dado: incompleto</span>`);
+  return `Acumulado do trimestre (SV): ${periodoAcum}` + (usados.length||falta.length ? ' · ' + usados.concat(falta).join(' · ') : '');
+}
+if (!SEMCALC) $('acum').innerHTML = textoAcum();
+/* rodapé: origem dos dados (API ou base embutida) e o corte */
+$('rod').textContent = 'Fonte: ' + (DADOS.meta.origem==='api' ? 'API (SAP Datasphere)' : DADOS.meta.rotuloBase) + ' · dados de ' + DADOS.meta.corte
+  + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '')
+  + (AJ.erroPublicado ? ' · ajustes.json publicado ilegível (ignorado)' : '')
+  + (AVISOS_AJ.length ? ` · ${AVISOS_AJ.length} ${AVISOS_AJ.length===1?'valor inválido ignorado':'valores inválidos ignorados'} nos ajustes (ver Regras > Dados e alertas)` : '');
+$('rodpts').textContent = DADOS.meta.fechamento
+  ? `Fechamento de ${MESES[MES].toLowerCase()}: Real do mês inteiro, sem Online; o +${R.bonusConfronto} dos confrontos do mês já entra. O % é truncado, nunca arredondado.`
+  : `Pontos são a posição atual sobre Real + Online e mudam até o fechamento do mês; o +${R.bonusConfronto} do confronto só entra no fechamento. O % é truncado, nunca arredondado.`;
+const txtNav = (n)=> n===1 ? '1 ajuste só neste navegador' : `${n} ajustes só neste navegador`;
+if (AJ.ativo) document.querySelectorAll('.aj-tag').forEach(e=>{ e.hidden=false; e.textContent = 'Ajustes do admin' + (N_NAV ? ' · ' + txtNav(N_NAV) : ''); });
+/* faixa de aviso: ajustes.json publicado ilegível (vermelho) ou com valor inválido (amarelo). Nunca cai no padrão em silêncio. */
+if (AJ.erroPublicado || AVISOS_PUB.length) {
+  const el = $('alerta-aj');
+  el.textContent = AJ.erroPublicado
+    ? `⚠️ O ajustes.json publicado não pôde ser lido: ${AJ.erroPublicado}. Os ajustes publicados estão sendo ignorados e o painel usa o padrão${N_NAV?' e os ajustes deste navegador':''} (ver Regras > Administração).`
+    : `⚠️ O ajustes.json publicado tem ${AVISOS_PUB.length===1?'1 valor inválido, ignorado':AVISOS_PUB.length+' valores inválidos, ignorados'}: ${AVISOS_PUB[0]}${AVISOS_PUB.length>1?' e mais '+(AVISOS_PUB.length-1):''} (ver Regras > Dados e alertas).`;
+  el.classList.toggle('amb', !AJ.erroPublicado);
+  el.hidden = false;
+  $('stage').classList.add('com-alerta');
+  $('stage').style.setProperty('--alerta-h', el.offsetHeight + 'px');
+}
 
 /* ---------- ranking ---------- */
-function pilaresDo(canal){ return CONFIG.pilaresConfig.find(c=>c.mes===CONFIG.mes && c.canal===canal).pilares; }
+function pilaresDo(canal){ return pilaresDoMes(CONFIG, MES, canal) || []; }
 // ordem das colunas nas abas Rota e Supervisão: Missões Guiadas por último (a numeração dos pilares não muda)
 const ordemTela = (l)=> l.filter(p=>p.tipo!=='missao').concat(l.filter(p=>p.tipo==='missao'));
 /* Ordem da tela: elegíveis na posição oficial e, depois, quem está fora do ranking por pontos.
@@ -492,9 +603,20 @@ function filtrada(){
 const numF = (n)=> M.fmtVolume(n);
 const sgn = (n)=> n===0 ? '0,0' : (n<0?'-':'+') + numF(Math.abs(n));
 const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
+// etiqueta do segmento ao lado do canal (Mini/Mod na Segmentada; Neutraliza, Eventual, Coke Net ou Virtual sem canal)
+const segTag = (seg, semCanal)=> seg ? `<span class="sg${semCanal?' sc':''}" title="Segmento ${esc(seg)}">${esc(seg)}</span>` : '';
+const segsDe = (r)=> r.cargo==='RT' ? (INFO[r.id] && INFO[r.id].sub ? [INFO[r.id].sub] : []) : segmentosDaMesa(DADOS.rotas, r.id);
+const CANAIS_SV = DADOS.canaisSV || {};   // canal de cada SV: ajuste do admin ou maioria das rotas da mesa
+// etiquetas (HTML) de uma linha: segmentos e, no SV com rotas dos dois canais na mesa, "2 canais"
+const etiquetasDe = (r)=> segsDe(r).map(x=>segTag(x))
+  .concat(r.cargo==='SV' && CANAIS_SV[r.nome] && CANAIS_SV[r.nome].misto ? [`<span class="sg sc" title="Mesa com rotas Mista e Segmentada: o SV soma todas nos pilares da ${esc(r.canal)}">2 canais</span>`] : []);
+const segsTag = (r)=> etiquetasDe(r).join('');
+const segTxt = (r)=> segsDe(r).join(' ');
 const CK='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
 const UP='<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg>';
+const incompleto = (r)=> r.cargo==='SV' && r.acumuladoIncompleto && r.acumuladoIncompleto.length>0;
 function statusDe(r){
+  if(incompleto(r)) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Acumulado incompleto: falta ${r.acumuladoIncompleto.map(m=>MESES[m].toLowerCase()).join(', ')}` };
   const vol = r.volume.atingido, lim = R.premiadas[r.cargo][r.canal], min = R.gatilhoPontos[r.cargo];
   if(!vol) return { pill:`<span class="pill no">-</span>`, cls:'', micro: r.volume.pct===null ? 'Refrigerantes sem dado para calcular' : `Refrigerantes em ${r.volume.pctTexto}: precisa de ${R.gatilhoVolumePct}%` };
   if(!r.gatilhoPontos.atingido) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Faltam ${min-r.gatilhoPontos.valor} pontos para o mínimo de ${min}` };
@@ -506,7 +628,9 @@ const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="
 const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
 const grupo = (nome)=> 'g'+(GCOL[nome] ?? 5); // g5: agrupador extra incluído pelo admin
 const rotuloPilar = (nome)=> nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase();
-const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(CONFIG.mes);
+const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(MES);
+// Missões Guiadas fora de outubro sem fonte de meta e real: "sem dados" e não pontua
+const missaoSemDados = (pl)=> pl.tipo==='missao' && !compacta(pl) && !fonteDe(pl.nome);
 let GRID = '';
 /* Largura real de um texto com a fonte das tabelas, para dimensionar cada coluna pelo maior valor que ela recebe. */
 const REG = document.createElement('div');
@@ -560,7 +684,7 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   nomeCol = nomeCol||'Rota'; alvo = alvo||'thead';
   const sv = nomeCol!=='Rota', ex = extremos(linhas, pil), cols = [], grupos = [];
   cols.push({ textos:['Rank','Top '+lim+'º','999'] });
-  cols.push({ textos: [nomeCol].concat(linhas.map(r=> sv ? r.nome : r.id)), extra:18 });
+  cols.push({ textos: [nomeCol].concat(linhas.map(r=> (sv ? r.nome : r.id) + (segTxt(r) ? '  ' + segTxt(r) : ''))), extra:18 + (linhas.some(r=>segTxt(r)) ? 16 : 0) });
   cols.push({ textos:['% Refri','mín. '+R.gatilhoVolumePct+'%','100,0%'] });
   pil.forEach(pl=>{
     const a = ex[pl.nome], ini = cols.length;
@@ -600,7 +724,7 @@ function celulas(r){
     const g=grupo(p.nome), pl = pil.find(x=>x.nome===p.nome);
     if(compacta(pl)){ h += `<div class="${g} n gs"><span class="pchip t${tier(p.pontos)}">100,0%</span></div><div class="${g} c">${chip(p.pontos, tier(p.pontos))}</div>`; return; }
     const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO, ok = p.pct!==null;
-    const mot = p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const mot = missaoSemDados(pl)?'sem dados':p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dc = !ok ? '' : p.diferenca<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
     h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div><div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div><div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
        + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n">${ok?`<span class="pchip t${tier(p.pontos)}">${p.pctTexto}</span>`:'<span class="na">'+mot+'</span>'}</div>`
@@ -613,9 +737,9 @@ function linha(r){
   const nome = sv ? `<button class="rbtn" data-sv="${esc(r.nome)}" aria-label="Ver a mesa do ${esc(r.nome)}">${esc(r.nome)}${CHEV}</button>` : `<button class="rbtn" data-rota="${esc(r.id)}" aria-label="Ver detalhe da ${esc(r.nome)}">${esc(r.id)}${CHEV}</button>`;
   const tot = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>
-    <div class="rt">${nome}</div>
+    <div class="rt">${nome}${segsTag(r)}</div>
     <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
-    <div class="tp">${tot}</div><div class="stc">${s.pill}</div></div>`;
+    <div class="tp">${tot}${incompleto(r)?'<span class="na"> incompleto</span>':''}</div><div class="stc">${s.pill}</div></div>`;
 }
 /* ---------- supervisão por gerência ---------- */
 const SPAG = { n:1 };
@@ -627,7 +751,9 @@ function renderSup(){
   const pages = Math.max(1, Math.ceil(base.length/PAGE)); if(SPAG.n>pages) SPAG.n=pages;
   const ini=(SPAG.n-1)*PAGE, fatia=base.slice(ini,ini+PAGE);
   $('sptitulo').textContent = `Supervisão · ${st.canal}`;
-  $('saviso').innerHTML = CONFIG.mes===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é ${5*R.faixas[0].pontos+R.bonusConfronto} pontos e o gatilho do SV é ${R.gatilhoPontos.SV} acumulados</span>` : '';
+  $('saviso').innerHTML = (MES===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é ${5*R.faixas[0].pontos+R.bonusConfronto} pontos e o gatilho do SV é ${R.gatilhoPontos.SV} acumulados</span>` : '')
+    + (MES>10 ? ` <span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Total e % Refri: acumulado ${periodoAcum}</span>` : '')
+    + (ACUM.faltando.length ? ` <span class="tag">Acumulado incompleto: falta ${ACUM.faltando.map(f=>MESES[f.mes].toLowerCase()).join(', ')}</span>` : '');
   $('srows').innerHTML = fatia.length ? fatia.map(linha).join('') : `<div class="vazio">Nenhuma supervisão encontrada neste filtro.</div>`;
   $('spinfo').textContent = base.length ? `${ini+1} a ${ini+fatia.length} de ${base.length} supervisões` : '0 supervisões';
   let nums=[]; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-SPAG.n)<=1) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
@@ -677,14 +803,29 @@ $('busca').addEventListener('input',e=>{ st.busca=e.target.value; st.pag=1; rend
 
 /* ---------- detalhe: totais do grupo + rota selecionada ---------- */
 function fonteDe(nome){ return CONFIG.fonteDoPilar[nome]; }
+/* Mesa de um SV no Detalhe: todas as rotas da mesa (de qualquer canal) e o resultado do SV calculado pelo motor,
+   o mesmo da aba Supervisão (soma da mesa inteira nos pilares do canal do SV). Sem SV (empate de canais): null. */
+function mesaDetalhe(){
+  if(st.sv==='Todas') return null;
+  const sv = SVS.find(p=>p.nome===st.sv); if(!sv) return null;
+  const rotas = RTS.filter(p=>INFO[p.id].sv===st.sv).sort(ordenaRanking);
+  return { sv, rotas, outras: rotas.filter(p=>p.canal!==sv.canal).length };
+}
 function renderDetalhe(){
-  const sc = filtrada(), pil = pilaresDo(st.canal);
+  const mesa = mesaDetalhe(), b = st.busca.trim().toLowerCase();
+  const sc = mesa ? mesa.rotas.filter(p=>!b || p.id.toLowerCase().includes(b)) : filtrada();
+  const canalTela = mesa ? mesa.sv.canal : st.canal, pil = pilaresDo(canalTela), base = mesa ? mesa.rotas : sc;
   const nome = st.sv!=='Todas' ? 'Mesa '+st.sv : st.gc!=='Todas' ? 'Gerência '+st.gc : 'Todas as rotas';
-  $('dtitulo').textContent = `${nome} · ${st.canal} · ${sc.length} ${sc.length===1?'rota':'rotas'}`;
+  const segsSel = [...new Set(sc.map(p=>INFO[p.id].sub).filter(Boolean))].sort();
+  const n = mesa ? mesa.rotas.length : sc.length;
+  $('dtitulo').innerHTML = `${esc(nome)} · ${esc(canalTela)}${segsSel.map(x=>segTag(x)).join('')} · ${n} ${n===1?'rota':'rotas'}`
+    + (mesa && mesa.outras ? `<span class="sg sc" title="O SV soma todas as rotas da mesa nos pilares da ${esc(canalTela)}">inclui ${mesa.outras} ${mesa.outras===1?'rota':'rotas'} da ${canalTela==='Mista'?'Segmentada':'Mista'}</span>` : '');
   const agg = (get)=>{ let m=0,r=0,o=0; sc.forEach(p=>{ const x=get(p); if(x && x.pct!==null){ m+=x.meta; r+=x.real; o+=x.online; } }); return {m,r,o,pct:m>0?(r+o)/m*100:null,tf:m>0?M.faixaPontos(r+o,m):0}; };
-  const dia = (fonte)=>{ let s=0,any=false; sc.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
-  const ar = agg(p=>p.refri);
-  const diaRfGrupo = (()=>{ let s=0,any=false; sc.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
+  // mesa: os totais são os do SV no motor (iguais aos da aba Supervisão), não a soma da lista filtrada
+  const doSV = (x)=> !x ? {m:0,r:0,o:0,pct:null,tf:0} : {m:x.meta||0, r:x.real||0, o:x.online||0, pct:x.pct, tf:x.pontos};
+  const dia = (fonte)=>{ let s=0,any=false; base.forEach(p=>{ const v=INFO[p.id].v[fonte]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; };
+  const ar = mesa ? doSV(mesa.sv.refri) : agg(p=>p.refri);
+  const diaRfGrupo = (()=>{ let s=0,any=false; base.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
   $('dsub').innerHTML = REFRI_CAT ? '' : `Refrigerantes<span class="tag">provisório</span>`;
   const cardRefri = (()=>{
     const bate = ar.pct!==null && ar.pct>=R.gatilhoVolumePct;
@@ -697,15 +838,16 @@ function renderDetalhe(){
   })();
   $('cards').innerHTML = pil.map((pl,i)=>{
     const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
-    if(pl.tipo==='missao') return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
-    const a = agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
+    if(compacta(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
+    if(missaoSemDados(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">-</div><i class="bar"><b class="t0" style="width:0%"></b></i><div class="txt"><b>Sem dados de Missões Guiadas.</b> Fonte ainda não definida: não pontua.</div></div>`;
+    const a = mesa ? doSV(mesa.sv.pilares.find(x=>x.nome===pl.nome)) : agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
       <div class="mg"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div><div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div></div></div>`;
   }).join('') + cardRefri;
   if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
   $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
-    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${inf.sub?' · Seg. '+esc(inf.sub):''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
+    return `<button class="dl ${r.id===st.sel?'on':''}" data-sel="${esc(r.id)}" aria-pressed="${r.id===st.sel}"><div>${esc(r.nome)}${segTag(inf.sub)}<small>${esc(inf.sv)} · ${esc(r.unidade)}${mesa && r.canal!==canalTela ? ' · '+esc(r.canal) : ''}</small></div><div style="text-align:right;padding-right:14px">${r.volume.pctTexto}</div><div>${s.pill}</div></button>`; }).join('')
     : `<div class="vazio">Nenhuma rota no filtro.</div>`;
   const r = sc.find(p=>p.id===st.sel);
   if(!r){ $('ddet').innerHTML=`<div class="vazio">Selecione uma rota.</div>`; return; }
@@ -714,7 +856,7 @@ function renderDetalhe(){
   const linhaP = (nome, sub, x, diaTxt, isRf)=>{
     if(x && x.validada) return `<div class="dcols dr"><div>${esc(nome)}<small>${sub}</small></div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">–</div><div class="n">100,0%</div><div class="c">${ch(x.pontos, tier(x.pontos))}</div></div>`;
     const ok = x && x.pct!==null;
-    const mot = !x ? '' : x.alertas.includes('REAL_AUSENTE')?'sem real':x.alertas.includes('META_ZERO')?'meta zero':'sem meta';
+    const mot = !x ? '' : missaoSemDados(x)?'sem dados':x.alertas.includes('REAL_AUSENTE')?'sem real':x.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dif = ok ? `<span style="color:${x.diferenca<0?'#ffb3bd':'#7dffa0'}">${sgn(x.diferenca)}</span>` : '–';
     return `<div class="dcols dr ${isRf?'rf':''}"><div>${esc(nome)}<small${isRf?' style="color:#ffd978"':''}>${sub}</small></div>
       <div class="n">${x&&x.meta!=null?numF(x.meta):'–'}</div><div class="n">${x&&x.real!=null?numF(x.real):'–'}</div><div class="n">${x&&x.online!=null?numF(x.online):'–'}</div><div class="n" style="color:var(--muted)">${diaTxt}</div>
@@ -724,10 +866,11 @@ function renderDetalhe(){
   const diaDe = (fonte)=>{ const v=inf.v[fonte]; return v && v[4]!=null ? numF(v[4]) : '–'; };
   const diaRf = (()=>{ let s=0,any=false; REFRI_COMP.forEach(g=>{ const v=inf.v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); return any?numF(s):'–'; })();
   $('ddet').innerHTML = `<div class="sumr">
+    <div class="s"><small>${esc(r.nome)} · ${esc(r.canal)}</small><b style="font-size:22px">${segTag(inf.sub)||'<span style="color:var(--muted);font-weight:400">sem segmento</span>'}</b></div>
     <div class="s"><small>Pontos no mês</small><b>${r.pontosAtuaisExibidos}</b></div>
     <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
     <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
-    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.tipo==='missao'?'validada em outubro':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'?'–':diaDe(fonteDe(p.nome)), false)).join('')}
+    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.validada?'validada em outubro':missaoSemDados(p)?'fonte não definida':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'&&!fonteDe(p.nome)?'–':diaDe(fonteDe(p.nome)), false)).join('')}
     ${linhaP('Refrigerantes', REFRI_CAT?'categoria · gatilho':'provisório · gatilho', r.refri, diaRf, true)}`;
 }
 $('dlist').addEventListener('click',e=>{ const b=e.target.closest('button[data-sel]'); if(!b) return; st.sel=b.dataset.sel; renderDetalhe(); });
@@ -739,7 +882,7 @@ function linhaRk(r, sv){
   const s = statusDe(r), sub = sv ? esc(r.unidade) : esc(INFO[r.id].sv)+' · '+esc(r.unidade);
   const pts = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="rkr ${s.cls}${r.elegivel?'':' fora'}"><div class="p${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>`
-    + `<div class="nm">${esc(sv?r.nome:r.id)}<small>${sub}</small></div>`
+    + `<div class="nm">${esc(sv?r.nome:r.id)}${segsTag(r)}<small>${sub}</small></div>`
     + `<div class="v">${r.volume.pctTexto}</div><div class="pt">${pts}</div><div>${s.pill}</div></div>`;
 }
 function listaRk(arr, lim, sv){
@@ -759,9 +902,9 @@ function renderRank(){
   const naGer = (p)=> st.gc==='Todas' || p.unidade===st.gc;
   const rts = RTS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
   const svs = SVS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
-  const suf = st.canal + (st.gc!=='Todas' ? ' · '+st.gc : '');
+  const suf = st.canal + (st.canal==='Segmentada' ? ' (Mini e Mod)' : '') + (st.gc!=='Todas' ? ' · '+st.gc : '');
   $('rk-rt-tt').textContent = `Rotas · ${suf} · ${rts.length} ${rts.length===1?'rota':'rotas'}`;
-  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}`;
+  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}` + (MES>10 ? ` · acumulado ${periodoAcum}` : '') + (ACUM.faltando.length ? ' · incompleto' : '');
   $('rk-rt-h').innerHTML = RKCAB('Rota'); $('rk-sv-h').innerHTML = RKCAB('Supervisão');
   $('rk-rt').innerHTML = listaRk(rts, R.premiadas.RT[st.canal], false);
   $('rk-sv').innerHTML = listaRk(svs, R.premiadas.SV[st.canal], true);
@@ -853,33 +996,93 @@ const MOTIVOS = {
   EMPATE_SEM_VENCEDOR:'empate: ninguém pontua',
   DESEMPATE_REFRI:'decidido no desempate por % de Refrigerantes',
 };
+// confronto que um ajuste de canal invalidou: o cadastro continua; o motivo diz qual mesa saiu de qual canal
+const motivoConf = (c)=>{ const a = confrontoInvalidadoPorAjuste(c, SEG, CANAIS_SV); return a ? a.texto : (MOTIVOS[c.motivo]||c.motivo||'—'); };
+const nomeSVId = (id)=> String(id).replace('#',' · ');
+const TACA='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>';
+const CF_ENTRE = 6;     // px entre as linhas (row-gap de .cfcol)
+const CF_MOTIVO_3 = 69; // px de linha a partir dos quais o motivo do "Não vale" mostra 3 linhas (abaixo, 2)
+/* Cartões de duelo em duas colunas. A distribuição, as contagens e o estado de cada confronto vêm de funções puras do
+   adaptador (distribuirConfrontos, resumoConfrontos, estadoConfronto, larguraBarra, lugarEtiquetas); vencedor, % e
+   bônus vêm do motor (RES.confrontos). Aqui só se monta o HTML. */
 function renderConfrontos(){
   const porId = {}; RES.pessoas.forEach(x=>{ porId[x.id]=x; });
-  const nomeSV = (id)=> porId[id] ? porId[id].nome : id;
+  const achou = (id)=> !!porId[id];
+  const nomeSV = (id)=> porId[id] ? porId[id].nome : nomeSVId(id);
   const infoSV = (id)=> porId[id] ? porId[id].canal+' · '+porId[id].unidade : 'não encontrado';
-  const pctP = (id, pilar)=>{ const x = porId[id]; if(!x) return '–';
-    const pl = x.pilares.find(y=>y.nome===pilar); return pl && pl.pct!==null ? pl.pctTexto : '–'; };
-  const lst = RES.confrontos || [];
-  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[CONFIG.mes]}`;
-  $('cfsub').innerHTML = `<span><b>${lst.length}</b>cadastrados</span><span><b>${lst.filter(c=>c.valido).length}</b>válidos</span>`
-    + `<span><b>${lst.filter(c=>c.vencedor).length}</b>com vencedor</span>`;
-  $('cfhead').innerHTML = `<div>Mês</div><div>Pilar</div><div>Desafiante</div><div class="v">%</div><div class="x"></div>`
-    + `<div>Desafiado</div><div class="v">%</div><div>Resultado</div>`;
-  $('cfrows').innerHTML = lst.length ? lst.map(c=>{
-    const res = !c.valido ? `<span class="mt">Não vale: ${esc(MOTIVOS[c.motivo]||c.motivo||'—')}</span>`
-      : c.vencedor ? `<span class="pill tot">${CK}${esc(nomeSV(c.vencedor))} +${R.bonusConfronto}</span>`
-      : `<span class="mt">${esc(MOTIVOS[c.motivo]||'sem vencedor')}</span>`;
-    return `<div class="cf cfr${c.valido?'':' invalido'}${c.vencedor===c.desafiante?' ganhou-a':''}${c.vencedor===c.desafiado?' ganhou-b':''}">`
-      + `<div>${esc(MESES[c.mes].slice(0,3))}</div><div>${esc(rotuloPilar(c.pilar))}</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiante))}<small>${esc(infoSV(c.desafiante))}</small></div>`
-      + `<div class="v va">${pctP(c.desafiante, c.pilar)}</div><div class="x">×</div>`
-      + `<div class="nm">${esc(nomeSV(c.desafiado))}<small>${esc(infoSV(c.desafiado))}</small></div>`
-      + `<div class="v vb">${pctP(c.desafiado, c.pilar)}</div><div>${res}</div></div>`;
-  }).join('') : `<div class="vazio">Nenhum confronto cadastrado.<br>Inclua na aba Regras &gt; Administração.</div>`;
-  $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos no mês, e toda a mesa dele também; quem perde não perde pontos. `
-    + `Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. `
-    + `Empate é decidido pelo maior % de Refrigerantes.`;
+  // % do pilar no mês do confronto (o motor apura cada mês com os dados daquele mês: fechado ou corrente)
+  const temPct = (v)=> typeof v === 'number' && Number.isFinite(v);
+  const pctP = (v)=> temPct(v) ? M.fmtPct(v) : '–';
+  const mesesCf = MESES_Q4.filter(m=>m<=MES);
+  if(!mesesCf.includes(st.cfmes)) st.cfmes = MES;
+  const fechado = (m)=> ACUM.usados.find(u=>u.mes===m);
+  $('cfmes').innerHTML = `<span class="seg">${mesesCf.map(m=>`<button type="button" data-cfmes="${m}" aria-pressed="${m===st.cfmes}">${MESES[m]}</button>`).join('')}</span>`;
+  const lst = (RES.confrontos || []).filter(c=>c.mes===st.cfmes);
+  const rs = resumoConfrontos(lst, porId);
+  const f = fechado(st.cfmes);
+  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[st.cfmes]}` + (st.cfmes===MES ? (DADOS.meta.fechamento ? ' (fechamento)' : ' (mês corrente)')
+    : f ? (f.final ? ' (mês fechado)' : ' (fechamento provisório)') : ' (sem dado do mês)');
+  const aberto = lst.length > 0 && !lst[0].mesFechado; // o motor diz se o mês já fechou (só então o bônus entra)
+  $('cfsub').innerHTML = `<span><b>${rs.cadastrados}</b>cadastrados</span><span><b>${rs.validos}</b>válidos</span>`
+    + `<span><b>${rs.comVencedor}</b>${aberto ? 'vencendo' : 'com vencedor'}</span>`;
+  // cartão de um lado: nome (uma etiqueta ao lado; duas ou mais no subtexto), canal · unidade, % e barra até 100%
+  const cartao = (id, lado, papel, pct)=>{
+    const etq = lugarEtiquetas(porId[id] ? etiquetasDe(porId[id]) : []);
+    const cls = (lado==='S4' || lado==='neutro' ? 'neutro' : (papel==='Desafiante' ? 'a' : 'b') + (lado==='vencedor' ? ' win' : ''))
+      + (etq.sub.length ? ' e2' : '');
+    const rot = `${papel} ${nomeSV(id)}, ` + (lado==='S4' ? 'não encontrado' : temPct(pct) ? pctP(pct) : 'sem %') + (lado==='vencedor' ? ', vencedor' : '');
+    return `<div class="cfsv ${cls}" role="group" aria-label="${esc(rot)}">`
+      + `<div class="nl"><span class="nm" title="${esc(nomeSV(id))}">${esc(nomeSV(id))}</span>${etq.nome.join('')}</div>`
+      + `<div class="sb"><span class="tx">${esc(infoSV(id))}</span>${etq.sub.join('')}</div>`
+      + `<div class="pc">${pctP(pct)}</div>`
+      + (temPct(pct) && lado!=='S4' ? `<div class="tr"><b style="width:${larguraBarra(pct)}%"></b></div>` : '') + `</div>`;
+  };
+  // caixa de resultado: S1 vencedor, S2 válido sem vencedor, S3 não vale (sempre com texto, além da cor).
+  // Mês aberto (c.mesFechado = false, do motor): o vencedor é parcial e o bônus só entra no fechamento (regra de 30/10/2026).
+  const caixa = (c, e)=>{
+    if(e.caixa==='S1'){
+      const nm = nomeSV(c.vencedor), des = e.desempate ? MOTIVOS.DESEMPATE_REFRI : '', fech = c.mesFechado;
+      const rot = (fech ? `Vencedor ${nm}: +${R.bonusConfronto} pontos para o SV e toda a mesa`
+        : `Vencendo ${nm}: +${R.bonusConfronto} pontos para o SV e toda a mesa no fechamento do mês`) + (des ? `, ${des}` : '');
+      return `<div class="cfres s1" role="group" aria-label="${esc(rot)}"${des ? ` title="${esc(des)}"` : ''}>`
+        + `<div class="rl">${TACA}${fech ? 'Vencedor' : 'Vencendo'}</div><div class="rn">${esc(nm)}</div>`
+        + `<div class="rp">+${R.bonusConfronto} pts · ${!fech ? 'no fechamento' : des ? 'desempate' : 'SV e mesa'}</div></div>`;
+    }
+    const s3 = e.caixa==='S3', mot = s3 ? motivoConf(c) : (MOTIVOS[c.motivo] || 'sem vencedor');
+    return `<div class="cfres ${s3 ? 's3' : 's2'}" role="group" aria-label="${esc((s3 ? 'Não vale: ' : 'Sem vencedor: ') + mot)}" title="${esc(mot)}">`
+      + `<div class="rl">${s3 ? 'Não vale' : 'Sem vencedor'}</div><div class="rm">${esc(mot)}</div></div>`;
+  };
+  const linha = (c, i)=>{
+    const e = estadoConfronto(c, achou);
+    return `<div class="cfrow"><div class="cfnum">${i+1}</div><div class="cfpil ${grupo(c.pilar)}" title="${esc(c.pilar)}">${esc(rotuloPilar(c.pilar))}</div>`
+      + cartao(c.desafiante, e.desafiante, 'Desafiante', c.pctDesafiante) + `<div class="cfvs" aria-hidden="true">×</div>`
+      + cartao(c.desafiado, e.desafiado, 'Desafiado', c.pctDesafiado) + caixa(c, e) + `</div>`;
+  };
+  // legenda fora do quadro, no rodapé da página (no lugar do texto sobre os pontos); sem confronto, sem legenda
+  const contagem = (l)=> l.map(x=>`${esc(x.rotulo)} ${x.n}`).join(' · ');
+  $('rodleg').innerHTML = lst.length ? `<i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = ${aberto ? 'vencendo (parcial)' : 'vencedor'}`
+    + ` · <b>Por canal:</b> ${contagem(rs.porCanal)} · <b>Por pilar:</b> ${contagem(rs.porPilar)}` : '';
+  // a nota entra antes de medir: a altura das linhas é o que sobra no cartão
+  $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos, e toda a mesa dele também, só depois do fechamento do mês: o SV, nos pontos acumulados; `
+    + `cada rota da mesa, nos pontos daquele mês. Até lá o vencedor é parcial. Quem perde não perde pontos. `
+    + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
+    + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
+    + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
+  const corpo = $('cfrows');
+  if(!lst.length) corpo.innerHTML = `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
+  else {
+    const cs = getComputedStyle(corpo);
+    const d = distribuirConfrontos(lst.length, corpo.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), CF_ENTRE);
+    corpo.style.setProperty('--cf-k', d.linhas);
+    corpo.style.setProperty('--cf-h', d.altura + 'px');
+    corpo.style.setProperty('--cf-lin', d.altura >= CF_MOTIVO_3 ? 3 : 2);
+    const esq = lst.slice(0, d.esquerda).map((c,i)=>linha(c, i)).join('');
+    const dir = lst.slice(d.esquerda).map((c,i)=>linha(c, d.esquerda + i)).join('');
+    corpo.innerHTML = `<div class="cfcols"><div class="cfcol">${esq}</div><div class="cfcol">${dir}</div></div>`;
+  }
 }
+
+$('cfmes').addEventListener('click',e=>{ const b=e.target.closest('button[data-cfmes]'); if(!b) return; st.cfmes=+b.dataset.cfmes; renderConfrontos(); });
 
 /* ---------- abas ---------- */
 const ABAS = ['ranking','sup','estrat','rank','detalhe','regras','confrontos'];
@@ -891,11 +1094,23 @@ function setTab(t){
     $('tab-'+x).setAttribute(x==='confrontos' ? 'aria-pressed' : 'aria-selected', x===t);
     $('v-'+x).classList.toggle('on', x===t);
   });
-  $('filtros').style.visibility = SEM_FILTRO.includes(t) ? 'hidden' : 'visible';
+  if(SEMCALC && t!=='regras'){ $('v-'+t).classList.remove('on'); $('v-semcalc').classList.add('on'); }
+  else $('v-semcalc').classList.remove('on');
+  $('filtros').style.visibility = SEM_FILTRO.includes(t) || SEMCALC ? 'hidden' : 'visible';
   $('lblsv').style.display = $('lblbusca').style.display = SEM_ROTA.includes(t) ? 'none' : '';
+  // na aba Confrontos o rodapé da esquerda mostra a legenda dos cartões (preenchida por renderConfrontos)
+  const comLegenda = t==='confrontos' && !SEMCALC;
+  $('rodleg').hidden = !comLegenda; $('rodpts').hidden = comLegenda;
   $('rib').textContent = ({ranking:'Rota',sup:'Supervisão',rank:'Ranking',estrat:'Estratégicos',
                            detalhe:'Detalhe por pilar',regras:'Regras e informações',confrontos:'Confrontos'})[t];
-  if(t==='regras') renderRegras(); else render();
+  if(t==='regras') renderRegras(); else if(!SEMCALC) render();
+}
+if (SEMCALC) {
+  $('semcalc-tt').textContent = SEMCALC;
+  $('semcalc-tx').textContent = (DADOS.meta.origem==='api'
+    ? `A API já está em ${NOME_MES}. Pontos, gatilhos, confrontos e ranking só aparecem com os pilares do mês configurados pelo Back Office; o painel não usa os números de outro mês no lugar.`
+    : 'O painel não usa os números de outro mês no lugar: abra o painel pelo site para ler a API.')
+    + (DADOS.meta.aviso && DADOS.meta.aviso!==SEMCALC ? ' Detalhe: ' + DADOS.meta.aviso.replace(SEMCALC+'; ','') + '.' : '');
 }
 ABAS.forEach(x=>$('tab-'+x).addEventListener('click',()=>setTab(x)));
 
@@ -908,6 +1123,7 @@ function alertasDados(){
 }
 const T = (head, rows, cls)=>`<table class="${cls||''}"><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 const pctTxt = (v)=> v.toLocaleString('pt-BR',{maximumFractionDigits:5});
+const avisoSemPilaresTela = ()=> `Pilares de ${MESES[MES].toLowerCase()} ainda não configurados`;
 const SEC = [
  { id:'pontuacao', t:'Pontuação', html:()=>{ const f=R.faixas;
   return `<h2>Pontuação por pilar</h2><div class="sub">Cada rota pontua todo mês em 5 pilares, sempre em % do total do mês sobre a meta.</div>
@@ -917,7 +1133,7 @@ const SEC = [
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
   <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
-  <p>Confronto entre Supervisores: o SV vencedor ganha +${R.bonusConfronto} no mês e toda a mesa dele ganha +${R.bonusConfronto} também. Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} dos pilares + ${R.bonusConfronto} do confronto.</p>
+  <p>Confronto entre Supervisores: o SV vencedor ganha +${R.bonusConfronto} e toda a mesa dele ganha +${R.bonusConfronto} também, <b>só depois do fechamento do mês</b> (decisão de 30/10/2026): o SV, nos pontos acumulados do trimestre; cada rota da mesa, nos pontos daquele mês. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. <span class="pend">⚠️ o mês conta como fechado já no período de fechamento da API</span> Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} dos pilares + ${R.bonusConfronto} do confronto (no fechamento).</p>
   <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
  { id:'gatilhos', t:'Gatilhos e status', html:()=>`<h2>Gatilhos e status</h2><div class="sub">Dois gatilhos precisam ser batidos para a rota entrar no ranking e na premiação.</div>
   ${T(['Gatilho','Consultor (Rota)','Supervisor'],[
@@ -934,9 +1150,21 @@ const SEC = [
  { id:'pilares', t:'Pilares do mês', html:()=>{
     const nomes=[]; ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(!nomes.includes(p.nome)) nomes.push(p.nome); }));
     const pos = (c,n)=>{ const i=pilaresDo(c).findIndex(p=>p.nome===n); return i<0 ? '–' : (i+1)+'º'+(i>=3?' (coringa)':''); };
-    const fonte = (n)=> n==='Missões Guiadas' ? 'Sem dado: validada em 100% em outubro'
+    const fonte = (n)=> n==='Missões Guiadas' && R.missaoValidadaMeses.includes(MES) ? 'Sem dado: validada em 100% em outubro'
+      : n==='Missões Guiadas' && !CONFIG.fonteDoPilar[n] ? 'Sem dados de Missões Guiadas: fonte ainda não definida <span class="pend">pendente</span>'
       : esc(CONFIG.fonteDoPilar[n]||'–') + (n==='Volume Refri Single' ? ' <span class="pend">a confirmar</span>' : '');
-    return `<h2>Pilares de ${MESES[CONFIG.mes].toLowerCase()}</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
+    if (!mesConfigurado(CONFIG, MES)) {
+      // mês incompleto (ex.: só os pilares 1 a 3): mostra o que já foi definido e o que falta, sem calcular nada
+      const def = (c)=> pilaresDefinidos(CONFIG, MES, c), defs=[];
+      ['Mista','Segmentada'].forEach(c=>def(c).forEach(p=>{ if(!defs.includes(p.nome)) defs.push(p.nome); }));
+      const posDef = (c,n)=>{ const i=def(c).findIndex(p=>p.nome===n); return i<0 ? '–' : (i+1)+'º'; };
+      const falta = (c)=> Array.from({length:PILARES_NO_MES}, (_,i)=>i).filter(i=>!def(c)[i]).map(i=>(i+1)+'º').join(' e ') || '–';
+      return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">${esc(avisoSemPilaresTela())}</div>
+  ${defs.length ? T(['Pilar','Mista','Segmentada','Coluna na base SAP'], defs.map(n=>[esc(n.replace('Volume ','')), posDef('Mista',n), posDef('Segmentada',n), fonte(n)])
+    .concat([['A definir <span class="pend">pendente</span>', falta('Mista'), falta('Segmentada'), '–']])) : ''}
+  <p>Os pilares de cada mês ficam na configuração do painel (<code>CONFIG.pilaresConfig</code>). Enquanto o Back Office não define os ${PILARES_NO_MES} pilares de cada canal, o painel não calcula pontos nem ranking deste mês.</p>`;
+    }
+    return `<h2>Pilares de ${MESES[MES].toLowerCase()}</h2><div class="sub">Iguais para Supervisor e Consultor. A coluna da base mostra de onde cada número vem.</div>
   ${T(['Pilar','Mista','Segmentada','Coluna na base SAP'], nomes.map(n=>[esc(n.replace('Volume ','')), pos('Mista',n), pos('Segmentada',n), fonte(n)]))}
   <p>Só os pilares de volume valem em confronto (todos, menos Missões Guiadas).</p>`; } },
  { id:'premiacao', t:'Premiação', html:()=>`<h2>Premiação dos Consultores</h2><div class="sub">Mensal (out, nov e dez). Exige ${R.gatilhoPontos.RT} pontos no mês e o gatilho de volume.</div>
@@ -947,7 +1175,10 @@ const SEC = [
     const exc={}; notasRefri.forEach(n=>n.excluidos.forEach(e=>exc[e]=(exc[e]||0)+1));
     const api = DADOS.meta.origem==='api';
     return `<h2>Dados e alertas</h2><div class="sub">${esc(DADOS.meta.fonteLonga)}</div>
-    ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api?'':'. O painel está usando a base embutida.'}</p>` : ''}
+    ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
+    ${AJ.erroPublicado ? `<p><b>O ajustes.json publicado não pôde ser lido:</b> ${esc(AJ.erroPublicado)}. Nenhum ajuste publicado está valendo. Detalhes em Regras &gt; Administração.</p>` : ''}
+    ${AVISOS_AJ.length ? `<p><b>Ajustes do admin com valor inválido (ignorado):</b> ${AVISOS_AJ.map(esc).join('; ')}.</p>` : ''}
+    ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+(u.final?' (final)':' (provisório)')).join(', ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
       ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês, inclusive o faturado de hoje'],
@@ -969,9 +1200,10 @@ const SEC = [
       ['Rotas sem canal na base de segmentação (ficam fora do ranking)',sc.length],
       ['Rotas em dois segmentos (vale o de maior volume realizado)',du.length],
       [api?'Rota com segmento que não está na API':'Rota com segmento e sem meta no modelo',DADOS.segSemInfos.map(r=>'Rota '+esc(r)).join(', ')||'0']])}
-    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o subtipo aparece na linha da rota.</p>
+    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o segmento aparece como etiqueta ao lado da rota. ⚠️</p>
     <h3>Rotas sem canal (${sc.length})</h3>
-    <div class="chips">${sc.map(x=>`<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small></span>`).join('')}</div>
+    <p>Ficam fora de pontos, ranking e premiação. A etiqueta mostra o segmento quando o admin o definiu (Neutraliza, Eventual, Coke Net ou Virtual); sem etiqueta, a rota está como veio da base. ⚠️</p>
+    <div class="chips">${sc.map(x=>{ const l = SEG_POR[x.rota]; return `<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small>${segTag(l && l.sub, true)}</span>`; }).join('')}</div>
     <h3>Rotas em dois segmentos (${du.length})</h3>
     ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${numF(o.vol)}`).join(' · ')]))}
     <h3>Pilares sem meta ou sem real (${al.length})</h3>
@@ -980,8 +1212,7 @@ const SEC = [
     <h3>Gatilho de Refrigerantes: componentes fora da soma (${notasRefri.length} rotas)</h3>
     <p>${Object.keys(exc).map(k=>`${esc(k)} sem meta ou meta zero: ${exc[k]} rotas`).join(' · ')||'Nenhum'}. Componente sem meta sai da soma, para não inflar o %.</p>`; } },
  { id:'pend', t:'Pendências', html:()=>{
-    const mix={}; DADOS.rotas.forEach(r=>{ const m=(mix[r.sv]=mix[r.sv]||{}); m[r.canal]=(m[r.canal]||0)+1; });
-    const mistos=Object.keys(mix).filter(k=>mix[k].Mista&&mix[k].Segmentada);
+    const mistos=Object.keys(CANAIS_SV).filter(k=>CANAIS_SV[k].misto).map(k=>k+' → '+(CANAIS_SV[k].canal||'sem canal (empate)'));
     const P='<span class="pend">pendente</span>', OK='<span class="okk">resolvido</span>';
     const bo = R.notasPendentes.map((n,i)=>['B'+(i+1),esc(n),'Back Office',P]);
     return `<h2>Pendências</h2><div class="sub">O que ainda precisa de decisão e o que muda no painel quando for decidido.</div>
@@ -990,7 +1221,7 @@ const SEC = [
        ? ['1',`<b>Categoria Refrigerantes:</b> o gatilho de ${pctTxt(R.gatilhoVolumePct)}% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).`,'Back Office / IM',OK]
        : ['1',`<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de ${pctTxt(R.gatilhoVolumePct)}%. Afeta quem entra no ranking.`,'Back Office / IM',P],
      ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
-     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma as rotas da mesa, no canal, e deixa de fora rota sem meta ou sem real. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+') e aparecem nos dois, cada uma só com as rotas do canal. Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real. ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas e ganham o +'+R.bonusConfronto+' se o SV vencer o confronto (no fechamento do mês). Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
      DADOS.meta.origem==='api'
        ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
        : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
@@ -998,7 +1229,8 @@ const SEC = [
      ['6','<b>Rotas sem canal</b> ('+DADOS.semCanal.length+') e <b>rotas em dois segmentos</b> ('+DADOS.duplicadas.length+'): confirmar o critério de maior volume.','IM',P],
      ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
      ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
-     ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada.','IM',P],
+     ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada, ou pelo ajuste do admin (Segmentação da supervisão).','IM',P],
+     ['10','⚠️ <b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). Sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Canal do SV (29/10): um só por SV, escolhido na Administração ou, sem escolha, o da maioria das rotas; empate fica fora do ranking até a escolha. Ainda não está no documento de regras.','Back Office',P],
      ...bo], 'pd')}`; } },
  { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
     return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
@@ -1025,27 +1257,59 @@ async function hashSenha(s){
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('q4-admin:'+s));
   return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
-const valCanal = (c, sub)=> !c ? '' : c==='Mista' ? 'Mista' : 'Segmentada|'+(sub||'');
-const rotuloCanal = (v)=> v==='' ? 'Sem canal' : v==='Mista' ? 'Mista' : 'Segmentada'+(v.split('|')[1] ? ' '+v.split('|')[1] : '');
-const OPC_CANAL = ['Mista','Segmentada|Mini','Segmentada|Mod',''];
-const opcoesCanal = (atual)=> (OPC_CANAL.includes(atual) ? OPC_CANAL : OPC_CANAL.concat([atual]))
-  .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloCanal(v))}</option>`).join('');
-const PADRAO_CANAL = {}; BASE_EMBUTIDA.rotas.forEach(r=>{ PADRAO_CANAL[r.rota] = valCanal(r.canal, r.sub); });
-const padraoCanal = (rota)=> PADRAO_CANAL[rota] ?? '';
-function segLinhas(){
-  const out = DADOS.rotas.map(r=>({ rota:r.rota, gc:r.gc, atual:valCanal(r.canal, r.sub) }))
-    .concat(DADOS.semCanal.map(x=>({ rota:x.rota, gc:x.gc, atual:'' })));
-  return out.sort((a,b)=> a.gc.localeCompare(b.gc,'pt-BR') || a.rota.localeCompare(b.rota,'pt-BR',{numeric:true}));
+/* segmentação da supervisão: o admin escolhe o SV e ajusta canal e segmento das rotas da mesa (lógica em adapter.js) */
+let EDIC = {};                                  // rota -> valor escolhido na tela (só as que mudaram em relação ao uso)
+const SV_CANAL_USO = Object.assign({}, (AJ.ativo && AJ.ativo.canaisSV) || {});
+let EDIC_SV = Object.assign({}, SV_CANAL_USO);  // sv -> canal do SV escolhido ('' ou ausente = padrão, a maioria das rotas)
+const SEGADM = { sv:null, busca:'' };
+const SVS_SEG = svsDaSegmentacao(SEG);
+const valEdic = (l)=> l.rota in EDIC ? EDIC[l.rota] : l.atual;
+// de onde vem o canal em uso da rota: base de segmentação, ajustes.json publicado ou só este navegador
+const ITENS_NAV = (AJ.navegador && AJ.navegador.itens) || {};
+const origemSeg = (l)=> l.origem!=='ajuste' ? 'base' : ('canais:'+l.rota) in ITENS_NAV ? '<b>este navegador</b>' : '<b>publicado</b>';
+const opcoesSeg = (atual)=> (OPCOES_SEGMENTACAO.includes(atual) ? OPCOES_SEGMENTACAO : OPCOES_SEGMENTACAO.concat([atual]))
+  .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloSeg(v))}${OPCOES_SEGMENTACAO.includes(v)?'':' (como na base)'}</option>`).join('');
+function segSvOpcoes(){
+  const lst = buscarSVs(SVS_SEG, SEGADM.busca);
+  if (!lst.some(x=>x.sv===SEGADM.sv)) SEGADM.sv = lst.length ? lst[0].sv : null;
+  return lst.length ? lst.map(x=>`<option value="${esc(x.sv)}"${x.sv===SEGADM.sv?' selected':''}>${esc(x.rotulo)} · ${esc(x.gcs.join(', '))} · ${x.n} ${x.n===1?'rota':'rotas'}</option>`).join('')
+    : '<option value="">Nenhum SV encontrado</option>';
+}
+function segMesaHtml(){
+  if (!SEGADM.sv) return '<p class="sub">Nenhum SV no filtro.</p>';
+  const rotas = rotasDoFiltro(SEG, SEGADM.sv), semSv = SEGADM.sv===SEM_SV, escolhido = EDIC_SV[SEGADM.sv]||'';
+  const cm = canalDaMesa(rotas, EDIC, escolhido);
+  const cab = semSv ? `<p><b>Rotas sem SV</b>: não formam mesa nem supervisão no ranking.</p>`
+    : `<div class="adm-linha"><label for="seg-svcanal"><b>Canal do SV ${esc(SEGADM.sv)}</b></label>
+        <select id="seg-svcanal" aria-label="Canal do SV ${esc(SEGADM.sv)}">
+          <option value=""${escolhido?'':' selected'}>Padrão: maioria das rotas (${esc(cm.maioria||'empate')})</option>
+          ${['Mista','Segmentada'].map(c=>`<option value="${c}"${escolhido===c?' selected':''}>${c}</option>`).join('')}</select>
+        <span>→ o SV aparece só na <b>${esc(cm.canal||'—')}</b>${escolhido!==(SV_CANAL_USO[SEGADM.sv]||'')?' <b>(alteração pendente)</b>':''}</span></div>
+      <p class="sub">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela). O SV soma todas as rotas da mesa, medidas nos pilares do canal dele. ⚠️</p>`
+      + (!cm.canal ? `<div class="seg-av" role="alert">⚠️ Mesmo número de rotas Mista e Segmentada: escolha o canal do SV. Até lá o SV fica fora do ranking.</div>`
+        : cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV fica só na ${esc(cm.canal)} e soma também as rotas da ${cm.canal==='Mista'?'Segmentada':'Mista'}, nos pilares da ${esc(cm.canal)}. As rotas continuam no ranking do canal delas.</div>` : '');
+  return cab + `<div class="adm-linha">Para todas as rotas ${semSv?'sem SV':'desta mesa'}: <select id="seg-todas" aria-label="Valor para todas as rotas">${opcoesSeg(OPCOES_SEGMENTACAO[0])}</select>
+      <button class="adm-btn" type="button" id="seg-aplicar">Aplicar a todas as rotas ${semSv?'sem SV':'desta mesa'}</button>
+      <button class="adm-btn" type="button" id="seg-restaurar-mesa">Restaurar padrão ${semSv?'das rotas sem SV':'desta mesa'}</button></div>
+    <table id="adm-seg"><thead><tr><th>Rota</th><th>Gerência</th><th>Canal atual</th><th>Segmento atual</th><th>Origem</th><th>Novo valor</th><th></th></tr></thead><tbody>
+    ${rotas.map(l=>`<tr data-rota="${esc(l.rota)}" class="${valEdic(l)!==l.atual?'mud':''}"><td>${esc(l.rota)}</td><td>${esc(l.gc)}</td>
+      <td>${esc(l.canal||'Sem canal')}</td><td>${l.sub?segTag(l.sub, !l.canal):'–'}</td><td>${origemSeg(l)}</td>
+      <td><select data-rota="${esc(l.rota)}" aria-label="Canal e segmento da rota ${esc(l.rota)}">${opcoesSeg(valEdic(l))}</select></td>
+      <td><button class="adm-btn" type="button" data-restaurar="${esc(l.rota)}"${valEdic(l)===l.padrao?' disabled':''} title="Base: ${esc(rotuloSeg(l.padrao))}">Restaurar padrão</button></td></tr>`).join('')}
+    </tbody></table>`;
 }
 // agrupadores extras em edição (começa pelos ajustes em uso); viram o pilar "Volume <nome>"
 let EXTRAS = ((AJ.ativo && AJ.ativo.agrupadores) || []).map(e=>Object.assign({}, e));
 // confrontos em edição (começa pelos ajustes em uso); o motor apura o vencedor e o bônus
 let CONFRONTOS = ((AJ.ativo && AJ.ativo.confrontos) || []).map(c=>Object.assign({}, c));
 const SV_POR_ID = {}; SVS.forEach(s=>{ SV_POR_ID[s.id] = s; });
-const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[id].canal : id;
+const nomeDoSV = (id)=> SV_POR_ID[id] ? SV_POR_ID[id].nome + ' · ' + SV_POR_ID[id].canal + (segTxt(SV_POR_ID[id]) ? ' ' + segTxt(SV_POR_ID[id]) : '') : String(id).replace('#',' · ');
 const chaveConf = (c)=> c.mes + '|' + c.id_sv_desafiante + '|' + c.id_sv_desafiado;
+// confronto cadastrado que um ajuste de canal invalidou: continua na lista, com o motivo
+const avisoConf = (c)=>{ const d = (RES.confrontos||[]).find(x=>x.mes===c.mes && x.desafiante===c.id_sv_desafiante && x.desafiado===c.id_sv_desafiado);
+  const a = d && confrontoInvalidadoPorAjuste(d, SEG, CANAIS_SV); return a ? `<br><small class="pend">⚠️ não vale: ${esc(a.texto)}</small>` : ''; };
 const linhaConf = (c)=>`<tr><td>${esc(MESES[c.mes])}</td><td>${esc(nomeDoSV(c.id_sv_desafiante))}</td>
-  <td>${esc(nomeDoSV(c.id_sv_desafiado))}</td><td>${esc(rotuloPilar(c.pilar))}</td>
+  <td>${esc(nomeDoSV(c.id_sv_desafiado))}${avisoConf(c)}</td><td>${esc(rotuloPilar(c.pilar))}</td>
   <td><button class="adm-btn" type="button" data-conf="${esc(chaveConf(c))}">Excluir</button></td></tr>`;
 const opcoesSV = ()=> SVS.slice().sort((a,b)=> a.canal.localeCompare(b.canal) || a.nome.localeCompare(b.nome,'pt-BR',{numeric:true}))
   .map(s=>`<option value="${esc(s.id)}">${esc(s.nome)} · ${esc(s.canal)} · ${esc(s.unidade)}</option>`).join('');
@@ -1059,35 +1323,59 @@ const novoId = (nome)=>{
   let id = base, k = 2; while (usados.has(id)) id = base+'_'+(k++);
   return id;
 };
+/* topo da Administração: o ajustes.json publicado que foi lido (ou por que não foi) e o que só vale neste navegador */
+function adminTopo(){
+  const sit = AJ.situacaoPublicado, arq = `<code>${esc(CONFIG.arquivoAjustes)}</code>`;
+  const pub = sit==='erro' ? `<div class="aj-erro" role="alert">⚠️ O ${arq} publicado <b>não pôde ser lido</b>: ${esc(AJ.erroPublicado)}. Os ajustes publicados estão sendo ignorados.
+      Corrija no GitHub: o arquivo tem de ter <b>um único objeto JSON</b> (selecione tudo e substitua o conteúdo).</div>`
+    : sit==='ok' ? `<p>Ajustes publicados lidos agora (${arq}): <b>atualizado em ${esc(quandoAj(AJ.publicado.atualizado_em)||'data não informada')}</b>.</p>`
+    : sit==='vazio' ? `<p>O ${arq} publicado foi lido, mas não tem nenhum ajuste válido: o painel está no padrão.</p>`
+    : sit==='ausente' ? `<p>Nenhum ajuste publicado (${arq} não existe): o painel está no padrão.</p>`
+    : `<p>Não foi possível ler o ${arq} (painel aberto sem o site?).</p>`;
+  const av = AVISOS_PUB.length ? `<div class="seg-av" role="alert">Valores inválidos no ${arq} publicado, ignorados (nesses itens vale o padrão): ${AVISOS_PUB.map(esc).join('; ')}.</div>` : '';
+  const nd = (AJ.descartados||[]).length;
+  const desc = nd ? `<p class="sub">${nd===1?'1 ajuste deste navegador era igual ao publicado e foi descartado':nd+' ajustes deste navegador eram iguais ao publicado e foram descartados'} ao abrir o painel.</p>` : '';
+  if (!N_NAV) return pub + av + desc + `<p class="sub">Nenhum ajuste só neste navegador: vale o que está publicado.</p>`;
+  const ant = AJ.navegadorAnterior ? `<p><b>⚠️ Ajuste do navegador anterior ao publicado</b> (salvo aqui em ${esc(quandoAj(AJ.navegador.atualizado_em))};
+      publicado em ${esc(quandoAj(AJ.publicado.atualizado_em))}). Confira se ainda vale ou descarte.</p>` : '';
+  return pub + av + desc + `<div class="aj-nav" role="status"><b>${N_NAV===1?'1 ajuste só neste navegador':N_NAV+' ajustes só neste navegador'}</b>: valem só aqui, por cima do publicado.${ant}
+    <table><thead><tr><th>Ajuste</th><th>Publicado</th><th></th><th>Neste navegador</th><th></th></tr></thead><tbody>
+    ${AJ.diferencas.map(d=>`<tr><td>${esc(d.rotulo)}</td><td>${esc(d.textoPublicado)}</td><td>→</td><td><b>${esc(d.textoNovo)}</b></td>
+      <td><button class="adm-btn" type="button" data-descartar="${esc(d.chave)}">Descartar este</button></td></tr>`).join('')}</tbody></table>
+    <button class="adm-btn" type="button" data-descartar-todos="1">Descartar todos os do navegador (usar o publicado)</button></div>`;
+}
 function adminHtml(){
   if(!ADMIN_ABERTO) return `<h2>Administração</h2><div class="sub">Área do Back Office para ajustar as regras e a segmentação das rotas sem mexer no código.</div>
+    ${adminTopo()}
     <form class="adm-form" id="adm-login"><label for="adm-senha"><b>Senha</b></label>
       <input id="adm-senha" type="password" inputmode="numeric" autocomplete="off"><button class="adm-btn pri" type="submit">Entrar</button>
       <span id="adm-msg" class="micro" role="status"></span></form>`;
-  const f = R.faixas, cor = coringasDe(CONFIG);
+  const f = R.faixas, cor = coringasDe(CONFIG, MES), comCoringas = mesConfigurado(CONFIG, MES);
   const num = (id, v)=>`<input type="number" id="${id}" value="${v}" min="0" step="any">`;
-  const campo = (rot, id, v)=>`<label>${rot}${num(id, v)}</label>`;
+  const campo = (rot, id, v)=>`<label>${rot}<span class="pv" data-pv="${esc(CAMPO_CHAVE[id])}"></span>${num(id, v)}</label>`;
   const opcoesPilar = (canal, atual)=>{ const fixos = pilaresDo(canal).slice(0,3).map(p=>p.nome);
     return PILARES_CORINGA.concat(EXTRAS.map(pilarDoExtra)).filter(n=>!fixos.includes(n)).map(n=>`<option value="${esc(n)}"${n===atual?' selected':''}>${esc(n.replace('Volume ',''))}</option>`).join(''); };
-  const estado = AJ.origem==='local' ? 'Ajustes ativos <b>só neste navegador</b>'+(AJ.publicado?'. Há também ajustes publicados: voltam a valer aqui se você descartar os deste navegador.':'.')
-    : AJ.origem==='publicado' ? 'Ativos os <b>ajustes publicados</b>'+(AJ.publicado.atualizado_em?' em '+esc(AJ.publicado.atualizado_em.replace('T',' ')):'')+'.'
-    : 'Nenhum ajuste ativo: o painel está no padrão.';
-  return `<h2>Administração</h2><div class="sub">${estado} O formulário abaixo mostra os valores em uso.</div>
+  const estado = AJ.ativo ? `Em uso: ${AJ.publicado?'os ajustes publicados':'o padrão'}${N_NAV?' e '+txtNav(N_NAV):''}.` : 'Nenhum ajuste em uso: o painel está no padrão.';
+  return `<h2>Administração</h2><div class="sub">${estado} O formulário mostra os valores em uso; o que difere do <code>${esc(CONFIG.arquivoAjustes)}</code> publicado fica com contorno azul e o valor publicado ao lado.</div>
+   ${adminTopo()}
    <div class="adm">
     <div class="adm-acoes">
       <button class="adm-btn pri" type="button" id="adm-salvar">Salvar neste navegador</button>
       <button class="adm-btn pri" type="button" id="adm-publicar">Publicar no GitHub (PR)</button>
       <button class="adm-btn" type="button" id="adm-baixar">Baixar ajustes.json</button>
-      <button class="adm-btn" type="button" id="adm-descartar">Descartar ajustes deste navegador</button>
+      <button class="adm-btn" type="button" id="adm-descartar">Descartar todos os do navegador (usar o publicado)</button>
       <button class="adm-btn" type="button" id="adm-sair">Sair</button>
+      <span id="adm-npend" class="pv"></span>
       <span id="adm-msg" class="micro" role="status"></span>
     </div>
-    <p><b>Salvar neste navegador</b> mostra o efeito na hora, só para você. Para valer para todos, clique em <b>Publicar no GitHub (PR)</b>:
+    <p><b>Salvar neste navegador</b> mostra o efeito na hora, só para você, e guarda só o que difere do publicado. Para valer para todos, clique em <b>Publicar no GitHub (PR)</b>:
       o GitHub abre o arquivo <code>${esc(CONFIG.arquivoAjustes)}</code> (já preenchido, ou pronto para colar o conteúdo copiado); em <i>Commit changes</i>,
       escolha <b>Create a new branch for this commit and start a pull request</b>. Depois da revisão e do merge, o site e a API passam a usar os
       ajustes em poucos minutos. Para voltar todos ao padrão, apague o <code>${esc(CONFIG.arquivoAjustes)}</code> no GitHub, também por PR.</p>
+    <p class="colar">No GitHub, selecione tudo e substitua o conteúdo do arquivo; não cole depois do texto antigo. O arquivo tem de ser um único objeto JSON:
+      com dois objetos seguidos, nenhum ajuste publicado vale e o painel mostra o aviso de arquivo ilegível.</p>
     <h3>Pontuação por pilar</h3>
-    ${[2,1,0].map(i=>`<div class="adm-linha">A partir de ${num('adm-f'+i+'-min', f[i].min)} % vale ${num('adm-f'+i+'-pts', f[i].pontos)} pontos</div>`).join('')}
+    ${[2,1,0].map(i=>`<div class="adm-linha">A partir de ${num('adm-f'+i+'-min', f[i].min)} % vale ${num('adm-f'+i+'-pts', f[i].pontos)} pontos${i===0?' <span class="pv" data-pv="regras:faixas"></span>':''}</div>`).join('')}
     <h3>Gatilhos e confronto</h3><div class="adm-grid">
       ${campo('Gatilho de Refrigerantes (%)','adm-gv',R.gatilhoVolumePct)}${campo('Bônus do confronto (pontos)','adm-bc',R.bonusConfronto)}
       ${campo('Mínimo da Rota (pontos no mês)','adm-grt',R.gatilhoPontos.RT)}${campo('Mínimo do SV (pontos no trimestre)','adm-gsv',R.gatilhoPontos.SV)}</div>
@@ -1105,30 +1393,63 @@ function adminHtml(){
       Agrupador <input id="adm-ext-ag" list="adm-ags" maxlength="80" placeholder="como está no Datasphere" style="width:360px;text-align:left">
       <button class="adm-btn" type="button" id="adm-ext-incluir">Incluir</button></div>
     <datalist id="adm-ags"></datalist>
-    <h3>Pilares coringa de ${MESES[CONFIG.mes].toLowerCase()}</h3><div class="adm-grid">
-      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>
+    <h3>Pilares coringa de ${MESES[MES].toLowerCase()}</h3>${comCoringas ? `<div class="adm-grid">
+      ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}${i===0?`<span class="pv" data-pv="pilares:${c}"></span>`:''}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
+      : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas do admin só trocam os pilares 4 e 5 de um mês que já tem os ${PILARES_NO_MES} pilares na configuração (<code>CONFIG.pilaresConfig</code>).</p>`}
     <h3>Confrontos entre supervisores</h3>
-    <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele; quem perde não perde pontos.
+    <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele, só depois do fechamento do mês; quem perde não perde pontos.
       Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês.
       O resultado aparece na tela <b>Confrontos</b>, no botão ao lado das abas.</p>
     <table id="adm-conf"><thead><tr><th>Mês</th><th>Desafiante</th><th>Desafiado</th><th>Pilar</th><th></th></tr></thead>
       <tbody>${CONFRONTOS.map(linhaConf).join('')}</tbody></table>
     <p class="sub" id="adm-conf-vazio"${CONFRONTOS.length?' hidden':''}>Nenhum confronto cadastrado.</p>
-    <div class="adm-linha">Mês <select id="adm-conf-mes">${MESES_Q4.filter(m=>m<=CONFIG.mes).map(m=>`<option value="${m}"${m===CONFIG.mes?' selected':''}>${MESES[m]}</option>`).join('')}</select>
+    <div class="adm-linha">Mês <select id="adm-conf-mes">${MESES_Q4.filter(m=>m<=MES).map(m=>`<option value="${m}"${m===MES?' selected':''}>${MESES[m]}</option>`).join('')}</select>
       Desafiante <select id="adm-conf-a">${opcoesSV()}</select>
       Desafiado <select id="adm-conf-b">${opcoesSV()}</select>
       Pilar <select id="adm-conf-p"></select>
       <button class="adm-btn" type="button" id="adm-conf-incluir">Incluir</button></div>
-    <h3>Segmentação das rotas</h3>
-    <p class="sub">O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}. Linhas em azul estão diferentes do padrão.
-      Rota sem canal só pode entrar quando o painel está lendo a API.</p>
-    <label class="adm-linha">Buscar rota <input id="adm-busca" type="search" autocomplete="off" style="width:170px;text-align:left"></label>
-    <table id="adm-seg"><thead><tr><th>Rota</th><th>Gerência</th><th>Padrão</th><th>Canal</th></tr></thead><tbody>
-      ${segLinhas().map(x=>`<tr data-rota="${esc(x.rota)}" class="${x.atual!==padraoCanal(x.rota)?'mud':''}"><td>${esc(x.rota)}</td><td>${esc(x.gc)}</td>
-        <td>${esc(rotuloCanal(padraoCanal(x.rota)))}</td><td><select data-rota="${esc(x.rota)}" aria-label="Canal da rota ${esc(x.rota)}">${opcoesCanal(x.atual)}</select></td></tr>`).join('')}
-    </tbody></table>
+    <h3>Segmentação da supervisão</h3>
+    <p class="sub">Escolha o SV e ajuste o canal e o segmento de cada rota da mesa. O <b>canal</b> é o que conta para pilares, ranking,
+      confrontos e premiação (Mista, Segmentada ou sem canal); o <b>segmento</b> é só a etiqueta (Mini ou Mod na Segmentada; Neutraliza,
+      Eventual, Coke Net ou Virtual sem canal). O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}; rota sem ajuste fica
+      como está na base. Linhas em azul mudam em relação ao que está em uso; a coluna Origem diz de onde vem o valor em uso (base, publicado
+      ou só este navegador). Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
+    <div class="seg-av">⚠️ A confirmar no documento de regras (decisões de 28 e 29/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
+      premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.
+      Cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma todas as rotas da mesa nos pilares desse canal.</div>
+    ${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
+    <div class="adm-linha"><label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
+      <label for="seg-sv">SV</label><select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></div>
+    <div id="seg-mesa">${segMesaHtml()}</div>
+    <h3>Alterações para publicar (publicado → novo valor)</h3>
+    <p class="sub">Só o que esta tela muda em relação ao <code>${esc(CONFIG.arquivoAjustes)}</code> publicado${AJ.erroPublicado?' (ilegível: comparado com o padrão)':''}.
+      "Salvar neste navegador" guarda só estas diferenças; "Publicar no GitHub (PR)" grava o arquivo inteiro, com tudo o que está em uso.</p>
+    <div id="adm-pend"></div>
    </div>`;
 }
+// campo do formulário -> chave do ajuste (adapter.js: itensDosAjustes), para marcar o que difere do publicado
+const CAMPO_CHAVE = { 'adm-gv':'regras:gatilhoVolumePct', 'adm-bc':'regras:bonusConfronto', 'adm-grt':'regras:gatilhoPontos.RT', 'adm-gsv':'regras:gatilhoPontos.SV',
+  'adm-p-rt-m':'regras:premiadas.RT.Mista', 'adm-p-rt-s':'regras:premiadas.RT.Segmentada', 'adm-p-sv-m':'regras:premiadas.SV.Mista', 'adm-p-sv-s':'regras:premiadas.SV.Segmentada' };
+const CAMPOS_DA_CHAVE = (chave)=> chave==='regras:faixas' ? [0,1,2].flatMap(i=>['adm-f'+i+'-min','adm-f'+i+'-pts'])
+  : chave.startsWith('pilares:') ? [0,1].map(i=>'adm-cor-'+chave.slice(8)+'-'+i) : Object.keys(CAMPO_CHAVE).filter(id=>CAMPO_CHAVE[id]===chave);
+/** "Alterações para publicar": o formulário comparado com o publicado; marca os campos que diferem dele. */
+function refazPend(){
+  const p = $('adm-pend'); if (!p) return;
+  const aj = lerAjustes();
+  if (typeof aj==='string') { p.innerHTML = `<div class="seg-av" role="alert">${esc(aj)}</div>`; $('adm-npend').textContent = ''; return; }
+  const dif = diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras), por = {};
+  dif.forEach(d=>{ por[d.chave] = d; });
+  Object.values(CAMPO_CHAVE).concat(['regras:faixas','pilares:Mista','pilares:Segmentada']).forEach(chave=>{
+    CAMPOS_DA_CHAVE(chave).forEach(id=>{ const e = $(id); if (e) e.classList.toggle('difpub', !!por[chave]); });
+    const pv = p.closest('.adm').querySelector(`[data-pv="${chave}"]`); if (pv) pv.textContent = por[chave] ? 'publicado: ' + por[chave].textoPublicado : '';
+  });
+  $('adm-npend').textContent = dif.length ? (dif.length===1 ? '1 alteração para publicar' : dif.length+' alterações para publicar') + ' (lista no fim da página)' : 'Nada difere do publicado';
+  p.innerHTML = !dif.length ? '<p class="sub">Nada difere do ajustes.json publicado.</p>'
+    : `<table><thead><tr><th>Ajuste</th><th>${AJ.erroPublicado?'Padrão':'Publicado'}</th><th></th><th>Novo valor</th></tr></thead><tbody>
+      ${dif.map(d=>`<tr class="mud"><td>${esc(d.rotulo)}</td><td>${esc(d.textoPublicado)}</td><td>→</td><td><b>${esc(d.textoNovo)}</b></td></tr>`).join('')}</tbody></table>`;
+}
+const agoraAj = ()=>{ const d = new Date(), z = (x)=>String(x).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
 /** Formulário -> ajustes (só o que difere do padrão). Texto = erro para mostrar; null = tudo no padrão. */
 function lerAjustes(){
   const n = (id)=>{ const v = Number(String($(id).value).replace(',','.')); return Number.isFinite(v) && v>=0 ? v : NaN; };
@@ -1146,25 +1467,29 @@ function lerAjustes(){
   if (!igual(pr, { SV:{ Mista:P.premiadas.SV.Mista, Segmentada:P.premiadas.SV.Segmentada }, RT:{ Mista:P.premiadas.RT.Mista, Segmentada:P.premiadas.RT.Segmentada } })) regras.premiadas = pr;
   const pilares = {};
   for (const c of ['Mista','Segmentada']) {
+    if (!$('adm-cor-'+c+'-0')) { if (AJ.ativo && AJ.ativo.pilares[c]) pilares[c] = AJ.ativo.pilares[c]; continue; } // mês sem pilares: mantém o que estava
     const sel = [0,1].map(i=>$('adm-cor-'+c+'-'+i).value);
     if (sel[0]===sel[1]) return `${c}: os pilares 4 e 5 precisam ser diferentes.`;
     if (!igual(sel, PADRAO.coringas[c])) pilares[c] = sel;
   }
-  const canais = {};
-  document.querySelectorAll('#adm-seg select[data-rota]').forEach(s=>{
-    if (s.value !== padraoCanal(s.dataset.rota)) { const [c, sub] = s.value.split('|'); canais[s.dataset.rota] = { canal:c||null, sub:sub||null }; }
-  });
+  const canais = canaisDaEdicao(SEG, EDIC, AJ.ativo && AJ.ativo.canais);
+  const canaisSV = {}; Object.keys(EDIC_SV).forEach(sv=>{ if (EDIC_SV[sv]) canaisSV[sv] = EDIC_SV[sv]; });
   const agrupadores = EXTRAS.map(e=>({ id:e.id, nome:e.nome, agrupador:e.agrupador }));
   const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
-  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length
+  if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
       && !agrupadores.length && !confrontos.length) return null;
-  const d = new Date(), z = (x)=>String(x).padStart(2,'0');
-  return { versao:1, atualizado_em:`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`,
-           regras, pilares, canais, agrupadores, confrontos };
+  return { versao:1, atualizado_em:agoraAj(), regras, pilares, canais, canaisSV, agrupadores, confrontos };
 }
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
   const recarregar = ()=>{ try{ sessionStorage.setItem('q4_voltar','admin'); }catch(e){} location.reload(); };
+  // ajustes só deste navegador: "descartar este" tira um item; "descartar todos" volta ao publicado (também antes da senha)
+  $('rgbd').querySelectorAll('[data-descartar],[data-descartar-todos]').forEach(b=>b.addEventListener('click', ()=>{
+    const novo = b.dataset.descartarTodos ? null : semItens(Object.assign({ formato:2 }, AJ.navegador), [b.dataset.descartar]);
+    try { if (novo) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(novo)); else localStorage.removeItem(AJUSTES_LOCAL); }
+    catch (e) { return msg('Este navegador não permite mudar os ajustes salvos.'); }
+    recarregar();
+  }));
   if ($('adm-login')) {
     $('adm-login').addEventListener('submit', async (e)=>{
       e.preventDefault();
@@ -1177,18 +1502,44 @@ function ligarAdmin(){
     $('adm-senha').focus();
     return;
   }
-  $('adm-busca').addEventListener('input', e=>{ const t=e.target.value.trim().toLowerCase();
-    document.querySelectorAll('#adm-seg tbody tr').forEach(tr=>{ tr.hidden = !!t && !tr.dataset.rota.toLowerCase().includes(t); }); });
-  $('adm-seg').addEventListener('change', e=>{ const s=e.target.closest('select[data-rota]'); if(s) s.closest('tr').classList.toggle('mud', s.value!==padraoCanal(s.dataset.rota)); });
+  // segmentação da supervisão: filtro de SV, seletor por rota, aplicar à mesa e restaurar padrão
+  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); refazPend(); };
+  const editar = (nova)=>{ EDIC = {}; SEG.forEach(l=>{ if (l.rota in nova && nova[l.rota]!==l.atual) EDIC[l.rota] = nova[l.rota]; }); refazSeg(); };
+  $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-sv').innerHTML = segSvOpcoes(); refazSeg(); });
+  $('seg-sv').addEventListener('change', e=>{ SEGADM.sv = e.target.value || null; refazSeg(); });
+  $('seg-mesa').addEventListener('change', e=>{
+    if (e.target.id==='seg-svcanal') { EDIC_SV[SEGADM.sv] = e.target.value; if (!e.target.value) delete EDIC_SV[SEGADM.sv]; refazSeg();
+      msg(`Canal do SV ${SEGADM.sv}: ${e.target.value||'padrão (maioria das rotas)'}. Salve ou publique para valer.`); return; }
+    const s=e.target.closest('select[data-rota]'); if(!s) return;
+    editar(Object.assign({}, EDIC, { [s.dataset.rota]: s.value })); });
+  $('seg-mesa').addEventListener('click', e=>{
+    const rotas = rotasDoFiltro(SEG, SEGADM.sv), nome = SEGADM.sv===SEM_SV ? 'as rotas sem SV' : 'a mesa de '+SEGADM.sv;
+    const b = e.target.closest('button'); if(!b) return;
+    const edAtual = Object.assign({}, ...SEG.map(l=>({ [l.rota]: valEdic(l) })));
+    if (b.dataset.restaurar) { editar(restaurarPadrao(edAtual, rotas.filter(l=>l.rota===b.dataset.restaurar))); msg(`Rota ${b.dataset.restaurar} volta ao padrão da base. Salve ou publique para valer.`); }
+    else if (b.id==='seg-aplicar') {
+      const v = $('seg-todas').value;
+      if (!confirm(`Aplicar "${rotuloSeg(v)}" a ${rotas.length} ${rotas.length===1?'rota':'rotas'} (${nome})?`)) return;
+      editar(aplicarNaMesa(edAtual, rotas, v)); msg(`"${rotuloSeg(v)}" aplicado a ${nome}. Confira o resumo e salve ou publique para valer.`);
+    } else if (b.id==='seg-restaurar-mesa') {
+      if (!confirm(`Voltar ${nome} (${rotas.length} ${rotas.length===1?'rota':'rotas'}${SEGADM.sv===SEM_SV?'':' e o canal do SV'}) ao padrão da base?`)) return;
+      if (SEGADM.sv!==SEM_SV) delete EDIC_SV[SEGADM.sv];
+      editar(restaurarPadrao(edAtual, rotas)); msg(`${nome.charAt(0).toUpperCase()+nome.slice(1)} volta ao padrão da base. Salve ou publique para valer.`);
+    }
+  });
+  // o navegador guarda só o que difere do publicado (o resto continua vindo do ajustes.json)
   $('adm-salvar').addEventListener('click', ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
-    try { if (aj) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(aj)); else localStorage.removeItem(AJUSTES_LOCAL); }
+    const guardar = navegadorParaSalvar(diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras), AJ.publicado, agoraAj());
+    try { if (guardar) localStorage.setItem(AJUSTES_LOCAL, JSON.stringify(guardar)); else localStorage.removeItem(AJUSTES_LOCAL); }
     catch (e) { return msg('Este navegador não permite salvar os ajustes.'); }
     recarregar();
   });
+  // qualquer mudança no formulário refaz "Alterações para publicar" e as marcas do que difere do publicado
+  ['input','change'].forEach(ev=>$('rgbd').querySelector('.adm').addEventListener(ev, refazPend));
   // agrupadores extras: incluir/excluir mexe na lista e nas opções dos pilares coringa, sem perder o resto do formulário
   const fixosNorm = new Set(AGRUPADORES_FIXOS.map(normalizarTexto));
-  const selsCoringa = ()=> ['Mista','Segmentada'].flatMap(c=>[0,1].map(i=>({ c, i, s:$('adm-cor-'+c+'-'+i) })));
+  const selsCoringa = ()=> ['Mista','Segmentada'].flatMap(c=>[0,1].map(i=>({ c, i, s:$('adm-cor-'+c+'-'+i) }))).filter(x=>x.s);
   fetch(CONFIG.api+'agrupadores.json', { cache:'no-cache' }).then(r=>r.ok ? r.json() : null).then(j=>{
     if (!j || !$('adm-ags')) return;
     $('adm-ags').innerHTML = j.agrupadores.filter(([nome])=>!fixosNorm.has(normalizarTexto(nome)))
@@ -1209,7 +1560,7 @@ function ligarAdmin(){
     $('adm-ext-vazio').hidden = true;
     selsCoringa().forEach(({ s })=>s.insertAdjacentHTML('beforeend', `<option value="${esc(pilarDoExtra(e))}">${esc(e.nome)}</option>`));
     $('adm-ext-nome').value = $('adm-ext-ag').value = '';
-    msg(`"${nome}" incluído: já pode ser o pilar 4 ou 5. Salve ou publique para valer.`);
+    refazPend(); msg(`"${nome}" incluído: já pode ser o pilar 4 ou 5. Salve ou publique para valer.`);
   });
   $('adm-ext').addEventListener('click', ev=>{
     const b = ev.target.closest('button[data-excluir]'); if (!b) return;
@@ -1222,12 +1573,13 @@ function ligarAdmin(){
       const estava = o.selected; o.remove();
       if (estava) { const padrao = PADRAO.coringas[c][i]; s.value = [...s.options].some(x=>x.value===padrao) ? padrao : s.options[0].value; }
     });
-    msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
+    refazPend(); msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
   });
   // confrontos: o pilar segue o canal do desafiante; a lista é refeita a cada inclusão ou exclusão
   const refazConf = ()=>{
     $('adm-conf').querySelector('tbody').innerHTML = CONFRONTOS.map(linhaConf).join('');
     $('adm-conf-vazio').hidden = CONFRONTOS.length > 0;
+    refazPend();
   };
   const pilaresDoDesafiante = ()=>{
     const sv = SV_POR_ID[$('adm-conf-a').value];
@@ -1255,13 +1607,15 @@ function ligarAdmin(){
   });
   $('adm-publicar').addEventListener('click', async ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
-    if (!aj) return msg(`Tudo está no padrão: não há o que publicar. Para voltar todos ao padrão, apague o ${CONFIG.arquivoAjustes} no GitHub (por PR).`);
+    if (!aj) return msg(`Tudo está no padrão: não há o que publicar. Para voltar todos ao padrão${AJ.erroPublicado?' (e tirar o arquivo ilegível)':''}, apague o ${CONFIG.arquivoAjustes} no GitHub (por PR).`);
+    if (!AJ.erroPublicado && !diferencasAjustes(AJ.publicado, normalizarAjustes(aj), PADRAO.regras).length)
+      return msg(`Nada difere do ${CONFIG.arquivoAjustes} publicado: não há o que publicar.`);
     const texto = JSON.stringify(aj, null, 2);
     let copiado = false; try { await navigator.clipboard.writeText(texto); copiado = true; } catch (e) { /* sem área de transferência */ }
     window.open(urlPublicacao(CONFIG, texto, AJ.existePublicado), '_blank', 'noopener');
     msg(!AJ.existePublicado ? 'O GitHub abriu o arquivo já preenchido: clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
-      : copiado ? 'Conteúdo copiado. No GitHub: apague o texto do arquivo, cole (Ctrl+V), clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
-      : 'Não consegui copiar o conteúdo: use "Baixar ajustes.json" e cole o texto do arquivo no GitHub.');
+      : copiado ? 'Conteúdo copiado. No GitHub: selecione todo o texto do arquivo (Ctrl+A) e cole por cima (Ctrl+V), substituindo o conteúdo (não cole depois do texto antigo); depois clique em Commit changes e escolha "Create a new branch for this commit and start a pull request".'
+      : 'Não consegui copiar o conteúdo: use "Baixar ajustes.json" e, no GitHub, substitua todo o conteúdo do arquivo pelo texto baixado.');
   });
   $('adm-baixar').addEventListener('click', ()=>{
     const aj = lerAjustes(); if (typeof aj==='string') return msg(aj);
@@ -1269,16 +1623,17 @@ function ligarAdmin(){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(aj, null, 2)], { type:'application/json' }));
     a.download = 'ajustes.json'; document.body.appendChild(a); a.click(); a.remove();
-    msg('Arquivo baixado. Suba em frontend/ no GitHub para valer para todos.');
+    msg('Arquivo baixado. No GitHub, substitua todo o conteúdo do frontend/ajustes.json por este arquivo (não cole depois do texto antigo).');
   });
   $('adm-descartar').addEventListener('click', ()=>{ try{ localStorage.removeItem(AJUSTES_LOCAL); }catch(e){} recarregar(); });
   $('adm-sair').addEventListener('click', ()=>{ ADMIN_ABERTO = false; try{ sessionStorage.removeItem('q4_admin'); }catch(e){} renderRegras(); });
+  refazPend();
 }
 
 popularFiltros(); setTab('ranking');
 let voltar = null; try{ voltar = sessionStorage.getItem('q4_voltar'); sessionStorage.removeItem('q4_voltar'); }catch(e){}
 if (voltar==='admin') { st.sec='admin'; setTab('regras'); }
-addEventListener('resize',()=>{ fit(); if(st.tab!=='regras') render(); });
+addEventListener('resize',()=>{ fit(); if(st.tab!=='regras' && !SEMCALC) render(); });
 window.__PAINEL__ = { RES, st, DADOS, AJ };
 })();
 </script>

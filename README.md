@@ -25,6 +25,7 @@ Incentivo-Q4/
 │   │   ├── modelo.py        contas de meta, realizado, tendência e status
 │   │   ├── api.py           montagem dos JSONs
 │   │   ├── validacao.py     conferência antes de publicar
+│   │   ├── fechado.py       snapshot do mês fechado (api/v1/fechado/AAAAMM.json)
 │   │   └── simulado.py      dados fictícios no mesmo formato
 │   ├── scripts/gerar.py     gera a API
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
@@ -45,6 +46,9 @@ Incentivo-Q4/
    e empresa, e **valida** o resultado.
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
+4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também
+   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota; na 1ª execução do mês novo o
+   arquivo é selado e não muda mais. É dele que sai o acumulado do trimestre. Formato em [API.md](API.md).
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com
 NF_STATUS em Acertado, Meta Neg ou Em Aberto; tendência = realizado + restante da curva de META_NEG;
@@ -63,13 +67,23 @@ computador, sem a API, o painel usa essa base embutida inteira e avisa no rodap�
 
 Mudou algo em `painel-q4/src/` ou `painel-q4/data/`: rode `python painel-q4/scripts/build.py` e envie também o
 `frontend/desafio-q4.html` gerado. Testes: `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js`.
-Os pilares de cada mês ficam em `painel-q4/src/adapter.js` → `CONFIG`; em novembro, atualize `mes` e
-`pilaresConfig` (até lá, se a API já estiver no mês novo, o painel avisa e usa a base embutida).
+O mês de referência vem da API (`index.json` → `mes_referencia`) e os pilares de cada mês ficam em
+`painel-q4/src/adapter.js` → `CONFIG.pilaresConfig` (entradas de outubro, novembro e dezembro; em novembro e dezembro,
+por enquanto, só os pilares 1 a 3, com os coringas 4 e 5 a decidir). Mês sem os 5 pilares configurados: o painel
+mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking — nunca usa os números de outro mês
+no lugar nem calcula com parte dos pilares. O acumulado do SV soma os meses fechados (`fechado/AAAAMM.json`) e o mês
+corrente.
 
-**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, canal das rotas,
+**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, segmentação da supervisão (canal e
+segmento de cada rota, escolhidos por SV, e o canal do SV, um só por supervisão; o motor só vê o canal),
 **agrupadores extras** e os **confrontos entre supervisores**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
 merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
 desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).
+O arquivo tem de ser **um único objeto JSON**: no editor do GitHub, selecione tudo e substitua o conteúdo, nunca cole
+depois do texto antigo. Se o publicado não puder ser lido, o painel ignora todos os ajustes publicados e mostra uma faixa
+vermelha com o motivo; valor inválido dentro de um arquivo válido é ignorado nesse item, com faixa amarela. Precedência,
+item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do admin, que guarda só o que difere do
+publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
 
 ## Antes de ligar: confirmar os agrupadores
 
@@ -109,6 +123,7 @@ pip install -r requirements.txt
 cp .env.example .env          # preencha (só para dados reais)
 
 python scripts/gerar.py --simulado --forcar      # dados fictícios em ../api/v1
+python scripts/gerar.py --simulado --hoje 2026-11-03 --forcar --saida /tmp/sim   # simula o fechamento de outubro
 python scripts/gerar.py --forcar                 # dados reais em ../api/v1
 python scripts/gerar.py --rota 111 --forcar      # uma rota só, em saida/rota_111/
 python -m unittest discover -s tests -t . -v     # testes
