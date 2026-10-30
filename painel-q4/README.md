@@ -161,10 +161,13 @@ da aba Confrontos). As outras entradas do `fonts.json` (Barlow 500 a 800 e itál
 Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site externo.
 
 ## Dados
-- **API** (`../api/v1/index.json` e `gerencias/*.json`): meta (META_VOLUME), real (faturado no mês, inclusive o de
-  hoje), online (pedidos de hoje ainda não faturados) e meta dia de cada rota, nos agrupadores Sucos, Powerade,
+- **API** (`../api/v1/index.json` e `gerencias/*.json`): meta (META_VOLUME), real (faturado no mês **até ontem**:
+  o modelo carrega o faturamento com um dia de atraso, e o volume de hoje aparece só no online — conferido em
+  28/10/2026 com `backend/scripts/diagnosticar_real.py --datasphere`), online (pedidos de hoje ainda não
+  faturados) e meta dia de cada rota, nos agrupadores Sucos, Powerade,
   Sabores Tt, Refrigerantes Retornavel e Refrigerantes Individual. Conferido em 26/10/2026: metas iguais às do SAC
-  nas 201 rotas, nos 5 agrupadores.
+  nas 201 rotas, nos 5 agrupadores. Em 30/10/2026, no Total Band: meta igual nos 6 produtos e Real até 0,04% acima
+  do SAC.
 - **Gatilho de 95% e desempate:** categoria Refrigerantes do SAC = agrupador `Refrigerantes` da API, com todos os
   itens de refri (descartável, retornável, lata...). Só na base embutida, que não tem a categoria, o painel volta à
   soma provisória de Individual + Retornável e mostra o selo "provisório".
@@ -223,5 +226,12 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
    e se o período de fechamento da API já conta como mês fechado para o +5 do confronto (adotado: conta).
 6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada e Sem canal fora do incentivo, ainda fora do
    documento de regras.
+7. A aba Regras (pendência 4 e a lista de dados em `src/app.tpl.html`) diz que o Real inclui o faturado de hoje. A
+   medição de 28/10/2026 mostra o contrário: hoje aparece só no Online. A correção do texto ainda não foi feita.
 
 Resolvido: a categoria Refrigerantes do gatilho de 95% vem da API (agrupador `Refrigerantes`, todos os itens de refri).
+
+Resolvido (30/10/2026): Real do Total Band da API x Real do SAC. Com o SAC das 15:20 e a API das 15:15, a meta é igual
+nos 6 produtos e o Real da API fica de 0,006% a 0,036% acima, sem mudar faixa de pontos nem gatilho. O desvio de 1,38%
+do Refri Single visto em 28/10 coincidiu com 24 rotas que tinham Real e ainda não tinham meta nesse pilar; com a meta
+carregada, ele sumiu (`backend/scripts/diagnosticar_real.py`).
