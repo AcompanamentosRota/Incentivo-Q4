@@ -1172,32 +1172,27 @@ test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gat
 // ── aba Confrontos (etapa 11): cartões de duelo; só apresentação, o resultado continua vindo do motor ──
 // Fixture sintética: SVs fictícios Sv. Fa.* (Mista) e Sv. Fb.* (Segmentada).
 const { distribuirConfrontos, resumoConfrontos, estadoConfronto, larguraBarra, lugarEtiquetas, confrontoInvalidadoPorAjuste,
-        CF_LEGENDA_NO_ESPACO, CF_ALTURA_MAX, CF_ALTURA_MIN, CONFRONTOS_MAX } = require('../src/adapter.js');
+        CF_ALTURA_MAX, CF_ALTURA_MIN, CONFRONTOS_MAX } = require('../src/adapter.js');
 
-test('confrontos na tela: duas colunas na ordem do motor; até 17 a legenda ocupa o último espaço, de 18 em diante vira faixa', () => {
-  const ver = (n) => { const d = distribuirConfrontos(n); return [d.linhas, d.esquerda, d.direita, d.legenda]; };
-  assert.deepEqual(ver(0), [0, 0, 0, null]);
-  assert.deepEqual(ver(1), [1, 1, 0, 'espaco']);
-  assert.deepEqual(ver(4), [3, 3, 1, 'espaco']);
-  assert.deepEqual(ver(16), [9, 9, 7, 'espaco']);
-  assert.deepEqual(ver(17), [9, 9, 8, 'espaco']); // o caso de outubro: 9 + 8 + legenda, como no mockup
-  assert.deepEqual(ver(18), [9, 9, 9, 'faixa']);
-  assert.deepEqual(ver(30), [15, 15, 15, 'faixa']);
-  assert.deepEqual(ver(CONFRONTOS_MAX), [30, 30, 30, 'faixa']);
-  for (const n of [0, 1, 4, 16, 17, 18, 30, 60]) {
-    const d = distribuirConfrontos(n);
-    assert.equal(d.esquerda + d.direita, n, `n=${n}: as colunas somam n`);
-    if (d.legenda === 'espaco') assert.ok(d.direita < d.linhas, `n=${n}: sobra o último espaço da coluna direita para a legenda`);
-  }
-  assert.equal(CF_LEGENDA_NO_ESPACO, 17);
+test('confrontos na tela: duas colunas na ordem do motor, ceil(n/2) linhas; a legenda fica fora do quadro (rodapé)', () => {
+  const ver = (n) => { const d = distribuirConfrontos(n); return [d.linhas, d.esquerda, d.direita]; };
+  assert.deepEqual(ver(0), [0, 0, 0]);
+  assert.deepEqual(ver(1), [1, 1, 0]);
+  assert.deepEqual(ver(4), [2, 2, 2]);
+  assert.deepEqual(ver(16), [8, 8, 8]);
+  assert.deepEqual(ver(17), [9, 9, 8]); // o caso de outubro: 9 + 8
+  assert.deepEqual(ver(18), [9, 9, 9]);
+  assert.deepEqual(ver(30), [15, 15, 15]);
+  assert.deepEqual(ver(CONFRONTOS_MAX), [30, 30, 30]);
+  for (const n of [0, 1, 4, 16, 17, 18, 30, 60]) assert.equal(distribuirConfrontos(n).esquerda + distribuirConfrontos(n).direita, n, `n=${n}: as colunas somam n`);
 });
 
 test('confrontos na tela: altura da linha = o que sobra ÷ linhas, de 62 a 84 px; abaixo do mínimo as colunas rolam', () => {
   const alt = (n, disp) => { const d = distribuirConfrontos(n, disp, 6); return [d.altura, d.rola]; };
-  assert.deepEqual(alt(17, 678), [70, false]);            // 1920×1080: 9 linhas de 70 px, sem rolagem
-  assert.deepEqual(alt(1, 678), [CF_ALTURA_MAX, false]);   // poucas linhas: no máximo 84 px, alinhadas ao topo
-  assert.deepEqual(alt(4, 678), [CF_ALTURA_MAX, false]);
-  assert.deepEqual(alt(18, 638), [65, false]);             // 18: a faixa da legenda tira espaço, mas ainda cabe
+  assert.deepEqual(alt(17, 618), [63, false]);            // janela maximizada (~1920×940): 9 linhas de 63 px, sem rolagem
+  assert.deepEqual(alt(1, 618), [CF_ALTURA_MAX, false]);   // poucas linhas: no máximo 84 px, alinhadas ao topo
+  assert.deepEqual(alt(4, 618), [CF_ALTURA_MAX, false]);
+  assert.deepEqual(alt(18, 638), [65, false]);
   assert.deepEqual(alt(30, 638), [CF_ALTURA_MIN, true]);   // 30 e 60: 62 px e as duas colunas rolam juntas
   assert.deepEqual(alt(60, 638), [CF_ALTURA_MIN, true]);
   assert.equal(distribuirConfrontos(0, 678, 6).altura, null);
@@ -1293,6 +1288,10 @@ test('confrontos na tela: o bloco da aba não tem bônus fixo, "Mockup", fonte e
   assert.doesNotMatch(js, /\.vencedor\s*=[^=]|pctDesafiante\s*=[^=]/, 'a tela não apura vencedor nem %');
   // as etiquetas só mudam de estilo dentro da aba: a regra geral de .sg continua igual
   assert.match(tpl, /\n\.sg\{display:inline-block;margin-left:6px;/);
+  // a legenda fica fora do quadro: no rodapé da página (#rodleg), não dentro de #v-confrontos
+  assert.doesNotMatch(sec + js, /cfleg|cffaixa/);
+  assert.match(tpl, /<div class="foot">.*<span id="rodleg" hidden><\/span>/);
+  assert.match(js, /\$\('rodleg'\)\.innerHTML = /);
   // o HTML gerado é o build do template atual e não carrega fonte de fora
   assert.deepEqual(blocos(html), [css, sec, js], 'rode python painel-q4/scripts/build.py');
   assert.doesNotMatch(html, /mockup/i);
