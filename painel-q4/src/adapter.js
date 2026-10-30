@@ -124,7 +124,7 @@ const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. 
 /*
  * API (index.json + gerencias/*.json) -> mesmo formato da base embutida.
  * A API ainda não traz o canal (Mista/Segmentada): ele vem da base embutida, e rota sem canal vai para semCanal.
- * Real = faturado no mês (inclui o faturado de hoje); Online = pedidos de hoje ainda não faturados.
+ * Real = faturado no mês até ontem (o volume de hoje aparece só no Online); Online = pedidos de hoje ainda não faturados.
  * `canais` (ajuste do admin) troca o canal de rotas; {canal: null} tira a rota do ranking.
  * `resumo` (resumo.json) traz o total da empresa; sem ele, o total vira a soma das gerências.
  * Além das rotas do incentivo, devolve os totais que a própria API já traz por gerência (`totaisGerencia`)
