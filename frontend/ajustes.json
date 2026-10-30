@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-10-29T15:00",
+  "atualizado_em": "2026-10-29T23:36",
   "regras": {
     "gatilhoPontos": {
       "SV": 60,
@@ -20,7 +20,112 @@
       "segmento": "Mini"
     }
   },
-  "canaisSV": {},
+  "canaisSV": {
+    "Sv. An.1": "Segmentada"
+  },
   "agrupadores": [],
-  "confrontos": []
+  "confrontos": [
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. At.2#Segmentada",
+      "id_sv_desafiado": "Sv. G1.3#Segmentada",
+      "pilar": "Volume Refri Single"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. An.1#Segmentada",
+      "id_sv_desafiado": "Sv. Ap.1#Segmentada",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. G2.3#Segmentada",
+      "id_sv_desafiado": "Sv. At.1#Segmentada",
+      "pilar": "Volume Sucos"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Ri.1#Mista",
+      "id_sv_desafiado": "Sv. G2.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. G1.2#Mista",
+      "id_sv_desafiado": "Sv. G3.1#Mista",
+      "pilar": "Volume Retornáveis"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Ur.1#Mista",
+      "id_sv_desafiado": "Sv. Sl.2#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Mo.2#Mista",
+      "id_sv_desafiado": "Sv. Mo.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Pa.3#Mista",
+      "id_sv_desafiado": "Sv. Ur.2#Mista",
+      "pilar": "Volume Sucos"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Ap.2#Mista",
+      "id_sv_desafiado": "Sv. Sl.1#Mista",
+      "pilar": "Volume Sucos"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Ri.2#Mista",
+      "id_sv_desafiado": "Sv. Rv.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Di.1#Mista",
+      "id_sv_desafiado": "Sv. G1.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. An.2#Mista",
+      "id_sv_desafiado": "Sv. It.2#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Gu.1#Mista",
+      "id_sv_desafiado": "Sv. Ap.3#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Gu.2#Mista",
+      "id_sv_desafiado": "Sv. It.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Ri.2#Mista",
+      "id_sv_desafiado": "Sv. Po.1#Mista",
+      "pilar": "Volume Sucos"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. An.3#Mista",
+      "id_sv_desafiado": "Sv. Pa.2#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Pa.1#Mista",
+      "id_sv_desafiado": "Sv. G2.2#Mista",
+      "pilar": "Volume Sabores"
+    }
+  ]
 }
