@@ -39,20 +39,20 @@ log = logging.getLogger(__name__)
 
 FALTA = "[PREENCHER]"
 
-# Valores do SAC informados pelo Back Office (Total Band, 28/10/2026, corte 16:07). Só o Real veio; a meta do
-# SAC, os filtros da story e a definição de "Total Band" ficaram pendentes. Troque o conjunto com --sac.
+# Valores do SAC informados pela Karen (Total Band, 30/10/2026, corte 15:20; a API comparada é a de 15:15).
+# A leitura de 28/10 (corte 16:07) só trouxe o Real. Troque o conjunto com --sac.
 SAC_PADRAO: dict = {
-    "corte": "28/10/2026 16:07",
-    "recorte": FALTA + ": todas as gerências somadas / outro recorte",
-    "filtros": FALTA + ": story, período, canal, unidade, tipo de documento, devoluções, bonificação, "
-                       "unidade de medida",
+    "corte": "30/10/2026 15:20",
+    "recorte": "todas as vendas da Bandeirantes em cada agrupador (Agrupador Produto (Meta SAP) = Todos)",
+    "filtros": "story sobre AM_FAT_BND_ANALISE_META; Data (Meta SAP) = 202610; NF_STATUS Acertado, Em Aberto e "
+               "Meta Neg; medidas (Realizado) e Meta",
     "produtos": {
-        "sucos": {"real": 167651.39, "meta": None},
-        "powerade": {"real": 26132.18, "meta": None},
-        "sabores": {"real": 781153.29, "meta": None},
-        "retornaveis": {"real": 511366.91, "meta": None},
-        "individuais": {"real": 861731.33, "meta": None},
-        "refrigerantes": {"real": 4698478.25, "meta": None},
+        "sucos": {"real": 190439.19, "meta": 260000.07},
+        "powerade": {"real": 32449.25, "meta": 40000.01},
+        "sabores": {"real": 874176.49, "meta": 1279060.26},
+        "retornaveis": {"real": 560914.37, "meta": 687841.39},
+        "individuais": {"real": 1048057.35, "meta": 1163507.49},
+        "refrigerantes": {"real": 5835552.82, "meta": 7065000.04},
     },
 }
 
@@ -208,9 +208,39 @@ def consistencia(api: dict) -> list[dict]:
                               + ", ".join(faltando)) if faltando
                else achado("ok", "todos os produtos de index.json aparecem no resumo e em todas as gerências"))
 
+    out.append(rotas_sem_meta(api))
     out += agrupadores_sobrepostos(api["index"].get("produtos", []))
     out.append(relacao_refrigerantes(totais_api(api)["empresa"]["realizado"]))
     return out
+
+
+def rotas_sem_meta(api: dict) -> dict:
+    """Rota com Real e sem meta num produto: o Real entra nos totais, mas a rota não tem meta no pilar.
+
+    As rotas `eventual` (G1-EV) não têm meta por construção (API.md) e ficam só como informação. Em 28/10/2026
+    24 rotas tinham Real de Refri Single sem meta; com a meta carregada, o Refri Single voltou a bater com o SAC.
+    """
+    normais: dict = defaultdict(dict)
+    eventuais: dict = defaultdict(float)
+    for rota, r in api["rotas"].items():
+        eventual = ((r.get("rota") or {}).get("tipo")) == "eventual"
+        for k in api["produtos"]:
+            b = (r.get("produtos") or {}).get(k) or {}
+            real = _campo(b, "realizado")
+            if not real or _campo(b, "meta"):
+                continue
+            if eventual:
+                eventuais[k] += real
+            else:
+                normais[k][rota] = real
+    info = (f"rotas eventuais, sem meta por construção: {_lista(dict(eventuais))} de Real" if eventuais
+            else "nenhuma rota eventual com Real")
+    if not normais:
+        return achado("ok", f"toda rota normal com Real tem meta no produto ({info})")
+    return achado("alerta", "rotas com Real e sem meta no produto: " + "; ".join(
+        f"{NOME_CURTO.get(k, k)} {len(v)} rotas, {sum(v.values()):,.1f} de Real ({', '.join(sorted(v))})"
+        for k, v in sorted(normais.items())) + f". O Real entra nos totais, mas essas rotas não têm meta no "
+        f"pilar; confira a META_VOLUME do agrupador no Datasphere ({info}).")
 
 
 def agrupadores_sobrepostos(produtos: list[dict]) -> list[dict]:

@@ -183,6 +183,23 @@ class TestConsistenciaInterna(Base):
         erros = [a["texto"] for a in D.consistencia(D.ler_api(self.pasta)) if a["nivel"] == "erro"]
         self.assertTrue(any("mais de uma gerência" in t and "R01" in t for t in erros), erros)
 
+    def test_rota_normal_com_real_e_sem_meta_vira_alerta(self):
+        self.api["rotas"]["R03"]["produtos"]["individuais"]["meta"] = 0.0
+        a = D.rotas_sem_meta(self.api)
+        self.assertEqual(a["nivel"], "alerta")
+        self.assertIn("Refri Single 1 rotas, 60.0 de Real (R03)", a["texto"])
+
+    def test_rota_eventual_sem_meta_fica_so_como_informacao(self):
+        self.api["rotas"]["GA-EV"] = {"rota": {"id": "GA-EV", "tipo": "eventual", "gerencia": "GA"},
+                                      "produtos": {"sucos": bloco(0.0, 7.0)}, "clientes": []}
+        a = D.rotas_sem_meta(self.api)
+        self.assertEqual(a["nivel"], "ok")
+        self.assertIn("Sucos 7.0", a["texto"])
+
+    def test_rota_sem_meta_e_sem_real_nao_conta(self):
+        self.api["rotas"]["R02"]["produtos"]["sucos"] = bloco(0.0, 0.0)
+        self.assertEqual(D.rotas_sem_meta(self.api)["nivel"], "ok")
+
     def test_agrupador_em_dois_produtos_vira_erro(self):
         pasta = escrever_api(Path(self._tmp.name) / "repetido", agrupador_repetido=True)
         achados = D.agrupadores_sobrepostos(D.ler_api(pasta)["index"]["produtos"])
