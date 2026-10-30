@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 93 testes (34 do motor, 59 do adaptador); precisa de Node 18+
+# testes do painel — 100 testes (34 do motor, 66 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -162,12 +162,16 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 ## 7. Virada de mês
 
 - O mês de referência vem da API (`index.json` → `mes_referencia.anomes`); não há mais `CONFIG.mes`. `CONFIG.ano`
-  é o ano do trimestre. Mês sem pilares em `CONFIG.pilaresConfig` (`pilares: []`): o painel mostra "Pilares de <mês>
-  ainda não configurados" e não calcula pontos nem ranking. API fora do ar: base embutida só no mês dela, rotulada
-  "base embutida (outubro)"; em outro mês, aviso e nada calculado. Nunca mostrar um mês como se fosse outro.
-- Para novembro e dezembro: preencha os 5 pilares de cada canal na entrada do mês em `CONFIG.pilaresConfig`
-  (decisão do Back Office), rode o `build.py` e comite o HTML gerado. Os coringas do admin (`ajustes.json` →
-  `pilares`, sem mês) valem para o mês de referência, e só depois que os pilares 1 a 3 dele estiverem configurados.
+  é o ano do trimestre. Mês sem os **5 pilares** em `CONFIG.pilaresConfig` (lista vazia ou só os pilares 1 a 3;
+  `pilaresDoMes` devolve null): o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem
+  ranking; como mês fechado, ele deixa o acumulado do SV "incompleto". Nunca calcula com parte dos pilares. API fora do
+  ar: base embutida só no mês dela, rotulada "base embutida (outubro)"; em outro mês, aviso e nada calculado. Nunca
+  mostrar um mês como se fosse outro.
+- **Pilares de novembro e dezembro (29/10/2026):** os pilares 1 a 3 do Back Office já estão no `CONFIG` (Mista: Sabores,
+  Retornáveis, Missões Guiadas; Segmentada: Sabores, Refri Single, Powerade; "Volume Individuais" = Refri Single).
+  Os **coringas 4 e 5 ainda não foram decididos**: quando forem, acrescente-os nas entradas do mês (os dois canais), rode
+  o `build.py` e comite o HTML gerado. Os coringas do admin (`ajustes.json` → `pilares`, sem mês) só **trocam** os 4 e 5
+  do mês de referência quando ele já tem os 5 no `CONFIG`; nunca completam um mês sozinhos.
 - **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online. A fonte
   por rota ainda não foi definida; quando for, entra em `CONFIG.fonteDoPilar['Missões Guiadas']` (+ `produtoDaApi`).
   Sem fonte, o pilar aparece "sem dados" e não pontua.
@@ -188,7 +192,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 93 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 100 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

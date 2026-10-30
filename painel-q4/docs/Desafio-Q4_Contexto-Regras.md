@@ -53,6 +53,19 @@
 | 5 (Coringa Still) | Volume Powerade | Missões Guiadas |
 
 - **Pilares 4 e 5 são "coringa" e mudam de mês para mês.** A tabela acima vale para **outubro**; novembro e dezembro podem trazer outros pilares. Não fixar pilares no código: ler a configuração mensal dos dados.
+
+**Novembro e dezembro** (decisão do Back Office, informada pela Karen em 29/10/2026):
+
+| # | Mista | Segmentada |
+|---|---|---|
+| 1 | Volume Sabores | Volume Sabores |
+| 2 | Volume Retornáveis | Volume Refri Single ("Volume Individuais") |
+| 3 | Missões Guiadas | Volume Powerade |
+| 4 (Coringa) | a decidir | a decidir |
+| 5 (Coringa) | a decidir | a decidir |
+
+- Os pilares 1 a 3 são os mesmos de outubro nos dois meses. Enquanto os coringas 4 e 5 não forem decididos, o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking desse mês.
+- Missões Guiadas em novembro: ainda **sem fonte** de meta e realizado por rota; até haver fonte, o pilar aparece "sem dados" e não pontua (nunca se assume 100%).
 - **Pilares de volume** (os únicos válidos em confronto): todos, exceto Missões Guiadas.
 - **Missões Guiadas:** em **outubro** entra **validada em 100%** para todos os cargos que a têm, o que vale **3 pontos**. **Novembro e dezembro terão meta**: o pilar passa a pontuar como os demais, com meta, real e online.
 
