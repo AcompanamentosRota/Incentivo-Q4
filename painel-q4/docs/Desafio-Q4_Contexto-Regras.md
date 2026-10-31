@@ -1,4 +1,7 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.2 (30/10/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.3 (31/10/2026)
+
+**v3.3:** o status "No total" passa a se chamar **"Bateu!"** (decisão da Karen em 31/10/2026). Muda só o nome: a regra é a
+mesma, e "Bateu, mas não está no total" segue como está (seções 8 e 9).
 
 **v3.2:** o +5 do confronto só entra depois do fechamento do mês, nos pontos acumulados do SV e nos pontos daquele mês da
 mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
@@ -144,7 +147,7 @@ o vencedor e o motivo quando o confronto não vale.
 | Gatilho de volume (≥ 95% Refrigerantes) **não** atingido | **"-"** no status (os pontos aparecem, mas não valem) |
 | Volume atingido, mas pontos abaixo do mínimo (SV 60 acumulados; Consultor 20 no mês) | **"-"** |
 | Volume e pontos atingidos, mas **fora das posições premiadas** | **"Bateu, mas não está no total"** (engajar o time a subir) |
-| Volume e pontos atingidos e **dentro das posições premiadas** | **"No total"** |
+| Volume e pontos atingidos e **dentro das posições premiadas** | **"Bateu!"** (até a v3.2, "No total") |
 
 **Numeração do ranking (decisão de 27/10/2026):** todas as linhas recebem posição, não só as elegíveis. Para quem bate os dois
 gatilhos a posição é a oficial (a que vale para a premiação); para os demais é apenas a ordem na tela, por pontos, e aparece em
@@ -152,7 +155,7 @@ cinza. A premiação continua restrita a quem é elegível.
 
 ## 9. Pontos em aberto ⚠️
 
-1. **Nome do status:** os nomes "Bateu, mas não está no total" e "No total" ficam como estão por ora e serão ajustados depois (a tabela da seção 8 é a leitura adotada).
+1. **Nome do status:** em 31/10/2026 "No total" virou **"Bateu!"** (decisão da Karen); "Bateu, mas não está no total" segue como está. A regra não mudou (a tabela da seção 8 é a leitura adotada).
 2. **Pontos acumulados da Rota:** assumido como não aplicável (zera todo mês).
 3. **Confrontos:** prazo de registro em cada mês.
 4. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte).
