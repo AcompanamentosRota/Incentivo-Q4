@@ -151,7 +151,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       36 testes do motor e 74 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       38 testes do motor e 75 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
 docs/                        regras do incentivo (fonte de verdade)
 ```
 

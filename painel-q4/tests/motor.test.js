@@ -219,7 +219,7 @@ test('Consultor: 20 pontos no mês é o mínimo (19 = "-", 20 = ranqueado)', () 
   const rt1 = res.pessoas.find((p) => p.id === 'RT1'), rt2 = res.pessoas.find((p) => p.id === 'RT2');
   assert.equal(rt1.pontosMes, 20);
   assert.equal(rt1.gatilhoPontos.atingido, true);
-  assert.equal(rt1.status, 'No total');
+  assert.equal(rt1.status, 'Bateu!');
   assert.equal(rt2.pontosMes, 15);
   assert.equal(rt2.gatilhoPontos.atingido, false);
   assert.equal(rt2.status, '-');
@@ -368,8 +368,8 @@ test('ranking Segmentada SV: 2 premiados; 3º "Bateu, mas não está no total"; 
   const res = calcular({ mesRef: 12, pessoas, pilaresConfig: CFGS, medidas, confrontos: [] });
   const g = (id) => res.pessoas.find((p) => p.id === id);
   assert.deepEqual([g('X').posicao, g('Y').posicao, g('Z').posicao], [1, 2, 3]);
-  assert.equal(g('X').status, 'No total');
-  assert.equal(g('Y').status, 'No total');
+  assert.equal(g('X').status, 'Bateu!');
+  assert.equal(g('Y').status, 'Bateu!');
   assert.equal(g('Z').status, 'Bateu, mas não está no total');
   assert.equal(res.ranking['SV|Segmentada'].limite, 2);
 });
@@ -424,6 +424,65 @@ test('formatação: % truncado com vírgula; volume com milhar e 1 casa decimal'
   assert.equal(M.fmtVolume(-1234.56), '-1.234,6');
   assert.equal(M.fmtVolume(0), '0,0');
   assert.equal(M.fmtVolume(null), '-');
+});
+
+// ── 11. status: "No total" virou "Bateu!" (31/10/2026) ───
+// Cenário sintético em dezembro (o SV soma out a dez), com 5 pilares de volume fictícios nos três meses e nos dois canais.
+// Por cargo e canal: (limite + 1) elegíveis a 110% (25 pts/mês), com Refri decrescente para fixar a ordem; um sem o
+// gatilho de volume (Refri 94,99999%) e um com volume e pontos abaixo do mínimo (100% = 15 pts/mês).
+// O mesmo cenário gerou fixtures/regressao-status-bateu.json com o motor de antes da troca.
+const PREMIADAS = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } };
+const CFG_TRI = [10, 11, 12].flatMap((mes) => ['Mista', 'Segmentada'].map((canal) => ({ mes, canal,
+  pilares: ['P1', 'P2', 'P3', 'P4', 'P5'].map((nome) => ({ nome, tipo: 'volume' })) })));
+function cenarioStatus() {
+  const pessoas = [], medidas = [];
+  const add = (id, cargo, canal, sup, pct, refri) => {
+    pessoas.push(pessoa(id, cargo, canal, sup));
+    for (const mes of [10, 11, 12]) medidas.push(...med(id, mes, CFG_TRI, canal, pct, refri));
+  };
+  for (const cargo of ['SV', 'RT']) for (const canal of ['Mista', 'Segmentada']) {
+    const pre = cargo + canal[0], sup = cargo === 'RT' ? 'SV' + canal[0] + '01' : null;
+    for (let i = 1; i <= PREMIADAS[cargo][canal] + 1; i++) add(pre + String(i).padStart(2, '0'), cargo, canal, sup, 110, 120 - i / 4);
+    add(pre + 'V', cargo, canal, sup, 110, 94.99999);
+    add(pre + 'P', cargo, canal, sup, 100, 100);
+  }
+  return { mesRef: 12, pessoas, pilaresConfig: CFG_TRI, medidas, confrontos: [] };
+}
+const resumoStatus = (res) => ({
+  pessoas: res.pessoas.map((p) => [p.id, p.cargo, p.canal, p.pontosMes, p.pontosAcumulados ?? null, p.volume.pctTexto,
+    p.volume.atingido, p.gatilhoPontos.atingido, p.elegivel, p.posicao, p.premiada, p.status]),
+  ranking: res.ranking,
+});
+
+test('status: "-" sem volume, "-" sem pontos, "Bateu, mas não está no total" fora e "Bateu!" dentro das premiadas (SV e Consultor, Mista e Segmentada)', () => {
+  assert.deepEqual(M.REGRAS.status, { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' });
+  assert.deepEqual(M.REGRAS.premiadas, PREMIADAS);
+  const e = cenarioStatus(), res = calcular(e);
+  const g = (id) => res.pessoas.find((p) => p.id === id);
+  const ver = (id) => [id, g(id).volume.atingido, g(id).gatilhoPontos.atingido, g(id).posicao, g(id).premiada, g(id).status];
+  for (const cargo of ['SV', 'RT']) for (const canal of ['Mista', 'Segmentada']) {
+    const lim = PREMIADAS[cargo][canal], pre = cargo + canal[0], n = (i) => pre + String(i).padStart(2, '0');
+    assert.deepEqual([pre + 'V', pre + 'P', n(1), n(lim), n(lim + 1)].map(ver), [
+      [pre + 'V', false, true, null, false, '-'],                                  // pontos ok, sem o gatilho de volume
+      [pre + 'P', true, false, null, false, '-'],                                  // volume ok, pontos abaixo do mínimo
+      [n(1), true, true, 1, true, 'Bateu!'],
+      [n(lim), true, true, lim, true, 'Bateu!'],                                   // última posição premiada
+      [n(lim + 1), true, true, lim + 1, false, 'Bateu, mas não está no total'],    // primeira fora
+    ], `${cargo} ${canal}`);
+    const grupo = res.pessoas.filter((p) => p.cargo === cargo && p.canal === canal);
+    assert.deepEqual(['-', 'Bateu, mas não está no total', 'Bateu!'].map((s) => grupo.filter((p) => p.status === s).length), [2, 1, lim]);
+  }
+  assert.ok(!res.pessoas.some((p) => p.status === 'No total'));
+  assert.deepEqual(conferir(res, e), []);
+});
+
+test('regressão (31/10/2026): pontos, posições e quem está em cada status iguais aos de antes da troca; só o texto mudou', () => {
+  const antes = require('./fixtures/regressao-status-bateu.json').resultado; // motor v3.2, antes da troca
+  const troca = (s) => (s === 'No total' ? 'Bateu!' : s);                   // o único texto que mudou
+  assert.deepEqual(resumoStatus(calcular(cenarioStatus())), {
+    pessoas: antes.pessoas.map((l) => l.slice(0, -1).concat(troca(l[l.length - 1]))),
+    ranking: antes.ranking,
+  });
 });
 
 // ── helpers de cenário ───────────────────────────────────

@@ -570,7 +570,7 @@ test('regressão: outubro pela API (fixture) dá o mesmo resultado de antes da v
   const res = M.calcular(montarEntrada(dadosDaApi(INDEX, GERENCIAS, BASE, CONFIG), CONFIG).entrada);
   assert.deepEqual(resumoRes(res), [
     ['A11', 'RT', 'Segmentada', [['Volume Sabores', 0, '80,0%'], ['Volume Refri Single', 3, '101,6%'], ['Volume Powerade', 0, '80,0%'], ['Volume Sucos', 0, '85,0%'], ['Missões Guiadas', 3, '100,0%']], 6, null, '91,0%', false, false, null, '-'],
-    ['A12', 'RT', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, null, '99,3%', true, true, 1, 'No total'],
+    ['A12', 'RT', 'Mista', [['Volume Sabores', 5, '105,0%'], ['Volume Retornáveis', 3, '103,3%'], ['Missões Guiadas', 3, '100,0%'], ['Volume Sucos', 5, '105,0%'], ['Volume Powerade', 5, '106,0%']], 21, null, '99,3%', true, true, 1, 'Bateu!'],
     // Sv. An.1 tem 1 rota Mista e 1 Segmentada: empate, o SV fica sem canal (fora do ranking) até o admin escolher (29/10/2026)
   ]);
   assert.deepEqual(res.mesesIncompletos, []);
@@ -1161,9 +1161,9 @@ test('mínimo do Consultor: com 17 (ajustes.json), quem tem 17 a 19 pontos e o g
   };
   const premiadas = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 2, Segmentada: 10 } }; // 2 premiadas, para ver os dois status
   assert.deepEqual(await statusCom(JSON.stringify({ regras: { gatilhoPontos: { SV: 60, RT: 17 }, premiadas } })), {
-    R16: [16, '-'], R17: [17, 'Bateu, mas não está no total'], R19: [19, 'No total'], R20: [20, 'No total'] });
+    R16: [16, '-'], R17: [17, 'Bateu, mas não está no total'], R19: [19, 'Bateu!'], R20: [20, 'Bateu!'] });
   assert.deepEqual(await statusCom(JSON.stringify({ regras: { premiadas } })), { // padrão do motor (20)
-    R16: [16, '-'], R17: [17, '-'], R19: [19, '-'], R20: [20, 'No total'] });
+    R16: [16, '-'], R17: [17, '-'], R19: [19, '-'], R20: [20, 'Bateu!'] });
 });
 
 test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gatilhoPontos)', () => {
@@ -1175,6 +1175,22 @@ test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gat
   assert.match(tpl, /R\.gatilhoPontos\.SV/);
   // o motor tem um texto com 60 fixo (avisoOutubro) que o painel não mostra; se passar a mostrar, troque por R.gatilhoPontos
   assert.doesNotMatch(tpl, /avisoOutubro/);
+});
+
+test('status "Bateu!" (31/10/2026): a tela lê os textos de R.status e o HTML gerado não tem mais "No total"', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  // nenhum texto de status fixo no template: pílulas, legenda da aba Regras e largura da coluna vêm do motor
+  assert.doesNotMatch(tpl, /No total|Bateu!|Bateu, mas não está no total/);
+  assert.equal((tpl.match(/\$\{CK\}\$\{R\.status\.dentro\}/g) || []).length, 2);
+  assert.equal((tpl.match(/\$\{UP\}\$\{R\.status\.fora\}/g) || []).length, 2);
+  assert.match(tpl, /textos:\[R\.status\.fora, R\.status\.dentro\], flex:true/);
+  // classes da tela e chaves do motor não mudaram
+  assert.match(tpl, /<span class="pill tot">\$\{CK\}/);
+  assert.match(tpl, /<span class="pill bat">\$\{UP\}/);
+  assert.match(html, /status: \{ nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' \}/);
+  assert.doesNotMatch(html, /No total/, 'rode python painel-q4/scripts/build.py');
 });
 
 // ── aba Confrontos (etapa 11): cartões de duelo; só apresentação, o resultado continua vindo do motor ──

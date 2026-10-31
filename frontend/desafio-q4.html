@@ -474,7 +474,7 @@ button{background:none;border:0;cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.2
+ * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.3
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorQ4.
  *
  * Princípios:
@@ -493,7 +493,7 @@ button{background:none;border:0;cursor:pointer}
 
   // ───────────────────────── REGRAS (fonte única) ─────────────────────────
   const REGRAS = {
-    versao: '3.2',
+    versao: '3.3',
     meses: [10, 11, 12],
     faixas: [ // ordem decrescente; limite inferior inclusivo, em % sobre a meta
       { min: 105, pontos: 5 },
@@ -510,7 +510,9 @@ button{background:none;border:0;cursor:pointer}
     premiadas: { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } },
     cargos: ['SV', 'RT'],
     canais: ['Mista', 'Segmentada'],
-    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'No total' },
+    // textos exibidos ("Bateu!" desde 31/10/2026, só o nome mudou); as chaves (nenhum, fora, dentro)
+    // e as classes da tela (no, bat, tot) não mudam.
+    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' },
     // Itens ainda pendentes de confirmação do Back Office (aparecem no painel)
     notasPendentes: [
       'Prazo de registro dos confrontos em cada mês: todos os confrontos registrados estão sendo considerados.',
@@ -2069,9 +2071,9 @@ function statusDe(r){
   const vol = r.volume.atingido, lim = R.premiadas[r.cargo][r.canal], min = R.gatilhoPontos[r.cargo];
   if(!vol) return { pill:`<span class="pill no">-</span>`, cls:'', micro: r.volume.pct===null ? 'Refrigerantes sem dado para calcular' : `Refrigerantes em ${r.volume.pctTexto}: precisa de ${R.gatilhoVolumePct}%` };
   if(!r.gatilhoPontos.atingido) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Faltam ${min-r.gatilhoPontos.valor} pontos para o mínimo de ${min}` };
-  if(r.premiada) return { pill:`<span class="pill tot">${CK}No total</span>`, cls:'tot', micro:`Dentro das ${lim} premiadas` };
+  if(r.premiada) return { pill:`<span class="pill tot">${CK}${R.status.dentro}</span>`, cls:'tot', micro:`Dentro das ${lim} premiadas` };
   const f=r.posicao-lim;
-  return { pill:`<span class="pill bat">${UP}Bateu, mas não está no total</span>`, cls:'bat', micro:`Suba ${f} ${f===1?'posição':'posições'} para entrar` };
+  return { pill:`<span class="pill bat">${UP}${R.status.fora}</span>`, cls:'bat', micro:`Suba ${f} ${f===1?'posição':'posições'} para entrar` };
 }
 const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
 const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
@@ -2147,7 +2149,7 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
     grupos.push({ ini, fim: cols.length-1, textos:[rotuloPilar(pl.nome)] });
   });
   cols.push({ textos:['Total','mín. '+min,'999'] });
-  cols.push({ textos:['Bateu, mas não está no total'], flex:true });
+  cols.push({ textos:[R.status.fora, R.status.dentro], flex:true });
   GRID = ajustarGrid(cols, alvo, alvo+'|'+st.canal, grupos);
   let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh rh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
   let col = 4;
@@ -2593,8 +2595,8 @@ const SEC = [
   ${T(['Situação','Status'],[
     [`Refrigerantes abaixo de ${pctTxt(R.gatilhoVolumePct)}%`,'<span class="pill no">-</span>'],
     ['Volume atingido, pontos abaixo do mínimo','<span class="pill no">-</span>'],
-    ['Volume e pontos atingidos, fora das posições premiadas',`<span class="pill bat">${UP}Bateu, mas não está no total</span>`],
-    ['Volume e pontos atingidos, dentro das posições premiadas',`<span class="pill tot">${CK}No total</span>`]])}
+    ['Volume e pontos atingidos, fora das posições premiadas',`<span class="pill bat">${UP}${R.status.fora}</span>`],
+    ['Volume e pontos atingidos, dentro das posições premiadas',`<span class="pill tot">${CK}${R.status.dentro}</span>`]])}
   <p>Rankings separados por cargo e canal. Desempate (confronto e ranking): maior % de Refrigerantes.</p>` },
  { id:'pilares', t:'Pilares do mês', html:()=>{
     const nomes=[]; ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(!nomes.includes(p.nome)) nomes.push(p.nome); }));

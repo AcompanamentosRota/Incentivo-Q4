@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.2
+ * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.3
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorQ4.
  *
  * Princípios:
@@ -18,7 +18,7 @@
 
   // ───────────────────────── REGRAS (fonte única) ─────────────────────────
   const REGRAS = {
-    versao: '3.2',
+    versao: '3.3',
     meses: [10, 11, 12],
     faixas: [ // ordem decrescente; limite inferior inclusivo, em % sobre a meta
       { min: 105, pontos: 5 },
@@ -35,7 +35,9 @@
     premiadas: { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } },
     cargos: ['SV', 'RT'],
     canais: ['Mista', 'Segmentada'],
-    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'No total' },
+    // textos exibidos ("Bateu!" desde 31/10/2026, só o nome mudou); as chaves (nenhum, fora, dentro)
+    // e as classes da tela (no, bat, tot) não mudam.
+    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' },
     // Itens ainda pendentes de confirmação do Back Office (aparecem no painel)
     notasPendentes: [
       'Prazo de registro dos confrontos em cada mês: todos os confrontos registrados estão sendo considerados.',
