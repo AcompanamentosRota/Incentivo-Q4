@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-10-30T14:05",
+  "atualizado_em": "2026-11-03T08:43",
   "regras": {
     "gatilhoPontos": {
       "SV": 60,
@@ -75,12 +75,6 @@
     },
     {
       "mes": 10,
-      "id_sv_desafiante": "Sv. Ri.2#Mista",
-      "id_sv_desafiado": "Sv. Rv.1#Mista",
-      "pilar": "Volume Sabores"
-    },
-    {
-      "mes": 10,
       "id_sv_desafiante": "Sv. Di.1#Mista",
       "id_sv_desafiado": "Sv. G1.1#Mista",
       "pilar": "Volume Sabores"
@@ -125,6 +119,12 @@
       "mes": 10,
       "id_sv_desafiante": "Sv. G1.2#Mista",
       "id_sv_desafiado": "Sv. G3.1#Mista",
+      "pilar": "Volume Sabores"
+    },
+    {
+      "mes": 10,
+      "id_sv_desafiante": "Sv. Rv.2#Mista",
+      "id_sv_desafiado": "Sv. Rv.1#Mista",
       "pilar": "Volume Sabores"
     }
   ]
