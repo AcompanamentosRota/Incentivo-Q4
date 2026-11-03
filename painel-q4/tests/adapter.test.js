@@ -141,7 +141,7 @@ test('confrontos: só os válidos entram, na ordem de registro', () => {
   assert.deepEqual(normalizarAjustes({ confrontos: [c(10, 'A#Mista', 'B#Mista', 'Volume Sabores')] }).confrontos.length, 1);
 });
 
-test('confrontos do admin chegam ao motor e dão o bônus ao vencedor e à mesa dele (no fechamento do mês)', () => {
+test('confrontos do admin chegam ao motor e dão o bônus só ao SV vencedor, no fechamento do mês (a mesa não recebe, 03/11/2026)', () => {
   const base = { ...BASE, rotas: BASE.rotas.concat([{ gc: 'An', sv: 'Sv. An.3', rota: 'A14', canal: 'Mista', sub: null, v: {} }]) };
   const gerencias = [{ rotas: GERENCIAS[0].rotas.concat([
     rota('A14', 'SV.AN.3', { sucos: b(100, 100, 0, 3), powerade: b(50, 50, 0, 2), sabores: b(200, 230, 0, 8),
@@ -152,11 +152,11 @@ test('confrontos do admin chegam ao motor e dão o bônus ao vencedor e à mesa 
     { mes: 10, id_sv_desafiante: 'Sv. An.1#Mista', id_sv_desafiado: 'Sv. An.3#Mista', pilar: 'Volume Sabores' },
   ] });
   const dados = aplicarCanalSV(dadosDaApi(INDEX, gerencias, base, CONFIG), aj.canaisSV);
-  // mês aberto (a API não está em fechamento): o vencedor já aparece, mas o +5 fica pendente (regra de 30/10/2026)
+  // mês aberto (a API não está em fechamento): o vencedor já aparece, mas o +5 fica pendente (regra de 30/10/2026), só no SV
   const aberto = M.calcular(montarEntrada(dados, CONFIG, aj.confrontos).entrada);
   assert.equal(aberto.confrontos[0].vencedor, 'Sv. An.3#Mista');
   assert.deepEqual(['Sv. An.3#Mista', 'A14'].map((id) => { const p = aberto.pessoas.find((x) => x.id === id); return [p.pontosConfronto, p.bonusPendente]; }),
-    [[0, M.REGRAS.bonusConfronto], [0, M.REGRAS.bonusConfronto]]);
+    [[0, M.REGRAS.bonusConfronto], [0, 0]]);
   // período de fechamento (meta.fechamento da API): o adaptador avisa o motor e o +5 entra
   const res = M.calcular(montarEntrada({ ...dados, meta: { ...dados.meta, fechamento: true } }, CONFIG, aj.confrontos).entrada);
   const det = res.confrontos[0];
@@ -164,7 +164,8 @@ test('confrontos do admin chegam ao motor e dão o bônus ao vencedor e à mesa 
   assert.equal(det.mesFechado, true);
   assert.equal(det.vencedor, 'Sv. An.3#Mista');                                    // 115% contra 92,5% em Sabores (A11 + A12)
   assert.equal(res.pessoas.find((x) => x.id === 'Sv. An.3#Mista').pontosConfronto, M.REGRAS.bonusConfronto);
-  assert.equal(res.pessoas.find((x) => x.id === 'A14').pontosConfronto, M.REGRAS.bonusConfronto); // a mesa inteira
+  assert.equal(res.pessoas.find((x) => x.id === 'A14').pontosConfronto, 0);        // a mesa do vencedor não recebe
+  assert.equal(res.pessoas.find((x) => x.id === 'A14').id_supervisor, 'Sv. An.3#Mista'); // mas continua na mesa
   assert.equal(res.pessoas.find((x) => x.id === 'A12').pontosConfronto, 0);        // mesa de quem perdeu não ganha
   assert.deepEqual(M.conferir(res), []);
   // sem confronto, ninguém ganha o bônus
@@ -221,7 +222,8 @@ test('carregarDados: lê index e gerências da API; se falhar, usa a base embuti
     assert.equal((await carregarDados(BASE, CONFIG)).meta.origem, 'api');
 
     globalThis.fetch = async () => { throw new Error('Failed to fetch'); };
-    const d = await carregarDados(BASE, CONFIG);
+    // data fixa em outubro: a base embutida só vale no mês dela (sem `hoje`, o teste dependia do relógio)
+    const d = await carregarDados(BASE, CONFIG, null, new Date(2026, 9, 28));
     assert.equal(d.meta.origem, 'base');
     assert.match(d.meta.aviso, /API indisponível/);
     assert.deepEqual(d.rotas.map((r) => r.rota), BASE.rotas.map((r) => r.rota)); // a base inteira (com o canal do SV)
@@ -505,7 +507,7 @@ test('virada: cada confronto é apurado com os dados do mês dele (fechado ou co
   assert.deepEqual(sv1.porMes.map((m) => [m.pontosConfronto, m.bonusPendente]), [[0, 0], [0, 5]]);
   assert.deepEqual(sv2.porMes.map((m) => [m.pontosConfronto, m.bonusPendente]), [[5, 0], [0, 0]]);
   assert.equal(sv1.pontosAcumulados, 21);
-  assert.deepEqual([pessoaDe(res, 'N1').pontosConfronto, pessoaDe(res, 'N1').bonusPendente], [0, 5]); // a mesa leva o +5 só no fechamento
+  assert.deepEqual([pessoaDe(res, 'N1').pontosConfronto, pessoaDe(res, 'N1').bonusPendente], [0, 0]); // a mesa não recebe (03/11/2026)
   assert.equal(pessoaDe(res, 'N3').pontosConfronto, 0);  // o +5 de outubro não passa para novembro
 });
 
@@ -921,7 +923,7 @@ test('canal do SV: padrão = maioria das rotas; o SV aparece só nesse canal e s
   // Retornáveis do SV soma as 3 rotas, inclusive a Segmentada F13: (106 + 106 + 50) / 300 = 87,3%
   assert.equal(sv.pilares.find((x) => x.nome === 'Volume Retornáveis').pctTexto, '87,3%');
   assert.equal(sv.refri.meta, 3000);                                                   // Refrigerantes das 3 rotas
-  // a rota Segmentada continua no ranking do canal dela, com os pilares dela, e na mesa do SV (para o +5)
+  // a rota Segmentada continua no ranking do canal dela, com os pilares dela, e na mesa do SV
   assert.deepEqual([p('F13').canal, p('F13').id_supervisor], ['Segmentada', 'Sv. Fx.1#Mista']);
   assert.deepEqual(A.segmentosDaMesa(d.rotas, 'Sv. Fx.1#Mista'), []);                 // etiqueta: só segmentos do canal do SV
   assert.deepEqual(M.conferir(res), []);

@@ -296,7 +296,7 @@ async function carregarDados(base, cfg, ajustes, hoje) {
  * Canal do SV (decisão da Karen em 29/10/2026 ⚠️): cada supervisão aparece em UM canal só. Vale o do admin
  * (ajustes.json -> canaisSV: {"Sv. An.1": "Mista"}) ou, sem ajuste, o canal com mais rotas na mesa; empate fica sem
  * canal (SV fora do ranking, com aviso) até o admin escolher. O SV soma TODAS as rotas da mesa, medidas nos pilares
- * do canal dele; cada rota continua no ranking do canal dela e ganha o +5 se o SV vencer o confronto.
+ * do canal dele; cada rota continua no ranking do canal dela (o bônus do confronto é só do SV, 03/11/2026).
  */
 function canaisDosSVs(rotas, ajusteSV) {
   const cont = {};

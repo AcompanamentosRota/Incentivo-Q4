@@ -43,7 +43,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 113 testes (38 do motor, 75 do adaptador); precisa de Node 18+
+# testes do painel — 117 testes (42 do motor, 75 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 38 testes, sem rede (Datasphere falso e simulado)
@@ -119,10 +119,12 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Canal do SV (29/10, ⚠️):** cada SV aparece em **um canal só**: o do admin (`ajustes.json` → `canaisSV`) ou, sem
   ajuste, o da maioria das rotas da mesa; empate fica fora do ranking, com aviso, até o admin escolher. O SV soma
   **todas** as rotas da mesa, medidas nos pilares do canal dele (`aplicarCanalSV` no adaptador); cada rota continua
-  no ranking do canal dela e ganha o +5 se o SV vencer.
+  no ranking do canal dela.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
-  O vencedor leva +5, e toda a mesa dele também; quem perde não perde pontos. **O +5 só entra depois do fechamento do
-  mês (30/10/2026):** o SV, nos pontos acumulados; cada rota da mesa, nos pontos daquele mês. No mês aberto o motor
+  O SV vencedor leva +5; quem perde não perde pontos. **As rotas da mesa não recebem o +5 (03/11/2026, informada pela
+  Karen; substitui o "+5 para toda a mesa"; ⚠️ ainda fora do documento de regras v3.3):** no motor, rota tem
+  `confrontoVencido`, `pontosConfronto` e `bonusPendente` sempre false/0, e o `conferir` acusa `RT_COM_BONUS_CONFRONTO`.
+  **O +5 só entra depois do fechamento do mês (30/10/2026):** nos pontos acumulados do SV. No mês aberto o motor
   devolve o vencedor parcial e o bônus em `bonusPendente` (fora de pontos, gatilho, status e ranking), e a tela mostra
   "vencendo · +5 pts no fechamento". ⚠️ O mês conta como fechado já no período de fechamento da API
   (`entrada.fechamento`, de `meta.fechamento`); os meses anteriores do trimestre, sempre.
@@ -208,7 +210,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 113 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 117 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 38 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
