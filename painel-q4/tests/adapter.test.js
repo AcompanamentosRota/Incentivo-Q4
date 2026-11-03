@@ -221,7 +221,8 @@ test('carregarDados: lê index e gerências da API; se falhar, usa a base embuti
     assert.equal((await carregarDados(BASE, CONFIG)).meta.origem, 'api');
 
     globalThis.fetch = async () => { throw new Error('Failed to fetch'); };
-    const d = await carregarDados(BASE, CONFIG);
+    // data fixa em outubro: a base embutida só vale no mês dela (sem `hoje`, o teste dependia do relógio)
+    const d = await carregarDados(BASE, CONFIG, null, new Date(2026, 9, 28));
     assert.equal(d.meta.origem, 'base');
     assert.match(d.meta.aviso, /API indisponível/);
     assert.deepEqual(d.rotas.map((r) => r.rota), BASE.rotas.map((r) => r.rota)); // a base inteira (com o canal do SV)
