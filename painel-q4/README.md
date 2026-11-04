@@ -151,7 +151,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 75 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
+tests/                       42 testes do motor e 78 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -188,8 +188,10 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   (outubro)").
 - **Pilares de novembro e dezembro (Back Office, 29/10/2026):** 1 a 3 iguais aos de outubro (Mista: Sabores,
   Retornáveis, Missões Guiadas; Segmentada: Sabores, Refri Single, Powerade; "Volume Individuais" = Refri Single).
-  Coringas 4 e 5 a decidir: até entrarem no `CONFIG`, os dois meses ficam "ainda não configurados". Os coringas da
-  Administração só trocam os 4 e 5 de um mês que já tem os 5 pilares no `CONFIG`.
+  **Novembro tem os 5 pilares:** os coringas 4 e 5 são os mesmos de outubro (Mista: Sucos e Powerade; Segmentada:
+  Sucos e Missões Guiadas), informado pela Karen em 04/11/2026. Coringas de **dezembro a decidir**: até entrarem no
+  `CONFIG`, o mês fica "ainda não configurado". Os coringas da Administração só trocam os 4 e 5 de um mês que já tem
+  os 5 pilares no `CONFIG`.
 - **Meses fechados:** o adaptador lê `index.json` → `fechados` e carrega os `fechado/AAAAMM.json` dos meses do
   trimestre anteriores ao de referência (meta e realizado por rota, online = 0). A entrada do motor tem todos os meses
   até o vigente: cada mês com os pilares e os confrontos dele; a mesa do SV em cada mês é a supervisão da rota naquele

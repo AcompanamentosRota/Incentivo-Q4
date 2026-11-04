@@ -1,4 +1,8 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.3 (31/10/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.4 (04/11/2026)
+
+**v3.4:** os pilares **coringa 4 e 5 de novembro** são os mesmos de outubro (decisão informada pela Karen em
+04/11/2026; seção 4). Dezembro continua com os coringas **a decidir**, e Missões Guiadas de novembro segue **sem fonte**
+de meta e realizado por rota (seção 9).
 
 **v3.3:** o status "No total" passa a se chamar **"Bateu!"** (decisão da Karen em 31/10/2026). Muda só o nome: a regra é a
 mesma, e "Bateu, mas não está no total" segue como está (seções 8 e 9).
@@ -58,9 +62,20 @@ mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
 | 4 (Coringa Still) | Volume Sucos | Volume Sucos |
 | 5 (Coringa Still) | Volume Powerade | Missões Guiadas |
 
-- **Pilares 4 e 5 são "coringa" e mudam de mês para mês.** A tabela acima vale para **outubro**; novembro e dezembro podem trazer outros pilares. Não fixar pilares no código: ler a configuração mensal dos dados.
+- **Pilares 4 e 5 são "coringa" e mudam de mês para mês.** A tabela acima vale para **outubro** e, desde 04/11/2026, também para **novembro**; dezembro pode trazer outros pilares. Não fixar pilares no código: ler a configuração mensal dos dados.
 
-**Novembro e dezembro** (decisão do Back Office, informada pela Karen em 29/10/2026):
+**Novembro** (pilares 1 a 3: decisão do Back Office, informada pela Karen em 29/10/2026; **coringas 4 e 5 iguais aos de
+outubro**, informado pela Karen em 04/11/2026):
+
+| # | Mista | Segmentada |
+|---|---|---|
+| 1 | Volume Sabores | Volume Sabores |
+| 2 | Volume Retornáveis | Volume Refri Single ("Volume Individuais") |
+| 3 | Missões Guiadas | Volume Powerade |
+| 4 (Coringa) | Volume Sucos | Volume Sucos |
+| 5 (Coringa) | Volume Powerade | Missões Guiadas |
+
+**Dezembro** (pilares 1 a 3: decisão do Back Office, informada pela Karen em 29/10/2026; coringas 4 e 5 **a decidir**):
 
 | # | Mista | Segmentada |
 |---|---|---|
@@ -70,10 +85,10 @@ mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
 | 4 (Coringa) | a decidir | a decidir |
 | 5 (Coringa) | a decidir | a decidir |
 
-- Os pilares 1 a 3 são os mesmos de outubro nos dois meses. Enquanto os coringas 4 e 5 não forem decididos, o painel mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking desse mês.
-- Missões Guiadas em novembro: ainda **sem fonte** de meta e realizado por rota; até haver fonte, o pilar aparece "sem dados" e não pontua (nunca se assume 100%).
+- Os pilares 1 a 3 são os mesmos de outubro nos dois meses. Enquanto os coringas 4 e 5 de dezembro não forem decididos, o painel mostra "Pilares de dezembro ainda não configurados" e não calcula pontos nem ranking desse mês.
+- Missões Guiadas em novembro: ainda **sem fonte** de meta e realizado por rota; até haver fonte, o pilar aparece "sem dados" e não pontua (nunca se assume 100%). ⚠️ Com isso, em novembro o teto do mês vem dos **4 pilares de volume** de cada canal (20 pontos na escala atual), e não dos 5.
 - **Pilares de volume** (os únicos válidos em confronto): todos, exceto Missões Guiadas.
-- **Missões Guiadas:** em **outubro** entra **validada em 100%** para todos os cargos que a têm, o que vale **3 pontos**. **Novembro e dezembro terão meta**: o pilar passa a pontuar como os demais, com meta, real e online.
+- **Missões Guiadas:** em **outubro** entra **validada em 100%** para todos os cargos que a têm, o que vale **3 pontos**. **Novembro e dezembro terão meta**: o pilar passa a pontuar como os demais, com meta, real e online — **quando houver fonte por rota**, que ainda não existe.
 
 ## 5. Confrontos entre supervisores
 
@@ -158,10 +173,12 @@ cinza. A premiação continua restrita a quem é elegível.
 1. **Nome do status:** em 31/10/2026 "No total" virou **"Bateu!"** (decisão da Karen); "Bateu, mas não está no total" segue como está. A regra não mudou (a tabela da seção 8 é a leitura adotada).
 2. **Pontos acumulados da Rota:** assumido como não aplicável (zera todo mês).
 3. **Confrontos:** prazo de registro em cada mês.
-4. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte).
+4. **Coringas 4 e 5 de dezembro:** ainda não decididos. Até entrarem na configuração do painel, dezembro não calcula pontos nem ranking.
+5. **Fonte de Missões Guiadas de novembro e dezembro:** meta e realizado por rota ainda não definidos; o pilar aparece "sem dados" e não pontua.
+6. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte).
 
 **Resolvidos:** +5 do confronto só depois do fechamento do mês, para o SV (no acumulado) e para a mesa (nos pontos do mês fechado), com o vencedor parcial durante o mês (30/10/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
-cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal; itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
+cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
 
 ## 10. Glossário
 
