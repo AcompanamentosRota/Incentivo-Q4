@@ -31,12 +31,16 @@ const CONFIG = {
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' },
       { nome: 'Volume Powerade', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
     // Novembro e dezembro: pilares 1 a 3 definidos pelo Back Office (informados pela Karen em 29/10/2026), iguais aos
-    // de outubro ("Volume Individuais" da Segmentada = Volume Refri Single). Coringas 4 e 5 ainda a decidir: até
-    // entrarem aqui, o mês fica "ainda não configurado". Missões Guiadas sem fonte: "sem dados", não pontua.
+    // de outubro ("Volume Individuais" da Segmentada = Volume Refri Single).
+    // Novembro: coringas 4 e 5 iguais aos de outubro (informado pela Karen em 04/11/2026).
+    // Dezembro: coringas 4 e 5 ainda a decidir; até entrarem aqui, o mês fica "ainda não configurado".
+    // Missões Guiadas de novembro e dezembro sem fonte: "sem dados", não pontua (nunca 100%).
     { mes: 11, canal: 'Mista', pilares: [
-      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' },
+      { nome: 'Missões Guiadas', tipo: 'missao' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
     { mes: 11, canal: 'Segmentada', pilares: [
-      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
+      { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' },
+      { nome: 'Volume Powerade', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
     { mes: 12, canal: 'Mista', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' } ] },
     { mes: 12, canal: 'Segmentada', pilares: [
