@@ -474,7 +474,7 @@ button{background:none;border:0;cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.2
+ * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.3
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorQ4.
  *
  * Princípios:
@@ -493,7 +493,7 @@ button{background:none;border:0;cursor:pointer}
 
   // ───────────────────────── REGRAS (fonte única) ─────────────────────────
   const REGRAS = {
-    versao: '3.2',
+    versao: '3.3',
     meses: [10, 11, 12],
     faixas: [ // ordem decrescente; limite inferior inclusivo, em % sobre a meta
       { min: 105, pontos: 5 },
@@ -510,11 +510,13 @@ button{background:none;border:0;cursor:pointer}
     premiadas: { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } },
     cargos: ['SV', 'RT'],
     canais: ['Mista', 'Segmentada'],
-    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'No total' },
+    // textos exibidos ("Bateu!" desde 31/10/2026, só o nome mudou); as chaves (nenhum, fora, dentro)
+    // e as classes da tela (no, bat, tot) não mudam.
+    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' },
     // Itens ainda pendentes de confirmação do Back Office (aparecem no painel)
     notasPendentes: [
       'Prazo de registro dos confrontos em cada mês: todos os confrontos registrados estão sendo considerados.',
-      'Confronto vencido vale +5 para SV e mesa mesmo se o SV não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
+      'Confronto vencido vale +5 para o SV mesmo se ele não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
       'O +5 do confronto só entra depois do fechamento do mês (30/10/2026): o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte); até lá o vencedor é parcial.',
       '% acumulado de Refrigerantes do SV = Σ(Real+Online) ÷ Σ Meta, de out até o mês vigente.',
       'Desempate no ranking do SV usa o % acumulado de Refrigerantes do trimestre (no confronto, o % do mês).',
@@ -724,9 +726,9 @@ button{background:none;border:0;cursor:pointer}
         if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, bonusPendente: 0, pontosMes: 0 };
         const c = calc[p.id][mes];
         const pontosPilares = c.pilares.reduce((s, x) => s + x.pontos, 0);
-        const idSV = p.cargo === 'SV' ? p.id : supervisor ? supervisor.id : null;
-        const venceu = !!(idSV && confrontoMes[mes].resultado[idSV] && confrontoMes[mes].resultado[idSV].venceu);
-        // SV e mesa: o +5 entra nos pontos (e daí no acumulado do SV e no gatilho da rota) só com o mês fechado
+        // o bônus do confronto é só do SV (decisão de 03/11/2026): as rotas da mesa não recebem, nem pendente
+        const venceu = p.cargo === 'SV' && !!(confrontoMes[mes].resultado[p.id] && confrontoMes[mes].resultado[p.id].venceu);
+        // o +5 entra nos pontos (e daí no acumulado do SV) só com o mês fechado
         const pontosConfronto = venceu && mesFechado(mes) ? REGRAS.bonusConfronto : 0;
         const bonusPendente = venceu && !mesFechado(mes) ? REGRAS.bonusConfronto : 0;
         c.alertas.forEach((a) => alertas.push('M' + mes + ':' + a));
@@ -761,7 +763,7 @@ button{background:none;border:0;cursor:pointer}
         porMes,
         pontosPilares: mesAtual.pontosPilares,
         pontosConfronto: mesAtual.pontosConfronto,
-        bonusPendente: mesAtual.bonusPendente, // +5 de confronto que o SV (ou a mesa) está vencendo e que só entra no fechamento
+        bonusPendente: mesAtual.bonusPendente, // +5 de confronto que o SV está vencendo e que só entra no fechamento (rota: 0)
         pontosMes: mesAtual.pontosMes, // valor interno (sempre numérico)
         pontosAcumulados: p.cargo === 'SV' ? acumulado : undefined, // Consultor: não se aplica
         acumuladoIncompleto: p.cargo === 'SV' ? incompletos.map((x) => x.mes) : undefined,
@@ -827,6 +829,7 @@ button{background:none;border:0;cursor:pointer}
       if (r.pilares.reduce((s, x) => s + x.pontos, 0) !== r.pontosPilares) falhas.push('SOMA_PILARES:' + r.id);
       if (!r.volume.atingido && (r.status !== '-' || r.posicao !== null)) falhas.push('SEM_GATILHO_VOLUME_COM_STATUS:' + r.id);
       if (r.cargo === 'RT' && 'pontosAcumulados' in r && r.pontosAcumulados !== undefined) falhas.push('RT_COM_ACUMULADO:' + r.id);
+      if (r.cargo === 'RT' && r.porMes.some((m) => m.confrontoVencido || m.pontosConfronto || m.bonusPendente)) falhas.push('RT_COM_BONUS_CONFRONTO:' + r.id);
     }
     const ids = resultado.pessoas.map((r) => r.id);
     if (new Set(ids).size !== ids.length) falhas.push('PESSOA_DUPLICADA');
@@ -1140,7 +1143,7 @@ async function carregarDados(base, cfg, ajustes, hoje) {
  * Canal do SV (decisão da Karen em 29/10/2026 ⚠️): cada supervisão aparece em UM canal só. Vale o do admin
  * (ajustes.json -> canaisSV: {"Sv. An.1": "Mista"}) ou, sem ajuste, o canal com mais rotas na mesa; empate fica sem
  * canal (SV fora do ranking, com aviso) até o admin escolher. O SV soma TODAS as rotas da mesa, medidas nos pilares
- * do canal dele; cada rota continua no ranking do canal dela e ganha o +5 se o SV vencer o confronto.
+ * do canal dele; cada rota continua no ranking do canal dela (o bônus do confronto é só do SV, 03/11/2026).
  */
 function canaisDosSVs(rotas, ajusteSV) {
   const cont = {};
@@ -2069,9 +2072,9 @@ function statusDe(r){
   const vol = r.volume.atingido, lim = R.premiadas[r.cargo][r.canal], min = R.gatilhoPontos[r.cargo];
   if(!vol) return { pill:`<span class="pill no">-</span>`, cls:'', micro: r.volume.pct===null ? 'Refrigerantes sem dado para calcular' : `Refrigerantes em ${r.volume.pctTexto}: precisa de ${R.gatilhoVolumePct}%` };
   if(!r.gatilhoPontos.atingido) return { pill:`<span class="pill no">-</span>`, cls:'', micro:`Faltam ${min-r.gatilhoPontos.valor} pontos para o mínimo de ${min}` };
-  if(r.premiada) return { pill:`<span class="pill tot">${CK}No total</span>`, cls:'tot', micro:`Dentro das ${lim} premiadas` };
+  if(r.premiada) return { pill:`<span class="pill tot">${CK}${R.status.dentro}</span>`, cls:'tot', micro:`Dentro das ${lim} premiadas` };
   const f=r.posicao-lim;
-  return { pill:`<span class="pill bat">${UP}Bateu, mas não está no total</span>`, cls:'bat', micro:`Suba ${f} ${f===1?'posição':'posições'} para entrar` };
+  return { pill:`<span class="pill bat">${UP}${R.status.fora}</span>`, cls:'bat', micro:`Suba ${f} ${f===1?'posição':'posições'} para entrar` };
 }
 const CHEV='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>';
 const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single':1, 'Missões Guiadas':2, 'Volume Sucos':3, 'Volume Powerade':4 };
@@ -2147,7 +2150,7 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
     grupos.push({ ini, fim: cols.length-1, textos:[rotuloPilar(pl.nome)] });
   });
   cols.push({ textos:['Total','mín. '+min,'999'] });
-  cols.push({ textos:['Bateu, mas não está no total'], flex:true });
+  cols.push({ textos:[R.status.fora, R.status.dentro], flex:true });
   GRID = ajustarGrid(cols, alvo, alvo+'|'+st.canal, grupos);
   let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh rh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
   let col = 4;
@@ -2488,14 +2491,15 @@ function renderConfrontos(){
   };
   // caixa de resultado: S1 vencedor, S2 válido sem vencedor, S3 não vale (sempre com texto, além da cor).
   // Mês aberto (c.mesFechado = false, do motor): o vencedor é parcial e o bônus só entra no fechamento (regra de 30/10/2026).
+  // O bônus é só do SV vencedor; as rotas da mesa não recebem (regra de 03/11/2026).
   const caixa = (c, e)=>{
     if(e.caixa==='S1'){
       const nm = nomeSV(c.vencedor), des = e.desempate ? MOTIVOS.DESEMPATE_REFRI : '', fech = c.mesFechado;
-      const rot = (fech ? `Vencedor ${nm}: +${R.bonusConfronto} pontos para o SV e toda a mesa`
-        : `Vencendo ${nm}: +${R.bonusConfronto} pontos para o SV e toda a mesa no fechamento do mês`) + (des ? `, ${des}` : '');
+      const rot = (fech ? `Vencedor ${nm}: +${R.bonusConfronto} pontos só para o SV; as rotas da mesa não recebem`
+        : `Vencendo ${nm}: +${R.bonusConfronto} pontos só para o SV, no fechamento do mês; as rotas da mesa não recebem`) + (des ? `, ${des}` : '');
       return `<div class="cfres s1" role="group" aria-label="${esc(rot)}"${des ? ` title="${esc(des)}"` : ''}>`
         + `<div class="rl">${TACA}${fech ? 'Vencedor' : 'Vencendo'}</div><div class="rn">${esc(nm)}</div>`
-        + `<div class="rp">+${R.bonusConfronto} pts · ${!fech ? 'no fechamento' : des ? 'desempate' : 'SV e mesa'}</div></div>`;
+        + `<div class="rp">+${R.bonusConfronto} pts · ${!fech ? 'no fechamento' : des ? 'desempate' : 'SV'}</div></div>`;
     }
     const s3 = e.caixa==='S3', mot = s3 ? motivoConf(c) : (MOTIVOS[c.motivo] || 'sem vencedor');
     return `<div class="cfres ${s3 ? 's3' : 's2'}" role="group" aria-label="${esc((s3 ? 'Não vale: ' : 'Sem vencedor: ') + mot)}" title="${esc(mot)}">`
@@ -2512,8 +2516,8 @@ function renderConfrontos(){
   $('rodleg').innerHTML = lst.length ? `<i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = ${aberto ? 'vencendo (parcial)' : 'vencedor'}`
     + ` · <b>Por canal:</b> ${contagem(rs.porCanal)} · <b>Por pilar:</b> ${contagem(rs.porPilar)}` : '';
   // a nota entra antes de medir: a altura das linhas é o que sobra no cartão
-  $('cfnota').innerHTML = `O vencedor leva +${R.bonusConfronto} pontos, e toda a mesa dele também, só depois do fechamento do mês: o SV, nos pontos acumulados; `
-    + `cada rota da mesa, nos pontos daquele mês. Até lá o vencedor é parcial. Quem perde não perde pontos. `
+  $('cfnota').innerHTML = `O +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem. Ele entra só depois do fechamento do mês, `
+    + `nos pontos acumulados do SV; até lá o vencedor é parcial. Quem perde não perde pontos. `
     + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
     + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
     + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
@@ -2582,7 +2586,7 @@ const SEC = [
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
   <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
-  <p>Confronto entre Supervisores: o SV vencedor ganha +${R.bonusConfronto} e toda a mesa dele ganha +${R.bonusConfronto} também, <b>só depois do fechamento do mês</b> (decisão de 30/10/2026): o SV, nos pontos acumulados do trimestre; cada rota da mesa, nos pontos daquele mês. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. <span class="pend">⚠️ o mês conta como fechado já no período de fechamento da API</span> Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} dos pilares + ${R.bonusConfronto} do confronto (no fechamento).</p>
+  <p>Confronto entre Supervisores: o +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem (decisão de 03/11/2026). Ele entra <b>só depois do fechamento do mês</b> (decisão de 30/10/2026), nos pontos acumulados do trimestre do SV. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. <span class="pend">⚠️ o mês conta como fechado já no período de fechamento da API</span> Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} pontos, só dos pilares.</p>
   <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
  { id:'gatilhos', t:'Gatilhos e status', html:()=>`<h2>Gatilhos e status</h2><div class="sub">Dois gatilhos precisam ser batidos para a rota entrar no ranking e na premiação.</div>
   ${T(['Gatilho','Consultor (Rota)','Supervisor'],[
@@ -2593,8 +2597,8 @@ const SEC = [
   ${T(['Situação','Status'],[
     [`Refrigerantes abaixo de ${pctTxt(R.gatilhoVolumePct)}%`,'<span class="pill no">-</span>'],
     ['Volume atingido, pontos abaixo do mínimo','<span class="pill no">-</span>'],
-    ['Volume e pontos atingidos, fora das posições premiadas',`<span class="pill bat">${UP}Bateu, mas não está no total</span>`],
-    ['Volume e pontos atingidos, dentro das posições premiadas',`<span class="pill tot">${CK}No total</span>`]])}
+    ['Volume e pontos atingidos, fora das posições premiadas',`<span class="pill bat">${UP}${R.status.fora}</span>`],
+    ['Volume e pontos atingidos, dentro das posições premiadas',`<span class="pill tot">${CK}${R.status.dentro}</span>`]])}
   <p>Rankings separados por cargo e canal. Desempate (confronto e ranking): maior % de Refrigerantes.</p>` },
  { id:'pilares', t:'Pilares do mês', html:()=>{
     const nomes=[]; ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(!nomes.includes(p.nome)) nomes.push(p.nome); }));
@@ -2670,7 +2674,7 @@ const SEC = [
        ? ['1',`<b>Categoria Refrigerantes:</b> o gatilho de ${pctTxt(R.gatilhoVolumePct)}% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).`,'Back Office / IM',OK]
        : ['1',`<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de ${pctTxt(R.gatilhoVolumePct)}%. Afeta quem entra no ranking.`,'Back Office / IM',P],
      ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
-     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real. ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas e ganham o +'+R.bonusConfronto+' se o SV vencer o confronto (no fechamento do mês). Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real. ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas, e o +'+R.bonusConfronto+' do confronto vale só para o SV (as rotas da mesa não recebem). Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
      DADOS.meta.origem==='api'
        ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
        : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
@@ -2846,7 +2850,7 @@ function adminHtml(){
       ${['Mista','Segmentada'].map(c=>[0,1].map(i=>`<label>${c} · pilar ${4+i}${i===0?`<span class="pv" data-pv="pilares:${c}"></span>`:''}<select id="adm-cor-${c}-${i}">${opcoesPilar(c, cor[c][i])}</select></label>`).join('')).join('')}</div>`
       : `<p class="sub">${esc(avisoSemPilaresTela())}: os coringas do admin só trocam os pilares 4 e 5 de um mês que já tem os ${PILARES_NO_MES} pilares na configuração (<code>CONFIG.pilaresConfig</code>).</p>`}
     <h3>Confrontos entre supervisores</h3>
-    <p class="sub">Cada confronto vale +${R.bonusConfronto} para o supervisor vencedor e para toda a mesa dele, só depois do fechamento do mês; quem perde não perde pontos.
+    <p class="sub">O +${R.bonusConfronto} do confronto vale só para o supervisor vencedor; as rotas da mesa não recebem. Ele entra só depois do fechamento do mês, e quem perde não perde pontos.
       Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês.
       O resultado aparece na tela <b>Confrontos</b>, no botão ao lado das abas.</p>
     <table id="adm-conf"><thead><tr><th>Mês</th><th>Desafiante</th><th>Desafiado</th><th>Pilar</th><th></th></tr></thead>

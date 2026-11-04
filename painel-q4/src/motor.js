@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.2
+ * Motor de cálculo — Desafio Q4 2026 (Coca-Cola Bandeirantes) — regras v3.3
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorQ4.
  *
  * Princípios:
@@ -18,7 +18,7 @@
 
   // ───────────────────────── REGRAS (fonte única) ─────────────────────────
   const REGRAS = {
-    versao: '3.2',
+    versao: '3.3',
     meses: [10, 11, 12],
     faixas: [ // ordem decrescente; limite inferior inclusivo, em % sobre a meta
       { min: 105, pontos: 5 },
@@ -35,11 +35,13 @@
     premiadas: { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } },
     cargos: ['SV', 'RT'],
     canais: ['Mista', 'Segmentada'],
-    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'No total' },
+    // textos exibidos ("Bateu!" desde 31/10/2026, só o nome mudou); as chaves (nenhum, fora, dentro)
+    // e as classes da tela (no, bat, tot) não mudam.
+    status: { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' },
     // Itens ainda pendentes de confirmação do Back Office (aparecem no painel)
     notasPendentes: [
       'Prazo de registro dos confrontos em cada mês: todos os confrontos registrados estão sendo considerados.',
-      'Confronto vencido vale +5 para SV e mesa mesmo se o SV não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
+      'Confronto vencido vale +5 para o SV mesmo se ele não bateu o gatilho de volume (o gatilho só valida a pontuação final).',
       'O +5 do confronto só entra depois do fechamento do mês (30/10/2026): o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte); até lá o vencedor é parcial.',
       '% acumulado de Refrigerantes do SV = Σ(Real+Online) ÷ Σ Meta, de out até o mês vigente.',
       'Desempate no ranking do SV usa o % acumulado de Refrigerantes do trimestre (no confronto, o % do mês).',
@@ -249,9 +251,9 @@
         if (incompletos.some((x) => x.mes === mes)) return { mes, semDado: true, pontosPilares: 0, confrontoVencido: false, pontosConfronto: 0, bonusPendente: 0, pontosMes: 0 };
         const c = calc[p.id][mes];
         const pontosPilares = c.pilares.reduce((s, x) => s + x.pontos, 0);
-        const idSV = p.cargo === 'SV' ? p.id : supervisor ? supervisor.id : null;
-        const venceu = !!(idSV && confrontoMes[mes].resultado[idSV] && confrontoMes[mes].resultado[idSV].venceu);
-        // SV e mesa: o +5 entra nos pontos (e daí no acumulado do SV e no gatilho da rota) só com o mês fechado
+        // o bônus do confronto é só do SV (decisão de 03/11/2026): as rotas da mesa não recebem, nem pendente
+        const venceu = p.cargo === 'SV' && !!(confrontoMes[mes].resultado[p.id] && confrontoMes[mes].resultado[p.id].venceu);
+        // o +5 entra nos pontos (e daí no acumulado do SV) só com o mês fechado
         const pontosConfronto = venceu && mesFechado(mes) ? REGRAS.bonusConfronto : 0;
         const bonusPendente = venceu && !mesFechado(mes) ? REGRAS.bonusConfronto : 0;
         c.alertas.forEach((a) => alertas.push('M' + mes + ':' + a));
@@ -286,7 +288,7 @@
         porMes,
         pontosPilares: mesAtual.pontosPilares,
         pontosConfronto: mesAtual.pontosConfronto,
-        bonusPendente: mesAtual.bonusPendente, // +5 de confronto que o SV (ou a mesa) está vencendo e que só entra no fechamento
+        bonusPendente: mesAtual.bonusPendente, // +5 de confronto que o SV está vencendo e que só entra no fechamento (rota: 0)
         pontosMes: mesAtual.pontosMes, // valor interno (sempre numérico)
         pontosAcumulados: p.cargo === 'SV' ? acumulado : undefined, // Consultor: não se aplica
         acumuladoIncompleto: p.cargo === 'SV' ? incompletos.map((x) => x.mes) : undefined,
@@ -352,6 +354,7 @@
       if (r.pilares.reduce((s, x) => s + x.pontos, 0) !== r.pontosPilares) falhas.push('SOMA_PILARES:' + r.id);
       if (!r.volume.atingido && (r.status !== '-' || r.posicao !== null)) falhas.push('SEM_GATILHO_VOLUME_COM_STATUS:' + r.id);
       if (r.cargo === 'RT' && 'pontosAcumulados' in r && r.pontosAcumulados !== undefined) falhas.push('RT_COM_ACUMULADO:' + r.id);
+      if (r.cargo === 'RT' && r.porMes.some((m) => m.confrontoVencido || m.pontosConfronto || m.bonusPendente)) falhas.push('RT_COM_BONUS_CONFRONTO:' + r.id);
     }
     const ids = resultado.pessoas.map((r) => r.id);
     if (new Set(ids).size !== ids.length) falhas.push('PESSOA_DUPLICADA');

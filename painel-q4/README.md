@@ -67,7 +67,7 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
   traz o nome do SV, "canal · unidade", o % do pilar (truncado, como em todo o painel) e uma barra que vai até 100%.
   Etiquetas de segmento: **uma** (Mini, Mod ou "2 canais") fica ao lado do nome; **duas ou mais** vão para a linha do
   subtexto, que então usa a largura toda do cartão, e o % sobe para a linha do nome (26 px).
-- **Resultado:** S1 **Vencedor** (taça, nome e `+<bônus> pts · SV e mesa`, ou `· desempate` quando decidido pelo % de
+- **Resultado:** S1 **Vencedor** (taça, nome e `+<bônus> pts · SV`, ou `· desempate` quando decidido pelo % de
   Refrigerantes, com o motivo no `title`). No **mês aberto** o S1 é **parcial**: "Vencendo" e `+<bônus> pts · no
   fechamento`, porque o bônus só entra depois do fechamento do mês (regra de 30/10/2026; o motor diz isso em
   `mesFechado`), e as contagens e a legenda falam em "vencendo"; S2 **Sem vencedor** (empate sem vencedor ou sem dado, com o motivo); S3
@@ -98,8 +98,8 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
   "publicado" ou "este navegador"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
   confirmação quando valem para a mesa. O campo **Canal do SV** define em qual canal a supervisão aparece (uma só):
   "Padrão" é o canal da maioria das rotas da mesa; empate deixa o SV fora do ranking, com aviso, até alguém escolher.
-  O SV soma todas as rotas da mesa, medidas nos pilares do canal dele; cada rota continua no ranking do canal dela e
-  ganha o +5 se o SV vencer o confronto. O bloco avisa quando a mesa tem rotas de canais diferentes e "restaurar
+  O SV soma todas as rotas da mesa, medidas nos pilares do canal dele; cada rota continua no ranking do canal dela
+  (o +5 do confronto é só do SV). O bloco avisa quando a mesa tem rotas de canais diferentes e "restaurar
   padrão desta mesa" também volta o canal do SV ao padrão. Antes de salvar ou publicar, confira o resumo
   "Alterações para publicar" (no fim da Administração).
   O **canal** é o que o motor usa (Mista, Segmentada ou sem canal); o **segmento** é só etiqueta, ao lado do canal nas
@@ -109,7 +109,7 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
   de pontos, ranking e premiação.
 - **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
   recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
-  apurado na tela Confrontos; o vencedor leva +5 e toda a mesa dele também, só depois do fechamento do mês. Se um ajuste de canal tirar a mesa do
+  apurado na tela Confrontos; o +5 vale só para o SV vencedor (as rotas da mesa não recebem, 03/11/2026), só depois do fechamento do mês. Se um ajuste de canal tirar a mesa do
   canal do confronto, ele continua cadastrado e a tela Confrontos (e a lista da Administração) mostra "canal ajustado"
   com as rotas que mudaram.
 - **Agrupadores extras:** inclua ou exclua agrupadores do Datasphere (o campo sugere os que têm meta no mês, de
@@ -151,7 +151,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       36 testes do motor e 74 do adaptador (fixtures/: regressão de outubro e do ajustes.json antigo)
+tests/                       42 testes do motor e 75 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -202,7 +202,8 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   não pontua.
 - **Confrontos:** cada um é apurado com os dados do mês dele (fechado ou corrente); a tela Confrontos tem a escolha do mês.
   **O +5 só entra com o mês fechado (30/10/2026):** os meses anteriores do trimestre e, no período de fechamento da API
-  (`meta.fechamento`), o próprio mês de referência. O SV soma o +5 no acumulado; cada rota da mesa, nos pontos daquele mês.
+  (`meta.fechamento`), o próprio mês de referência. O SV soma o +5 no acumulado. **As rotas da mesa não recebem o +5
+  (03/11/2026):** no motor, `confrontoVencido`, `pontosConfronto` e `bonusPendente` da rota ficam sempre false/0.
   No mês aberto o motor devolve o bônus em `bonusPendente`, fora dos pontos, do gatilho, do status e do ranking.
 - **Totais da aba Estratégicos:** o adaptador expõe `totaisGerencia` (de `gerencias/{GC}.json` → `produtos`) e
   `totalEmpresa` (de `resumo.json` → `empresa.produtos`); se o `resumo.json` falhar, o total vira a soma das

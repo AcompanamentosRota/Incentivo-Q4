@@ -205,25 +205,57 @@ test('SV: abaixo de 95% acumulado os pontos acumulados aparecem, mas o status fi
 });
 
 // ── 7. gatilho de pontos ─────────────────────────────────
-test('Consultor: 20 pontos no mês é o mínimo (19 = "-", 20 = ranqueado)', () => {
-  // out: 5 pilares a 100% = 15; +5 se SV vence confronto => 20
-  const pessoas = [pessoa('SV1', 'SV', 'Mista'), pessoa('SV2', 'SV', 'Mista'), pessoa('RT1', 'RT', 'Mista', 'SV1'), pessoa('RT2', 'RT', 'Mista', 'SV2')];
-  const medidas = ['SV1', 'SV2', 'RT1', 'RT2'].flatMap((id) => med(id, 10, CFG_OUT, 'Mista', 100));
-  // SV1 vence SV2 em Sabores (precisa ter pct maior): ajustar SV1 a 101%
-  medidas.find((m) => m.id === 'SV1' && m.pilar === 'Volume Sabores').real = vol(101);
-  const confrontos = [{ mes: 10, id_sv_desafiante: 'SV1', id_sv_desafiado: 'SV2', pilar: 'Volume Sabores', ordem_registro: 1 }];
-  // o +5 só entra com o mês fechado (30/10/2026): no mês aberto a rota fica com 15 e o +5 pendente
-  const aberto = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos }).pessoas.find((p) => p.id === 'RT1');
-  assert.deepEqual([aberto.pontosMes, aberto.bonusPendente, aberto.gatilhoPontos.atingido, aberto.status], [15, 5, false, '-']);
-  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento: true });
+test('Consultor: 20 pontos no mês é o mínimo (19 = "-", 20 = ranqueado), só com os pilares', () => {
+  // out: Missões validada (3) + 4 pilares de volume. RT1 = 5+5+5+2 (+3) = 20; RT2 = 5+5+3+3 (+3) = 19.
+  // Desde 03/11/2026 o +5 do confronto é só do SV: a rota chega ao mínimo só pelos pilares.
+  const pessoas = [pessoa('SV1', 'SV', 'Mista'), pessoa('RT1', 'RT', 'Mista', 'SV1'), pessoa('RT2', 'RT', 'Mista', 'SV1')];
+  const medidas = [...med('SV1', 10, CFG_OUT, 'Mista', 100), ...med('RT1', 10, CFG_OUT, 'Mista', 105), ...med('RT2', 10, CFG_OUT, 'Mista', 105)];
+  medidas.find((m) => m.id === 'RT1' && m.pilar === 'Volume Powerade').real = vol(90);
+  for (const pl of ['Volume Sucos', 'Volume Powerade']) medidas.find((m) => m.id === 'RT2' && m.pilar === pl).real = vol(100);
+  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: [], fechamento: true });
   const rt1 = res.pessoas.find((p) => p.id === 'RT1'), rt2 = res.pessoas.find((p) => p.id === 'RT2');
   assert.equal(rt1.pontosMes, 20);
   assert.equal(rt1.gatilhoPontos.atingido, true);
-  assert.equal(rt1.status, 'No total');
-  assert.equal(rt2.pontosMes, 15);
+  assert.equal(rt1.status, 'Bateu!');
+  assert.equal(rt2.pontosMes, 19);
   assert.equal(rt2.gatilhoPontos.atingido, false);
   assert.equal(rt2.status, '-');
-  assert.equal(rt2.pontosAtuaisExibidos, 15, 'volume ok: pontos aparecem, só o status fica "-"');
+  assert.equal(rt2.pontosAtuaisExibidos, 19, 'volume ok: pontos aparecem, só o status fica "-"');
+});
+
+test('bônus só do SV (03/11/2026): rota da mesa do vencedor com 15 de pilares não chega ao mínimo de 17 nem no fechamento', () => {
+  // até 03/11/2026 o +5 da mesa levava a rota de 15 a 20 e ela batia o mínimo de 17 (ajustes.json)
+  const guardado = JSON.parse(JSON.stringify(M.REGRAS.gatilhoPontos));
+  M.REGRAS.gatilhoPontos.RT = 17;
+  try {
+    const pessoas = [pessoa('Sv. Ficticio A', 'SV', 'Mista'), pessoa('Sv. Ficticio B', 'SV', 'Mista'), pessoa('R901', 'RT', 'Mista', 'Sv. Ficticio A')];
+    const medidas = [...med('Sv. Ficticio A', 10, CFG_OUT, 'Mista', 110), ...med('Sv. Ficticio B', 10, CFG_OUT, 'Mista', 100), ...med('R901', 10, CFG_OUT, 'Mista', 100)];
+    const confrontos = [{ mes: 10, id_sv_desafiante: 'Sv. Ficticio A', id_sv_desafiado: 'Sv. Ficticio B', pilar: 'Volume Sabores', ordem_registro: 1 }];
+    for (const fechamento of [false, true]) {
+      const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento });
+      const rt = res.pessoas.find((p) => p.id === 'R901');
+      assert.equal(res.confrontos[0].vencedor, 'Sv. Ficticio A');
+      assert.deepEqual([rt.pontosPilares, rt.pontosConfronto, rt.bonusPendente, rt.pontosMes], [15, 0, 0, 15], `fechamento=${fechamento}`);
+      assert.deepEqual(rt.porMes.map((m) => m.confrontoVencido), [false]);
+      assert.deepEqual([rt.gatilhoPontos.minimo, rt.gatilhoPontos.valor, rt.gatilhoPontos.atingido], [17, 15, false]);
+      assert.deepEqual([rt.status, rt.posicao, rt.premiada], ['-', null, false]);
+      assert.equal(rt.id_supervisor, 'Sv. Ficticio A'); // a rota continua na mesa (soma do SV e filtros)
+      assert.deepEqual(conferir(res), []);
+    }
+  } finally { M.REGRAS.gatilhoPontos = guardado; }
+});
+
+test('bônus só do SV (03/11/2026): o ranking dos Consultores usa só os pilares', () => {
+  // RA (mesa do vencedor) tem 20; RB (mesa do perdedor) tem 23. Com o +5 da mesa, RA ficava em 1º com 25.
+  const pessoas = [pessoa('A', 'SV', 'Mista'), pessoa('B', 'SV', 'Mista'), pessoa('RA', 'RT', 'Mista', 'A'), pessoa('RB', 'RT', 'Mista', 'B')];
+  const medidas = [...med('A', 10, CFG_OUT, 'Mista', 110), ...med('B', 10, CFG_OUT, 'Mista', 100), ...med('RA', 10, CFG_OUT, 'Mista', 105), ...med('RB', 10, CFG_OUT, 'Mista', 105)];
+  medidas.find((m) => m.id === 'RA' && m.pilar === 'Volume Powerade').real = vol(90);
+  const confrontos = [{ mes: 10, id_sv_desafiante: 'A', id_sv_desafiado: 'B', pilar: 'Volume Sabores', ordem_registro: 1 }];
+  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento: true });
+  const g = (id) => res.pessoas.find((p) => p.id === id);
+  assert.equal(res.confrontos[0].vencedor, 'A');
+  assert.deepEqual(['RB', 'RA'].map((id) => [g(id).gatilhoPontos.valor, g(id).posicao, g(id).status]), [[23, 1, 'Bateu!'], [20, 2, 'Bateu!']]);
+  assert.deepEqual(res.ranking['RT|Mista'].premiados, ['RB', 'RA']);
 });
 
 test('SV: gatilho de 60 é acumulado; em outubro (teto 30) nenhum SV atinge', () => {
@@ -271,22 +303,25 @@ function cenarioConfronto(pctA, pctB, refriA = 100, refriB = 100, extra = {}) {
   return calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: extra.confrontos || confrontos, fechamento: extra.fechamento });
 }
 
-test('confronto: vencedor ganha +5 no fechamento do mês e a mesa dele também; quem perde não perde pontos', () => {
+test('confronto: o SV vencedor ganha +5 no fechamento do mês, a mesa dele não (03/11/2026); quem perde não perde pontos', () => {
   const res = cenarioConfronto(110, 100, 100, 100, { fechamento: true });
   const g = (id) => res.pessoas.find((p) => p.id === id);
   assert.equal(g('A').pontosConfronto, 5);
-  assert.equal(g('RA').pontosConfronto, 5);
+  assert.equal(g('A').pontosMes, 23 + 5);
+  assert.deepEqual([g('RA').pontosConfronto, g('RA').bonusPendente, g('RA').porMes[0].confrontoVencido], [0, 0, false]);
+  assert.equal(g('RA').pontosMes, 15, 'mesa do vencedor fica só com os 15 de pilares');
   assert.equal(g('B').pontosConfronto, 0);
   assert.equal(g('RB').pontosConfronto, 0);
   assert.equal(g('RB').pontosMes, 15, 'mesa do perdedor mantém os 15 de pilares');
   assert.equal(res.confrontos[0].mesFechado, true);
+  assert.deepEqual(conferir(res), []);
 });
 
-test('confronto (regra de 30/10/2026): no mês aberto o vencedor é parcial e o +5 fica pendente, fora dos pontos', () => {
+test('confronto (regra de 30/10/2026): no mês aberto o vencedor é parcial e o +5 fica pendente só no SV, fora dos pontos', () => {
   const res = cenarioConfronto(110, 100);
   const g = (id) => res.pessoas.find((p) => p.id === id);
   assert.deepEqual([res.confrontos[0].vencedor, res.confrontos[0].mesFechado], ['A', false]); // o motor já sabe quem está vencendo
-  assert.deepEqual(['A', 'RA', 'B', 'RB'].map((id) => [g(id).pontosConfronto, g(id).bonusPendente]), [[0, 5], [0, 5], [0, 0], [0, 0]]);
+  assert.deepEqual(['A', 'RA', 'B', 'RB'].map((id) => [g(id).pontosConfronto, g(id).bonusPendente]), [[0, 5], [0, 0], [0, 0], [0, 0]]);
   assert.deepEqual([g('A').pontosMes, g('A').pontosAcumulados, g('RA').pontosMes], [23, 23, 15]); // só pilares: nem no mês, nem no acumulado
   assert.deepEqual(conferir(res), []);
 });
@@ -304,18 +339,48 @@ test('confronto (regra de 30/10/2026): o +5 de um mês fechado entra no acumulad
   assert.deepEqual(a.porMes.map((m) => [m.mes, m.pontosConfronto, m.bonusPendente]), [[10, 5, 0], [11, 0, 5]]);
   assert.equal(a.pontosAcumulados, a.porMes[0].pontosPilares + 5 + a.porMes[1].pontosPilares);
   assert.deepEqual(nov.confrontos.map((c) => [c.mes, c.mesFechado]), [[10, true], [11, false]]);
-  assert.deepEqual([ra.pontosConfronto, ra.bonusPendente], [0, 5]); // a rota zera todo mês: o +5 de novembro só no fechamento
-  // no período de fechamento de novembro (a API mostra novembro fechado) os dois +5 já valem
+  // a rota da mesa não recebe o bônus em nenhum mês, nem pendente (03/11/2026)
+  assert.deepEqual(ra.porMes.map((m) => [m.mes, m.pontosConfronto, m.bonusPendente, m.confrontoVencido]), [[10, 0, 0, false], [11, 0, 0, false]]);
+  // no período de fechamento de novembro (a API mostra novembro fechado) os dois +5 do SV já valem
   const fech = calcular({ ...e, fechamento: true }), a2 = fech.pessoas.find((p) => p.id === 'A');
   assert.deepEqual(a2.porMes.map((m) => m.pontosConfronto), [5, 5]);
   assert.equal(a2.pontosAcumulados, a.pontosAcumulados + 5);
-  assert.equal(fech.pessoas.find((p) => p.id === 'RA').pontosConfronto, 5);
+  assert.deepEqual([fech.pessoas.find((p) => p.id === 'RA').pontosConfronto, fech.pessoas.find((p) => p.id === 'RA').pontosMes], [0, ra.pontosPilares]);
 });
 
 test('confronto: empate no pilar desempata pelo maior % de Refrigerantes', () => {
   const res = cenarioConfronto(100, 100, 98, 101, { fechamento: true });
   assert.equal(res.confrontos[0].vencedor, 'B');
-  assert.equal(res.pessoas.find((p) => p.id === 'RB').pontosConfronto, 5);
+  assert.equal(res.pessoas.find((p) => p.id === 'B').pontosConfronto, 5);
+  assert.equal(res.pessoas.find((p) => p.id === 'RB').pontosConfronto, 0); // a mesa não recebe (03/11/2026)
+});
+
+test('bônus só do SV (03/11/2026): SV perdedor, SV sem confronto e confronto inválido ficam como antes, sem bônus', () => {
+  const pessoas = [pessoa('A', 'SV', 'Mista'), pessoa('B', 'SV', 'Mista'), pessoa('C', 'SV', 'Mista'), pessoa('S', 'SV', 'Segmentada'), pessoa('E', 'SV', 'Mista'),
+    pessoa('RA', 'RT', 'Mista', 'A'), pessoa('RB', 'RT', 'Mista', 'B'), pessoa('RC', 'RT', 'Mista', 'C'), pessoa('RE', 'RT', 'Mista', 'E')];
+  const medidas = [...med('A', 10, CFG_OUT, 'Mista', 110), ...med('C', 10, CFG_OUT, 'Mista', 120), ...med('S', 10, CFG_OUT, 'Segmentada', 100),
+    ...['B', 'E', 'RA', 'RB', 'RC', 'RE'].flatMap((id) => med(id, 10, CFG_OUT, 'Mista', 100))];
+  const confrontos = [
+    { mes: 10, id_sv_desafiante: 'A', id_sv_desafiado: 'B', pilar: 'Volume Sabores', ordem_registro: 1 }, // válido: A vence, B perde
+    { mes: 10, id_sv_desafiante: 'C', id_sv_desafiado: 'S', pilar: 'Volume Sabores', ordem_registro: 2 }, // inválido: canais diferentes
+  ];
+  const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento: true });
+  const g = (id) => res.pessoas.find((p) => p.id === id);
+  assert.deepEqual(res.confrontos.map((c) => [c.valido, c.vencedor, c.motivo]), [[true, 'A', null], [false, null, 'CANAIS_DIFERENTES']]);
+  assert.deepEqual(res.pessoas.filter((p) => p.pontosConfronto > 0).map((p) => p.id), ['A']);
+  for (const id of ['B', 'C', 'S', 'E', 'RA', 'RB', 'RC', 'RE']) {
+    const p = g(id);
+    assert.deepEqual([p.pontosConfronto, p.bonusPendente, p.porMes[0].confrontoVencido, p.pontosMes], [0, 0, false, p.pontosPilares], id);
+  }
+  assert.deepEqual(conferir(res), []);
+});
+
+test('conferir: rota com bônus de confronto é falha (o bônus é só do SV, 03/11/2026)', () => {
+  const res = cenarioConfronto(110, 100, 100, 100, { fechamento: true });
+  assert.deepEqual(conferir(res), []);
+  const ra = res.pessoas.find((p) => p.id === 'RA');
+  ra.porMes[0].confrontoVencido = true; // simula o motor antigo, que passava a vitória do SV para a mesa
+  assert.deepEqual(conferir(res), ['RT_COM_BONUS_CONFRONTO:RA']);
 });
 
 test('confronto: empate total = sem vencedor, sem +5', () => {
@@ -368,8 +433,8 @@ test('ranking Segmentada SV: 2 premiados; 3º "Bateu, mas não está no total"; 
   const res = calcular({ mesRef: 12, pessoas, pilaresConfig: CFGS, medidas, confrontos: [] });
   const g = (id) => res.pessoas.find((p) => p.id === id);
   assert.deepEqual([g('X').posicao, g('Y').posicao, g('Z').posicao], [1, 2, 3]);
-  assert.equal(g('X').status, 'No total');
-  assert.equal(g('Y').status, 'No total');
+  assert.equal(g('X').status, 'Bateu!');
+  assert.equal(g('Y').status, 'Bateu!');
   assert.equal(g('Z').status, 'Bateu, mas não está no total');
   assert.equal(res.ranking['SV|Segmentada'].limite, 2);
 });
@@ -424,6 +489,65 @@ test('formatação: % truncado com vírgula; volume com milhar e 1 casa decimal'
   assert.equal(M.fmtVolume(-1234.56), '-1.234,6');
   assert.equal(M.fmtVolume(0), '0,0');
   assert.equal(M.fmtVolume(null), '-');
+});
+
+// ── 11. status: "No total" virou "Bateu!" (31/10/2026) ───
+// Cenário sintético em dezembro (o SV soma out a dez), com 5 pilares de volume fictícios nos três meses e nos dois canais.
+// Por cargo e canal: (limite + 1) elegíveis a 110% (25 pts/mês), com Refri decrescente para fixar a ordem; um sem o
+// gatilho de volume (Refri 94,99999%) e um com volume e pontos abaixo do mínimo (100% = 15 pts/mês).
+// O mesmo cenário gerou fixtures/regressao-status-bateu.json com o motor de antes da troca.
+const PREMIADAS = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } };
+const CFG_TRI = [10, 11, 12].flatMap((mes) => ['Mista', 'Segmentada'].map((canal) => ({ mes, canal,
+  pilares: ['P1', 'P2', 'P3', 'P4', 'P5'].map((nome) => ({ nome, tipo: 'volume' })) })));
+function cenarioStatus() {
+  const pessoas = [], medidas = [];
+  const add = (id, cargo, canal, sup, pct, refri) => {
+    pessoas.push(pessoa(id, cargo, canal, sup));
+    for (const mes of [10, 11, 12]) medidas.push(...med(id, mes, CFG_TRI, canal, pct, refri));
+  };
+  for (const cargo of ['SV', 'RT']) for (const canal of ['Mista', 'Segmentada']) {
+    const pre = cargo + canal[0], sup = cargo === 'RT' ? 'SV' + canal[0] + '01' : null;
+    for (let i = 1; i <= PREMIADAS[cargo][canal] + 1; i++) add(pre + String(i).padStart(2, '0'), cargo, canal, sup, 110, 120 - i / 4);
+    add(pre + 'V', cargo, canal, sup, 110, 94.99999);
+    add(pre + 'P', cargo, canal, sup, 100, 100);
+  }
+  return { mesRef: 12, pessoas, pilaresConfig: CFG_TRI, medidas, confrontos: [] };
+}
+const resumoStatus = (res) => ({
+  pessoas: res.pessoas.map((p) => [p.id, p.cargo, p.canal, p.pontosMes, p.pontosAcumulados ?? null, p.volume.pctTexto,
+    p.volume.atingido, p.gatilhoPontos.atingido, p.elegivel, p.posicao, p.premiada, p.status]),
+  ranking: res.ranking,
+});
+
+test('status: "-" sem volume, "-" sem pontos, "Bateu, mas não está no total" fora e "Bateu!" dentro das premiadas (SV e Consultor, Mista e Segmentada)', () => {
+  assert.deepEqual(M.REGRAS.status, { nenhum: '-', fora: 'Bateu, mas não está no total', dentro: 'Bateu!' });
+  assert.deepEqual(M.REGRAS.premiadas, PREMIADAS);
+  const e = cenarioStatus(), res = calcular(e);
+  const g = (id) => res.pessoas.find((p) => p.id === id);
+  const ver = (id) => [id, g(id).volume.atingido, g(id).gatilhoPontos.atingido, g(id).posicao, g(id).premiada, g(id).status];
+  for (const cargo of ['SV', 'RT']) for (const canal of ['Mista', 'Segmentada']) {
+    const lim = PREMIADAS[cargo][canal], pre = cargo + canal[0], n = (i) => pre + String(i).padStart(2, '0');
+    assert.deepEqual([pre + 'V', pre + 'P', n(1), n(lim), n(lim + 1)].map(ver), [
+      [pre + 'V', false, true, null, false, '-'],                                  // pontos ok, sem o gatilho de volume
+      [pre + 'P', true, false, null, false, '-'],                                  // volume ok, pontos abaixo do mínimo
+      [n(1), true, true, 1, true, 'Bateu!'],
+      [n(lim), true, true, lim, true, 'Bateu!'],                                   // última posição premiada
+      [n(lim + 1), true, true, lim + 1, false, 'Bateu, mas não está no total'],    // primeira fora
+    ], `${cargo} ${canal}`);
+    const grupo = res.pessoas.filter((p) => p.cargo === cargo && p.canal === canal);
+    assert.deepEqual(['-', 'Bateu, mas não está no total', 'Bateu!'].map((s) => grupo.filter((p) => p.status === s).length), [2, 1, lim]);
+  }
+  assert.ok(!res.pessoas.some((p) => p.status === 'No total'));
+  assert.deepEqual(conferir(res, e), []);
+});
+
+test('regressão (31/10/2026): pontos, posições e quem está em cada status iguais aos de antes da troca; só o texto mudou', () => {
+  const antes = require('./fixtures/regressao-status-bateu.json').resultado; // motor v3.2, antes da troca
+  const troca = (s) => (s === 'No total' ? 'Bateu!' : s);                   // o único texto que mudou
+  assert.deepEqual(resumoStatus(calcular(cenarioStatus())), {
+    pessoas: antes.pessoas.map((l) => l.slice(0, -1).concat(troca(l[l.length - 1]))),
+    ranking: antes.ranking,
+  });
 });
 
 // ── helpers de cenário ───────────────────────────────────
