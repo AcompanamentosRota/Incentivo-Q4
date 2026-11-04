@@ -30,6 +30,7 @@ Incentivo-Q4/
 │   ├── scripts/gerar.py     gera a API
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
 │   ├── scripts/descobrir_produtos.py   confere a grafia dos agrupadores no Datasphere
+│   ├── scripts/diagnosticar_real.py    compara o Real da API com o Real do SAC (só leitura)
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
     ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
