@@ -11,6 +11,11 @@ produtos desta API (M.PRODUTOS). Todas analíticas (o $select de dimensões é o
                                                 clientes em rotas EV* também pela gerência comercial
   clientes    AM_FAT_BND_ANALISE_META           rota x cliente x agrupador: META_NEG do cliente no mês e
                                                 volume dos pedidos de hoje (só 'Inc. e Exp.')
+  online      AM_FAT_BND_ANALISE_META           rota da meta x cliente x agrupador da meta: pedidos de hoje
+                                                pela chave da meta (só nos meses de M.real_pela_meta)
+
+Chave do Real e do Online (_chaves): a partir de M.REAL_PELA_META_DESDE, mês, agrupador e rota da META, como a story
+do SAC; antes, os do faturamento (ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente).
   metas       AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_VOLUME (meta da rota)
   meta_neg    AM_FAT_BND_ANALISE_META           rota x agrupador: META_NEG do mês e da parte restante
   meta_dia    AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_RECUPERAVEL_ROTA de hoje
@@ -29,7 +34,7 @@ from datetime import date, datetime, timedelta
 from . import calendario as calmod
 from . import mapeamento as M
 from . import modelo
-from .consulta import Consulta, e, eq, ou
+from .consulta import Consulta, e, eq, ne, ou
 from .mapeamento import ColBase as B, ColCalendario as CC, ColMeta as CM
 from .texto import inteiro, limpar, normalizar, numero
 from .tipos import Calendario, Cliente, Dados, VolumeRota
@@ -65,11 +70,26 @@ def _somar(d: dict, chave, valor: float) -> None:
     d[chave] = d.get(chave, 0.0) + valor
 
 
-def _por_gerencia(obj: str, sel: list[str], filtro: str | None, gcs_originais: list[str], rota: str | None) -> dict:
-    """Uma consulta por gerência (rodam em paralelo; cada uma bem menor que a consulta inteira)."""
+def _por_gerencia(obj: str, sel: list[str], filtro: str | None, gcs_originais: list[str], rota: str | None,
+                  outras: bool = False) -> dict:
+    """Uma consulta por gerência (rodam em paralelo; cada uma bem menor que a consulta inteira).
+
+    `outras`: mais uma consulta com os clientes de fora dessas gerências. Pela chave da meta, a venda de um cliente de
+    outra gerência pode cair numa rota da meta da base, e o SAC a conta.
+    """
     if rota or not gcs_originais:
         return {"todas": (obj, sel, filtro)}
-    return {g: (obj, sel, e(filtro, eq(CM.GC, g))) for g in gcs_originais}
+    partes = {g: (obj, sel, e(filtro, eq(CM.GC, g))) for g in gcs_originais}
+    if outras:
+        partes["outras"] = (obj, sel, e(filtro, " and ".join(ne(CM.GC, g) for g in gcs_originais)))
+    return partes
+
+
+def _chaves(anomes: str) -> tuple[str, str, str]:
+    """(mês, agrupador, rota) do Real e do Online: os da meta a partir de M.REAL_PELA_META_DESDE (como o SAC)."""
+    if M.real_pela_meta(anomes):
+        return CM.META_ANOMES, CM.META_AGRUPADOR, CM.META_ROTA
+    return CM.ANOMES, CM.AGRUPADOR, CM.ROTA
 
 
 # ------------------------------------------------------------------ calendário
@@ -118,18 +138,23 @@ def _sigla_gc(valor: object) -> str | None:
 
 
 def carregar_volume_real(cons: Consulta, anomes: str, gcs_originais: list[str], rota: str | None):
-    """(real {rota: {prod: v}}, real_cliente {rota: {pv: {prod: v}}}, eventuais {gc: {prod: v}})."""
+    """(real {rota: {prod: v}}, real_cliente {rota: {pv: {prod: v}}}, eventuais {gc: {prod: v}}).
+
+    Pela chave da meta (M.real_pela_meta), a rota é a da meta: a venda vai para a rota dona da meta, como no SAC.
+    """
     obj = M.OBJ_META
-    sel = _colunas(cons, obj, [CM.ROTA, CM.CLIENTE, CM.AGRUPADOR, CM.NF_STATUS, CM.VOL_MES], [CM.GC_COMERCIAL])
-    filtro = e(eq(CM.ANOMES, anomes), ou(CM.AGRUPADOR, M.AGRUPADORES_CONSULTA),
-               M.FILTRO_PEDIDOS_ONLINE, eq(CM.ROTA, rota) if rota else None)
-    linhas = [l for ls in cons.em_paralelo(_por_gerencia(obj, sel, filtro, gcs_originais, rota)).values() for l in ls]
+    col_mes, col_ag, col_rota = _chaves(anomes)
+    sel = _colunas(cons, obj, [col_rota, CM.CLIENTE, col_ag, CM.NF_STATUS, CM.VOL_MES], [CM.GC_COMERCIAL])
+    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA),
+               M.FILTRO_PEDIDOS_ONLINE, eq(col_rota, rota) if rota else None)
+    partes = _por_gerencia(obj, sel, filtro, gcs_originais, rota, outras=M.real_pela_meta(anomes))
+    linhas = [l for ls in cons.em_paralelo(partes).values() for l in ls]
     real: dict = defaultdict(dict)
     real_cli: dict = defaultdict(lambda: defaultdict(dict))
     eventuais: dict = defaultdict(dict)
     status_fora: dict = defaultdict(float)
     for l in linhas:
-        r, pv, k = _rota(l.get(CM.ROTA)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(CM.AGRUPADOR))
+        r, pv, k = _rota(l.get(col_rota)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(col_ag))
         vol, status = numero(l.get(CM.VOL_MES)), l.get(CM.NF_STATUS)
         if not r or not k:
             continue
@@ -176,6 +201,28 @@ def carregar_clientes_meta_online(cons: Consulta, anomes: str, gcs_originais: li
     log.info("Clientes: %d linhas; pedidos de hoje em %d rotas", len(linhas), len(online))
     return ({r: dict(v) for r, v in meta_cli.items()}, dict(online) if com_online else None,
             {r: dict(v) for r, v in online_cli.items()})
+
+
+def carregar_online_pela_meta(cons: Consulta, anomes: str, gcs_originais: list[str], rota: str | None):
+    """(online {rota: {prod: v}}, online_cli {rota: {pv: {prod: v}}}) pela chave e pela rota da meta, como o SAC."""
+    obj = M.OBJ_META
+    col_mes, col_ag, col_rota = _chaves(anomes)
+    sel = _colunas(cons, obj, [col_rota, CM.CLIENTE, col_ag, CM.VOL_ONLINE])
+    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), M.FILTRO_PEDIDOS_ONLINE,
+               eq(col_rota, rota) if rota else None)
+    partes = _por_gerencia(obj, sel, filtro, gcs_originais, rota, outras=True)
+    linhas = [l for ls in cons.em_paralelo(partes).values() for l in ls]
+    online: dict = defaultdict(dict)
+    online_cli: dict = defaultdict(lambda: defaultdict(dict))
+    for l in linhas:
+        r, pv, k = _rota(l.get(col_rota)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(col_ag))
+        vol_on = numero(l.get(CM.VOL_ONLINE))
+        if not r or pv is None or not k or not vol_on:
+            continue
+        _somar(online[r], k, vol_on)
+        _somar(online_cli[r][pv], k, vol_on)
+    log.info("Pedidos de hoje pela rota da meta: %d linhas, %d rotas", len(linhas), len(online))
+    return dict(online), {r: dict(v) for r, v in online_cli.items()}
 
 
 # ------------------------------------------------------------------ metas da rota e curva da META_NEG
@@ -335,16 +382,21 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None) -> Dados:
     if not rota:
         cal = decidir_fechamento(cons, hoje, linhas_cal, gc_da_rota) or cal
     anomes, fech = cal.anomes, cal.fechamento
+    pela_meta = M.real_pela_meta(anomes)
 
     with ThreadPoolExecutor(max_workers=6) as ex:
         f_real = ex.submit(carregar_volume_real, cons, anomes, gcs, rota)
-        f_cli = ex.submit(carregar_clientes_meta_online, cons, anomes, gcs, rota, not fech)
+        # pela chave da meta, os pedidos de hoje saem numa consulta própria; a META_NEG do cliente fica como está
+        f_cli = ex.submit(carregar_clientes_meta_online, cons, anomes, gcs, rota, not fech and not pela_meta)
+        f_on = ex.submit(carregar_online_pela_meta, cons, anomes, gcs, rota) if pela_meta and not fech else None
         f_metas = ex.submit(carregar_metas_volume, cons, anomes, rota)
         f_neg = ex.submit(carregar_curva_neg, cons, anomes, gcs, rota, hoje, not fech)
         f_dia = None if fech else ex.submit(carregar_meta_dia, cons, anomes, gcs, rota, hoje)
         f_ags = None if rota else ex.submit(carregar_agrupadores_meta, cons, anomes)
         real, real_cli, ev = f_real.result()
         meta_cli, online, online_cli = f_cli.result()
+        if f_on:
+            online, online_cli = f_on.result()
         metas = f_metas.result()
         neg_mes, neg_rest, fonte_neg = f_neg.result()
         meta_dia = f_dia.result() if f_dia else None
@@ -387,6 +439,11 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None) -> Dados:
         avisos.append("Tendência por dias úteis (META_VOLUME sem curva de META_NEG) em: " + ", ".join(casos[modelo.SEM_CURVA]))
     if casos[modelo.SEM_META_ROTA]:
         avisos.append("Meta = soma de META_NEG (sem META_VOLUME) em: " + ", ".join(casos[modelo.SEM_META_ROTA]))
+    if pela_meta:
+        fora = {r: sum(ks.values()) for r, ks in real.items() if r not in gc_da_rota and not M.rota_eventual(r)}
+        if fora:
+            avisos.append("Real pela rota da meta em rotas fora da base de clientes (fica fora da API): "
+                          + ", ".join(f"{r} {v:,.1f}" for r, v in sorted(fora.items())))
 
     # clientes: META_NEG do cliente x Vol Real do cliente (só rotas da base)
     vol_cli: dict = {}
