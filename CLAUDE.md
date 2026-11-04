@@ -47,7 +47,7 @@ rotas com Real.
 # testes do painel — 117 testes (42 do motor, 75 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 71 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 80 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -137,6 +137,11 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Desempate (confronto e ranking): maior % de Refrigerantes.
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
+- **Real e Online iguais ao SAC (03/11/2026, decisão da Karen; a partir de novembro/26):** o gerador lê o Real e o Online
+  pela chave da meta, como a story do SAC: mês, agrupador e **rota da meta** (`*_Chave_Meta_SAP`), não a rota do
+  cliente. Venda sem chave de meta (mês `210012`, agrupador `--`) fica fora, as rotas `-EV` somem, e o Real de um produto
+  só aparece depois que a meta dele é carregada. Outubro e antes seguem pela chave do faturamento (`M.real_pela_meta`,
+  `M.REAL_PELA_META_DESDE`). A META_NEG do cliente continua pela rota do cliente.
 - **Contrato da API estável:** os campos de `api/v1` descritos em `API.md` não mudam de forma.
 - Orçamento, custo dos prêmios e valores de premiação ficam **fora** do painel e do repositório.
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação. (A regra v3.1 ainda diz
@@ -217,7 +222,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 117 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 71 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 80 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

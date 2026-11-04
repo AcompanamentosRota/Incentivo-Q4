@@ -166,6 +166,17 @@ ROTAS_IGNORAR_PREFIXOS = ("EV",)          # rotas eventuais
 FILTRO_PEDIDOS_ONLINE = f"({ColMeta.FONTE} ne 'WF Online' or {ColMeta.SITUACAO_PEDIDO} eq 'Inc. e Exp.')"
 # Vol Real (critério do SAC): FX_VOL_PADRAO_FAT só com estes NF_STATUS (comparados por normalizar())
 STATUS_NF_REAL = ["Acertado", "Meta Neg", "Em Aberto"]
+# Real e Online pela chave da META, como a story do SAC (decisão da Karen em 03/11/2026, a partir de novembro/26):
+# mês e agrupador da meta (ANOMES_REF_Chave_Meta_SAP, AGRUPADOR_PRODU_Chave_Meta_SAP) e rota da meta
+# (CD_ROTA_Chave_Meta_SAP). Venda sem chave de meta (mês 210012, agrupador '--': quase toda de rota eventual EV*) fica
+# fora, e o Real de um agrupador só aparece depois que a meta dele é carregada, como no SAC. Até outubro/26 (já selado
+# em api/v1/fechado/) vale a chave do faturamento: ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente.
+REAL_PELA_META_DESDE = "202611"
+
+
+def real_pela_meta(anomes: str) -> bool:
+    """True quando o Real e o Online do mês saem pela chave da meta (como o SAC)."""
+    return str(anomes) >= REAL_PELA_META_DESDE
 
 # As 16 gerências na ordem de exibição, com o nome da praça
 GC_NOMES = {

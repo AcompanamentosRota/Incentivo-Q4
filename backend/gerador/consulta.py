@@ -118,6 +118,11 @@ def eq(coluna: str, valor: str) -> str:
     return f"{coluna} eq '{str(valor).replace(chr(39), chr(39) * 2)}'"
 
 
+def ne(coluna: str, valor: str) -> str:
+    """Filtro OData de diferença de texto com aspas escapadas."""
+    return f"{coluna} ne '{str(valor).replace(chr(39), chr(39) * 2)}'"
+
+
 def e(*filtros: str | None) -> str | None:
     partes = [f for f in filtros if f]
     return " and ".join(f"({p})" if " or " in p and not p.startswith("(") else p for p in partes) or None

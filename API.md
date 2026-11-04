@@ -60,13 +60,13 @@ produtos entre si. Cada produto traz sempre os mesmos campos:
 | Campo | Significado |
 |---|---|
 | `meta` | Meta de volume do mês (META_VOLUME da rota; nos níveis acima, a soma das rotas). Em `individuais` e `refrigerantes`, rota sem META_VOLUME vem com meta 0, como no SAC. |
-| `realizado` | Volume faturado no mês (notas com status válido, critério do SAC). Não inclui os pedidos de hoje. |
+| `realizado` | Volume faturado no mês (notas com status válido, critério do SAC). Não inclui os pedidos de hoje. A partir de novembro/26, como a story do SAC: pelo mês, pelo agrupador e pela **rota da meta** (`Chave_Meta_SAP`); venda sem chave de meta fica fora, e o realizado de um produto só aparece depois que a meta dele é carregada. Até outubro/26: pelo mês e agrupador do faturamento e pela rota do cliente. |
 | `atingimento_pct` | `realizado / meta`, inteiro. |
 | `diferenca` | `realizado - meta` (negativo = quanto falta). |
 | `tendencia` | Projeção de fechamento: realizado + parte da meta ainda prevista para os dias que faltam. |
 | `tendencia_pct` | `tendencia / meta`, inteiro. |
 | `meta_dia` | Meta de hoje (o que precisa vender hoje para recuperar o ritmo). |
-| `online_hoje` | Volume dos pedidos de hoje ainda não faturados (WF Online, só pedidos válidos). |
+| `online_hoje` | Volume dos pedidos de hoje ainda não faturados (WF Online, só pedidos válidos). A partir de novembro/26, pela mesma chave e rota da meta do `realizado`. |
 | `status` | `meta_batida`, `no_ritmo`, `abaixo_do_ritmo` ou `sem_meta` (textos em `index.json` → `status`). |
 
 Regras do `status` nos níveis rota, supervisão, gerência e empresa: `meta_batida` quando
@@ -97,7 +97,8 @@ Clientes com `"na_base": false` tiveram venda ou meta na rota, mas não estão m
 Cada rota tem `tipo`: `normal`, `neutraliza`, `virtual` ou `eventual`. Todas entram nos totais de
 supervisão e gerência, como no SAC. As `eventual` (ex.: `G1-EV`) juntam o realizado de clientes
 atendidos por rotas eventuais (EV*): não têm meta nem clientes. Sugestão: listar só as `normal` e
-`neutraliza`, e deixar as demais apenas nos totais.
+`neutraliza`, e deixar as demais apenas nos totais. A partir de novembro/26 elas deixam de aparecer: pela chave da
+meta, a venda eventual com chave de meta entra na rota dona da meta, e a sem chave fica fora, como no SAC.
 
 ## Fechamento do mês
 
@@ -138,7 +139,7 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 | `gerado_em` | Quando o arquivo foi gravado (relógio do gerador). |
 | `atualizado_em` | O `atualizado_em` da execução de onde vieram os números (o mesmo do `index.json` dela). |
 | `fechamento_final` | `false` enquanto o mês ainda está em fechamento (pode mudar); `true` depois da virada (definitivo). |
-| `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado. |
+| `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado (até outubro/26). |
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
 
 Não há online, tendência nem meta do dia: no fechamento eles não existem. O % do mês é `realizado / meta`.

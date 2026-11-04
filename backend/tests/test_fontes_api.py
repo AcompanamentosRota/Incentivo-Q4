@@ -198,5 +198,110 @@ class TestAgrupadoresExtras(unittest.TestCase):
         self.assertEqual((ags["Sucos"], ags["Agua"], ags["Cervejas"]), (140.0, 30.0, 999.0))
 
 
+AGORA_NOV = datetime(2026, 11, 10, 10, 0)
+SEM_CHAVE = {"mes_meta": "210012", "ag_meta": "--", "rota_meta": None}   # venda sem associação com a meta
+
+
+def _fato_nov(rota, pv, ag, rota_meta, ag_meta=None, mes_meta="202611", data="2026-11-05", gc="Gc. G1", **medidas):
+    """Linha de venda de novembro com a chave da meta (mês, agrupador e rota da meta)."""
+    l = _fato(rota, pv, ag, data=data, rota_meta=rota_meta, **medidas)
+    l.update({"ANOMES_REF": "202611", "ANOMES_REF_Chave_Meta_SAP": mes_meta, "DS_GC_AGRUPADA_ATUAL_Clien": gc,
+              "AGRUPADOR_PRODU_Chave_Meta_SAP": ag if ag_meta is None else ag_meta})
+    return l
+
+
+def cenario_nov() -> ConsultaFalsa:
+    """Novembro, Real pela chave da meta (como o SAC). Mesmas rotas do cenário de outubro:
+      cli 1 (111): Sucos 50 na meta da 111
+      cli 3 (hoje na 112, veio da 111): Sucos 8 na meta da 111 e 7 na meta da 112
+      cli 9 (EV5): Sucos 5 na meta da 112; Sucos 2 sem chave de meta (fica fora)
+      cli 4 (cliente de outra gerência, fora da base): Sucos 1 na meta da 112
+      cli 2 (111): Powerade 6 sem chave de meta (fica fora); Sabores 30 sem chave (Sabores sem meta carregada)
+      cli 1: Sucos 4 na meta da rota 777, que não está na base (aviso)
+      pedidos de hoje: cli 1 Sucos 3 na meta da 111; cli 3 Sucos 4 na meta da 112; cli 2 Sucos 2 sem chave (fora)
+    """
+    meta = [_meta("111", "Sucos", 100, "202611"), _meta("111", "Powerade", 50, "202611"),
+            _meta("112", "Sucos", 40, "202611")]
+    fatos = [
+        _fato_nov("111", 1, "Sucos", "111", FX_VOL_PADRAO_FAT=50),
+        _fato_nov("112", 3, "Sucos", "111", FX_VOL_PADRAO_FAT=8),
+        _fato_nov("112", 3, "Sucos", "112", FX_VOL_PADRAO_FAT=7),
+        _fato_nov("EV5", 9, "Sucos", "112", FX_VOL_PADRAO_FAT=5),
+        _fato_nov("EV5", 9, "Sucos", **SEM_CHAVE, FX_VOL_PADRAO_FAT=2),
+        _fato_nov("X01", 4, "Sucos", "112", gc="--", FX_VOL_PADRAO_FAT=1),
+        _fato_nov("111", 2, "Powerade", **SEM_CHAVE, FX_VOL_PADRAO_FAT=6),
+        _fato_nov("111", 2, "Sabores Tt", **SEM_CHAVE, FX_VOL_PADRAO_FAT=30),
+        _fato_nov("111", 1, "Sucos", "777", FX_VOL_PADRAO_FAT=4),
+        _fato_nov("111", 1, "Sucos", "111", fonte="WF Online", data="2026-11-10", FX_VOL_PADRAO_WF_ONLINE=3),
+        _fato_nov("112", 3, "Sucos", "112", fonte="WF Online", data="2026-11-10", FX_VOL_PADRAO_WF_ONLINE=4),
+        _fato_nov("111", 2, "Sucos", **SEM_CHAVE, fonte="WF Online", data="2026-11-10", FX_VOL_PADRAO_WF_ONLINE=2),
+        _fato_nov("111", 1, "Sucos", "111", fonte="Meta NEG", situacao="Meta NEG", nf="Meta Neg", data="2026-11-03",
+                  META_NEG=60),
+        _fato_nov("111", 1, "Sucos", "111", fonte="Meta NEG", data="2026-11-10", META_RECUPERAVEL_ROTA=4),
+    ]
+    base = [_cliente(1, "111", "Sv. G1.1"), _cliente(2, "111", "Sv. G1.1"), _cliente(3, "112", "Sv. G1. 2"),
+            _cliente(9, "EV5", "Sv. G1.1")]
+    cal = [{"DATA": "2026-11-10", "NO_DIAS_UTEIS_MES": 20, "NO_DIA_UTIL": 6, "NO_DIAS_UTEIS_RESTANTES": 15}]
+    return ConsultaFalsa({M.OBJ_META: meta + fatos, M.OBJ_BASE_CLIENTE: base, M.OBJ_CALENDARIO: cal},
+                         tipos={M.OBJ_META: {"DATA_MOVIMENTO": "Edm.Date"}})
+
+
+class TestRealPelaChaveDaMeta(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cons = cenario_nov()
+        cls.dados = fontes.carregar(cls.cons, AGORA_NOV)
+        cls.api = api.montar(cls.dados)
+
+    def test_so_a_partir_de_novembro(self):
+        self.assertEqual(M.REAL_PELA_META_DESDE, "202611")
+        self.assertEqual([M.real_pela_meta(m) for m in ("202609", "202610", "202611", "202701")],
+                         [False, False, True, True])
+
+    def test_real_vai_para_a_rota_da_meta(self):
+        sucos = lambda r: self.api[f"v1/rotas/{r}.json"]["produtos"]["sucos"]  # noqa: E731
+        self.assertEqual(self.api["v1/index.json"]["mes_referencia"]["anomes"], "202611")
+        self.assertEqual((sucos("111")["meta"], sucos("111")["realizado"]), (100.0, 58.0))   # 50 + 8 do cli 3
+        self.assertEqual((sucos("112")["meta"], sucos("112")["realizado"]), (40.0, 13.0))    # 7 + 5 (EV5) + 1 (outra GC)
+
+    def test_venda_sem_chave_de_meta_fica_fora(self):
+        rota = self.api["v1/rotas/111.json"]["produtos"]
+        self.assertEqual((rota["powerade"]["meta"], rota["powerade"]["realizado"]), (50.0, 0.0))
+        self.assertEqual(rota["sabores"]["status"], "sem_meta")
+        self.assertFalse(rota["sabores"]["realizado"])
+        g = self.api["v1/gerencias/G1.json"]
+        self.assertEqual(g["produtos"]["sucos"]["realizado"], 71.0)   # 58 + 13; o 2 sem chave e o 4 da 777 ficam fora
+
+    def test_sem_rota_eventual(self):
+        tipos = {r["id"]: r["tipo"] for r in self.api["v1/gerencias/G1.json"]["rotas"]}
+        self.assertEqual(tipos, {"111": "normal", "112": "normal"})
+
+    def test_online_pela_rota_da_meta(self):
+        sucos = lambda r: self.api[f"v1/rotas/{r}.json"]["produtos"]["sucos"]["online_hoje"]  # noqa: E731
+        self.assertEqual((sucos("111"), sucos("112")), (3.0, 4.0))   # o pedido sem chave de meta fica fora
+
+    def test_cliente_que_mudou_de_rota(self):
+        cli = lambda r: {c["pv"]: c for c in self.api[f"v1/rotas/{r}.json"]["clientes"]}  # noqa: E731
+        c111, c112 = cli("111"), cli("112")
+        self.assertEqual(c111[3]["produtos"]["sucos"]["realizado"], 8.0)
+        self.assertFalse(c111[3]["na_base"])
+        self.assertEqual(c112[3]["produtos"]["sucos"]["realizado"], 7.0)
+        self.assertTrue(c112[3]["na_base"])
+
+    def test_aviso_da_rota_da_meta_fora_da_base(self):
+        self.assertTrue(any("777 4.0" in a for a in self.dados.avisos), self.dados.avisos)
+        self.assertNotIn("v1/rotas/777.json", self.api)
+
+    def test_consultas_pela_chave_da_meta(self):
+        filtros = [f for objeto, sel, f in self.cons.chamadas if objeto == M.OBJ_META and M.ColMeta.NF_STATUS in sel]
+        self.assertTrue(filtros)
+        self.assertTrue(all("ANOMES_REF_Chave_Meta_SAP eq '202611'" in f for f in filtros))
+        self.assertTrue(any("DS_GC_AGRUPADA_ATUAL_Clien ne 'Gc. G1'" in f for f in filtros))   # clientes de outra GC
+
+    def test_validacao_passa(self):
+        erros, _ = validacao.validar(self.api)
+        self.assertEqual(erros, [])
+
+
 if __name__ == "__main__":
     unittest.main()
