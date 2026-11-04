@@ -10,7 +10,9 @@ import re
 from collections import defaultdict
 
 MEDIDAS = {"FX_VOL_PADRAO_FAT", "FX_VOL_PADRAO_WF_ONLINE", "META_NEG", "META_RECUPERAVEL_ROTA",
-           "META_VOLUME_Chave_Meta_SAP", "QUANTIDADE", "NO_DIAS_UTEIS_MES", "NO_DIA_UTIL", "NO_DIAS_UTEIS_RESTANTES"}
+           "META_VOLUME_Chave_Meta_SAP", "QUANTIDADE", "NO_DIAS_UTEIS_MES", "NO_DIA_UTIL", "NO_DIAS_UTEIS_RESTANTES",
+           # outras medidas do modelo, usadas só pelo diagnóstico (scripts/diagnosticar_real.py)
+           "VL_PADRAO", "FX_CAIXA_FISICA_FAT", "VL_CXF", "FX_VL_FATURAMENTO_REALIZADO"}
 _TOKEN = re.compile(r"\s*(\(|\)|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_]*|[0-9][0-9:\-TZ.]*)")
 
 
