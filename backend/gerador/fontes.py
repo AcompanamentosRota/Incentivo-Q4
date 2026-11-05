@@ -374,12 +374,17 @@ def decidir_fechamento(cons: Consulta, hoje: date, linhas_cal: list[dict], gc_da
 
 
 # ------------------------------------------------------------------ tudo junto
-def carregar(cons: Consulta, agora: datetime, rota: str | None = None) -> Dados:
+def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date | None = None) -> Dados:
+    """Dados da rodada. Com `ref` (1º dia de um mês já encerrado), consulta aquele mês como fechado — mesmas
+    consultas, só com outro ANOMES_REF —, para regravar o snapshot de um mês em prévia (gerador/fechado.py).
+    O cadastro de clientes (gerência, supervisão e vendedor da rota) é sempre o de hoje, como já era no fechamento."""
     hoje = agora.date()
     cal, linhas_cal = carregar_calendario(cons, hoje)
     clientes, gcs = carregar_clientes(cons, rota)
     gc_da_rota = {c.rota: c.gc for c in clientes}
-    if not rota:
+    if ref is not None:
+        cal = calmod.com_data_ontem(calmod.fechado(hoje, ref, calmod.total_dias_uteis(linhas_cal, ref)), linhas_cal)
+    elif not rota:
         cal = decidir_fechamento(cons, hoje, linhas_cal, gc_da_rota) or cal
     anomes, fech = cal.anomes, cal.fechamento
     pela_meta = M.real_pela_meta(anomes)

@@ -10,7 +10,8 @@ outro mês ele avisa e não calcula nada.
 
 **Topo (compacto, desde 30/10/2026):** numa faixa só, o logo à esquerda, o letreiro "DESAFIO Q4" ao centro e, à direita,
 "Dados de" e "Mês de referência" (ou "Fechamento de <mês>" no 1º dia útil do mês seguinte) e, a partir de novembro,
-"Acumulado do trimestre (SV): out–<mês>" com os meses fechados usados (✓) ou o aviso "incompleto"; logo abaixo, as abas
+"Acumulado do trimestre (SV): out–<mês>" com o estado de cada mês fechado usado ("out prévia ✓" ou "out oficial ✓") ou o
+aviso "incompleto"; logo abaixo, as abas
 (sob o logo) e os filtros. Assim cada aba sai inteira num print da **janela maximizada do navegador** (1920×1080 de tela,
 ~1920×940 de página) e num notebook 1366×768. **Rodapé:** origem dos dados (API ou base embutida) e o corte; na aba
 Confrontos, a legenda dos cartões fica no lugar do texto da esquerda.
@@ -90,7 +91,16 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
 Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, a **segmentação da
-supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **confrontos do mês**.
+supervisão** (canal e segmento de cada rota), os **agrupadores extras**, os **confrontos do mês** e o **flash de vendas
+fechado** de cada mês.
+- **Flash de vendas (fechamento oficial)**, decisão de 04/11/2026: uma linha por mês fechado, com o estado na API
+  (prévia ou oficial, com a data do selo) e a caixa "Flash de vendas de <mês> fechado". Marcar pede confirmação
+  ("isto congela o resultado de <mês>") e grava `flashFechado` nos ajustes; **salvar neste navegador** vale só para
+  você, e só o **PR publicado** faz o gerador selar o mês na rodada seguinte — até lá, para o resto da empresa o mês
+  continua em prévia, e a tela diz isso ao lado da caixa. Desmarcar volta o mês para prévia **enquanto ele ainda não
+  foi selado**; depois de oficial, desmarcar não reabre nada: a reabertura é um passo à parte, no servidor
+  (`cd backend && python scripts/reabrir_fechado.py --anomes AAAAMM --confirmar`, e o arquivo vai para o GitHub por
+  PR). Nunca há dia fixo de flash no código: a data varia todo mês e quem decide é o Back Office.
 - **Segmentação da supervisão** (decisão de 28/10/2026): escolha o SV (busca pelo código que o painel mostra, ex.
   "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; "Rotas sem SV" reúne as que não têm supervisão) e ajuste cada
   rota da mesa entre **Mista · Segmentada – Mini · Segmentada – Mod · Sem canal – Neutraliza · Sem canal – Eventual ·
@@ -192,6 +202,14 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   Sucos e Missões Guiadas), informado pela Karen em 04/11/2026. Coringas de **dezembro a decidir**: até entrarem no
   `CONFIG`, o mês fica "ainda não configurado". Os coringas da Administração só trocam os 4 e 5 de um mês que já tem
   os 5 pilares no `CONFIG`.
+- **Prévia × oficial (decisão de 04/11/2026):** o fechamento oficial do incentivo é depois do fechamento do **flash de
+  vendas** (em torno do dia 12), porque até lá notas são canceladas e retornadas. Mês fechado com
+  `fechamento_final: false` está em **prévia** (o gerador o regrava a cada rodada); com `true`, é **oficial** e traz
+  `oficial_em`. O rótulo de cada mês sai de `estadoFechado` no adaptador ("Prévia (pode mudar até o fechamento do
+  flash)" ou "Oficial, selado em dd/mm/aaaa") e o acumulado do trimestre do SV que use algum mês em prévia aparece como
+  **provisório** na Supervisão, no Ranking, no rodapé e em Regras > Dados e alertas (`meta.acumulado.previa`).
+  **Nenhuma regra de cálculo muda:** pontos, gatilhos, confrontos e ranking continuam saindo do motor; só o rótulo muda.
+  Quem sela é o gerador, quando o Back Office marca o flash na Administração e o PR é mesclado.
 - **Meses fechados:** o adaptador lê `index.json` → `fechados` e carrega os `fechado/AAAAMM.json` dos meses do
   trimestre anteriores ao de referência (meta e realizado por rota, online = 0). A entrada do motor tem todos os meses
   até o vigente: cada mês com os pilares e os confrontos dele; a mesa do SV em cada mês é a supervisão da rota naquele

@@ -10,7 +10,7 @@ a outra condição dos reais (gerência sem META_VOLUME do mês) não existe aqu
 from __future__ import annotations
 
 import random
-from datetime import datetime
+from datetime import date, datetime
 
 from . import calendario as calmod
 from . import mapeamento as M
@@ -25,10 +25,14 @@ _SEGMENTOS = ["Mercearia", "Boteco", "Padarias", "Lanchonete", "Super", "Lj. Con
 _BASE = {"sucos": 6.0, "powerade": 3.0, "sabores": 14.0, "retornaveis": 9.0, "individuais": 12.0, "refrigerantes": 40.0}
 
 
-def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP")) -> Dados:
+def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref: date | None = None) -> Dados:
+    """Dados fictícios da rodada. Com `ref` (1º dia de um mês já encerrado), gera aquele mês como fechado — o
+    equivalente simulado de fontes.carregar(..., ref=...), para regravar o snapshot de um mês em prévia."""
     rnd = random.Random(agora.date().toordinal())
     cal = calmod.calcular_local(agora.date())
-    if calmod.em_fechamento(calmod.dia_util_hoje([], cal.hoje), metas_ok=True):
+    if ref is not None:
+        cal = calmod.fechado(cal.hoje, ref, len(calmod.dias_uteis_do_mes(ref.year, ref.month)))
+    elif calmod.em_fechamento(calmod.dia_util_hoje([], cal.hoje), metas_ok=True):
         ref = calmod.mes_anterior(cal.hoje)
         cal = calmod.fechado(cal.hoje, ref, len(calmod.dias_uteis_do_mes(ref.year, ref.month)))
     frac = cal.dia_ontem / cal.total_dias_uteis if cal.total_dias_uteis else 0.0

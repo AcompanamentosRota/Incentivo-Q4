@@ -15,7 +15,7 @@ vale para este site; uma página hospedada em outro endereço não consegue ler 
 
 Os arquivos são regerados a cada 15 minutos, de segunda a sexta, das 7h às 18h45 (Brasília). Só o
 `index.json` muda em toda execução (traz `atualizado_em`); os outros só mudam quando o dado muda (o
-`fechado/{AAAAMM}.json` do mês em fechamento é regravado a cada execução do fechamento). Para
+`fechado/{AAAAMM}.json` de um mês em prévia é regravado a cada execução, até ele virar oficial). Para
 atualizar a tela sem recarregar a página, releia o `index.json` de tempos em tempos (5 a 15 minutos) e,
 quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 
@@ -29,7 +29,7 @@ quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 | `rotas/{ROTA}.json` | Uma rota: total e clientes, por produto. `{ROTA}` vem de `gerencias/{GC}.json` → `rotas[].id`. |
 | `busca.json` | Todos os clientes em formato compacto, para busca por nome ou código. |
 | `agrupadores.json` | Todos os agrupadores com META_VOLUME no mês (`campos`: `[nome, meta]`), com a grafia exata do Datasphere. É a lista de sugestões da Administração do painel. |
-| `fechado/{AAAAMM}.json` | Um mês já fechado: meta e realizado de cada rota, por produto (veja "Meses fechados"). A lista está em `index.json` → `fechados`. |
+| `fechado/{AAAAMM}.json` | Um mês já fechado: meta e realizado de cada rota e os totais por gerência e da empresa, por produto, em prévia ou oficial (veja "Meses fechados"). A lista está em `index.json` → `fechados`. |
 
 **Agrupadores extras.** Além dos 6 produtos fixos, a API inclui os agrupadores que o admin do painel publicou em
 `frontend/ajustes.json` (campo `agrupadores`: `{id, nome, agrupador}`). Eles aparecem em `index.json` → `produtos`
@@ -112,24 +112,37 @@ novo), a API mostra o mês anterior fechado: `index.json` → `mes_referencia.fe
 Quando a API vira para o mês novo, os números do mês anterior deixam de existir nos outros arquivos. Para o
 acumulado do trimestre, o gerador guarda um arquivo por mês fechado:
 
-- Em toda execução com `mes_referencia.fechamento = true`, grava (ou sobrescreve) `fechado/{anomes do mês de
-  referência}.json`, com `fechamento_final: false`. Vale o último gravado: as notas do último dia do mês só entram
-  de madrugada.
-- Na 1ª execução com o mês novo (`fechamento = false`), o arquivo é **selado**: só `fechamento_final` passa a
-  `true`, os números não mudam. Daí em diante ele nunca é sobrescrito nem apagado.
+Um mês fechado tem **dois estados** (decisão de 04/11/2026): o fechamento oficial do incentivo é feito depois do
+fechamento do **flash de vendas** (em torno do dia 12), porque até lá notas fiscais são canceladas e retornadas.
+
+- **Prévia** (`fechamento_final: false`): os números ainda podem mudar e o arquivo continua sendo regravado.
+  Em toda execução com `mes_referencia.fechamento = true`, grava (ou sobrescreve) `fechado/{anomes do mês de
+  referência}.json`. Depois da virada do mês, cada execução consulta de novo os meses ainda em prévia (no máximo os
+  3 mais recentes) e regrava o arquivo deles.
+- **Oficial** (`fechamento_final: true`, com `oficial_em` e `fonte_selo`): o arquivo nunca mais é sobrescrito nem
+  apagado. O selo sai **só** quando o Back Office marca, na Administração do painel, que o flash daquele mês fechou
+  (`frontend/ajustes.json` → `flashFechado`, publicado por PR) e a execução seguinte do gerador lê essa marca.
+  Nunca há data de selo no código. Ajustes ilegíveis: nada é selado e a execução registra o aviso.
 - Só é gravado quando a execução passa na validação, e a soma da meta e do realizado das rotas tem de bater com o
-  total da empresa da execução (`resumo.json`); senão nada é gravado. Falha aqui não derruba a execução normal: ela
-  vira um item em `index.json` → `avisos`.
+  total da empresa da execução (`resumo.json`); os totais por gerência e da empresa guardados no arquivo têm de ser
+  exatamente os da execução. Senão nada é gravado. Falha aqui não derruba a execução normal: ela vira um item em
+  `index.json` → `avisos`. A regravação de um mês em prévia passa também pelas travas de validação da execução
+  normal (queda de mais de 30% no realizado da empresa, gerência que sumiu), comparando com o arquivo anterior.
 
 Formato compacto (os nomes de produto, gerência e supervisor estão em `index.json` e nos arquivos do mês):
 
 ```json
 {
   "anomes": "202610", "rotulo": "Outubro/26",
-  "gerado_em": "2026-11-03T18:46:02", "atualizado_em": "2026-11-03T18:45:10",
+  "gerado_em": "2026-11-12T09:15:02", "atualizado_em": "2026-11-12T09:14:10",
   "simulado": false, "fechamento_final": true,
+  "oficial_em": "2026-11-12T14:30:00", "fonte_selo": "flash",
   "campos": ["rota", "gerencia", "supervisao", "produtos"],
   "campos_produto": ["meta", "realizado"],
+  "totais": {
+    "empresa": { "sucos": [260000.0, 238900.4], "refrigerantes": [7065000.0, 7118954.0] },
+    "gerencias": { "G1": { "sucos": [20000.0, 18900.4], "refrigerantes": [500000.0, 511895.0] } }
+  },
   "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] }] ]
 }
 ```
@@ -138,7 +151,10 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 |---|---|
 | `gerado_em` | Quando o arquivo foi gravado (relógio do gerador). |
 | `atualizado_em` | O `atualizado_em` da execução de onde vieram os números (o mesmo do `index.json` dela). |
-| `fechamento_final` | `false` enquanto o mês ainda está em fechamento (pode mudar); `true` depois da virada (definitivo). |
+| `fechamento_final` | `false` = **prévia** (os números podem mudar até o fechamento do flash e o arquivo é regravado); `true` = **oficial** (definitivo, nunca mais sobrescrito). |
+| `oficial_em` | Data/hora do selo oficial (a que o Back Office marcou no painel) ou `null` enquanto o mês está em prévia. |
+| `fonte_selo` | Como o mês foi selado: `"flash"` (marca do flash de vendas) ou `null` em prévia. Arquivo gravado antes de 11/2026 pode vir sem estes dois campos. |
+| `totais` | Totais da execução, para a aba Estratégicos não precisar somar rotas: `empresa` e `gerencias[GC]`, cada um `{id: [meta, realizado]}`, exatamente como em `resumo.json` → `empresa.produtos` e `gerencias/{GC}.json` → `produtos`. |
 | `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado (até outubro/26). |
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
 
@@ -148,8 +164,11 @@ Não há online, tendência nem meta do dia: no fechamento eles não existem. O 
 
 ```json
 "fechados": [ { "anomes": "202610", "rotulo": "Outubro/26", "arquivo": "fechado/202610.json",
-                "gerado_em": "2026-11-03T18:46:02", "fechamento_final": true } ]
+                "gerado_em": "2026-11-12T09:15:02", "fechamento_final": true,
+                "oficial_em": "2026-11-12T14:30:00", "fonte_selo": "flash" } ]
 ```
+
+`oficial_em` e `fonte_selo` repetem o que está no arquivo do mês: `null` enquanto ele está em prévia.
 
 ## Exemplos de estrutura
 
@@ -168,7 +187,8 @@ Não há online, tendência nem meta do dia: no fechamento eles não existem. O 
               "sem_meta": "Sem meta" },
   "gerencias": [ { "id": "G1", "nome": "Goiânia 01", "arquivo": "gerencias/G1.json" }, "..." ],
   "fechados": [ { "anomes": "202609", "rotulo": "Setembro/26", "arquivo": "fechado/202609.json",
-                  "gerado_em": "2026-10-01T18:46:02", "fechamento_final": true } ],
+                  "gerado_em": "2026-10-01T18:46:02", "fechamento_final": true,
+                  "oficial_em": "2026-10-12T14:30:00", "fonte_selo": "flash" } ],
   "avisos": []
 }
 ```

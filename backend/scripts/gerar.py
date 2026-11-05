@@ -10,11 +10,15 @@ Uso (na pasta backend/):
 
 Fechamento do mês: detectado sozinho (até o fim do 1º dia útil e enquanto alguma gerência não tiver
 META_VOLUME do mês). Nesse período a API mostra o mês anterior fechado e cada rodada grava o snapshot dele em
-v1/fechado/AAAAMM.json; na 1ª rodada do mês novo o snapshot é selado (fechamento_final) e não muda mais
-(gerador/fechado.py). Falha no snapshot vira aviso: a rodada normal continua.
+v1/fechado/AAAAMM.json, em PRÉVIA (fechamento_final = false). Depois da virada, cada rodada consulta de novo os
+meses ainda em prévia e regrava o snapshot deles: os números do mês anterior mudam até o fechamento do FLASH DE
+VENDAS (notas canceladas e retornadas). O selo OFICIAL (fechamento_final = true, nunca mais sobrescrito) sai só
+quando o Back Office marca o mês no botão da Administração do painel, que grava "flashFechado" no
+frontend/ajustes.json — nunca por data no código (gerador/fechado.py). Falha aqui vira aviso: a rodada normal
+continua.
 
-Agrupadores extras: os que o admin do painel incluiu (frontend/ajustes.json -> "agrupadores") entram como produtos
-da API, além dos fixos de gerador/mapeamento.py.
+Agrupadores extras e flash de vendas: o que o admin do painel publicou (frontend/ajustes.json -> "agrupadores" e
+"flashFechado"). Arquivo ilegível: nada é selado e a rodada registra o aviso.
 
 Fora da janela de execução (JANELA_EXECUCAO, padrão 07:00-18:59 de Brasília) termina sem fazer nada,
 a não ser com --forcar. Códigos de saída: 0 ok / nada a fazer, 1 erro de execução,
@@ -26,7 +30,7 @@ import argparse
 import os
 import sys
 import time as relogio
-from datetime import datetime, time
+from datetime import date, datetime, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -51,6 +55,11 @@ def _github_output(**valores: str) -> None:
                 f.write(f"{k}={v}\n")
 
 
+def _primeiro_dia(anomes: str) -> date:
+    """'202610' -> date(2026, 10, 1)."""
+    return date(int(anomes[:4]), int(anomes[4:]), 1)
+
+
 def _pasta(valor: str | None) -> Path:
     if not valor:
         return PASTA_DADOS_PADRAO
@@ -58,23 +67,64 @@ def _pasta(valor: str | None) -> Path:
     return caminho if caminho.is_absolute() else (Path(__file__).resolve().parent.parent / caminho).resolve()
 
 
-def _meses_fechados(destino: Path, arquivos: dict[str, dict], anterior_index: dict | None, log) -> list[str]:
-    """Snapshot do mês fechado (gerador/fechado.py) e a lista `fechados` do index.json. Só roda com a validação
-    aprovada; qualquer falha aqui vira aviso no log e no index.json, sem derrubar a rodada. Devolve os gravados."""
+def _flash_dos_ajustes(caminho_ajustes: Path, ajustes, log) -> tuple[dict | None, list[str]]:
+    """Meses que o Back Office marcou como fechados no flash de vendas (frontend/ajustes.json -> flashFechado).
+    Arquivo ilegível: devolve None, e nenhum mês é selado nesta rodada (como já se faz com os agrupadores)."""
+    if caminho_ajustes.exists() and not isinstance(ajustes, dict):
+        aviso = (f"{caminho_ajustes.name} ilegível: nenhum mês fechado foi selado pelo flash de vendas nesta rodada "
+                 "(o arquivo tem de ser um único objeto JSON)")
+        log.warning("Aviso: %s", aviso)
+        return None, [aviso]
+    flash, avisos = fechado.flash_dos_ajustes(ajustes)
+    for a in avisos:
+        log.warning("Aviso: %s", a)
+    if flash:
+        log.info("Flash de vendas fechado em: %s", ", ".join(sorted(flash)))
+    return flash, avisos
+
+
+def _meses_fechados(destino: Path, arquivos: dict[str, dict], anterior_index: dict | None, log,
+                    flash: dict | None = None, avisos_flash: list[str] | None = None,
+                    montar_mes=None, agora: datetime | None = None) -> list[str]:
+    """Meses fechados (gerador/fechado.py) e a lista `fechados` do index.json. Em ordem: regrava os meses que ainda
+    estão em prévia (com `montar_mes`, uma nova consulta daquele mês), grava o snapshot do mês em fechamento e sela os
+    meses marcados no flash de vendas. Só roda com a validação aprovada; qualquer falha aqui vira aviso no log e no
+    index.json, sem derrubar a rodada. Devolve os gravados."""
     index = arquivos["v1/index.json"]
+    gerado_em = (agora or calendario.agora()).isoformat(timespec="seconds")
     gravados: list[str] = []
+    avisos: list[str] = list(avisos_flash or [])
+    if montar_mes is not None:
+        try:
+            previas = fechado.em_previa(destino, index["mes_referencia"]["anomes"])
+        except Exception as erro:  # noqa: BLE001
+            previas = []
+            avisos.append(f"meses em prévia indisponíveis: {erro}")
+        for anomes in previas:
+            try:
+                g, a = fechado.regravar(destino, anomes, montar_mes(anomes), gerado_em)
+                gravados += g
+                avisos += a
+                for rel in g:
+                    log.info("Mês em prévia regravado: %s", rel)
+                if not g and not a:
+                    log.info("Mês em prévia %s: nada mudou", anomes)
+            except Exception as erro:  # noqa: BLE001 - a rodada normal continua
+                avisos.append(f"mês em prévia {anomes} não foi regravado: {erro}")
     try:
-        gravados, avisos = fechado.atualizar(destino, arquivos, calendario.agora().isoformat(), anterior_index)
-        for rel in gravados:
+        g, a = fechado.atualizar(destino, arquivos, gerado_em, anterior_index, flash)
+        gravados += g
+        avisos += a
+        for rel in g:
             log.info("Mês fechado gravado: %s", rel)
     except Exception as erro:  # noqa: BLE001 - o snapshot nunca derruba a rodada normal
-        avisos = [f"snapshot do mês fechado {index['mes_referencia']['anomes']} não foi gravado: {erro}"]
+        avisos.append(f"snapshot do mês fechado {index['mes_referencia']['anomes']} não foi gravado: {erro}")
     try:
         index["fechados"], ilegiveis = fechado.listar(destino)
         avisos += ilegiveis
     except Exception as erro:  # noqa: BLE001
         avisos.append(f"lista de meses fechados indisponível: {erro}")
-    for a in avisos:
+    for a in avisos[len(avisos_flash or []):]:   # os avisos do flash já foram para o log em _flash_dos_ajustes
         log.warning("Aviso: %s", a)
     index["avisos"] = index["avisos"] + avisos
     return gravados
@@ -96,6 +146,7 @@ def main() -> int:
     log = configurar_log("gerar")
     inicio = relogio.monotonic()
     ajustes = saida.ler(args.ajustes)
+    flash, avisos_flash = _flash_dos_ajustes(args.ajustes, ajustes, log)
     extras = ajustes.get("agrupadores") if isinstance(ajustes, dict) else None
     extras = extras if isinstance(extras, list) else []
     for aviso in mapeamento.incluir_agrupadores(extras):
@@ -114,11 +165,16 @@ def main() -> int:
         return 0
 
     destino = args.saida or (PASTA_SAIDA / f"rota_{args.rota}" if args.rota else _pasta(os.getenv("SAIDA_DIR")))
+    # consulta de um mês já encerrado, para regravar o snapshot de um mês em prévia (--rota e --replay não regravam)
+    montar_mes = None
     try:
         if args.simulado:
             from gerador import simulado
             log.warning("Gerando dados SIMULADOS (fictícios) -> %s", destino)
             dados = simulado.gerar(agora)
+
+            def montar_mes(anomes: str) -> dict[str, dict]:
+                return api.montar(simulado.gerar(agora, ref=_primeiro_dia(anomes)))
         else:
             from gerador import fontes
             from gerador.consulta import Consulta
@@ -129,10 +185,15 @@ def main() -> int:
                             gravar=bool(args.gravar_cache), replay=bool(args.replay))
             log.info("Gerando dados de %s (space %s, modelo %s) -> %s", agora, cfg.space, cfg.objeto, destino)
             dados = fontes.carregar(cons, agora, rota=args.rota)
+
+            def montar_mes(anomes: str) -> dict[str, dict]:
+                return api.montar(fontes.carregar(cons, agora, ref=_primeiro_dia(anomes)))
     except Exception as erro:  # noqa: BLE001
         log.error("Falha ao montar os dados: %s", erro)
         _github_output(mudou="false")
         return 1
+    if args.rota or args.replay:
+        montar_mes = None
 
     arquivos = api.montar(dados)
     if "v1/agrupadores.json" not in arquivos and not args.rota:   # lista de sugestões sem atualizar: mantém a anterior
@@ -149,7 +210,8 @@ def main() -> int:
         _github_output(mudou="false")
         return 2
 
-    fechados = [] if args.rota else _meses_fechados(destino, arquivos, anterior[1], log)
+    fechados = [] if args.rota else _meses_fechados(destino, arquivos, anterior[1], log, flash, avisos_flash,
+                                                    montar_mes, agora)
 
     total = sum(len(saida.serializar(o)) for o in arquivos.values())
     log.info("%d arquivos, %.2f MB no total", len(arquivos), total / 1e6)
