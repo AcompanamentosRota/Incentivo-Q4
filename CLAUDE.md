@@ -102,7 +102,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.5, 05/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.6, 05/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -115,28 +115,33 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   meta, real e online.
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
   **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor no mês (zera todo mês), hoje **17** pelo
-  `ajustes.json` (decisão da Karen em 29/10/2026, a confirmar com o Back Office; o padrão do motor continua 20 e o
-  documento de regras v3.1 ainda diz 20). O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
+  `ajustes.json` (decisão da gerência de planejamento e da IM em 29/10/2026, no documento de regras desde a v3.6; o
+  padrão do motor continua 20). O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
   texto (na tela, `R.gatilhoPontos`; um teste varre o template atrás de 17, 20 e 60 fixos).
 - **Os pontos sempre aparecem.** Só status, posição oficial e premiação dependem dos gatilhos (26/10).
   Todas as linhas são numeradas; a posição oficial é só de quem bate os dois gatilhos (27/10).
-- **Canal × segmento (28/10, ⚠️ ainda fora do documento de regras):** o motor só vê o canal (Mista, Segmentada ou sem
+- **Canal × segmento (28/10; Mini e Mod confirmados em 30/10; no documento de regras v3.6, seção 1):** o motor só vê o canal (Mista, Segmentada ou sem
   canal). O segmento é etiqueta: Segmentada → Mini ou Mod; sem canal → Neutraliza, Eventual, Coke Net ou Virtual; Mista
   não tem. Mini e Mod são o mesmo canal (pilares, ranking, premiação e confronto). Rota sem ajuste fica como na base.
-- **Canal do SV (29/10, ⚠️):** cada SV aparece em **um canal só**: o do admin (`ajustes.json` → `canaisSV`) ou, sem
+- **Canal do SV (29/10, ⚠️ pendência 7 do documento de regras):** cada SV aparece em **um canal só**: o do admin (`ajustes.json` → `canaisSV`) ou, sem
   ajuste, o da maioria das rotas da mesa; empate fica fora do ranking, com aviso, até o admin escolher. O SV soma
-  **todas** as rotas da mesa, medidas nos pilares do canal dele (`aplicarCanalSV` no adaptador); cada rota continua
-  no ranking do canal dela.
+  **todas** as rotas da mesa que têm canal, dos dois canais, medidas nos pilares do canal dele (`aplicarCanalSV` no
+  adaptador); cada rota continua no ranking do canal dela. As rotas **sem canal** ainda ficam fora dessa soma: a
+  decisão de 30/10 de incluí-las está no documento de regras (seção 1 e pendência 9) e ainda não foi implementada.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
   O SV vencedor leva +5; quem perde não perde pontos. **As rotas da mesa não recebem o +5 (03/11/2026, informada pela
-  Karen; substitui o "+5 para toda a mesa"; ⚠️ ainda fora do documento de regras v3.3):** no motor, rota tem
+  Karen; substitui o "+5 para toda a mesa"; no documento de regras v3.6, seção 5):** no motor, rota tem
   `confrontoVencido`, `pontosConfronto` e `bonusPendente` sempre false/0, e o `conferir` acusa `RT_COM_BONUS_CONFRONTO`.
   **O +5 só entra depois do fechamento do mês (30/10/2026):** nos pontos acumulados do SV. No mês aberto o motor
   devolve o vencedor parcial e o bônus em `bonusPendente` (fora de pontos, gatilho, status e ranking), e a tela mostra
-  "vencendo · +5 pts no fechamento". ⚠️ O mês conta como fechado já no período de fechamento da API
+  "vencendo · +5 pts no fechamento". O mês conta como fechado já no período de fechamento da API
   (`entrada.fechamento`, de `meta.fechamento`); os meses anteriores do trimestre, sempre.
+  **Em prévia o +5 é provisório (05/11/2026, informada pela Karen; documento de regras v3.6, seções 5 e 8):** ele entra
+  no dia 1 do mês seguinte e é reapurado a cada rodada, com os números do momento, até o Back Office marcar o flash —
+  aí o mês sela e o resultado do confronto congela. É o que o código já faz: `mesFechado` no motor vale para todo mês
+  anterior ao de referência, e o gerador regrava os meses em prévia (`fechado.em_previa` + `fechado.regravar`).
   Desempate (confronto e ranking): maior % de Refrigerantes.
-- **Fechamento oficial só depois do flash de vendas (04/11/2026, informada pela Karen; ⚠️ item 7 das pendências do
+- **Fechamento oficial só depois do flash de vendas (04/11/2026, informada pela Karen; ⚠️ item 6 das pendências do
   documento de regras):** o mês fechado fica em **prévia** (números ainda mudam, acumulado do SV marcado como provisório)
   até o Back Office marcar, no painel, que o flash daquele mês fechou; só então o resultado congela. Nunca sele por data
   no código. Detalhe na seção 7.
@@ -149,8 +154,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `M.REAL_PELA_META_DESDE`). A META_NEG do cliente continua pela rota do cliente.
 - **Contrato da API estável:** os campos de `api/v1` descritos em `API.md` não mudam de forma.
 - Orçamento, custo dos prêmios e valores de premiação ficam **fora** do painel e do repositório.
-  Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação. (A regra v3.1 ainda diz
-  "fora do escopo do painel" em `Desafio-Q4_Contexto-Regras.md` linha 19: redação antiga, já revertida.)
+  Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
+  redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
 ## 6. Armadilhas
 
@@ -224,9 +229,11 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto + `totais` por gerência e da empresa,
   `fechamento_final: false`). `index.json` → `fechados` lista esses arquivos, com `oficial_em` e `fonte_selo`. A
   limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
-- **Prévia × oficial: o selo vem do flash de vendas (04/11/2026, ⚠️ ainda fora do documento de regras v3.5 na parte do
-  painel):** o fechamento oficial do incentivo é depois do fechamento do **flash de vendas** (em torno do dia 12), porque
-  até lá notas fiscais são canceladas e retornadas. Enquanto `fechamento_final` é false, o mês está em **prévia** e cada
+- **Prévia × oficial: o selo vem do flash de vendas (04/11/2026, informada pela Karen; a regra está na seção 8 do
+  documento de regras v3.6, com o prazo da marcação em aberto na pendência 6; a mecânica do selo descrita abaixo é
+  implementação e fica fora daquele documento):** o fechamento oficial do incentivo é depois do fechamento do **flash
+  de vendas** (em torno do dia 12), porque até lá notas fiscais são canceladas e retornadas. Enquanto
+  `fechamento_final` é false, o mês está em **prévia** e cada
   rodada o consulta de novo e regrava (`fechado.em_previa` + `fechado.regravar`, no máximo os 3 meses mais recentes;
   `fontes.carregar(..., ref=...)` consulta um mês encerrado). O selo (`fechamento_final: true`, `oficial_em`,
   `fonte_selo: "flash"`) sai **só** quando o Back Office marca o mês no botão da Administração, que grava

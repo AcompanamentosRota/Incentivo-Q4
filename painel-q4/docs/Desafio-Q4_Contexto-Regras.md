@@ -1,4 +1,15 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.5 (05/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.6 (05/11/2026)
+
+**v3.6:** o mínimo de pontos do **Consultor** passa a ser **17 no mês** (decisão da gerência de planejamento e da IM em
+29/10/2026; seções 3, 6, 7 e 8). O **+5 do confronto é só do SV vencedor**: as rotas (Consultores) da mesa **não
+recebem** (decisão informada pela Karen em 03/11/2026; seções 1, 5, 6 e 8), e o teto da Rota passa de 30 para **25
+pontos**. Entram também, de decisões de 28/10 a 03/11/2026 já implementadas no painel: **canal × segmento** e **canal
+do SV** (seções 1 e 10), os **Estratégicos** no painel (seção 1) e o **Real e o Online pela chave e pela rota da meta**
+a partir de novembro/26 (seção 8). Entra também a decisão de **04/11/2026** de que o **fechamento do mês cobre os
+Estratégicos**, além de Consultores e Supervisões — sempre só com volume, sem pontos nem premiação (seção 8). A
+pendência "Real até ontem × faturado de hoje" está **resolvida**, e a dos **+5 do confronto no mês fechado** fica
+respondida: entram no dia 1 do mês seguinte e são atualizados até o fechamento do flash, quando congelam (05/11/2026;
+seções 5, 8 e 9).
 
 **v3.5:** o **fechamento oficial** de cada mês é feito **depois do fechamento do flash de vendas** (decisão informada
 pela Karen em 04/11/2026; seções 8 e 9). Até lá o mês fica em **prévia**: os números ainda mudam, porque notas fiscais
@@ -13,7 +24,8 @@ de meta e realizado por rota (seção 9).
 mesma, e "Bateu, mas não está no total" segue como está (seções 8 e 9).
 
 **v3.2:** o +5 do confronto só entra depois do fechamento do mês, nos pontos acumulados do SV e nos pontos daquele mês da
-mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
+mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9). A parte da **mesa** foi substituída na
+v3.6: a Rota não recebe o +5.
 
 **Hierarquia das fontes**
 1. Respostas do Back Office/IM (23/10/2026): prevalecem sobre tudo e estão incorporadas abaixo.
@@ -28,10 +40,14 @@ mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
 
 ## 1. Visão geral
 
-- **Participantes:** Supervisores (SV) e Consultores de Vendas (Rota/RT), em um canal: **Mista** ou **Segmentada**. Cada Consultor pertence à "mesa" de um SV (campo `id_supervisor` no cadastro).
-- **Mecânica:** (1) pontos por desempenho em 5 pilares; (2) confrontos entre SVs (+5 pontos para o vencedor, que só entram depois do fechamento do mês); (3) gatilhos para validar pontos e entrar na premiação; (4) ranking por cargo e canal.
+- **Participantes:** Supervisores (SV) e Consultores de Vendas (Rota/RT), em um canal: **Mista**, **Segmentada** ou **Sem canal** (ver abaixo). Cada Consultor pertence à "mesa" de um SV (campo `id_supervisor` no cadastro).
+- **Canal × segmento (decisão de 28/10/2026; "Mini e Mod = Segmentada" confirmado em 30/10/2026):** para a regra existem três situações — **Mista**, **Segmentada** e **Sem canal**. O **segmento** é só etiqueta e não muda a regra: Segmentada → **Mini** ou **Mod**; Sem canal → **Neutraliza**, **Eventual**, **Coke Net** ou **Virtual**; Mista não tem segmento. **Mini e Mod são o mesmo canal** para tudo: pilares, ranking, premiação e confronto.
+  - A rota **Sem canal** fica **fora dos pontos, do ranking e da premiação da Rota**, e aparece como alerta no painel, com o segmento dela.
+  - O **volume e a meta** da rota Sem canal **contam na soma do SV** (decisão informada em 30/10/2026). Decidido, com **implementação pendente**: hoje o painel ainda deixa essas rotas fora da soma do SV (seção 9).
+- **Canal do SV (decisão de 29/10/2026) ⚠️:** cada SV aparece em **um canal só** — o escolhido pelo admin ou, sem escolha, o da **maioria das rotas da mesa**. **Empate** (mesmo número de rotas Mista e Segmentada) deixa o SV **fora do ranking**, com aviso no painel, até o admin escolher. O SV é medido nos pilares do canal dele; cada rota continua no ranking do canal dela.
+- **Mecânica:** (1) pontos por desempenho em 5 pilares; (2) confrontos entre SVs (+5 pontos **só para o SV vencedor**, que só entram depois do fechamento do mês); (3) gatilhos para validar pontos e entrar na premiação; (4) ranking por cargo e canal.
 - **Base de medição:** todos os pilares são avaliados em **TT mês, % sobre a meta**.
-- **Estratégicos:** constam só na planilha (medidos nos pilares da SV Mista, sem confrontos). Fora do escopo do painel.
+- **Estratégicos:** medidos nos pilares da SV Mista, sem confrontos. **Têm aba própria no painel**, que mostra o **volume da gerência inteira** (todas as rotas com Real), **sem pontos e sem premiação**.
 
 ## 2. Pontuação por pilar (por mês)
 
@@ -50,7 +66,10 @@ mesa (decisão informada pela Karen em 30/10/2026; seções 1, 5, 6, 8 e 9).
 | Cargo | Gatilho de pontos | Período |
 |---|---|---|
 | SV | 60 pontos | Trimestral (out, nov, dez), **acumulado** |
-| Consultor (RT) | 20 pontos | **Mensal**; a pontuação zera todo mês |
+| Consultor (RT) | 17 pontos | **Mensal**; a pontuação zera todo mês |
+
+- **Mínimo do Consultor = 17 pontos no mês** (decisão da gerência de planejamento e da IM em 29/10/2026; antes eram 20).
+  O mínimo do SV continua em **60 pontos** acumulados no trimestre.
 
 **Gatilho de volume:** para os pontos **valerem**, é necessário **≥ 95% do volume da categoria Refrigerantes** (vs meta). A medida é a da categoria Refrigerantes no SAC, e não a soma dos pilares.
 - **Consultor:** % do **mês vigente**.
@@ -107,8 +126,12 @@ outubro**, informado pela Karen em 04/11/2026):
 8. O Time de Categorias compila os desafios e entrega para a IM.
 
 **Apuração:** vence quem tiver o melhor % sobre a meta do mês no pilar escolhido. **Quem perde não perde nada**; apenas o vencedor ganha os **+5 pontos** daquele mês.
-**Extensão à Rota:** se o SV vence o confronto, **todos os Consultores da mesa dele também ganham os +5 pontos** (é isso que completa os 30 pontos máximos da Rota: 25 de pilares + 5).
-**Quando os +5 entram (decisão de 30/10/2026):** **só depois do fechamento do mês**. O SV recebe os +5 nos **pontos acumulados** do trimestre; cada Consultor da mesa, nos **pontos daquele mês** (ranking e premiação do mês fechado). Durante o mês o vencedor é **parcial**: aparece na tela Confrontos como "vencendo", e os +5 não entram nos pontos, no gatilho de pontos, no status nem no ranking. ⚠️ O mês conta como fechado já no **período de fechamento da API** (do dia 1 até o fim do 1º dia útil do mês seguinte, quando o painel mostra o mês fechado, sem Online).
+**O +5 é só do SV (decisão informada pela Karen em 03/11/2026):** as rotas (Consultores) da mesa do SV vencedor **não recebem** os +5 pontos. Substitui a regra anterior, de "+5 para o SV e para toda a mesa". Com isso o **teto da Rota é 25 pontos no mês** (5 pilares × 5), e não 30.
+**Quando os +5 entram (decisão de 30/10/2026):** **só depois do fechamento do mês**. O SV recebe os +5 nos **pontos acumulados** do trimestre. Durante o mês o vencedor é **parcial**: aparece na tela Confrontos como "vencendo", e os +5 não entram nos pontos, no gatilho de pontos, no status nem no ranking. O mês conta como fechado já no **período de fechamento da API** (do dia 1 até o fim do 1º dia útil do mês seguinte, quando o painel mostra o mês fechado, sem Online).
+**Enquanto o mês está em prévia, o +5 é provisório (resposta da Karen em 05/11/2026):** os pontos do confronto entram no
+**dia 1 do mês seguinte** e são **atualizados a cada rodada** até o fechamento do **flash de vendas** — o vencedor é
+reapurado com os números daquele momento e **pode mudar**. Quando o Back Office marca o flash, o mês sela e o resultado
+do confronto **congela** junto (seção 8).
 **Desempate (confronto e ranking):** vence o maior % de volume de Refrigerantes.
 **No painel:** os confrontos do mês são cadastrados na aba Regras > Administração (mês, SV desafiante, SV desafiado e pilar),
 publicados por PR no `frontend/ajustes.json` e apurados na tela **Confrontos** (botão ao lado das abas), com o % de cada lado,
@@ -121,9 +144,9 @@ o vencedor e o motivo quando o confronto não vale.
 | SV Mista | Máx. | 25 / 75 | 5 / 15 | 30 / 90 |
 | SV Mista | 100% | 15 / 45 | 5 / 15 | 20 / 60 |
 | SV Mista | 90% | 10 / 30 | — / 0 | 10 / 30 |
-| Rota | Máx. / Méd. / Mín. | 25 · 15 · 10 (+5 se o SV vencer) | via SV | gatilho: 20 (mensal) |
+| Rota | Máx. / Méd. / Mín. | 25 · 15 · 10 | — (a Rota não recebe o +5) | 25 · 15 · 10 — gatilho: 17 (mensal) |
 
-**Leitura (interpretação):** os cenários equivalem a todos os 5 pilares em ≥105% (25), 100–105% (15) e 90–100% (10). Os 60 pontos do SV (66,7% do máximo de 90) exigem 100% nos 5 pilares **e** confronto vencido nos 3 meses (45 + 15). Pelo mesmo raciocínio, o Consultor com 100% nos 5 pilares chega a 15 e só atinge os 20 se o SV da mesa vencer o confronto. Desde 30/10/2026 os +5 do confronto só contam com o mês fechado (seção 5): durante o mês, SV e Consultor veem só os pontos dos pilares.
+**Leitura (interpretação):** os cenários equivalem a todos os 5 pilares em ≥105% (25), 100–105% (15) e 90–100% (10). Os 60 pontos do SV (66,7% do máximo de 90) exigem 100% nos 5 pilares **e** confronto vencido nos 3 meses (45 + 15). O **teto da Rota é 25** pontos no mês, só de pilares, porque o +5 do confronto é só do SV (seção 5). Desde 30/10/2026 os +5 do SV só contam com o mês fechado (seção 5): durante o mês, o SV vê só os pontos dos pilares.
 
 ⚠️ A planilha mostra os cenários só para Mistas; assumir a mesma escala para Segmentada.
 
@@ -140,7 +163,7 @@ o vencedor e o motivo quando o confronto não vale.
 | 5º | Lava-louças 14 serviços | — |
 | 6º ao 12º | Air Fryer Forno 25L + R$ 1.000 em produtos (cada) | — |
 
-**Consultores — premiação mensal (out, nov, dez), mínimo de 20 pontos no mês e gatilho de volume**
+**Consultores — premiação mensal (out, nov, dez), mínimo de 17 pontos no mês e gatilho de volume**
 
 | Canal | Premiados | Prêmio |
 |---|---|---|
@@ -152,13 +175,18 @@ o vencedor e o motivo quando o confronto não vale.
 | Medida | Definição |
 |---|---|
 | **Meta** | Meta do mês (TT mês) do pilar |
-| **Real** | Volume vendido **até ontem** |
+| **Real** | Volume vendido **até ontem** (o faturamento entra no modelo com um dia de atraso; o volume de hoje aparece só no Online) |
 | **Meta dia** | Medida pronta vinda da API (não recalcular) |
 | **Online** | Venda **de hoje** (parcial, muda várias vezes ao dia) |
 | **Diferença** | Real + Online − Meta |
 | **%** | (Real + Online) ÷ Meta |
-| **Pontos atuais** | Pontos do mês corrente: pilares; os +5 do confronto vencido só entram depois do fechamento do mês (30/10/2026) |
+| **Pontos atuais** | Pontos do mês corrente: pilares. No SV, os +5 do confronto vencido só entram depois do fechamento do mês (30/10/2026); a Rota não recebe o +5 (03/11/2026) |
 | **Pontos acumulados** | SV: trimestre (meses fechados, com os +5 dos confrontos vencidos neles, + pilares do mês corrente). Consultor: não se aplica, pois zera todo mês ⚠️ |
+
+**Chave do Real e do Online (decisão da Karen em 03/11/2026; a partir de novembro/26):** o Real e o Online são lidos
+pela **chave da meta**, como a story do SAC: mês, agrupador e **rota da meta**, não a rota do cliente. A venda sem chave
+de meta fica fora, as rotas **-EV deixam de existir** na API de novembro, e o Real de um produto só aparece depois que a
+meta dele é carregada. **Outubro e os meses anteriores** seguem pela chave do faturamento.
 
 **Fechamento do mês: prévia × oficial (decisão informada pela Karen em 04/11/2026)**
 
@@ -167,20 +195,28 @@ o vencedor e o motivo quando o confronto não vale.
 | **Prévia** | O mês já encerrou, mas o resultado ainda pode mudar: até o fechamento do **flash de vendas** (o acompanhamento oficial de notas e volume da Bandeirantes, em torno do dia 12) notas fiscais são canceladas e retornadas. O painel marca o acumulado do trimestre do SV como **provisório**. |
 | **Oficial** | O flash daquele mês fechou e o Back Office marcou isso no painel. O resultado do mês **congela**: não muda mais. |
 
+- **O fechamento de cada mês cobre os três públicos** (decisão informada pela Karen em 04/11/2026): **Consultores**,
+  **Supervisões** e **Estratégicos**. Para os Estratégicos vale o **volume por gerência**, **sem pontos, sem gatilhos e
+  sem premiação**, como na aba Estratégicos (seção 1).
 - A data do flash **varia de mês para mês**: não há dia fixo. O mês só vira oficial quando o Back Office marca, na
   Administração do painel, que o flash daquele mês fechou.
 - Enquanto o mês está em prévia, os pontos, os gatilhos e o ranking continuam aparecendo e sendo calculados
   normalmente, com os números que existem naquele momento — o que muda é só o aviso de que o resultado é provisório.
-- ⚠️ Isto é diferente de "mês fechado" para os **+5 do confronto** (seção 5): ali o mês conta como fechado já no
-  período de fechamento da API (dia 1 até o fim do 1º dia útil). A confirmar com o Back Office se os +5 do confronto
-  devem esperar o fechamento oficial do flash.
+- **Os +5 do confronto no mês fechado (resposta da Karen em 05/11/2026):** os pontos do confronto entram no **dia 1 do
+  mês seguinte**, junto com o fechamento do mês na API, e são **atualizados até o dia do fechamento do flash de
+  vendas**. Enquanto o mês está em **prévia**, o vencedor é **reapurado a cada rodada**, com os números daquele
+  momento, e **pode mudar**; quando o Back Office marca o flash, o mês sela e o resultado do confronto **congela**
+  junto. Isto responde a diferença que havia entre "mês fechado" para o +5 (seção 5, fechamento da API) e o fechamento
+  oficial pelo flash: o +5 entra no primeiro e se fixa no segundo.
+- **No painel:** a consulta do mês fechado fica em Regras > Administração, só leitura, com as três visões
+  (Consultor, Supervisão e Estratégicos) e exportação em `.xlsx` (PR 29, 05/11/2026).
 
 **Status (⚠️ interpretação da regra do Back Office):**
 
 | Situação | Status |
 |---|---|
 | Gatilho de volume (≥ 95% Refrigerantes) **não** atingido | **"-"** no status (os pontos aparecem, mas não valem) |
-| Volume atingido, mas pontos abaixo do mínimo (SV 60 acumulados; Consultor 20 no mês) | **"-"** |
+| Volume atingido, mas pontos abaixo do mínimo (SV 60 acumulados; Consultor 17 no mês) | **"-"** |
 | Volume e pontos atingidos, mas **fora das posições premiadas** | **"Bateu, mas não está no total"** (engajar o time a subir) |
 | Volume e pontos atingidos e **dentro das posições premiadas** | **"Bateu!"** (até a v3.2, "No total") |
 
@@ -195,16 +231,21 @@ cinza. A premiação continua restrita a quem é elegível.
 3. **Confrontos:** prazo de registro em cada mês.
 4. **Coringas 4 e 5 de dezembro:** ainda não decididos. Até entrarem na configuração do painel, dezembro não calcula pontos nem ranking.
 5. **Fonte de Missões Guiadas de novembro e dezembro:** meta e realizado por rota ainda não definidos; o pilar aparece "sem dados" e não pontua.
-6. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte). Com o fechamento oficial passando a depender do flash de vendas (seção 8, 04/11/2026), falta confirmar se os +5 continuam entrando no fechamento da API ou se passam a esperar o flash.
-7. **Fechamento oficial pelo flash de vendas (04/11/2026):** quem marca que o flash de um mês fechou é o Back Office, no painel, e é isso que congela o mês. Falta definir o prazo combinado para essa marcação depois de cada flash.
+6. **Fechamento oficial pelo flash de vendas (04/11/2026):** quem marca que o flash de um mês fechou é o Back Office, no painel, e é isso que congela o mês. Falta definir o prazo combinado para essa marcação depois de cada flash.
+7. **Canal do SV (29/10/2026):** "um canal só por SV, o do admin ou o da maioria das rotas da mesa" (seção 1) é a leitura adotada e já está no painel; falta a confirmação do Back Office/IM.
+8. **Canal das rotas e mesas de novembro:** falta confirmar se o canal das rotas e a composição das mesas mudam no mês. O canal ainda vem da base embutida e dos ajustes do admin, não da API.
+9. **Soma do SV com as rotas Sem canal (30/10/2026):** está decidido que o volume e a meta dessas rotas contam para o SV (seção 1); a implementação no painel está pendente.
 
-**Resolvidos:** fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); +5 do confronto só depois do fechamento do mês, para o SV (no acumulado) e para a mesa (nos pontos do mês fechado), com o vencedor parcial durante o mês (30/10/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
-cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
+**Resolvidos:** mínimo de pontos do Consultor = **17 no mês** (gerência de planejamento e IM, 29/10/2026); **+5 do confronto só para o SV vencedor**, sem extensão à mesa (03/11/2026); +5 do confronto só depois do fechamento do mês, nos pontos acumulados do SV, com o vencedor parcial durante o mês (30/10/2026), entrando no dia 1 do mês seguinte e atualizados até o fechamento do flash, quando congelam (05/11/2026);
+**Real = até ontem × faturado de hoje:** medido em 28/10/2026 com `backend/scripts/diagnosticar_real.py --datasphere`, o faturado de hoje aparece **só no Online** (conferido de novo em 05/11/2026 contra a exportação do SAC de novembro: Meta, Real, Online e meta dia batem no total da empresa e rota a rota, com diferenças de 0,1 por arredondamento de 1 casa);
+**Real e Online pela chave e pela rota da meta** a partir de novembro/26, como o SAC (03/11/2026); **Mini e Mod = Segmentada**, com o segmento como etiqueta (28/10/2026, confirmado em 30/10/2026); **Estratégicos no painel**, em aba própria, só com o volume da gerência, sem pontos e sem premiação; fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
+cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
 
 ## 10. Glossário
 
 - **SV:** Supervisor. **RT:** Rota (Consultor de Vendas). **IM:** Inteligência de Mercado. **Mesa:** Consultores de um SV.
-- **Mista / Segmentada:** canais que definem os pilares e o ranking.
+- **Mista / Segmentada / Sem canal:** o canal define os pilares, o ranking e a premiação (seção 1).
+- **Segmento:** etiqueta dentro do canal, que não muda a regra — Mini e Mod (Segmentada); Neutraliza, Eventual, Coke Net e Virtual (Sem canal). Mini e Mod são o mesmo canal.
 - **TT mês:** total do mês (interpretação), sempre em % sobre a meta.
 - **Missões Guiadas:** pilar de execução comprovada por pedido, foto ou formulário; não é de volume.
 
