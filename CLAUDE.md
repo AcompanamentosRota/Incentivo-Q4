@@ -21,12 +21,13 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | Pasta / arquivo | O que é | Quem altera |
 |---|---|---|
 | `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
-| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota), base do acumulado do trimestre | **só o gerador**; selado na virada, nunca apagado |
+| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota; totais por gerência e da empresa), base do acumulado do trimestre | **só o gerador**; prévia até o flash, selado pelo botão do flash, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
 | `backend/scripts/servir.py` | sobe o site local como no Pages | — |
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
+| `backend/scripts/reabrir_fechado.py` | volta para prévia um mês fechado selado (migração); roda pelo workflow, campo `reabrir` | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
 | `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
@@ -44,10 +45,10 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 120 testes (42 do motor, 78 do adaptador); precisa de Node 18+
+# testes do painel — 126 testes (42 do motor, 84 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 80 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 95 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -101,7 +102,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.3, 31/10/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.4, 04/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -128,7 +129,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   no ranking do canal dela.
 - **Confrontos:** só entre SVs do mesmo canal, em pilar de volume, no máximo 1 desafio recebido por SV.
   O SV vencedor leva +5; quem perde não perde pontos. **As rotas da mesa não recebem o +5 (03/11/2026, informada pela
-  Karen; substitui o "+5 para toda a mesa"; ⚠️ ainda fora do documento de regras v3.3):** no motor, rota tem
+  Karen; substitui o "+5 para toda a mesa"; ⚠️ ainda fora do documento de regras v3.4):** no motor, rota tem
   `confrontoVencido`, `pontosConfronto` e `bonusPendente` sempre false/0, e o `conferir` acusa `RT_COM_BONUS_CONFRONTO`.
   **O +5 só entra depois do fechamento do mês (30/10/2026):** nos pontos acumulados do SV. No mês aberto o motor
   devolve o vencedor parcial e o bônus em `bonusPendente` (fora de pontos, gatilho, status e ranking), e a tela mostra
@@ -216,9 +217,23 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje` (o simulado entra em fechamento
   do dia 1 até o fim do 1º dia útil, pelos dias úteis locais).
 - **Snapshot do mês fechado** (`backend/gerador/fechado.py`): em cada rodada do fechamento o gerador grava
-  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto, `fechamento_final: false`); na 1ª rodada do mês
-  novo ele é selado (`fechamento_final: true`) e não muda mais. `index.json` → `fechados` lista esses arquivos. A
-  limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
+  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto, mais os totais por gerência e da empresa da rodada)
+  em **prévia** (`fechamento_final: false`). `index.json` → `fechados` lista esses arquivos, com `oficial_em` e
+  `fonte_selo`. A limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
+- **Fechamento oficial só depois do flash de vendas (04/11/2026, decisão da Karen; ⚠️ ainda fora do documento de
+  regras v3.4):** até o flash (por volta do dia 12) notas são canceladas e retornadas, então a virada do mês **não sela
+  mais** o arquivo. Quem sela é o Back Office, pelo botão "Flash de vendas de <mês> fechado" da Administração, que grava
+  `frontend/ajustes.json` → `flashFechado` (`{"202610": {"fechado": true, "em": "AAAA-MM-DDTHH:MM"}}`; chave opcional,
+  mês ausente = prévia). O `gerar.py` lê a chave e, na 1ª rodada depois da hora `em`, sela o mês (`fechamento_final:
+  true`, `oficial_em`, `fonte_selo: "flash"`). **Nunca sele por data fixa no código.** `ajustes.json` ilegível: nada é
+  selado, com aviso. Selado, desmarcar o botão não reabre: reabrir só pela migração (Actions > "Atualizar dados" > Run
+  workflow, campo `reabrir` = AAAAMM; `backend/scripts/reabrir_fechado.py`). O painel mostra "Prévia (pode mudar até o
+  fechamento do flash)" ou "Oficial, selado em dd/mm/aaaa" (`estadoFechado` no adaptador) e marca o acumulado do SV como
+  provisório quando ele inclui mês em prévia (ou selado na virada); **o cálculo não muda**, só o rótulo. Arquivo selado
+  antes desta regra (outubro/26, em 04/11/2026) aparece como "selado na virada" até ser reaberto.
+- **Pendente (Fase B, precisa de `.env`):** regravar o mês em prévia depois do período de fechamento (consultar no
+  Datasphere um mês que já passou). Até lá, o mês em prévia só muda nas rodadas do fechamento, e o selo congela os
+  números da última delas: não marque o flash de um mês antes de a Fase B existir sem saber disso.
 
 ## 8. Checklist antes do PR
 
