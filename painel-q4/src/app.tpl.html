@@ -370,8 +370,6 @@ button{background:none;border:0;cursor:pointer}
 .cfres.s1{background:#0e3a23;border-color:#2aa862}.cfres.s1 .rl{color:#6df0a8}
 .cfres.s2{background:#23262e;border-color:#454a56}.cfres.s2 .rl{color:#e4e6ea}.cfres.s2 .rm{color:#d2d5db}
 .cfres.s3{background:#2e2306;border-color:#a47500}.cfres.s3 .rl{color:#ffd978}.cfres.s3 .rm{color:#f1e6c8}
-#v-confrontos .pager{height:auto;display:block;padding:8px 16px 9px;border-top:1px solid #2c2c38}
-#cfnota{display:block;font-size:13px;font-weight:400;line-height:1.35;color:#cfcfd8}
 #cfrows::-webkit-scrollbar{width:10px}#cfrows::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:8px}#cfrows::-webkit-scrollbar-track{background:transparent}
 
 /* pendencias: responsaveis e estado separados da descricao */
@@ -475,7 +473,6 @@ button{background:none;border:0;cursor:pointer}
     <div class="panel">
       <div class="tt"><span id="cftitulo"></span><span class="cfmes" id="cfmes" role="group" aria-label="Mês dos confrontos"></span><span class="kp" id="cfsub"></span></div>
       <div id="cfrows"></div>
-      <div class="pager"><span id="cfnota"></span></div>
     </div>
   </section>
 
@@ -1094,12 +1091,6 @@ function renderConfrontos(){
   const contagem = (l)=> l.map(x=>`${esc(x.rotulo)} ${x.n}`).join(' · ');
   $('rodleg').innerHTML = lst.length ? `<i class="a"></i>Desafiante <i class="b"></i>Desafiado · borda e % verdes = ${aberto ? 'vencendo (parcial)' : 'vencedor'}`
     + ` · <b>Por canal:</b> ${contagem(rs.porCanal)} · <b>Por pilar:</b> ${contagem(rs.porPilar)}` : '';
-  // a nota entra antes de medir: a altura das linhas é o que sobra no cartão
-  $('cfnota').innerHTML = `O +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem. Ele entra só depois do fechamento do mês, `
-    + `nos pontos acumulados do SV; até lá o vencedor é parcial. Quem perde não perde pontos. `
-    + `Só valem pilares de volume entre supervisores do mesmo canal (Mista só contra Mista; Segmentada, Mini ou Mod, só contra Segmentada), `
-    + `e cada supervisor recebe no máximo um desafio por mês. Empate é decidido pelo maior % de Refrigerantes. `
-    + `Um ajuste de canal que tire a mesa do canal do confronto aparece aqui como "canal ajustado", sem apagar o cadastro.`;
   const corpo = $('cfrows');
   if(!lst.length) corpo.innerHTML = `<div class="vazio">Nenhum confronto cadastrado em ${MESES[st.cfmes].toLowerCase()}.<br>Inclua na aba Regras &gt; Administração.</div>`;
   else {
