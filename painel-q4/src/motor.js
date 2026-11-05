@@ -30,7 +30,9 @@
     missaoValidadaPct: 100,
     pilarRefri: 'Refrigerantes', // categoria do SAC (gatilho de volume e desempate)
     gatilhoVolumePct: 95,
-    gatilhoPontos: { SV: 60, RT: 20 }, // SV: trimestre acumulado; RT: mês
+    // SV: trimestre acumulado; RT: mês (zera todo mês). Mínimo do Consultor = 17 desde 29/10/2026
+    // (decisão da gerência de planejamento e da IM; documento de regras v3.6, seções 3, 6, 7 e 8; antes eram 20).
+    gatilhoPontos: { SV: 60, RT: 17 },
     bonusConfronto: 5,
     premiadas: { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 40, Segmentada: 10 } },
     cargos: ['SV', 'RT'],

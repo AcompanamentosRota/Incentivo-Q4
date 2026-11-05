@@ -45,7 +45,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 142 testes (42 do motor, 100 do adaptador); precisa de Node 18+
+# testes do painel — 144 testes (42 do motor, 102 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
@@ -114,9 +114,12 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Missões Guiadas:** em outubro entra validada em 100% (3 pontos); em novembro e dezembro passa a ter
   meta, real e online.
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
-  **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor no mês (zera todo mês), hoje **17** pelo
-  `ajustes.json` (decisão da gerência de planejamento e da IM em 29/10/2026, no documento de regras desde a v3.6; o
-  padrão do motor continua 20). O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
+  **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor **17** no mês (zera todo mês) — decisão da
+  gerência de planejamento e da IM em 29/10/2026, no documento de regras desde a v3.6. O 17 é o **padrão do motor**
+  (`REGRAS.gatilhoPontos: { SV: 60, RT: 17 }`, desde 05/11/2026): a regra em vigor não depende mais do
+  `ajustes.json`, que antes era o único lugar com o 17 — arquivo ilegível fazia o painel voltar a 20 em silêncio.
+  O `ajustes.json` publicado ainda traz `gatilhoPontos.RT: 17`, agora redundante, e serve para mudanças futuras.
+  O valor vem de `REGRAS.gatilhoPontos` + ajustes: nunca fixo em lógica ou
   texto (na tela, `R.gatilhoPontos`; um teste varre o template atrás de 17, 20 e 60 fixos).
 - **Os pontos sempre aparecem.** Só status, posição oficial e premiação dependem dos gatilhos (26/10).
   Todas as linhas são numeradas; a posição oficial é só de quem bate os dois gatilhos (27/10).
@@ -258,7 +261,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 142 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 144 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
