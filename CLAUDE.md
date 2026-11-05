@@ -227,8 +227,9 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
 - **Prévia × oficial: o selo vem do flash de vendas (04/11/2026, informada pela Karen; a regra está na seção 8 do
   documento de regras v3.6, com o prazo da marcação em aberto na pendência 7; a mecânica do selo descrita abaixo é
-  implementação e fica fora daquele documento):** o fechamento oficial do incentivo é depois do fechamento do **flash de vendas** (em torno do dia 12), porque
-  até lá notas fiscais são canceladas e retornadas. Enquanto `fechamento_final` é false, o mês está em **prévia** e cada
+  implementação e fica fora daquele documento):** o fechamento oficial do incentivo é depois do fechamento do **flash
+  de vendas** (em torno do dia 12), porque até lá notas fiscais são canceladas e retornadas. Enquanto
+  `fechamento_final` é false, o mês está em **prévia** e cada
   rodada o consulta de novo e regrava (`fechado.em_previa` + `fechado.regravar`, no máximo os 3 meses mais recentes;
   `fontes.carregar(..., ref=...)` consulta um mês encerrado). O selo (`fechamento_final: true`, `oficial_em`,
   `fonte_selo: "flash"`) sai **só** quando o Back Office marca o mês no botão da Administração, que grava
