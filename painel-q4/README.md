@@ -261,8 +261,9 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
 4. Canal Mista/Segmentada ainda vem da base embutida, não da API (ou do ajuste do admin).
 5. Regras do Back Office: prazo dos confrontos, +5 sem gatilho de volume, % acumulado de Refri do SV, desempate do SV,
    e se o período de fechamento da API já conta como mês fechado para o +5 do confronto (adotado: conta).
-6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada e Sem canal fora do incentivo, ainda fora do
-   documento de regras.
+6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada, e Sem canal fora dos pontos, do ranking e da
+   premiação da Rota — no documento de regras desde a v3.6 (seção 1). Falta implementar a soma do SV com as rotas Sem
+   canal (decisão de 30/10; pendência 10 do documento de regras).
 7. A aba Regras (pendência 4 e a lista de dados em `src/app.tpl.html`) diz que o Real inclui o faturado de hoje. A
    medição de 28/10/2026 mostra o contrário: hoje aparece só no Online. A correção do texto ainda não foi feita.
 
