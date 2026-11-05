@@ -962,6 +962,151 @@ function confrontoInvalidadoPorAjuste(det, linhas, canaisSV) {
 }
 
 /*
+ * ─────────────── Administração em tópicos (etapa 15, desenho aprovado em 04/11/2026) ───────────────
+ * Estados e contagens que a Administração mostra (Resumo, selos das abas, Confrontos por mês, Pilares do mês e Canal
+ * das rotas). Só apresentação: nada aqui calcula ponto, %, gatilho, vencedor ou ranking. O resultado de um confronto
+ * vem pronto do motor (RES.confrontos); aqui só se escolhe o texto.
+ */
+const TOPICOS_ADMIN = [
+  { id: 'resumo', rotulo: 'Resumo' }, { id: 'confrontos', rotulo: 'Confrontos' }, { id: 'pilares', rotulo: 'Pilares do mês' },
+  { id: 'canais', rotulo: 'Canal das rotas' }, { id: 'regras', rotulo: 'Pontuação e regras' },
+  { id: 'fechamento', rotulo: 'Fechamento do mês' },
+];
+/** Tópico da Administração de cada ajuste (chave "tipo:id" de itensDosAjustes). */
+const TOPICO_DO_TIPO = { regras: 'regras', pilares: 'pilares', agrupadores: 'pilares', canais: 'canais', canaisSV: 'canais',
+                         confrontos: 'confrontos', flash: 'fechamento' };
+const topicoDoItem = (chave) => TOPICO_DO_TIPO[partesChave(chave)[0]] || null;
+/** Alterações para publicar (diferencasAjustes) por tópico: o selo de cada aba. */
+function contagemPorTopico(diferencas) {
+  const out = {};
+  for (const d of diferencas || []) { const t = topicoDoItem(d.chave); if (t) out[t] = (out[t] || 0) + 1; }
+  return out;
+}
+
+/** Resumo > Mês da API: o mês de referência da API × o mês que o painel espera pelo calendário (hoje; no período de
+ *  fechamento da API, o mês anterior). Sem a API, alerta. */
+function estadoMesApi(meta, hoje) {
+  const h = hoje || new Date(), mh = h.getMonth() + 1, ah = h.getFullYear();
+  const esperado = meta.fechamento ? (mh === 1 ? { mes: 12, ano: ah - 1 } : { mes: mh - 1, ano: ah }) : { mes: mh, ano: ah };
+  const rot = (x) => `${NOMES_MES[x.mes]}/${x.ano}`;
+  const base = { mes: meta.mes, ano: meta.ano, fechamento: !!meta.fechamento, esperado, rotulo: rot(meta), rotuloEsperado: rot(esperado) };
+  if (meta.origem !== 'api') return Object.assign(base, { ok: false, motivo: 'sem-api' });
+  const ok = esperado.mes === meta.mes && esperado.ano === meta.ano;
+  return Object.assign(base, { ok, motivo: ok ? null : 'outro-mes' });
+}
+
+/** Resumo > Pilares do mês: os 5 pilares em Mista e em Segmentada e, quando Missões Guiadas tem meta (fora dos meses
+ *  validados em 100%), a fonte dela. `validadas` = REGRAS.missaoValidadaMeses do motor. */
+function estadoPilaresMes(cfg, mes, validadas) {
+  const val = validadas || MotorRegras().missaoValidadaMeses;
+  const canais = ['Mista', 'Segmentada'].map((c) => ({ canal: c, n: pilaresDefinidos(cfg, mes, c).length, ok: !!pilaresDoMes(cfg, mes, c) }));
+  const temMissao = ['Mista', 'Segmentada'].some((c) => pilaresDefinidos(cfg, mes, c).some((p) => p && p.tipo === 'missao'));
+  const exigeMeta = temMissao && !val.includes(mes);
+  const missaoSemFonte = exigeMeta && semFonte(cfg, 'Missões Guiadas');
+  const configurado = canais.every((c) => c.ok);
+  return { mes, ok: configurado && !missaoSemFonte, configurado, canais, exigeMeta, missaoSemFonte };
+}
+
+/** Resumo > Meses fechados: para cada mês do trimestre anterior ao de referência, se o arquivo do mês fechado foi lido
+ *  (ok), lido mas sem os 5 pilares (incompleto) ou ausente/com falha (indisponível). O pior estado vale para o cartão. */
+function estadoMesesFechados(mesRef, acumulado) {
+  const a = acumulado || {};
+  const meses = MESES_Q4.filter((m) => m < mesRef).map((mes) => {
+    const u = (a.usados || []).find((x) => x.mes === mes), f = (a.faltando || []).find((x) => x.mes === mes);
+    return { mes, estado: !u ? 'indisponivel' : f ? 'incompleto' : 'ok', previa: !!u && !u.final, final: !!(u && u.final),
+             motivo: f ? f.motivo : null };
+  });
+  const estado = meses.some((m) => m.estado === 'indisponivel') ? 'indisponivel'
+    : meses.some((m) => m.estado === 'incompleto') ? 'incompleto' : 'ok';
+  return { estado, meses };
+}
+
+/** Canal das rotas: SVs com pendência na edição em curso — SV sem canal (empate, ou mesa toda sem canal, sem escolha
+ *  do admin) ou com rota "Sem canal" na mesa. `escolhas` = canal do SV escolhido na tela (sv -> canal). Rotas sem SV
+ *  não formam mesa e ficam de fora (elas têm bloco próprio). */
+function pendenciasCanais(linhas, edicao, escolhas) {
+  const out = [];
+  for (const s of svsDaSegmentacao(linhas)) {
+    if (s.sv === SEM_SV) continue;
+    const rotas = rotasDoFiltro(linhas, s.sv);
+    const cm = canalDaMesa(rotas, edicao, (escolhas || {})[s.sv] || '');
+    const semCanal = rotas.filter((l) => !deValorSeg(edicao && l.rota in edicao ? edicao[l.rota] : l.atual).canal).map((l) => l.rota);
+    // empate: a mesa tem rotas com canal, mas Mista e Segmentada empatam (o admin precisa escolher); sem empate e sem
+    // canal, a mesa inteira está sem canal (o SV não entra no incentivo)
+    if (!cm.canal || semCanal.length) out.push({ sv: s.sv, svSemCanal: !cm.canal, empate: !cm.canal && semCanal.length < rotas.length, rotasSemCanal: semCanal });
+  }
+  return out;
+}
+
+/** Resumo > Canal e supervisão: SVs sem canal (e, entre eles, os em empate, que pedem a escolha do admin), rotas sem
+ *  canal, rotas sem SV e confrontos cadastrados no mês. */
+function contagensCanal(linhas, edicao, escolhas, confrontos, mes) {
+  const val = (l) => deValorSeg(edicao && l.rota in edicao ? edicao[l.rota] : l.atual);
+  const pend = pendenciasCanais(linhas, edicao, escolhas);
+  return {
+    svsSemCanal: pend.filter((p) => p.svSemCanal).length,
+    svsEmpate: pend.filter((p) => p.empate).length,
+    rotasSemCanal: linhas.filter((l) => !val(l).canal).length,
+    rotasSemSV: linhas.filter((l) => !l.sv).length,
+    confrontosMes: (confrontos || []).filter((c) => c.mes === mes).length,
+  };
+}
+/** Etiqueta da rota no tópico Canal das rotas: "Sem canal" (amarelo) ou "Difere do SV" (azul, só informativo). */
+function etiquetaRota(canalRota, canalSV) {
+  if (!canalRota) return 'sem-canal';
+  return canalSV && canalRota !== canalSV ? 'difere-sv' : null;
+}
+
+/** Confrontos > estado do mês: Fechado (anterior ao de referência, ou o de referência no período de fechamento da API),
+ *  Em andamento ou Futuro. Mês fechado é só leitura; os outros aceitam cadastro só com os 5 pilares do mês configurados
+ *  (nunca com parte dos pilares). */
+function estadoMesConfrontos(mes, mesRef, fechamento, cfg) {
+  const estado = mes < mesRef || (mes === mesRef && fechamento) ? 'fechado' : mes === mesRef ? 'andamento' : 'futuro';
+  const pilares = mesConfigurado(cfg, mes);
+  const bloqueio = estado === 'fechado' ? 'fechado' : !pilares ? 'sem-pilares' : null;
+  return { mes, estado, rotulo: { fechado: 'Fechado', andamento: 'Em andamento', futuro: 'Futuro' }[estado],
+           editavel: !bloqueio, bloqueio };
+}
+/** Confrontos cadastrados de um mês, na ordem de registro. */
+const confrontosDoMes = (lista, mes) => (lista || []).filter((c) => c.mes === mes);
+
+/**
+ * Resultado de um confronto cadastrado, para a linha do tópico Confrontos. Vem do motor (`detalhes` = RES.confrontos,
+ * os mesmos da tela Confrontos); aqui só se escolhe o caso:
+ *   futuro       — mês que ainda não começou: não apura;
+ *   indisponivel — mês fechado sem o arquivo (index.json -> fechados): "dados do mês fechado indisponíveis";
+ *   sem-pilares  — mês fechado sem os 5 pilares: não apura;
+ *   pendente     — incluído nesta tela e ainda não salvo: o motor ainda não o viu;
+ *   venceu | parcial (mês aberto: o +5 só entra no fechamento) | empate | sem-dado | nao-vale.
+ * `fechado` = item de estadoMesesFechados para o mês (null no mês de referência).
+ */
+function resultadoConfrontoAdmin(c, detalhes, estadoMes, fechado) {
+  if (estadoMes && estadoMes.estado === 'futuro') return { tipo: 'futuro', det: null };
+  if (fechado && fechado.estado === 'indisponivel') return { tipo: 'indisponivel', det: null };
+  if (fechado && fechado.estado === 'incompleto') return { tipo: 'sem-pilares', det: null };
+  const d = (detalhes || []).find((x) => x.mes === c.mes && x.desafiante === c.id_sv_desafiante
+    && x.desafiado === c.id_sv_desafiado && x.pilar === c.pilar);
+  if (!d) return { tipo: 'pendente', det: null };
+  const e = estadoConfronto(d);
+  if (e.caixa === 'S1') return { tipo: d.mesFechado ? 'venceu' : 'parcial', det: d, vencedor: d.vencedor, desempate: e.desempate };
+  if (e.caixa === 'S2') return { tipo: d.motivo === 'EMPATE_SEM_VENCEDOR' ? 'empate' : 'sem-dado', det: d, motivo: d.motivo };
+  return { tipo: 'nao-vale', det: d, motivo: d.motivo };
+}
+
+/** Pilares do mês > os 5 pilares de um mês e canal, com a etiqueta: Fixo (1 a 3), Coringa (4 e 5) ou "Validada em
+ *  100%" (Missões Guiadas nos meses validados). Posição sem pilar definido: nome null (ex.: coringas de dezembro). */
+function pilaresDoTopico(cfg, mes, canal, validadas) {
+  const val = validadas || MotorRegras().missaoValidadaMeses, lista = pilaresDefinidos(cfg, mes, canal);
+  return [0, 1, 2, 3, 4].map((i) => {
+    const p = lista[i], coringa = i >= 3;
+    if (!p || !p.nome) return { n: i + 1, nome: null, tipo: null, coringa, etiqueta: coringa ? 'Coringa' : 'Fixo', semFonte: false };
+    const validada = p.tipo === 'missao' && val.includes(mes);
+    return { n: i + 1, nome: p.nome, tipo: p.tipo, coringa, etiqueta: validada ? 'Validada em 100%' : coringa ? 'Coringa' : 'Fixo',
+             semFonte: !validada && semFonte(cfg, p.nome) };
+  });
+}
+
+/*
  * Aba Confrontos (cartões de duelo): funções só de apresentação. Nada aqui apura vencedor, ponto ou %: tudo vem do
  * motor (RES.confrontos); aqui só se distribui na tela, conta linhas e escolhe o estado visual.
  */
@@ -1650,5 +1795,8 @@ if (typeof module === 'object' && module.exports) {
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,
                      canaisDosSVs, aplicarCanalSV, pendenciasCanalSV,
                      CF_ALTURA_MAX, CF_ALTURA_MIN, distribuirConfrontos, resumoConfrontos,
-                     estadoConfronto, larguraBarra, lugarEtiquetas };
+                     estadoConfronto, larguraBarra, lugarEtiquetas,
+                     TOPICOS_ADMIN, topicoDoItem, contagemPorTopico, estadoMesApi, estadoPilaresMes, estadoMesesFechados,
+                     pendenciasCanais, contagensCanal, etiquetaRota, estadoMesConfrontos, confrontosDoMes,
+                     resultadoConfrontoAdmin, pilaresDoTopico };
 }

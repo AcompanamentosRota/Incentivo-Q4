@@ -1987,3 +1987,174 @@ test('consulta: o bloco da Administração tem o seletor de mês, as três visõ
   assert.match(html, /Fechamento do mês \(consulta e exportação\)/, 'rode python painel-q4/scripts/build.py');
   assert.match(html, /function planilhaXlsx/, 'rode python painel-q4/scripts/build.py');
 });
+
+// ───────────── Administração em tópicos (etapa 15): contagens e estados, fixtures sintéticas ─────────────
+const A15 = require('../src/adapter.js');
+
+test('admin tópicos: cada alteração para publicar cai no selo do tópico dela', () => {
+  assert.deepEqual(A15.TOPICOS_ADMIN.map((t) => t.id), ['resumo', 'confrontos', 'pilares', 'canais', 'regras', 'fechamento']);
+  const dif = ['regras:gatilhoPontos.RT', 'regras:faixas', 'pilares:Mista', 'agrupadores:agua', 'canais:R01', 'canaisSV:Sv. Xx.1',
+               'confrontos:11|Sv. Xx.1#Mista|Sv. Xx.2#Mista', 'flash:202610'].map((chave) => ({ chave }));
+  assert.deepEqual(A15.contagemPorTopico(dif), { regras: 2, pilares: 2, canais: 2, confrontos: 1, fechamento: 1 });
+  assert.deepEqual(A15.contagemPorTopico([]), {});
+  assert.equal(A15.topicoDoItem('desconhecido:x'), null);
+});
+
+test('admin resumo: mês da API x mês esperado pelo calendário (no fechamento, o anterior); sem API, alerta', () => {
+  const meta = (mes, fechamento, origem = 'api') => ({ mes, ano: 2026, fechamento, origem });
+  assert.equal(A15.estadoMesApi(meta(11, false), new Date(2026, 10, 5)).ok, true);
+  assert.equal(A15.estadoMesApi(meta(11, true), new Date(2026, 11, 1)).ok, true);   // 1º dia útil de dezembro: novembro fechando
+  const velho = A15.estadoMesApi(meta(10, false), new Date(2026, 10, 5));          // API parada em outubro
+  assert.deepEqual([velho.ok, velho.motivo, velho.esperado], [false, 'outro-mes', { mes: 11, ano: 2026 }]);
+  assert.equal(A15.estadoMesApi(meta(12, true), new Date(2027, 0, 2)).ok, true);   // virada de ano
+  const base = A15.estadoMesApi(meta(11, false, 'base'), new Date(2026, 10, 5));
+  assert.deepEqual([base.ok, base.motivo], [false, 'sem-api']);
+});
+
+test('admin resumo: pilares do mês — 5 pilares nos dois canais e a fonte das Missões Guiadas quando o mês tem meta', () => {
+  const C = A15.CONFIG;
+  const out = A15.estadoPilaresMes(C, 10, [10]);
+  assert.deepEqual([out.ok, out.configurado, out.exigeMeta], [true, true, false]);       // outubro: validada em 100%
+  const nov = A15.estadoPilaresMes(C, 11, [10]);
+  assert.deepEqual([nov.ok, nov.configurado, nov.exigeMeta, nov.missaoSemFonte], [false, true, true, true]); // sem fonte: Pendente
+  const dez = A15.estadoPilaresMes(C, 12, [10]);
+  assert.equal(dez.configurado, false);
+  assert.deepEqual(dez.canais.map((c) => [c.canal, c.n, c.ok]), [['Mista', 3, false], ['Segmentada', 3, false]]);
+  // com fonte definida para Missões Guiadas, novembro fica OK (a fonte vem da configuração, nunca de 100% assumido)
+  const comFonte = Object.assign({}, C, { fonteDoPilar: Object.assign({}, C.fonteDoPilar, { 'Missões Guiadas': 'Missoes Teste' }) });
+  assert.equal(A15.estadoPilaresMes(comFonte, 11, [10]).ok, true);
+});
+
+test('admin resumo: meses fechados — ok, incompleto (sem pilares) e indisponível (sem arquivo)', () => {
+  const ok = A15.estadoMesesFechados(11, { usados: [{ mes: 10, final: false }], faltando: [] });
+  assert.deepEqual([ok.estado, ok.meses.map((m) => [m.mes, m.estado, m.previa])], ['ok', [[10, 'ok', true]]]);
+  const ind = A15.estadoMesesFechados(12, { usados: [{ mes: 10, final: true }], faltando: [{ mes: 11, motivo: 'novembro não está nos meses fechados da API' }] });
+  assert.deepEqual([ind.estado, ind.meses.map((m) => m.estado)], ['indisponivel', ['ok', 'indisponivel']]);
+  const inc = A15.estadoMesesFechados(11, { usados: [{ mes: 10 }], faltando: [{ mes: 10, motivo: 'Pilares de outubro ainda não configurados' }] });
+  assert.deepEqual([inc.estado, inc.meses[0].estado], ['incompleto', 'incompleto']);
+  assert.deepEqual(A15.estadoMesesFechados(10, null), { estado: 'ok', meses: [] });
+});
+
+// mesas fictícias: Sv. Xx.1 (2 Mista + 1 Segmentada, uma rota sem canal), Sv. Xx.2 (empate), Sv. Xx.3 (toda sem canal)
+const SEG15 = A15.linhasSegmentacao([
+  { rota: 'R01', gc: 'Xx', sv: 'Sv. Xx.1' }, { rota: 'R02', gc: 'Xx', sv: 'Sv. Xx.1' }, { rota: 'R03', gc: 'Xx', sv: 'Sv. Xx.1' },
+  { rota: 'R04', gc: 'Xx', sv: 'Sv. Xx.1' },
+  { rota: 'R05', gc: 'Xx', sv: 'Sv. Xx.2' }, { rota: 'R06', gc: 'Xx', sv: 'Sv. Xx.2' },
+  { rota: 'R07', gc: 'Yy', sv: 'Sv. Yy.3' },
+  { rota: 'R08', gc: 'Yy', sv: null },
+], { rotas: [
+  { rota: 'R01', canal: 'Mista' }, { rota: 'R02', canal: 'Mista' }, { rota: 'R03', canal: 'Segmentada', sub: 'Mini' },
+  { rota: 'R05', canal: 'Mista' }, { rota: 'R06', canal: 'Segmentada', sub: 'Mod' }, { rota: 'R08', canal: 'Mista' },
+] }, null);
+
+test('admin canal das rotas: pendências (SV sem canal, empate e rota sem canal) e as contagens do Resumo', () => {
+  const p = A15.pendenciasCanais(SEG15, {}, {});
+  assert.deepEqual(p.map((x) => [x.sv, x.svSemCanal, x.empate, x.rotasSemCanal]),
+    [['Sv. Xx.1', false, false, ['R04']], ['Sv. Xx.2', true, true, []], ['Sv. Yy.3', true, false, ['R07']]]);
+  const confs = [{ mes: 11 }, { mes: 11 }, { mes: 10 }];
+  assert.deepEqual(A15.contagensCanal(SEG15, {}, {}, confs, 11), { svsSemCanal: 2, svsEmpate: 1, rotasSemCanal: 2, rotasSemSV: 1, confrontosMes: 2 });
+  // a edição em curso conta: escolher o canal do SV resolve o empate; dar canal à R04 tira a pendência da Xx.1
+  assert.deepEqual(A15.pendenciasCanais(SEG15, { R04: 'Mista' }, { 'Sv. Xx.2': 'Mista' }).map((x) => x.sv), ['Sv. Yy.3']);
+  assert.equal(A15.contagensCanal(SEG15, { R04: 'Mista' }, { 'Sv. Xx.2': 'Mista' }, confs, 10).confrontosMes, 1);
+  assert.equal(A15.contagensCanal(SEG15, { R01: '|Neutraliza' }, {}, [], 11).rotasSemCanal, 3);
+  // etiquetas da rota: Sem canal (amarelo) e Difere do SV (azul, só informativo)
+  assert.deepEqual([A15.etiquetaRota(null, 'Mista'), A15.etiquetaRota('Segmentada', 'Mista'), A15.etiquetaRota('Mista', 'Mista'),
+                    A15.etiquetaRota('Mista', null)], ['sem-canal', 'difere-sv', null, null]);
+});
+
+test('admin canal das rotas: gravar e ler canal e segmento continua idêntico (regressão do ajustes.json)', () => {
+  const ed = { R01: '|Neutraliza', R02: 'Segmentada|Mod', R04: 'Mista' };
+  const canais = A15.canaisDaEdicao(SEG15, ed, { R99: { canal: 'Mista', sub: null } });
+  assert.deepEqual(canais, {
+    R99: { canal: 'Mista', sub: null, segmento: null },               // ajuste de rota fora da lista é mantido
+    R01: { canal: null, sub: null, segmento: 'Neutraliza' },
+    R02: { canal: 'Segmentada', sub: 'Mod', segmento: 'Mod' },
+    R04: { canal: 'Mista', sub: null, segmento: null },
+  });
+  const lido = A15.normalizarAjustes({ canais }).canais;
+  const de = A15.linhasSegmentacao(SEG15.map((l) => ({ rota: l.rota, gc: l.gc, sv: l.sv })),
+    { rotas: [{ rota: 'R01', canal: 'Mista' }, { rota: 'R02', canal: 'Mista' }, { rota: 'R03', canal: 'Segmentada', sub: 'Mini' },
+              { rota: 'R05', canal: 'Mista' }, { rota: 'R06', canal: 'Segmentada', sub: 'Mod' }, { rota: 'R08', canal: 'Mista' }] }, lido);
+  for (const [rota, v] of Object.entries(ed)) assert.equal(de.find((l) => l.rota === rota).atual, v, rota);
+});
+
+test('admin confrontos: estado do mês (fechado, em andamento, futuro) e quando o cadastro abre', () => {
+  const C = A15.CONFIG;
+  const e = (m, ref, fech) => { const x = A15.estadoMesConfrontos(m, ref, fech, C); return [x.estado, x.rotulo, x.editavel, x.bloqueio]; };
+  assert.deepEqual(e(10, 11, false), ['fechado', 'Fechado', false, 'fechado']);
+  assert.deepEqual(e(11, 11, false), ['andamento', 'Em andamento', true, null]);
+  assert.deepEqual(e(11, 11, true), ['fechado', 'Fechado', false, 'fechado']);         // período de fechamento da API
+  assert.deepEqual(e(12, 11, false), ['futuro', 'Futuro', false, 'sem-pilares']);      // dezembro sem os 5 pilares: bloqueado
+  const comDez = Object.assign({}, C, { pilaresConfig: C.pilaresConfig.map((x) => x.mes !== 12 ? x
+    : Object.assign({}, x, { pilares: x.pilares.concat([{ nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Volume Teste', tipo: 'volume' }]) })) });
+  assert.deepEqual(A15.estadoMesConfrontos(12, 11, false, comDez).editavel, true);       // futuro com os 5 pilares: abre
+  const lista = [{ mes: 10, id: 'a' }, { mes: 11, id: 'b' }, { mes: 11, id: 'c' }];
+  assert.deepEqual(A15.confrontosDoMes(lista, 11).map((c) => c.id), ['b', 'c']);
+  assert.deepEqual(A15.confrontosDoMes(null, 11), []);
+});
+
+test('admin confrontos: o resultado vem do motor; mês fechado sem arquivo fica indisponível e não apura', () => {
+  const cfg = [10, 11].flatMap((mes) => ['Mista'].map((canal) => ({ mes, canal, pilares: [
+    { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' },
+    { nome: 'Volume Retornáveis', tipo: 'volume' }, { nome: 'Missões Guiadas', tipo: 'missao' }] })));
+  const sv = (id) => ({ id, nome: id, cargo: 'SV', canal: 'Mista', id_supervisor: null, unidade: 'Xx' });
+  const md = (id, mes, pilar, pct) => ({ id, mes, pilar, meta: 100, real: pct, online: 0 });
+  const medidas = [];
+  for (const mes of [10, 11]) for (const [id, s, r] of [['A#Mista', 98, 96], ['B#Mista', 101, 96], ['C#Mista', 101, 97], ['D#Mista', 101, 90]]) {
+    medidas.push(md(id, mes, 'Volume Sabores', s), md(id, mes, 'Refrigerantes', r));
+    for (const p of ['Volume Sucos', 'Volume Powerade', 'Volume Retornáveis']) medidas.push(md(id, mes, p, 90));
+  }
+  const confrontos = [
+    { mes: 11, id_sv_desafiante: 'A#Mista', id_sv_desafiado: 'B#Mista', pilar: 'Volume Sabores', ordem_registro: 1 }, // B à frente
+    { mes: 11, id_sv_desafiante: 'C#Mista', id_sv_desafiado: 'D#Mista', pilar: 'Volume Sabores', ordem_registro: 2 }, // empate: desempate
+    { mes: 11, id_sv_desafiante: 'A#Mista', id_sv_desafiado: 'B#Mista', pilar: 'Volume Sucos', ordem_registro: 3 },   // B já recebeu
+    { mes: 10, id_sv_desafiante: 'A#Mista', id_sv_desafiado: 'B#Mista', pilar: 'Volume Sabores', ordem_registro: 4 },
+  ];
+  const res = M.calcular({ mesRef: 11, pessoas: ['A#Mista', 'B#Mista', 'C#Mista', 'D#Mista'].map(sv), pilaresConfig: cfg, medidas, confrontos });
+  const est = (m) => A15.estadoMesConfrontos(m, 11, false, { pilaresConfig: cfg, fonteDoPilar: {} });
+  const r = (c, f) => A15.resultadoConfrontoAdmin(c, res.confrontos, est(c.mes), f);
+  assert.deepEqual([r(confrontos[0]).tipo, r(confrontos[0]).vencedor], ['parcial', 'B#Mista']);     // mês aberto: parcial
+  assert.deepEqual([r(confrontos[1]).tipo, r(confrontos[1]).desempate, r(confrontos[1]).vencedor], ['parcial', true, 'C#Mista']);
+  assert.deepEqual([r(confrontos[2]).tipo, r(confrontos[2]).motivo], ['nao-vale', 'DESAFIADO_JA_RECEBEU']);
+  assert.deepEqual([r(confrontos[3], { estado: 'ok' }).tipo, r(confrontos[3], { estado: 'ok' }).vencedor], ['venceu', 'B#Mista']);
+  // mês fechado sem o arquivo: nada de apuração, mesmo que o motor tenha devolvido um detalhe
+  assert.deepEqual(r(confrontos[3], { estado: 'indisponivel' }), { tipo: 'indisponivel', det: null });
+  assert.deepEqual(r(confrontos[3], { estado: 'incompleto' }), { tipo: 'sem-pilares', det: null });
+  // incluído na tela e ainda não salvo: o motor não o viu
+  assert.equal(r({ mes: 11, id_sv_desafiante: 'C#Mista', id_sv_desafiado: 'A#Mista', pilar: 'Volume Sucos' }).tipo, 'pendente');
+  // mês futuro: não apura
+  assert.equal(A15.resultadoConfrontoAdmin({ mes: 12 }, res.confrontos, { estado: 'futuro' }, null).tipo, 'futuro');
+  // empate sem desempate: tipo "empate"; sem dado: "sem-dado" (detalhes sintéticos no formato do motor)
+  const d0 = res.confrontos.find((d) => d.mes === 11 && d.pilar === 'Volume Sabores' && d.desafiado === 'B#Mista');
+  assert.equal(A15.resultadoConfrontoAdmin(confrontos[0], [Object.assign({}, d0, { vencedor: null, motivo: 'EMPATE_SEM_VENCEDOR' })], est(11), null).tipo, 'empate');
+  assert.equal(A15.resultadoConfrontoAdmin(confrontos[0], [Object.assign({}, d0, { vencedor: null, motivo: 'SEM_DADO_PARA_APURAR' })], est(11), null).tipo, 'sem-dado');
+});
+
+test('admin pilares do mês: etiqueta Fixo, Coringa ou "Validada em 100%"; mês sem os 5 pilares mostra o que falta', () => {
+  const C = A15.CONFIG;
+  assert.deepEqual(A15.pilaresDoTopico(C, 10, 'Segmentada', [10]).map((l) => [l.n, l.etiqueta]),
+    [[1, 'Fixo'], [2, 'Fixo'], [3, 'Fixo'], [4, 'Coringa'], [5, 'Validada em 100%']]);
+  const nov = A15.pilaresDoTopico(C, 11, 'Mista', [10]);
+  assert.deepEqual(nov.find((l) => l.nome === 'Missões Guiadas'), { n: 3, nome: 'Missões Guiadas', tipo: 'missao', coringa: false, etiqueta: 'Fixo', semFonte: true });
+  assert.equal(nov.filter((l) => l.semFonte).length, 1);
+  const dez = A15.pilaresDoTopico(C, 12, 'Mista', [10]);
+  assert.deepEqual(dez.map((l) => l.nome === null), [false, false, false, true, true]);
+  assert.deepEqual(dez.slice(3).map((l) => l.etiqueta), ['Coringa', 'Coringa']);
+});
+
+test('admin: o template usa as funções do adaptador e mantém os ids dos botões; número de regra nunca fixo', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  for (const id of ['adm-salvar', 'adm-publicar', 'adm-baixar', 'adm-descartar', 'adm-sair', 'adm-npend', 'adm-msg', 'adm-pend', 'adm-login'])
+    assert.match(tpl, new RegExp(`id="${id}"`), id);
+  assert.match(tpl, /role="tablist" aria-label="Tópicos da Administração"/);
+  assert.match(tpl, /id="adm-como"[^>]*aria-expanded="false"/);
+  for (const f of ['estadoMesApi', 'estadoPilaresMes', 'estadoMesesFechados', 'contagensCanal', 'pendenciasCanais', 'estadoMesConfrontos',
+                   'resultadoConfrontoAdmin', 'pilaresDoTopico', 'contagemPorTopico', 'etiquetaRota'])
+    assert.match(tpl, new RegExp(f + '\\('), f);
+  // o bloco novo da Administração lê os valores de R (nunca 17, 20, 60, 95, 90/100/105, 40, 12, 10, 2 ou 5 fixos no texto)
+  const ini = tpl.indexOf('let ADM_TOP'), fim = tpl.indexOf('// campo do formulário -> chave do ajuste');
+  const bloco = tpl.slice(ini, fim).replace(/\$\{[^}]*\}/g, '').replace(/maxlength="\d+"|(min-)?width:\d+px/g, '');
+  assert.ok(ini > 0 && fim > ini);
+  for (const n of ['17', '20', '60', '95', '105', ' 40', ' 12 ']) assert.doesNotMatch(bloco.replace(/04\/11\/2026|28 e 30\/10|29\/10|30\/10|3\.6|dia 12/g, ''), new RegExp('[^0-9]' + n.trim() + '[^0-9/]'), n);
+});

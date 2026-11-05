@@ -45,7 +45,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 144 testes (42 do motor, 102 do adaptador); precisa de Node 18+
+# testes do painel — 154 testes (42 do motor, 112 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
@@ -181,6 +181,16 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   (`carregarAjustes` no adaptador). O navegador (`localStorage["q4_ajustes"]`, formato 2) guarda **só o que difere do
   publicado**; ao abrir, o que ficou igual ao publicado sai sozinho. Para limpar o navegador: Regras > Administração >
   "Descartar todos os do navegador (usar o publicado)", ou apagar a chave `q4_ajustes` do localStorage do site.
+- **Administração em tópicos (05/11/2026, etapa 15):** cabeçalho fixo (título, "Publicado: <data>", chip das alterações
+  para publicar, que abre a lista, e os botões `adm-salvar`, `adm-publicar`, `adm-baixar`, `adm-descartar`, `adm-sair`),
+  "Como publicar?" recolhido, e seis abas: Resumo · Confrontos · Pilares do mês · Canal das rotas · Pontuação e regras ·
+  Fechamento do mês (flash de vendas + consulta). Todos os tópicos ficam no DOM e só o ativo aparece: um campo de outro
+  tópico continua valendo no `lerAjustes`. Contagens e estados (Resumo, selos, mês dos confrontos, resultado do
+  confronto, pilares do mês, pendências de canal) saem de funções puras do adaptador (`estadoMesApi`,
+  `estadoPilaresMes`, `estadoMesesFechados`, `contagensCanal`, `pendenciasCanais`, `estadoMesConfrontos`,
+  `resultadoConfrontoAdmin`, `pilaresDoTopico`, `contagemPorTopico`); o resultado do confronto é o do motor
+  (`RES.confrontos`). Confrontos: mês anterior ao de referência (ou o de referência no período de fechamento da API) é
+  **só leitura**; mês corrente e futuro aceitam cadastro só com os 5 pilares configurados.
 - **A senha do admin existe só como hash** (SHA-256) dentro do HTML. Ela evita mudança por engano; não é
   proteção forte e nunca deve ser escrita em texto claro em lugar nenhum.
 - **`.env` nunca é versionado** (já está no `.gitignore`). Nunca imprima credenciais. Se a autenticação no
@@ -247,7 +257,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   (é a única situação em que um arquivo de `api/v1/` entra num commit de pessoa).
   No painel, mês em prévia deixa o acumulado do trimestre do SV marcado como **provisório** (Supervisão, Ranking, rodapé
   e Regras > Dados e alertas); o rótulo sai de `estadoFechado` no adaptador e **nenhuma regra de cálculo muda**.
-- **Consulta do fechamento (04/11/2026),** no fim de Regras > Administração: só leitura, em cima dos meses que o painel
+- **Consulta do fechamento (04/11/2026),** no tópico "Fechamento do mês" de Regras > Administração: só leitura, em cima dos meses que o painel
   já carregou (`dados.fechados`). `consultaFechamento` no adaptador recorta os dados no mês escolhido (`dadosDoFechado`:
   o mês vira o "corrente", com `fechamento: true`, e os anteriores seguem no acumulado), chama `montarEntrada` e o
   **motor** — nenhuma conta nova — e `tabelaFechamento` monta as três visões (Consultor, Supervisão e Estratégicos) numa
@@ -261,7 +271,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 144 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 154 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
