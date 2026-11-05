@@ -31,9 +31,11 @@ Incentivo-Q4/
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
 │   ├── scripts/descobrir_produtos.py   confere a grafia dos agrupadores no Datasphere
 │   ├── scripts/diagnosticar_real.py    compara o Real da API com o Real do SAC (só leitura)
+│   ├── scripts/reabrir_fechado.py      volta para prévia um mês fechado selado antes do flash (migração)
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
-    ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
+    ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda;
+    │                        no Run workflow, o campo "reabrir" reabre um mês fechado (migração)
     ├── deploy-pages.yml     publica frontend/ + api/ no Pages
     └── testes.yml           testes do back-end e do painel
 ```
@@ -47,8 +49,12 @@ Incentivo-Q4/
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
 4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também
-   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota; na 1ª execução do mês novo o
-   arquivo é selado e não muda mais. É dele que sai o acumulado do trimestre. Formato em [API.md](API.md).
+   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota, e os totais de cada gerência e da
+   empresa. O arquivo fica em **prévia** até o **flash de vendas** (por volta do dia 12): só depois que o Back Office
+   marca o flash do mês como fechado (botão na Administração do painel, publicado por PR em `frontend/ajustes.json`)
+   a execução seguinte o **sela** (oficial) e ele não muda mais. É dele que sai o acumulado do trimestre. Formato em
+   [API.md](API.md). Para reabrir um mês selado antes do flash: Actions > **Atualizar dados** > Run workflow, campo
+   `reabrir` = AAAAMM (`backend/scripts/reabrir_fechado.py`).
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com
 NF_STATUS em Acertado, Meta Neg ou Em Aberto; tendência = realizado + restante da curva de META_NEG;
