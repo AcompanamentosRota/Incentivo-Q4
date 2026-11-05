@@ -5,7 +5,9 @@
 recebem** (decisão informada pela Karen em 03/11/2026; seções 1, 5, 6 e 8), e o teto da Rota passa de 30 para **25
 pontos**. Entram também, de decisões de 28/10 a 03/11/2026 já implementadas no painel: **canal × segmento** e **canal
 do SV** (seções 1 e 10), os **Estratégicos** no painel (seção 1) e o **Real e o Online pela chave e pela rota da meta**
-a partir de novembro/26 (seção 8). A pendência "Real até ontem × faturado de hoje" está **resolvida** (seção 9).
+a partir de novembro/26 (seção 8). Entra também a decisão de **04/11/2026** de que o **fechamento do mês cobre os
+Estratégicos**, além de Consultores e Supervisões — sempre só com volume, sem pontos nem premiação (seção 8). A
+pendência "Real até ontem × faturado de hoje" está **resolvida** (seção 9).
 
 **v3.5:** o **fechamento oficial** de cada mês é feito **depois do fechamento do flash de vendas** (decisão informada
 pela Karen em 04/11/2026; seções 8 e 9). Até lá o mês fica em **prévia**: os números ainda mudam, porque notas fiscais
@@ -187,6 +189,9 @@ meta dele é carregada. **Outubro e os meses anteriores** seguem pela chave do f
 | **Prévia** | O mês já encerrou, mas o resultado ainda pode mudar: até o fechamento do **flash de vendas** (o acompanhamento oficial de notas e volume da Bandeirantes, em torno do dia 12) notas fiscais são canceladas e retornadas. O painel marca o acumulado do trimestre do SV como **provisório**. |
 | **Oficial** | O flash daquele mês fechou e o Back Office marcou isso no painel. O resultado do mês **congela**: não muda mais. |
 
+- **O fechamento de cada mês cobre os três públicos** (decisão informada pela Karen em 04/11/2026): **Consultores**,
+  **Supervisões** e **Estratégicos**. Para os Estratégicos vale o **volume por gerência**, **sem pontos, sem gatilhos e
+  sem premiação**, como na aba Estratégicos (seção 1).
 - A data do flash **varia de mês para mês**: não há dia fixo. O mês só vira oficial quando o Back Office marca, na
   Administração do painel, que o flash daquele mês fechou.
 - Enquanto o mês está em prévia, os pontos, os gatilhos e o ranking continuam aparecendo e sendo calculados
@@ -194,6 +199,8 @@ meta dele é carregada. **Outubro e os meses anteriores** seguem pela chave do f
 - ⚠️ Isto é diferente de "mês fechado" para os **+5 do confronto** (seção 5): ali o mês conta como fechado já no
   período de fechamento da API (dia 1 até o fim do 1º dia útil). A confirmar com o Back Office se os +5 do confronto
   devem esperar o fechamento oficial do flash.
+- **No painel:** a consulta do mês fechado fica em Regras > Administração, só leitura, com as três visões
+  (Consultor, Supervisão e Estratégicos) e exportação em `.xlsx` (PR 29, 05/11/2026).
 
 **Status (⚠️ interpretação da regra do Back Office):**
 
