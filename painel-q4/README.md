@@ -90,9 +90,41 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
 
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
-Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, a **segmentação da
-supervisão** (canal e segmento de cada rota), os **agrupadores extras**, os **confrontos do mês** e o **flash de vendas
-fechado** de cada mês. No fim da página fica a **consulta do fechamento do mês**, que é só leitura.
+Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, o **canal das rotas**
+(canal e segmento de cada rota e o canal do SV), os **agrupadores extras**, os **confrontos do mês** e o **flash de vendas
+fechado** de cada mês, além da **consulta do fechamento do mês**, que é só leitura.
+- **Tópicos (etapa 15, 05/11/2026).** A Administração deixou de ser uma rolagem única. O **cabeçalho** fica fixo no topo:
+  título, "Publicado: <data>" (o `atualizado_em` do `ajustes.json` lido), o chip das alterações ("N alterações para
+  publicar" ou "Nada difere do publicado"), que abre e fecha a lista "Alterações para publicar (publicado → novo
+  valor)", e os botões Salvar neste navegador · Publicar no GitHub (PR) · Baixar ajustes.json · Descartar todos os do
+  navegador · Sair. O passo a passo da publicação fica no link **"Como publicar?"** (fechado por padrão), com o alerta de
+  **substituir** o conteúdo do arquivo. Abaixo, o estado em uso e o quadro do `ajustes.json` lido (como antes) e as
+  **abas**: Resumo · Confrontos · Pilares do mês · Canal das rotas · Pontuação e regras · Fechamento do mês. Só o tópico
+  ativo aparece (o navegador lembra o último); o selo azul na aba conta as alterações para publicar daquele tópico.
+  - **Resumo** (só leitura): quatro cartões com estado em cor e texto — Mês da API (o `mes_referencia` × o mês do
+    calendário; no período de fechamento, o anterior), Pilares do mês (5 pilares nos dois canais e a fonte das Missões
+    Guiadas quando o mês tem meta), Meses fechados (ok, incompleto ou indisponível) e Canal e supervisão (SVs sem canal,
+    em empate ou com a mesa toda sem canal; rotas sem canal; rotas sem SV; confrontos do mês). "Pendente" no último só
+    quando há SV em empate, que é o que pede escolha do admin.
+  - **Confrontos:** Out · Nov · Dez com setas, cada mês com o estado Fechado, Em andamento ou Futuro; abre no mês de
+    referência. Uma linha por desafio: desafiante × desafiado, canal, pilar, % de cada lado (truncado) e o resultado do
+    motor ("Venceu", "Parcial: … à frente", "Empate no pilar", "Não vale: <motivo>"). O mês do novo desafio é o mês
+    aberto. **Mês fechado** (anterior ao de referência, ou o de referência no período de fechamento da API) é **só
+    leitura**; mês corrente e futuro aceitam "+ Novo desafio" só quando o mês tem os 5 pilares (dezembro, sem os
+    coringas, fica bloqueado com o aviso). Mês fechado sem o arquivo: "Dados do mês fechado indisponíveis", sem apurar.
+  - **Pilares do mês:** mês e canal escolhem o quadro; cada pilar com a etiqueta Fixo, Coringa ou "Validada em 100%".
+    Só os coringas 4 e 5 do mês de referência são editáveis, como antes; mês sem os 5 pilares mostra o aviso dourado, e a
+    linha "Missões Guiadas: fonte de meta e realizado — Não definida" aparece quando o mês tem meta e não há fonte.
+    Os **agrupadores extras** ficam aqui, com o botão "+ Agrupador extra".
+  - **Canal das rotas:** o que era "Segmentação da supervisão", um bloco por SV (Canal do SV e as rotas da mesa com canal,
+    segmento, origem e as etiquetas "Sem canal" e "Difere do SV", esta só informativa). Filtros "Todas" (o SV do
+    seletor, com a busca) e "Pendências (n)" (todos os SVs sem canal ou com rota sem canal na mesa). As rotas sem SV no
+    cadastro ficam num bloco final "Sem supervisão no cadastro", com canal e segmento ainda editáveis. O vínculo rota →
+    SV não se edita.
+  - **Pontuação e regras:** três quadros — faixas de pontos, gatilhos (Refrigerantes, mínimo do SV e da Rota) e
+    confronto e premiação (bônus e posições premiadas). Mesmos campos e ids de antes.
+  - **Fechamento do mês:** o flash de vendas e a consulta do fechamento, como antes.
+  As contagens e os estados saem de funções puras do `src/adapter.js` (testadas); o template só monta o HTML.
 - **Fechamento do mês (consulta e exportação)**, decisão de 04/11/2026: confere o resultado de um mês já fechado e
   exporta em **.xlsx**. Um seletor escolhe o mês entre os fechados que o painel carregou (abre no mais recente; mês
   que fechou mas não pôde ser lido aparece como "indisponível" e nada é apurado). O cabeçalho de corte traz o mês, o
@@ -117,7 +149,7 @@ fechado** de cada mês. No fim da página fica a **consulta do fechamento do mê
   (`cd backend && python scripts/reabrir_fechado.py --anomes AAAAMM --confirmar`, e o arquivo vai para o GitHub por
   PR). Nunca há dia fixo de flash no código: a data varia todo mês e quem decide é o Back Office.
 - **Segmentação da supervisão** (decisão de 28/10/2026): escolha o SV (busca pelo código que o painel mostra, ex.
-  "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; "Rotas sem SV" reúne as que não têm supervisão) e ajuste cada
+  "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; as rotas sem SV ficam no bloco final "Sem supervisão no cadastro") e ajuste cada
   rota da mesa entre **Mista · Segmentada – Mini · Segmentada – Mod · Sem canal – Neutraliza · Sem canal – Eventual ·
   Sem canal – Coke Net · Sem canal – Virtual**. A tabela mostra canal e segmento atuais e a origem ("base",
   "publicado" ou "este navegador"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
@@ -126,14 +158,15 @@ fechado** de cada mês. No fim da página fica a **consulta do fechamento do mê
   O SV soma todas as rotas da mesa, medidas nos pilares do canal dele; cada rota continua no ranking do canal dela
   (o +5 do confronto é só do SV). O bloco avisa quando a mesa tem rotas de canais diferentes e "restaurar
   padrão desta mesa" também volta o canal do SV ao padrão. Antes de salvar ou publicar, confira o resumo
-  "Alterações para publicar" (no fim da Administração).
+  "Alterações para publicar" (o chip do cabeçalho da Administração abre a lista).
   O **canal** é o que o motor usa (Mista, Segmentada ou sem canal); o **segmento** é só etiqueta, ao lado do canal nas
   abas Rota, Supervisão, Ranking e Detalhe, na tela Confrontos e, para as rotas sem canal, na lista de alertas.
-  Rota sem ajuste fica exatamente como está na base (nada é renomeado). No documento de regras v3.6 (seção 1): Mini e
+  Rota sem ajuste fica exatamente como está na base (nada é renomeado). Desde a etapa 15 isto fica no tópico
+  **Canal das rotas** (acima). No documento de regras v3.6 (seção 1): Mini e
   Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido); a rota Sem canal fica
   fora de pontos, ranking e premiação, e o volume e a meta dela contam na soma do SV (decisão de 30/10, implementação
   pendente: a tela diz isso). ⚠️ O canal do SV continua a confirmar (pendência 7 do documento de regras).
-- **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
+- **Confrontos:** cadastre SV desafiante, SV desafiado e pilar no mês aberto no tópico Confrontos (mês fechado é só leitura). O pilar segue o canal do desafiante, e o painel
   recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
   apurado na tela Confrontos; o +5 vale só para o SV vencedor (as rotas da mesa não recebem, 03/11/2026), só depois do fechamento do mês. Se um ajuste de canal tirar a mesa do
   canal do confronto, ele continua cadastrado e a tela Confrontos (e a lista da Administração) mostra "canal ajustado"
@@ -178,7 +211,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 102 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
+tests/                       42 testes do motor e 112 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
                              as duas de outubro foram gravadas com o mínimo do Consultor em 20 e são comparadas com esse mínimo)
 docs/                        regras do incentivo (fonte de verdade)
 ```

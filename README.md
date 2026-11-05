@@ -80,12 +80,13 @@ no lugar nem calcula com parte dos pilares. O acumulado do SV soma os meses fech
 corrente; enquanto algum mês fechado estiver em **prévia** (antes do fechamento do flash de vendas), o painel mostra o
 acumulado como **provisório** na Supervisão, no Ranking e no rodapé. Os números não mudam por isso: só o rótulo.
 
-**Consulta do fechamento do mês** (aba Regras > Administração, no fim): confere um mês já fechado — Consultor (por rota),
+**Consulta do fechamento do mês** (aba Regras > Administração, tópico "Fechamento do mês"): confere um mês já fechado — Consultor (por rota),
 Supervisão (por SV) e Estratégicos (por gerência, só volume) — a partir do `api/v1/fechado/AAAAMM.json`, deixando claro se
 o mês está em **prévia** ou **oficial**, e exporta tudo num `.xlsx` de quatro abas (Contexto, Consultores, Supervisões e
 Estratégicos), gerado no próprio navegador. É só leitura: os números saem do motor, com os dados daquele mês.
 
-**Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, segmentação da supervisão (canal e
+**Ajustes do admin** (aba Regras > Administração do painel, em seis tópicos desde 05/11/2026: Resumo, Confrontos,
+Pilares do mês, Canal das rotas, Pontuação e regras e Fechamento do mês): regras, pilares coringa, segmentação da supervisão (canal e
 segmento de cada rota, escolhidos por SV, e o canal do SV, um só por supervisão; o motor só vê o canal),
 **agrupadores extras**, os **confrontos entre supervisores** e o **flash de vendas fechado** de cada mês (o que faz o
 gerador selar o mês fechado). Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
