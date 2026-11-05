@@ -1156,7 +1156,7 @@ const SEC = [
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
   <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
-  <p>Confronto entre Supervisores: o +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem (decisão de 03/11/2026). Ele entra <b>só depois do fechamento do mês</b> (decisão de 30/10/2026), nos pontos acumulados do trimestre do SV. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. <span class="pend">⚠️ o mês conta como fechado já no período de fechamento da API, que não é o mesmo que o fechamento oficial do flash de vendas (04/11/2026): a confirmar com o Back Office se os +${R.bonusConfronto} devem esperar o flash</span> Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} pontos, só dos pilares.</p>
+  <p>Confronto entre Supervisores: o +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem (decisão de 03/11/2026). Ele entra <b>só depois do fechamento do mês</b> (decisão de 30/10/2026), nos pontos acumulados do trimestre do SV. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. O +${R.bonusConfronto} entra no dia 1 do mês seguinte, com o fechamento do mês na API, e é reapurado a cada rodada enquanto o mês está em prévia: o vencedor pode mudar até o Back Office marcar o flash de vendas, quando o resultado congela (decisão de 05/11/2026; documento de regras v3.6, seções 5 e 8). Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} pontos, só dos pilares.</p>
   <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
  { id:'gatilhos', t:'Gatilhos e status', html:()=>`<h2>Gatilhos e status</h2><div class="sub">Dois gatilhos precisam ser batidos para a rota entrar no ranking e na premiação.</div>
   ${T(['Gatilho','Consultor (Rota)','Supervisor'],[
@@ -1192,7 +1192,7 @@ const SEC = [
   <p>Só os pilares de volume valem em confronto (todos, menos Missões Guiadas).</p>`; } },
  { id:'premiacao', t:'Premiação', html:()=>`<h2>Premiação dos Consultores</h2><div class="sub">Mensal (out, nov e dez). Exige ${R.gatilhoPontos.RT} pontos no mês e o gatilho de volume.</div>
   ${T(['Canal','Premiados','Prêmio'],[['Mista',`1º ao ${R.premiadas.RT.Mista}º do ranking`,'R$ 1.000 em produtos (cada)'],['Segmentada',`1º ao ${R.premiadas.RT.Segmentada}º do ranking`,'R$ 1.000 em produtos (cada)']])}
-  <p>Supervisores: ranking do trimestre, mínimo de ${R.gatilhoPontos.SV} pontos, ${R.premiadas.SV.Mista} posições na Mista e ${R.premiadas.SV.Segmentada} na Segmentada. A aba Supervisão usa, por enquanto, a soma das rotas da mesa (no canal) como meta e realizado do Supervisor. A confirmar.</p>` },
+  <p>Supervisores: ranking do trimestre, mínimo de ${R.gatilhoPontos.SV} pontos, ${R.premiadas.SV.Mista} posições na Mista e ${R.premiadas.SV.Segmentada} na Segmentada. A aba Supervisão usa como meta e realizado do Supervisor a soma das rotas da mesa que têm canal, dos dois canais, medidas nos pilares do canal do SV. <span class="pend">⚠️ canal do SV: falta a confirmação do Back Office/IM (documento de regras v3.6, pendência 7)</span> As rotas sem canal ainda ficam fora dessa soma: a decisão de 30/10/2026 de incluí-las tem implementação pendente (pendência 9).</p>` },
  { id:'dados', t:'Dados e alertas', html:()=>{
     const sc=DADOS.semCanal, du=DADOS.duplicadas, al=alertasDados();
     const exc={}; notasRefri.forEach(n=>n.excluidos.forEach(e=>exc[e]=(exc[e]||0)+1));
@@ -1204,7 +1204,7 @@ const SEC = [
     ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+' — '+esc(estadoMes(u).longo)).join('; ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.${PREVIA.length?' <b>O acumulado é provisório</b> enquanto '+esc(listaPrevia())+' estiver em prévia: o fechamento oficial sai depois do fechamento do flash de vendas (decisão de 04/11/2026), marcado pelo Back Office na Administração.':''}</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
-      ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês, inclusive o faturado de hoje'],
+      ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês até ontem (o faturado de hoje aparece só no Online; medição de 28/10/2026)'],
       ['online_hoje (pedidos de hoje no WF Online)','Online: pedidos de hoje ainda não faturados'],
       ['meta_dia (META_RECUPERAVEL_ROTA de hoje)','Meta dia, pronta, sem recalcular'],
       ['refrigerantes (agrupador Refrigerantes: todos os itens de refri)', REFRI_CAT?`Categoria Refrigerantes do gatilho de ${pctTxt(R.gatilhoVolumePct)}% e do desempate`:'Ainda não vem na API: gatilho pela soma provisória de Individual + Retornável'],
@@ -1223,9 +1223,9 @@ const SEC = [
       ['Rotas sem canal na base de segmentação (ficam fora do ranking)',sc.length],
       ['Rotas em dois segmentos (vale o de maior volume realizado)',du.length],
       [api?'Rota com segmento que não está na API':'Rota com segmento e sem meta no modelo',DADOS.segSemInfos.map(r=>'Rota '+esc(r)).join(', ')||'0']])}
-    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o segmento aparece como etiqueta ao lado da rota. ⚠️</p>
+    <p>Segmentada Mini e Segmentada Mod entram no canal <b>Segmentada</b>; o segmento aparece como etiqueta ao lado da rota (documento de regras v3.6, seção 1).</p>
     <h3>Rotas sem canal (${sc.length})</h3>
-    <p>Ficam fora de pontos, ranking e premiação. A etiqueta mostra o segmento quando o admin o definiu (Neutraliza, Eventual, Coke Net ou Virtual); sem etiqueta, a rota está como veio da base. ⚠️</p>
+    <p>A rota sem canal fica fora de pontos, ranking e premiação. A etiqueta mostra o segmento quando o admin o definiu (Neutraliza, Eventual, Coke Net ou Virtual); sem etiqueta, a rota está como veio da base (documento de regras v3.6, seção 1). O volume e a meta dela contam na soma do SV (decisão de 30/10/2026): <span class="pend">implementação pendente</span>, por enquanto o painel ainda as deixa fora da soma do SV.</p>
     <div class="chips">${sc.map(x=>{ const l = SEG_POR[x.rota]; return `<span>${esc(x.rota)} <small style="color:#b9bcc4">${esc(x.gc)}</small>${segTag(l && l.sub, true)}</span>`; }).join('')}</div>
     <h3>Rotas em dois segmentos (${du.length})</h3>
     ${T(['Rota','Segmento adotado','Volume realizado por segmento'],du.map(d=>[esc(d.rota),esc(d.escolhida),d.opcoes.map(o=>`${esc(o.seg)}: ${numF(o.vol)}`).join(' · ')]))}
@@ -1244,16 +1244,16 @@ const SEC = [
        ? ['1',`<b>Categoria Refrigerantes:</b> o gatilho de ${pctTxt(R.gatilhoVolumePct)}% e o desempate usam a categoria Refrigerantes da API (agrupador Refrigerantes, com todos os itens de refri).`,'Back Office / IM',OK]
        : ['1',`<b>Categoria Refrigerantes (SAC) não vem na base.</b> Estou usando Individual + Retornável como base provisória do gatilho de ${pctTxt(R.gatilhoVolumePct)}%. Afeta quem entra no ranking.`,'Back Office / IM',P],
      ['2','<b>Vínculo Rota → Supervisão:</b> agora vem da base (35 supervisões). Alimenta o filtro e a visão de mesa.','IM',OK],
-     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real. ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas, e o +'+R.bonusConfronto+' do confronto vale só para o SV (as rotas da mesa não recebem). Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
+     ['3','<b>Supervisor:</b> a base não traz meta e realizado do próprio SV. A aba Supervisão soma todas as rotas da mesa que têm canal, medidas nos pilares do canal do SV, e deixa de fora rota sem meta ou sem real (as rotas sem canal: ver item 10). ⚠️ Cada SV aparece em um canal só (decisão de 29/10): o escolhido na Administração ou, sem escolha, o da maioria das rotas. '+mistos.length+' supervisões têm rotas nos dois canais ('+mistos.map(esc).join(', ')+'); as rotas continuam no ranking do canal delas, e o +'+R.bonusConfronto+' do confronto vale só para o SV (as rotas da mesa não recebem). Os confrontos (+'+R.bonusConfronto+') são cadastrados na Administração e apurados na tela Confrontos.','IM',P],
      DADOS.meta.origem==='api'
-       ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real inclui o faturado de hoje e o Online são os pedidos de hoje ainda não faturados.','IM',OK]
+       ? ['4','<b>Online e meta dia:</b> vêm da API (meta dia pronta). O Real é o faturado até ontem e o Online são os pedidos de hoje ainda não faturados: o faturado de hoje aparece só no Online (medição de 28/10/2026, conferida de novo em 05/11/2026 contra o SAC; documento de regras v3.6, seção 9, resolvidos).','IM',OK]
        : ['4','<b>Online e meta dia:</b> usando WF Online (poucas rotas). As medidas volume hoje e meta dia estão vazias na base, então a meta dia aparece como –.','IM',P],
      ['5','<b>Refri Single = Refrigerantes Individual</b> na Segmentada.','Back Office',P],
      ['6','<b>Rotas sem canal</b> ('+DADOS.semCanal.length+') e <b>rotas em dois segmentos</b> ('+DADOS.duplicadas.length+'): confirmar o critério de maior volume.','IM',P],
      ['7','<b>Real vazio com meta preenchida:</b> hoje é tratado como dado ausente (0 ponto, sem %). Confirmar se vazio significa zero.','IM',P],
      ['8','<b>Gerência:</b> o painel usa a Gerência Comercial da base (16). O modelo de metas usa a Gerência Agrupada (12), por exemplo Di e Pa aparecem juntas como Pa/Di.','IM',P],
      ['9','<b>Canal Mista/Segmentada:</b> a API ainda não traz a segmentação. O canal de cada rota vem da base embutida ('+esc(DADOS.meta.corteSeg)+'); rota nova ou que mudou de canal só entra quando a base for atualizada, ou pelo ajuste do admin (Segmentação da supervisão).','IM',P],
-     ['10','⚠️ <b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). Sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Canal do SV (29/10): um só por SV, escolhido na Administração ou, sem escolha, o da maioria das rotas; empate fica fora do ranking até a escolha. Ainda não está no documento de regras.','Back Office',P],
+     ['10','<b>Segmentação da supervisão (decisão de 28/10):</b> Mini e Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido). A rota sem canal (Neutraliza, Eventual, Coke Net ou Virtual) fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento. Isso está no documento de regras v3.6 (seção 1). Pendente: o volume e a meta da rota sem canal contam na soma do SV (decisão de 30/10), mas a implementação ainda não foi feita (pendência 9 do documento). ⚠️ Canal do SV (29/10): um só por SV, escolhido na Administração ou, sem escolha, o da maioria das rotas; empate fica fora do ranking até a escolha. Está no documento de regras v3.6, ainda a confirmar pelo Back Office/IM (pendência 7).','Back Office',P],
      ...bo], 'pd')}`; } },
  { id:'notas', t:'Anotações', html:()=>{ let v=''; try{ v=localStorage.getItem('q4_notas')||''; }catch(e){}
     return `<h2>Anotações do Back Office</h2><div class="sub">Espaço livre para registrar regras e decisões extras. O texto fica salvo neste navegador.</div>
@@ -1308,7 +1308,7 @@ function segMesaHtml(){
           <option value=""${escolhido?'':' selected'}>Padrão: maioria das rotas (${esc(cm.maioria||'empate')})</option>
           ${['Mista','Segmentada'].map(c=>`<option value="${c}"${escolhido===c?' selected':''}>${c}</option>`).join('')}</select>
         <span>→ o SV aparece só na <b>${esc(cm.canal||'—')}</b>${escolhido!==(SV_CANAL_USO[SEGADM.sv]||'')?' <b>(alteração pendente)</b>':''}</span></div>
-      <p class="sub">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela). O SV soma todas as rotas da mesa, medidas nos pilares do canal dele. ⚠️</p>`
+      <p class="sub">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela). O SV soma todas as rotas da mesa que têm canal, medidas nos pilares do canal dele (rotas sem canal: soma decidida em 30/10, implementação pendente). ⚠️ canal do SV a confirmar (documento de regras v3.6, pendência 7).</p>`
       + (!cm.canal ? `<div class="seg-av" role="alert">⚠️ Mesmo número de rotas Mista e Segmentada: escolha o canal do SV. Até lá o SV fica fora do ranking.</div>`
         : cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV fica só na ${esc(cm.canal)} e soma também as rotas da ${cm.canal==='Mista'?'Segmentada':'Mista'}, nos pilares da ${esc(cm.canal)}. As rotas continuam no ranking do canal delas.</div>` : '');
   return cab + `<div class="adm-linha">Para todas as rotas ${semSv?'sem SV':'desta mesa'}: <select id="seg-todas" aria-label="Valor para todas as rotas">${opcoesSeg(OPCOES_SEGMENTACAO[0])}</select>
@@ -1562,9 +1562,10 @@ function adminHtml(){
       Eventual, Coke Net ou Virtual sem canal). O padrão vem da base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)}; rota sem ajuste fica
       como está na base. Linhas em azul mudam em relação ao que está em uso; a coluna Origem diz de onde vem o valor em uso (base, publicado
       ou só este navegador). Rota sem canal só entra no cálculo quando o painel está lendo a API.</p>
-    <div class="seg-av">⚠️ A confirmar no documento de regras (decisões de 28 e 29/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
-      premiação; Mini × Mod é confronto válido). Sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento.
-      Cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma todas as rotas da mesa nos pilares desse canal.</div>
+    <div class="seg-av">No documento de regras v3.6 (seção 1, decisões de 28 e 30/10): Mini e Mod são o canal Segmentada (mesmos pilares, ranking e
+      premiação; Mini × Mod é confronto válido). A <b>rota</b> sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento;
+      o volume e a meta dela contam na soma do <b>SV</b> (decisão de 30/10), com <b>implementação pendente</b>: hoje o painel ainda as deixa fora da soma.
+      ⚠️ A confirmar (pendência 7 do documento, decisão de 29/10): cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma as rotas da mesa que têm canal nos pilares desse canal.</div>
     ${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
     <div class="adm-linha"><label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
       <label for="seg-sv">SV</label><select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></div>

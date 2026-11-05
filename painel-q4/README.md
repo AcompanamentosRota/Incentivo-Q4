@@ -129,9 +129,10 @@ fechado** de cada mês. No fim da página fica a **consulta do fechamento do mê
   "Alterações para publicar" (no fim da Administração).
   O **canal** é o que o motor usa (Mista, Segmentada ou sem canal); o **segmento** é só etiqueta, ao lado do canal nas
   abas Rota, Supervisão, Ranking e Detalhe, na tela Confrontos e, para as rotas sem canal, na lista de alertas.
-  Rota sem ajuste fica exatamente como está na base (nada é renomeado). ⚠️ A confirmar no documento de regras: Mini e
-  Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido); Sem canal fica fora
-  de pontos, ranking e premiação.
+  Rota sem ajuste fica exatamente como está na base (nada é renomeado). No documento de regras v3.6 (seção 1): Mini e
+  Mod são o canal Segmentada (mesmos pilares, ranking e premiação; Mini × Mod é confronto válido); a rota Sem canal fica
+  fora de pontos, ranking e premiação, e o volume e a meta dela contam na soma do SV (decisão de 30/10, implementação
+  pendente: a tela diz isso). ⚠️ O canal do SV continua a confirmar (pendência 7 do documento de regras).
 - **Confrontos:** cadastre mês, SV desafiante, SV desafiado e pilar. O pilar segue o canal do desafiante, e o painel
   recusa desafio entre canais diferentes, autodesafio, repetição e segundo desafio ao mesmo SV no mês. O resultado é
   apurado na tela Confrontos; o +5 vale só para o SV vencedor (as rotas da mesa não recebem, 03/11/2026), só depois do fechamento do mês. Se um ajuste de canal tirar a mesa do
@@ -265,8 +266,10 @@ python scripts/preparar_dados.py Infos_modelo.xlsx base.xlsx    # atualiza a bas
 6. Segmentação da supervisão (28/10): Mini e Mod como canal Segmentada, e Sem canal fora dos pontos, do ranking e da
    premiação da Rota — no documento de regras desde a v3.6 (seção 1). Falta implementar a soma do SV com as rotas Sem
    canal (decisão de 30/10; pendência 9 do documento de regras).
-7. A aba Regras (pendência 4 e a lista de dados em `src/app.tpl.html`) diz que o Real inclui o faturado de hoje. A
-   medição de 28/10/2026 mostra o contrário: hoje aparece só no Online. A correção do texto ainda não foi feita.
+
+Resolvido (05/11/2026): a aba Regras (pendência 4, resolvida, e a lista de dados) diz que o Real é o faturado até ontem
+e que o faturado de hoje aparece só no Online, como mostrou a medição de 28/10/2026. Os textos da aba Regras e da
+Administração citam o documento de regras v3.6.
 
 Resolvido: a categoria Refrigerantes do gatilho de 95% vem da API (agrupador `Refrigerantes`, todos os itens de refri).
 
