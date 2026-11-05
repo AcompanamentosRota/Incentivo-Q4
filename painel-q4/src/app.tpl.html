@@ -176,6 +176,29 @@ button{background:none;border:0;cursor:pointer}
 .adm .difpub{outline:2px solid var(--blue);outline-offset:2px}
 .adm .pv{font-size:15px;font-weight:600;color:#9cc4ff;white-space:nowrap}
 .adm .colar{font-weight:700;color:#ffe29a}
+/* consulta do fechamento do mês (Administração): tabela própria, curta, com rolagem nos dois eixos e cabeçalho fixo */
+.fccab{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:10px 0;font-size:19px}
+.fccab b{font-size:22px;font-weight:700}
+.fccab .et{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:1px 10px;font-size:16px;font-weight:600;border:1px solid}
+.fccab .et.prev{background:#3a2a00;border-color:#a47500;color:#ffe29a}
+.fccab .et.of{background:var(--greend);border-color:var(--green);color:#c4ffd3}
+.fccab small{color:var(--muted);font-size:16px;line-height:1.3}
+.fcwrap{max-height:372px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:10px 0;background:rgba(0,0,0,.25)}
+.fct{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:16px}
+.fct th,.fct td{padding:4px 9px;white-space:nowrap;text-align:right;border-bottom:1px solid rgba(255,255,255,.08);font-weight:400;font-size:16px;line-height:1.3}
+.fct thead th{position:sticky;top:0;z-index:2;background:#1b1923;font-size:15px;font-weight:600;color:#d8dbe2;border-bottom:2px solid rgba(255,255,255,.26)}
+.fct th[scope=row]{position:sticky;left:0;z-index:1;background:#17151f;text-align:left;font-weight:600}
+.fct thead th:first-child{left:0;z-index:3;text-align:left}
+.fct td.tx{text-align:left}
+.fct tbody tr:hover td,.fct tbody tr:hover th[scope=row]{background:rgba(255,255,255,.07)}
+.fct tr.tot td,.fct tr.tot th[scope=row]{background:rgba(29,123,255,.18);font-weight:600}
+.fct .na{color:#8e939f}
+.fcst{display:inline-block;border-radius:6px;padding:0 8px;font-size:15px;font-weight:600;border:1px solid}
+.fcst.tot{background:var(--greend);border-color:var(--green);color:#c4ffd3}
+.fcst.bat{background:#4a3500;border-color:var(--gold);color:#ffe29a}
+.fcst.no{background:#23262e;border-color:#454a56;color:#e4e6ea}
+.fcsn{font-weight:600}.fcsn.ok{color:#7dffa0}.fcsn.no{color:#ffb3bd}
+#fc-rodape{font-size:17px;color:var(--muted)}
 .nota{width:100%;max-width:1200px;height:380px;resize:vertical;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:22px;line-height:1.35;font-family:inherit}
 
 .foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:15px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
@@ -592,16 +615,11 @@ function pilaresDo(canal){ return pilaresDoMes(CONFIG, MES, canal) || []; }
 // ordem das colunas nas abas Rota e Supervisão: Missões Guiadas por último (a numeração dos pilares não muda)
 const ordemTela = (l)=> l.filter(p=>p.tipo!=='missao').concat(l.filter(p=>p.tipo==='missao'));
 /* Ordem da tela: elegíveis na posição oficial e, depois, quem está fora do ranking por pontos.
-   A posição oficial (premiação) continua só para os elegíveis; posTela numera todas as linhas. */
-const ordenaRanking = (a,b)=>{
-  if(a.elegivel!==b.elegivel) return a.elegivel?-1:1;
-  if(a.elegivel) return a.posicao-b.posicao;
-  if(a.gatilhoPontos.valor!==b.gatilhoPontos.valor) return b.gatilhoPontos.valor-a.gatilhoPontos.valor;
-  return (b.volume.pct??-1)-(a.volume.pct??-1) || (a.id<b.id?-1:1);
-};
-['Mista','Segmentada'].forEach(c=>[RTS,SVS].forEach(arr=>{
-  arr.filter(p=>p.canal===c).sort(ordenaRanking).forEach((p,i)=>{ p.posTela = i+1; });
-}));
+   A posição oficial (premiação) continua só para os elegíveis; posTela numera todas as linhas.
+   O comparador é o `ordemPainel` do adaptador: a consulta do fechamento numera com a mesma regra. */
+const ordenaRanking = ordemPainel;
+const POS_TELA = posicoesDeTela(RES.pessoas);
+[RTS,SVS].forEach(arr=>arr.forEach(p=>{ p.posTela = POS_TELA[p.id] || null; }));
 function lista(){ return RTS.filter(p=>p.canal===st.canal).sort(ordenaRanking); }
 function escopo(){ return lista().filter(p=>(st.gc==='Todas'||p.unidade===st.gc) && (st.sv==='Todas'||INFO[p.id].sv===st.sv)); }
 function filtrada(){
@@ -1359,6 +1377,98 @@ const novoId = (nome)=>{
   let id = base, k = 2; while (usados.has(id)) id = base+'_'+(k++);
   return id;
 };
+/* consulta do fechamento do mês (04/11/2026): o Back Office confere o mês fechado e exporta em .xlsx.
+   Só leitura: tudo vem do fechado/AAAAMM.json pelo adaptador, e pontos, %, gatilhos, status e ranking vêm do motor
+   (consultaFechamento). A tela filtra e desenha; o arquivo leva sempre todas as linhas. */
+const FC = { mes:null, visao:'consultor', canal:'Todos', busca:'' };
+const FC_CACHE = {};
+const FC_MAX = 50;   // linhas desenhadas na tela (tabela curta, com rolagem); a exportação leva todas
+const consultaDoMes = (mes)=>{
+  if(!(mes in FC_CACHE)) FC_CACHE[mes] = consultaFechamento(DADOS, mes, CONFIG, AJ.ativo && AJ.ativo.confrontos);
+  return FC_CACHE[mes];
+};
+/* meses que a consulta oferece: os fechados que o painel carregou (ACUM.usados) e, desabilitados, os do trimestre
+   que fecharam mas não puderam ser lidos (ACUM.faltando) — nunca se apura nada sem o arquivo do mês. */
+function mesesConsulta(){
+  const usados = (ACUM.usados||[]).map(u=>({ mes:u.mes, anomes:u.anomes||anomesDoMes(u.mes), rotulo:u.rotulo||MESES[u.mes], ok:true }));
+  const falta = (ACUM.faltando||[]).filter(f=>!usados.some(u=>u.mes===f.mes))
+    .map(f=>({ mes:f.mes, anomes:anomesDoMes(f.mes), rotulo:MESES[f.mes], ok:false, motivo:f.motivo }));
+  return usados.concat(falta).sort((a,b)=>b.mes-a.mes);
+}
+const fcStatusCls = (s)=> s===R.status.dentro ? 'tot' : s===R.status.fora ? 'bat' : 'no';
+/* cabeçalho de corte: mês, estado (prévia ou oficial, com a data do selo), gerado_em, atualizado_em e a origem */
+function fcCabecalho(c){
+  if(!c.disponivel) return `<div class="seg-av" role="alert">⚠️ ${esc(c.motivo)}: o mês não está na lista de meses fechados da API (ou não pôde ser lido), então nada é apurado aqui.</div>`;
+  const et = c.previa ? `<span class="et prev">Prévia</span>`
+    : `<span class="et of">Oficial${c.oficialEm?' · selado em '+esc(dataBr(c.oficialEm)):''}</span>`;
+  const n = VISOES_FECHAMENTO.map(v=>`${tabelaFechamento(c, v.id).linhas.length} ${v.unidade}`).join(' · ');
+  return `<div class="fccab"><b>Fechamento de ${esc(c.rotulo)}</b>${et}
+      <small>gerado em ${esc(quandoAj(c.geradoEm)||'—')} · dados da execução de ${esc(quandoAj(c.atualizadoEm)||'—')}
+        · <code>api/v1/fechado/${esc(c.anomes)}.json</code></small><small>${esc(n)}</small></div>
+    ${c.previa ? '' : `<p class="sub">${esc(c.estado.longo)}</p>`}`
+    + (c.previa ? `<div class="seg-av" role="alert">⚠️ <b>Prévia:</b> os números deste mês ainda podem mudar até o fechamento do flash de vendas (até lá notas fiscais são canceladas e retornadas). Trate este resultado como provisório — o arquivo exportado sai com a mesma advertência.</div>` : '')
+    + (c.simulado ? `<div class="seg-av" role="alert">⚠️ DADOS SIMULADOS: este fechamento não é real.</div>` : '')
+    + (c.semPilares ? `<div class="seg-av" role="alert">⚠️ ${esc(c.semPilares)}: nada é apurado neste mês. O painel nunca calcula com parte dos pilares.</div>` : '')
+    + ((c.mesesIncompletos||[]).length ? `<div class="seg-av" role="alert">⚠️ Acumulado do trimestre incompleto: ${c.mesesIncompletos.map(x=>esc(x.motivo)).join('; ')}. Os supervisores ficam sem posição oficial.</div>` : '')
+    + (!c.estrat && c.motivoEstrat && !c.semPilares ? `<div class="seg-av" role="alert">⚠️ ${esc(c.motivoEstrat)}: a consulta não soma as rotas por conta própria.</div>` : '');
+}
+/* uma célula da tabela, pelo tipo da coluna (o mesmo tipo que a planilha usa) */
+function fcCelula(v, tipo, linha){
+  if(v===null || v===undefined || v==='') return `<td class="na">–</td>`;
+  if(tipo==='volume') return `<td>${numF(v)}</td>`;
+  if(tipo==='pct') return `<td>${M.fmtPct(v)}</td>`;
+  if(tipo==='inteiro') return `<td>${esc(v)}</td>`;
+  if(tipo==='status') return `<td class="tx"><span class="fcst ${fcStatusCls(v)}">${esc(v)}</span></td>`;
+  if(tipo==='simnao') return `<td class="tx"><span class="fcsn ${v==='sim'?'ok':'no'}">${esc(v)}</span></td>`;
+  return `<td class="tx">${esc(v)}</td>`;
+}
+function fcTabela(c){
+  if(!c.disponivel || c.semPilares) return '';
+  const t = tabelaFechamento(c, FC.visao);
+  if(!t.colunas.length || !t.linhas.length) return `<p class="sub">Nada a mostrar nesta visão.</p>`;
+  const vis = filtrarFechamento(t.linhas, FC.visao==='estrategicos' ? 'Todos' : FC.canal, FC.busca);
+  const corte = vis.slice(0, FC_MAX);
+  const cab = t.colunas.map((col,i)=>`<th scope="col"${i===0?'':''} title="${esc(col.rotulo)}">${esc(col.rotulo)}</th>`).join('');
+  const corpo = corte.map(l=>`<tr class="${l.total?'tot':''}">`
+      + `<th scope="row">${esc(l.celulas[0])}</th>`
+      + l.celulas.slice(1).map((v,j)=>fcCelula(v, (t.colunas[j+1]||{}).tipo, l)).join('') + `</tr>`).join('');
+  const visao = VISOES_FECHAMENTO.find(v=>v.id===FC.visao);
+  return `<div class="fcwrap"><table class="fct"><caption class="sub" style="text-align:left;padding:6px 9px">${esc(visao.rotulo)} · ${esc(c.rotulo)}${c.previa?' · prévia':' · oficial'}</caption>
+      <thead><tr>${cab}</tr></thead><tbody>${corpo}</tbody></table></div>
+    <p class="sub" id="fc-rodape">Mostrando ${corte.length} de ${vis.length} ${esc(visao.unidade)}${vis.length!==t.linhas.length?` (${t.linhas.length} sem filtro)`:''}${vis.length>corte.length?` — a tela mostra as primeiras ${FC_MAX}`:''}. <b>A exportação leva todas as linhas das três visões</b>, sem os filtros desta tela.</p>`;
+}
+function renderFechamento(){
+  if(!$('fc-cab')) return;
+  const c = consultaDoMes(FC.mes);
+  $('fc-cab').innerHTML = fcCabecalho(c);
+  $('fc-corpo').innerHTML = fcTabela(c);
+  const ex = $('fc-exportar'); if(ex) ex.disabled = !c.disponivel;
+  const fcl = $('fc-canal-lbl'); if(fcl) fcl.style.display = FC.visao==='estrategicos' ? 'none' : '';
+  $('fc-visoes').querySelectorAll('button[data-fcv]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.fcv===FC.visao));
+}
+/* bloco da Administração: seletor de mês, as três visões, filtros, o botão de exportar e a tabela */
+function consultaHtml(){
+  const lst = mesesConsulta();
+  if(!lst.some(x=>x.mes===FC.mes)) FC.mes = (lst.find(x=>x.ok) || lst[0] || {}).mes || null;
+  const texto = `<h3>Fechamento do mês (consulta e exportação)</h3>
+    <p class="sub">Confere o resultado de um mês já fechado e exporta em <b>.xlsx</b>. Os números vêm do
+      <code>api/v1/fechado/AAAAMM.json</code> que o gerador gravou (nada é consultado ao vivo) e os pontos, o %, os
+      gatilhos, o status e o ranking são calculados pelo <b>motor do painel</b>, com os dados daquele mês e os pilares
+      daquele mês. O mês em <b>prévia</b> ainda pode mudar até o fechamento do flash de vendas; só o <b>oficial</b>
+      está congelado. A visão <b>Estratégicos</b> é só volume por gerência (todas as rotas que tiveram Real), sem
+      pontos, sem gatilhos e sem premiação.</p>`;
+  if(!lst.length) return texto + `<p class="sub">Nenhum mês fechado disponível${DADOS.meta.origem==='api'?'':' (o painel está sem a API)'}: o primeiro aparece aqui no fechamento do mês seguinte.</p>`;
+  return texto + `<div class="adm-linha">
+      <label for="fc-mes">Mês</label>
+      <select id="fc-mes" style="min-width:210px">${lst.map(x=>`<option value="${x.mes}"${x.mes===FC.mes?' selected':''}${x.ok?'':' disabled'}>${esc(x.rotulo)}${x.ok?'':' — indisponível'}</option>`).join('')}</select>
+      <span class="seg" id="fc-visoes" role="group" aria-label="Visão do fechamento">
+        ${VISOES_FECHAMENTO.map(v=>`<button type="button" data-fcv="${v.id}" aria-pressed="${v.id===FC.visao}">${esc(v.rotulo)}</button>`).join('')}</span>
+      <label for="fc-canal" id="fc-canal-lbl">Canal <select id="fc-canal">${['Todos','Mista','Segmentada'].map(x=>`<option${x===FC.canal?' selected':''}>${x}</option>`).join('')}</select></label>
+      <label for="fc-busca">Buscar</label>
+      <input id="fc-busca" type="search" autocomplete="off" placeholder="código da rota, do SV ou da gerência" value="${esc(FC.busca)}" style="width:300px;text-align:left">
+      <button class="adm-btn pri" type="button" id="fc-exportar">Exportar .xlsx</button></div>
+    <div id="fc-cab"></div><div id="fc-corpo"></div>`;
+}
 /* topo da Administração: o ajustes.json publicado que foi lido (ou por que não foi) e o que só vale neste navegador */
 function adminTopo(){
   const sit = AJ.situacaoPublicado, arq = `<code>${esc(CONFIG.arquivoAjustes)}</code>`;
@@ -1472,6 +1582,7 @@ function adminHtml(){
     <p class="sub">Só o que esta tela muda em relação ao <code>${esc(CONFIG.arquivoAjustes)}</code> publicado${AJ.erroPublicado?' (ilegível: comparado com o padrão)':''}.
       "Salvar neste navegador" guarda só estas diferenças; "Publicar no GitHub (PR)" grava o arquivo inteiro, com tudo o que está em uso.</p>
     <div id="adm-pend"></div>
+    ${consultaHtml()}
    </div>`;
 }
 // campo do formulário -> chave do ajuste (adapter.js: itensDosAjustes), para marcar o que difere do publicado
@@ -1692,6 +1803,29 @@ function ligarAdmin(){
   });
   $('adm-descartar').addEventListener('click', ()=>{ try{ localStorage.removeItem(AJUSTES_LOCAL); }catch(e){} recarregar(); });
   $('adm-sair').addEventListener('click', ()=>{ ADMIN_ABERTO = false; try{ sessionStorage.removeItem('q4_admin'); }catch(e){} renderRegras(); });
+  // consulta do fechamento do mês: mês, visão, filtros e exportação (só leitura; não mexe em ajuste nenhum)
+  if ($('fc-mes')) {
+    $('fc-mes').addEventListener('change', e=>{ FC.mes = Number(e.target.value); renderFechamento(); });
+    $('fc-visoes').addEventListener('click', e=>{ const b = e.target.closest('button[data-fcv]'); if(!b) return;
+      FC.visao = b.dataset.fcv; renderFechamento(); });
+    $('fc-canal').addEventListener('change', e=>{ FC.canal = e.target.value; renderFechamento(); });
+    $('fc-busca').addEventListener('input', e=>{ FC.busca = e.target.value; renderFechamento(); });
+    $('fc-exportar').addEventListener('click', ()=>{
+      const c = consultaDoMes(FC.mes);
+      if (!c.disponivel) return msg('Este mês não está disponível para consulta: nada a exportar.');
+      let nome = '';
+      try {
+        nome = nomeArquivoFechamento(c);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([planilhaXlsx(abasFechamento(c, CONFIG))],
+          { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) { return msg('Não foi possível gerar a planilha: ' + e.message); }
+      msg(`${nome} baixado: abas Contexto, Consultores, Supervisões e Estratégicos, com todas as linhas (os filtros desta tela não recortam o arquivo).`
+        + (c.previa ? ' O mês está em PRÉVIA: a aba Contexto registra que os números ainda podem mudar.' : ''));
+    });
+    renderFechamento();
+  }
   refazPend();
 }
 

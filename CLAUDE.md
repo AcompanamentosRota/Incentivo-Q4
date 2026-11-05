@@ -29,7 +29,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
 | `backend/scripts/reabrir_fechado.py` | volta um mês fechado de oficial para prévia (ajuste único) | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
-| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`, consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
@@ -45,7 +45,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 126 testes (42 do motor, 84 do adaptador); precisa de Node 18+
+# testes do painel — 142 testes (42 do motor, 100 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
@@ -237,12 +237,21 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   (é a única situação em que um arquivo de `api/v1/` entra num commit de pessoa).
   No painel, mês em prévia deixa o acumulado do trimestre do SV marcado como **provisório** (Supervisão, Ranking, rodapé
   e Regras > Dados e alertas); o rótulo sai de `estadoFechado` no adaptador e **nenhuma regra de cálculo muda**.
+- **Consulta do fechamento (04/11/2026),** no fim de Regras > Administração: só leitura, em cima dos meses que o painel
+  já carregou (`dados.fechados`). `consultaFechamento` no adaptador recorta os dados no mês escolhido (`dadosDoFechado`:
+  o mês vira o "corrente", com `fechamento: true`, e os anteriores seguem no acumulado), chama `montarEntrada` e o
+  **motor** — nenhuma conta nova — e `tabelaFechamento` monta as três visões (Consultor, Supervisão e Estratégicos) numa
+  definição só, usada pela tela e pela planilha. Estratégicos sai dos `totais` do snapshot; sem eles, a visão diz
+  "indisponível" e **não** soma rotas. Mês sem os 5 pilares não apura nada. A exportação é um `.xlsx` gerado no próprio
+  navegador (`planilhaXlsx`: ZIP "stored" + XML, sem biblioteca externa), com as abas Contexto, Consultores, Supervisões
+  e Estratégicos e **todas** as linhas — os filtros da tela não recortam o arquivo. Na planilha, volume é número com 1
+  casa e o % é o **truncado** do motor com formato de 1 casa (o formato nunca pode arredondar o que a regra trunca).
 
 ## 8. Checklist antes do PR
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 126 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 142 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
