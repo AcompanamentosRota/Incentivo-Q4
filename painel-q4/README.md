@@ -116,14 +116,6 @@ supervisão** (canal e segmento de cada rota), os **agrupadores extras** e os **
   `api/v1/agrupadores.json`). Cada um vira o pilar "Volume <nome>", com cor própria, e pode ser escolhido como pilar
   coringa 4 ou 5. Depois do merge do PR, o gerador da API passa a buscá-lo (cerca de 3 minutos). Os 6 agrupadores
   fixos não podem ser excluídos.
-- **Fechamento oficial do mês (flash de vendas, decisão de 04/11/2026).** O resultado oficial de cada mês só fecha
-  depois do flash de vendas (por volta do dia 12 do mês seguinte); até lá o mês fechado fica em **prévia**. A tabela
-  "Fechamento oficial do mês" lista os meses fechados do trimestre com o estado na API e a caixa **"Flash de vendas de
-  <mês> fechado"**. Marcar pede confirmação ("isto congela o resultado de <mês>") e grava `flashFechado` no
-  `ajustes.json`; como os outros ajustes, salvar neste navegador só mostra o efeito, e para valer para todos é preciso
-  publicar por PR: **enquanto o PR não for mesclado, o mês continua em prévia para o resto da empresa**. Depois do merge,
-  o gerador sela o mês na primeira atualização (oficial). Desmarcar volta à prévia só enquanto o gerador não selou; depois
-  de selado, reabrir só pela migração (Actions > "Atualizar dados" > Run workflow, campo `reabrir` = AAAAMM).
 - **Publicado × navegador (decisão de 29/10/2026).** Vale, item a item: padrão < `frontend/ajustes.json` publicado <
   ajustes deste navegador. O navegador guarda e aplica **só o que difere do publicado**: ao abrir o painel, o que ficou
   igual ao publicado sai do navegador sozinho, e a etiqueta "Ajustes do admin · N ajustes só neste navegador" some
@@ -159,7 +151,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 84 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
+tests/                       42 testes do motor e 78 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
 docs/                        regras do incentivo (fonte de verdade)
 ```
 
@@ -207,14 +199,6 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   volume do SV = Σ(Real + Online) ÷ Σ Meta de Refrigerantes de outubro ao mês vigente; consultor = só o mês vigente.
   Mês fechado que falte ou falhe: aviso, acumulado do SV marcado "incompleto" (o mês não soma nada) e SV sem posição
   oficial até o dado chegar.
-- **Prévia × oficial (04/11/2026):** o mês fechado da API fica em **prévia** (`fechamento_final: false`) até o flash de
-  vendas ser marcado como fechado na Administração; aí o gerador o sela (**oficial**, `oficial_em`, `fonte_selo:
-  "flash"`). O painel mostra o estado com cor e texto no topo (acumulado do SV), em Regras > Dados e alertas e na tela
-  Confrontos: "Prévia (pode mudar até o fechamento do flash)" ou "Oficial, selado em dd/mm/aaaa"; arquivo selado pela
-  regra antiga (virada do mês) aparece como "selado na virada". O acumulado do SV com algum mês que não é oficial (ou com
-  o mês de referência no período de fechamento) fica marcado **provisório** no topo, na aba Supervisão, no Ranking e no
-  rodapé. Só o rótulo muda: pontos, gatilhos e ranking saem do motor com os números do arquivo (`estadoFechado` e
-  `estadoAcumulado` no `src/adapter.js`).
 - **Missões Guiadas:** em outubro, validada em 100% (3 pontos). Em novembro e dezembro pontua com meta, real e online
   quando houver fonte (`CONFIG.fonteDoPilar['Missões Guiadas']` + `produtoDaApi`); sem fonte, aparece "sem dados" e
   não pontua.

@@ -47,9 +47,6 @@ button{background:none;border:0;cursor:pointer}
 .info small{display:block;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
 .info b{display:block;font-size:24px;font-weight:600;margin-bottom:3px}
 .info small.acum{grid-column:1 / -1;margin-top:1px;color:#d8dbe2}.info small.acum .inc{color:#ffd978}
-/* estado do mês fechado (04/11/2026): prévia até o flash de vendas, oficial depois do selo; cor sempre junto com o texto */
-.est-previa,.est-virada{color:#ffd978}.est-oficial{color:#8df0a9}
-.adm .flash td{vertical-align:top}.adm .flash .est-previa,.adm .flash .est-virada{font-weight:600}
 .semcalc{margin:auto;max-width:1100px;text-align:center;padding:48px 60px;background:#3a2a00;border:2px solid #a47500;border-radius:18px;color:#ffe29a}
 .semcalc b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}.semcalc p{font-size:22px;font-weight:500;line-height:1.4;color:#ffe9b5}
 .cfmes{display:flex;gap:8px;align-items:center}
@@ -551,23 +548,17 @@ const NOME_MES = MESES[MES] + '/' + DADOS.meta.ano;
 if (DADOS.meta.fechamento) $('mesreflbl').textContent = 'Fechamento do mês';
 $('mesref').textContent = (DADOS.meta.fechamento ? 'Fechamento de ' : '') + NOME_MES;
 const ACUM = DADOS.meta.acumulado || { meses:[MES], usados:[], faltando:[] };
-// prévia × oficial (fechamento oficial só depois do flash de vendas, 04/11/2026): só rótulo, o cálculo é o mesmo
-const EST_ACUM = estadoAcumulado(DADOS.meta, AJ.ativo, (AJ.navegador && AJ.navegador.itens) || {});
-const PROV_TXT = EST_ACUM.provisorio ? `acumulado provisório: ${EST_ACUM.motivo}` : '';
 const abrev = (m)=> MESES[m].slice(0,3).toLowerCase();
 const periodoAcum = 'out' + (MES>10 ? '–'+abrev(MES) : '');
 function textoAcum(){
-  const usados = EST_ACUM.usados.map(u=>`${abrev(u.mes)} <span class="est-${u.estado}" title="${esc(u.texto)}">${esc(u.curto)}</span> ✓`);
-  const ref = EST_ACUM.referencia ? [`${abrev(MES)} <span class="est-${EST_ACUM.referencia.estado}" title="${esc(EST_ACUM.referencia.texto)}">${esc(EST_ACUM.referencia.curto)}</span>`] : [];
+  const usados = ACUM.usados.map(u=>`${abrev(u.mes)} fechado${u.final?'':' (provisório)'} ✓`);
   const falta = ACUM.faltando.map(f=>`<span class="inc">${abrev(f.mes)} sem dado: incompleto</span>`);
-  const prov = EST_ACUM.provisorio ? [`<span class="inc">provisório</span>`] : [];
-  return `Acumulado do trimestre (SV): ${periodoAcum}` + (usados.length||ref.length||falta.length ? ' · ' + usados.concat(ref, falta, prov).join(' · ') : '');
+  return `Acumulado do trimestre (SV): ${periodoAcum}` + (usados.length||falta.length ? ' · ' + usados.concat(falta).join(' · ') : '');
 }
 if (!SEMCALC) $('acum').innerHTML = textoAcum();
 /* rodapé: origem dos dados (API ou base embutida) e o corte */
 $('rod').textContent = 'Fonte: ' + (DADOS.meta.origem==='api' ? 'API (SAP Datasphere)' : DADOS.meta.rotuloBase) + ' · dados de ' + DADOS.meta.corte
   + (DADOS.meta.simulado ? ' · DADOS SIMULADOS' : '') + (AJ.ativo ? ' · ajustes do admin' : '')
-  + (PROV_TXT && !SEMCALC ? ' · SV: ' + PROV_TXT + (EST_ACUM.temPrevia ? ' (pode mudar até o fechamento do flash)' : '') : '')
   + (AJ.erroPublicado ? ' · ajustes.json publicado ilegível (ignorado)' : '')
   + (AVISOS_AJ.length ? ` · ${AVISOS_AJ.length} ${AVISOS_AJ.length===1?'valor inválido ignorado':'valores inválidos ignorados'} nos ajustes (ver Regras > Dados e alertas)` : '');
 $('rodpts').textContent = DADOS.meta.fechamento
@@ -762,8 +753,7 @@ function renderSup(){
   $('sptitulo').textContent = `Supervisão · ${st.canal}`;
   $('saviso').innerHTML = (MES===10 ? `<span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Em outubro o teto do mês é ${5*R.faixas[0].pontos+R.bonusConfronto} pontos e o gatilho do SV é ${R.gatilhoPontos.SV} acumulados</span>` : '')
     + (MES>10 ? ` <span class="tag" style="background:#0a2a6e;color:#cfe0ff;border-color:#1d7bff">Total e % Refri: acumulado ${periodoAcum}</span>` : '')
-    + (ACUM.faltando.length ? ` <span class="tag">Acumulado incompleto: falta ${ACUM.faltando.map(f=>MESES[f.mes].toLowerCase()).join(', ')}</span>` : '')
-    + (PROV_TXT ? ` <span class="tag" title="Pode mudar até o fechamento do flash de vendas">${esc(PROV_TXT.charAt(0).toUpperCase()+PROV_TXT.slice(1))}</span>` : '');
+    + (ACUM.faltando.length ? ` <span class="tag">Acumulado incompleto: falta ${ACUM.faltando.map(f=>MESES[f.mes].toLowerCase()).join(', ')}</span>` : '');
   $('srows').innerHTML = fatia.length ? fatia.map(linha).join('') : `<div class="vazio">Nenhuma supervisão encontrada neste filtro.</div>`;
   $('spinfo').textContent = base.length ? `${ini+1} a ${ini+fatia.length} de ${base.length} supervisões` : '0 supervisões';
   let nums=[]; for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-SPAG.n)<=1) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
@@ -914,8 +904,7 @@ function renderRank(){
   const svs = SVS.filter(p=>p.canal===st.canal && naGer(p)).sort(ordenaRanking);
   const suf = st.canal + (st.canal==='Segmentada' ? ' (Mini e Mod)' : '') + (st.gc!=='Todas' ? ' · '+st.gc : '');
   $('rk-rt-tt').textContent = `Rotas · ${suf} · ${rts.length} ${rts.length===1?'rota':'rotas'}`;
-  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}` + (MES>10 ? ` · acumulado ${periodoAcum}` : '') + (ACUM.faltando.length ? ' · incompleto' : '') + (PROV_TXT ? ' · provisório' : '');
-  $('rk-sv-tt').title = PROV_TXT ? PROV_TXT.charAt(0).toUpperCase() + PROV_TXT.slice(1) + (EST_ACUM.temPrevia ? ' (pode mudar até o fechamento do flash)' : '') : '';
+  $('rk-sv-tt').textContent = `Supervisões · ${suf} · ${svs.length}` + (MES>10 ? ` · acumulado ${periodoAcum}` : '') + (ACUM.faltando.length ? ' · incompleto' : '');
   $('rk-rt-h').innerHTML = RKCAB('Rota'); $('rk-sv-h').innerHTML = RKCAB('Supervisão');
   $('rk-rt').innerHTML = listaRk(rts, R.premiadas.RT[st.canal], false);
   $('rk-sv').innerHTML = listaRk(svs, R.premiadas.SV[st.canal], true);
@@ -1026,13 +1015,13 @@ function renderConfrontos(){
   const pctP = (v)=> temPct(v) ? M.fmtPct(v) : '–';
   const mesesCf = MESES_Q4.filter(m=>m<=MES);
   if(!mesesCf.includes(st.cfmes)) st.cfmes = MES;
-  const fechado = (m)=> EST_ACUM.usados.find(u=>u.mes===m);
+  const fechado = (m)=> ACUM.usados.find(u=>u.mes===m);
   $('cfmes').innerHTML = `<span class="seg">${mesesCf.map(m=>`<button type="button" data-cfmes="${m}" aria-pressed="${m===st.cfmes}">${MESES[m]}</button>`).join('')}</span>`;
   const lst = (RES.confrontos || []).filter(c=>c.mes===st.cfmes);
   const rs = resumoConfrontos(lst, porId);
   const f = fechado(st.cfmes);
-  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[st.cfmes]}` + (st.cfmes===MES ? (DADOS.meta.fechamento ? ` (fechamento · ${EST_ACUM.referencia ? EST_ACUM.referencia.curto : 'prévia'})` : ' (mês corrente)')
-    : f ? ` (mês fechado · ${f.estado==='oficial' ? f.texto.toLowerCase() : f.curto})` : ' (sem dado do mês)');
+  $('cftitulo').textContent = `Confrontos entre supervisores · ${MESES[st.cfmes]}` + (st.cfmes===MES ? (DADOS.meta.fechamento ? ' (fechamento)' : ' (mês corrente)')
+    : f ? (f.final ? ' (mês fechado)' : ' (fechamento provisório)') : ' (sem dado do mês)');
   const aberto = lst.length > 0 && !lst[0].mesFechado; // o motor diz se o mês já fechou (só então o bônus entra)
   $('cfsub').innerHTML = `<span><b>${rs.cadastrados}</b>cadastrados</span><span><b>${rs.validos}</b>válidos</span>`
     + `<span><b>${rs.comVencedor}</b>${aberto ? 'vencendo' : 'com vencedor'}</span>`;
@@ -1190,7 +1179,7 @@ const SEC = [
     ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
     ${AJ.erroPublicado ? `<p><b>O ajustes.json publicado não pôde ser lido:</b> ${esc(AJ.erroPublicado)}. Nenhum ajuste publicado está valendo. Detalhes em Regras &gt; Administração.</p>` : ''}
     ${AVISOS_AJ.length ? `<p><b>Ajustes do admin com valor inválido (ignorado):</b> ${AVISOS_AJ.map(esc).join('; ')}.</p>` : ''}
-    ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${EST_ACUM.usados.map(u=>esc(u.rotulo)+' ('+esc(u.texto)+')').join(', ')||'nenhum'}${EST_ACUM.provisorio?'. <b>Acumulado provisório</b> ('+esc(EST_ACUM.motivo)+'): o fechamento oficial do incentivo é depois do flash de vendas (decisão de 04/11/2026); até lá os números do mês fechado ainda podem mudar':''}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
+    ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+(u.final?' (final)':' (provisório)')).join(', ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
       ['realizado (FX_VOL_PADRAO_FAT, notas Acertado, Meta Neg e Em Aberto)','Real: faturado no mês, inclusive o faturado de hoje'],
@@ -1336,33 +1325,6 @@ const novoId = (nome)=>{
   return id;
 };
 /* topo da Administração: o ajustes.json publicado que foi lido (ou por que não foi) e o que só vale neste navegador */
-/* fechamento oficial (04/11/2026): o Back Office marca, mês a mês, que o flash de vendas fechou; o gerador sela o mês fechado
-   (prévia -> oficial) na 1ª atualização depois do merge do PR. Desmarcar só volta à prévia enquanto o gerador não selou. */
-let FLASH = JSON.parse(JSON.stringify((AJ.ativo && AJ.ativo.flashFechado) || {}));
-const MIGRACAO_TXT = 'Actions > "Atualizar dados" > Run workflow, campo "reabrir" = AAAAMM (backend/scripts/reabrir_fechado.py)';
-function mesesFlash(){
-  const lista = (DADOS.meta.fechadosApi || []).filter(f=>MESES_Q4.includes(f.mes) && (f.mes<MES || (f.mes===MES && DADOS.meta.fechamento)));
-  Object.keys(FLASH).filter(a=>!lista.some(f=>f.anomes===a)).forEach(a=>lista.push({ anomes:a, mes:Number(a.slice(4)), rotulo:a, final:false, fonteSelo:null, geradoEm:null }));
-  return lista.sort((a,b)=>a.anomes.localeCompare(b.anomes));
-}
-function flashHtml(){
-  const lista = mesesFlash();
-  if (!lista.length) return `<p class="sub">Nenhum mês fechado do trimestre na API ainda: o botão aparece aqui quando a API guardar o primeiro mês fechado.</p>`;
-  return `<table class="flash" id="adm-flash"><thead><tr><th>Mês</th><th>Estado na API</th><th>Flash de vendas</th><th>Observação</th></tr></thead><tbody>
-    ${lista.map(f=>{
-      const nome = MESES[f.mes] ? MESES[f.mes].toLowerCase() : f.anomes;
-      const e = estadoFechado(f, FLASH[f.anomes], ('flash:'+f.anomes) in ITENS_NAV ? 'navegador' : 'publicado');
-      const selado = f.final;
-      const marcado = selado ? e.estado==='oficial' : !!FLASH[f.anomes];
-      const obs = e.estado==='oficial' ? `Selado pelo gerador. Desmarcar <b>não reabre</b> o mês: para reabrir é preciso o passo de migração (${esc(MIGRACAO_TXT)}).`
-        : e.estado==='virada' ? `Selado pela regra antiga (virada do mês), antes do flash. Para marcar o flash, primeiro reabra o mês pela migração (${esc(MIGRACAO_TXT)}).`
-        : `Enquanto o PR não for mesclado, ${esc(nome)} continua em <b>prévia</b> para o resto da empresa.`
-          + (f.geradoEm ? ` O selo congela os números do arquivo da API gerado em ${esc(quandoAj(f.geradoEm))}.` : '')
-          + (FLASH[f.anomes] ? ` Marcado em ${esc(quandoAj(FLASH[f.anomes].em))}.` : '');
-      return `<tr><td>${esc(MESES[f.mes] || f.anomes)}</td><td><span class="est-${e.estado}">${esc(e.texto)}</span></td>
-        <td><label><input type="checkbox" data-flash="${esc(f.anomes)}"${marcado?' checked':''}${selado?' disabled':''}> Flash de vendas de ${esc(nome)} fechado</label></td>
-        <td class="micro">${obs}</td></tr>`; }).join('')}</tbody></table>`;
-}
 function adminTopo(){
   const sit = AJ.situacaoPublicado, arq = `<code>${esc(CONFIG.arquivoAjustes)}</code>`;
   const pub = sit==='erro' ? `<div class="aj-erro" role="alert">⚠️ O ${arq} publicado <b>não pôde ser lido</b>: ${esc(AJ.erroPublicado)}. Os ajustes publicados estão sendo ignorados.
@@ -1413,12 +1375,6 @@ function adminHtml(){
       ajustes em poucos minutos. Para voltar todos ao padrão, apague o <code>${esc(CONFIG.arquivoAjustes)}</code> no GitHub, também por PR.</p>
     <p class="colar">No GitHub, selecione tudo e substitua o conteúdo do arquivo; não cole depois do texto antigo. O arquivo tem de ser um único objeto JSON:
       com dois objetos seguidos, nenhum ajuste publicado vale e o painel mostra o aviso de arquivo ilegível.</p>
-    <h3>Fechamento oficial do mês (flash de vendas)</h3>
-    <p class="sub">O resultado oficial de cada mês só fecha depois do <b>flash de vendas</b> (por volta do dia 12 do mês seguinte): até lá notas são
-      canceladas e retornadas, e o mês fechado fica em <b>prévia</b>. Quando o flash fechar, marque o mês abaixo e publique por PR: na primeira
-      atualização depois do merge, o gerador sela o mês (<b>oficial</b>) e os números dele não mudam mais. Pontos, gatilhos e ranking são os mesmos;
-      só o rótulo muda (prévia × oficial).</p>
-    <div id="adm-flash-box">${flashHtml()}</div>
     <h3>Pontuação por pilar</h3>
     ${[2,1,0].map(i=>`<div class="adm-linha">A partir de ${num('adm-f'+i+'-min', f[i].min)} % vale ${num('adm-f'+i+'-pts', f[i].pontos)} pontos${i===0?' <span class="pv" data-pv="regras:faixas"></span>':''}</div>`).join('')}
     <h3>Gatilhos e confronto</h3><div class="adm-grid">
@@ -1521,10 +1477,9 @@ function lerAjustes(){
   const canaisSV = {}; Object.keys(EDIC_SV).forEach(sv=>{ if (EDIC_SV[sv]) canaisSV[sv] = EDIC_SV[sv]; });
   const agrupadores = EXTRAS.map(e=>({ id:e.id, nome:e.nome, agrupador:e.agrupador }));
   const confrontos = CONFRONTOS.map(c=>({ mes:c.mes, id_sv_desafiante:c.id_sv_desafiante, id_sv_desafiado:c.id_sv_desafiado, pilar:c.pilar }));
-  const flashFechado = JSON.parse(JSON.stringify(FLASH));
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
-      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length) return null;
-  return { versao:1, atualizado_em:agoraAj(), regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado };
+      && !agrupadores.length && !confrontos.length) return null;
+  return { versao:1, atualizado_em:agoraAj(), regras, pilares, canais, canaisSV, agrupadores, confrontos };
 }
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
@@ -1620,21 +1575,6 @@ function ligarAdmin(){
       if (estava) { const padrao = PADRAO.coringas[c][i]; s.value = [...s.options].some(x=>x.value===padrao) ? padrao : s.options[0].value; }
     });
     refazPend(); msg(`"${e.nome}" excluído. Salve ou publique para valer.`);
-  });
-  // flash de vendas: marcar pede confirmação (congela o resultado); desmarcar só volta à prévia enquanto o gerador não selou
-  $('adm-flash-box').addEventListener('change', ev=>{
-    const c = ev.target.closest('input[data-flash]'); if (!c) return;
-    const anomes = c.dataset.flash, nome = (MESES[Number(anomes.slice(4))] || anomes).toLowerCase() + '/' + anomes.slice(0,4);
-    if (c.checked) {
-      if (!confirm(`Flash de vendas de ${nome} fechado?\n\nIsto congela o resultado de ${nome}; depois disso os números não mudam mais.\n\n`
-        + `Salvar neste navegador só mostra o efeito para você; o gerador sela o mês na primeira atualização depois do merge do PR.`)) { c.checked = false; return; }
-      FLASH[anomes] = { fechado:true, em:agoraAj() };
-      msg(`Flash de ${nome} marcado como fechado. Salve neste navegador para ver o efeito ou publique por PR para valer para todos.`);
-    } else {
-      delete FLASH[anomes];
-      msg(`Flash de ${nome} desmarcado: o mês continua em prévia. Salve ou publique para valer.`);
-    }
-    $('adm-flash-box').innerHTML = flashHtml(); refazPend();
   });
   // confrontos: o pilar segue o canal do desafiante; a lista é refeita a cada inclusão ou exclusão
   const refazConf = ()=>{
