@@ -175,7 +175,6 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       totalEmpresaOrigem: temResumo ? 'resumo' : 'gerencias',
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
       acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
-      fechadosApi: fechadosDoIndex(index, ano),
     },
     rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
     segmentacao: linhasSegmentacao(lista, base, canais),
@@ -205,78 +204,6 @@ function fechadoDaApi(f, base, cfg, canais) {
     rotas.push({ gc: titulo(linha[iGer]), sv: svNome(linha[iSv]), rota: id, canal: c.canal, sub: c.sub, v });
   }
   return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true, rotas };
-}
-
-/*
- * Fechamento oficial só depois do flash de vendas (decisão da Karen em 04/11/2026). Um mês fechado da API tem dois
- * estados: PRÉVIA (fechamento_final = false; os números ainda mudam até o flash, por volta do dia 12) e OFICIAL
- * (fechamento_final = true, selado pelo gerador depois que o Back Office marcou o flash como fechado no botão da
- * Administração: ajustes.json -> flashFechado). Arquivo selado antes dessa regra (pela virada do mês) vem com
- * fonte_selo "virada" (ou sem fonte_selo) e aparece como "selado na virada": os números foram congelados antes do flash.
- * Só o rótulo muda: pontos, gatilhos e ranking continuam saindo do motor com os números do arquivo.
- */
-/** index.json -> fechados (do ano do trimestre) no formato do painel. Retrocompatível com o índice sem oficial_em. */
-function fechadosDoIndex(index, ano) {
-  return (Array.isArray(index.fechados) ? index.fechados : [])
-    .filter((f) => f && typeof f.anomes === 'string' && f.anomes.slice(0, 4) === String(ano))
-    .map((f) => {
-      const final = f.fechamento_final === true;
-      return { anomes: f.anomes, mes: Number(f.anomes.slice(4)), rotulo: f.rotulo || f.anomes, final,
-               geradoEm: f.gerado_em || null, oficialEm: final ? f.oficial_em || null : null,
-               fonteSelo: final ? f.fonte_selo || 'virada' : null };
-    });
-}
-const dataBR = (s) => (typeof s === 'string' && /^\d{4}-\d\d-\d\d/.test(s) ? s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4) : '');
-const horaBR = (s) => (typeof s === 'string' && /T\d\d:\d\d/.test(s) ? s.slice(11, 16) : '');
-/**
- * Estado de um mês fechado para a tela: {estado: 'oficial' | 'virada' | 'previa', provisorio, texto, curto, flash}.
- * `item`: de fechadosDoIndex. `flash`: ajustes em uso -> flashFechado[anomes] ({fechado, em}) ou null.
- * `origemFlash`: 'publicado' | 'navegador' | null (de onde vem a marcação do flash).
- * Cor e texto andam juntos: a tela nunca usa só a cor.
- */
-function estadoFechado(item, flash, origemFlash) {
-  const mes = NOMES_MES[item.mes] || item.anomes;
-  if (item.final && item.fonteSelo !== 'virada') {
-    const quando = item.oficialEm ? ` em ${dataBR(item.oficialEm)}` : '';
-    return { estado: 'oficial', provisorio: false, curto: 'oficial', flash: null,
-             texto: `Oficial, selado${quando}` };
-  }
-  if (item.final) {
-    return { estado: 'virada', provisorio: true, curto: 'selado na virada', flash: null,
-             texto: `Selado na virada do mês, antes do flash de vendas (regra antiga): números de ${dataBR(item.geradoEm) || 'data não informada'}; ` +
-                    `a reabrir pela migração (backend/scripts/reabrir_fechado.py)` };
-  }
-  const base = 'Prévia (pode mudar até o fechamento do flash)';
-  if (!flash || !flash.fechado) return { estado: 'previa', provisorio: true, curto: 'prévia', flash: null, texto: base };
-  const em = `${dataBR(flash.em)}${horaBR(flash.em) ? ' ' + horaBR(flash.em) : ''}`;
-  const onde = origemFlash === 'navegador'
-    ? `flash de ${mes} marcado como fechado só neste navegador (${em}): para valer para todos, publique por PR`
-    : `flash de ${mes} marcado como fechado (${em}): o gerador sela na primeira atualização depois disso`;
-  return { estado: 'previa', provisorio: true, curto: 'prévia', flash: origemFlash || 'publicado', texto: `${base} · ${onde}` };
-}
-/**
- * Estado do acumulado do trimestre do SV: os meses fechados usados (com o estado de cada um) e se ele é provisório.
- * Provisório = algum mês usado não é oficial (prévia ou selado na virada) ou o próprio mês de referência está no
- * período de fechamento da API (ainda é prévia). Só rótulo: o cálculo é o mesmo.
- */
-function estadoAcumulado(meta, ajustes, itensNav) {
-  const flash = (ajustes && ajustes.flashFechado) || {}, nav = itensNav || {};
-  const lista = (meta && meta.fechadosApi) || [];
-  const usados = ((meta && meta.acumulado && meta.acumulado.usados) || []).map((u) => {
-    const item = lista.find((f) => f.mes === u.mes) || { anomes: anomesDe(meta.ano, u.mes), mes: u.mes, final: u.final, fonteSelo: u.final ? 'virada' : null };
-    return Object.assign({ mes: u.mes, rotulo: u.rotulo, anomes: item.anomes },
-                         estadoFechado(item, flash[item.anomes], ('flash:' + item.anomes) in nav ? 'navegador' : 'publicado'));
-  });
-  let referencia = null;
-  if (meta && meta.fechamento) {
-    const anomes = anomesDe(meta.ano, meta.mes);
-    const item = lista.find((f) => f.anomes === anomes) || { anomes, mes: meta.mes, final: false, fonteSelo: null };
-    referencia = Object.assign({ mes: meta.mes, anomes }, estadoFechado(item, flash[anomes], ('flash:' + anomes) in nav ? 'navegador' : 'publicado'));
-  }
-  const provisorios = usados.filter((u) => u.provisorio).concat(referencia && referencia.provisorio ? [referencia] : []);
-  const motivo = (u) => `${NOMES_MES[u.mes]} ${u.estado === 'previa' ? 'em prévia' : 'selado antes do flash'}`;
-  return { usados, referencia, provisorio: provisorios.length > 0, temPrevia: provisorios.some((u) => u.estado === 'previa'),
-           motivo: provisorios.map(motivo).join(', ') };
 }
 
 /*
@@ -472,30 +399,9 @@ function normalizarConfrontos(lista, avisos) {
   return out;
 }
 
-const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores', 'confrontos', 'flashFechado'];
+const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores', 'confrontos'];
 const CAMPOS_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas'];
 const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const RE_ANOMES = /^\d{4}(0[1-9]|1[0-2])$/, RE_QUANDO = /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?$/;
-/** flashFechado (botão "Flash de vendas de <mês> fechado"): {AAAAMM: {fechado: true, em: 'AAAA-MM-DDTHH:MM'}}.
- *  Opcional; mês ausente ou {fechado: false} = o flash ainda não fechou (prévia). Inválido vira aviso. */
-function normalizarFlash(bruto, avisos) {
-  const out = {};
-  if (bruto === undefined || bruto === null) return out;
-  if (!ehObjeto(bruto)) { if (avisos) avisos.push('flashFechado: precisa ser um objeto {AAAAMM: {fechado, em}}: ignorado'); return out; }
-  for (const [anomes, v] of Object.entries(bruto)) {
-    if (!RE_ANOMES.test(anomes) || !ehObjeto(v) || typeof v.fechado !== 'boolean') {
-      if (avisos) avisos.push(`flash de vendas ${JSON.stringify(anomes)}: precisa de {fechado: true|false, em}: ignorado`);
-      continue;
-    }
-    if (!v.fechado) continue;
-    if (typeof v.em !== 'string' || !RE_QUANDO.test(v.em)) {
-      if (avisos) avisos.push(`flash de vendas ${anomes}: data/hora ${JSON.stringify(v.em)} inválida (AAAA-MM-DDTHH:MM): ignorado`);
-      continue;
-    }
-    out[anomes] = { fechado: true, em: v.em };
-  }
-  return out;
-}
 
 /** Só os campos válidos; o resto é ignorado, e cada valor ignorado vira aviso em `avisos` (nunca em silêncio: um mínimo
  *  de pontos inválido que volta ao padrão sem aviso repete o problema de 29/10/2026). Sem nenhum campo válido, null. */
@@ -542,11 +448,9 @@ function normalizarAjustes(aj, avisos) {
     if (textoOk(sv, 120) && (c === 'Mista' || c === 'Segmentada')) canaisSV[sv] = c;
     else if (avisos) avisos.push(`SV ${sv}: canal do SV ${JSON.stringify(c)} não é Mista nem Segmentada: ajuste ignorado`);
   }
-  const flashFechado = normalizarFlash(aj.flashFechado, avisos);
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
-      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length) return null;
-  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos,
-           flashFechado };
+      && !agrupadores.length && !confrontos.length) return null;
+  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos };
 }
 
 /** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
@@ -574,13 +478,13 @@ function aplicarCoringas(aj, cfg, mes) {
 /*
  * Ajustes item a item. Cada ajuste tem uma chave "tipo:id": regras:gatilhoPontos.RT, regras:premiadas.SV.Mista,
  * regras:faixas (as 3 juntas), pilares:Mista, canais:<rota>, canaisSV:<sv>, agrupadores:<id> e
- * confrontos:<mês>|<desafiante>|<desafiado> e flash:<AAAAMM>. Nas regras, item ausente vale o padrão do motor (`padrao` = REGRAS sem
+ * confrontos:<mês>|<desafiante>|<desafiado>. Nas regras, item ausente vale o padrão do motor (`padrao` = REGRAS sem
  * ajustes); nos demais, ausente = não existe no arquivo (rota como na base, SV pela maioria, pilar coringa do mês).
  */
 const MotorPadrao = JSON.parse(JSON.stringify(MotorRegras())); // REGRAS do motor antes de qualquer ajuste
 const CHAVES_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos.RT', 'gatilhoPontos.SV',
   'premiadas.RT.Mista', 'premiadas.RT.Segmentada', 'premiadas.SV.Mista', 'premiadas.SV.Segmentada'].map((k) => 'regras:' + k);
-const ORDEM_TIPOS = ['regras', 'flash', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos'];
+const ORDEM_TIPOS = ['regras', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos'];
 const ROTULOS_REGRAS = {
   faixas: 'Faixas de pontos', gatilhoVolumePct: 'Gatilho de Refrigerantes (%)', bonusConfronto: 'Bônus do confronto (pontos)',
   'gatilhoPontos.RT': 'Mínimo da Rota (pontos no mês)', 'gatilhoPontos.SV': 'Mínimo do SV (pontos no trimestre)',
@@ -609,21 +513,19 @@ function itensDosAjustes(aj) {
   for (const e of aj.agrupadores || []) out['agrupadores:' + e.id] = { id: e.id, nome: e.nome, agrupador: e.agrupador };
   for (const c of aj.confrontos || []) out[`confrontos:${c.mes}|${c.id_sv_desafiante}|${c.id_sv_desafiado}`] =
     { mes: c.mes, id_sv_desafiante: c.id_sv_desafiante, id_sv_desafiado: c.id_sv_desafiado, pilar: c.pilar };
-  for (const [anomes, f] of Object.entries(aj.flashFechado || {})) out['flash:' + anomes] = { fechado: true, em: f.em };
   return out;
 }
 
 /** {chave: valor} -> objeto no formato do ajustes.json (mínimo de pontos e premiadas completos com o padrão). */
 function objetoDosItens(itens, padrao) {
   padrao = padrao || MotorPadrao;
-  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {} }, r = {};
+  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [] }, r = {};
   for (const [chave, v] of Object.entries(itens || {})) {
     if (v === null || v === undefined) continue;
     const [tipo, id] = partesChave(chave);
     if (tipo === 'regras') r[id] = v;
     else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV') aj[tipo][id] = v;
     else if (tipo === 'agrupadores' || tipo === 'confrontos') aj[tipo].push(v);
-    else if (tipo === 'flash') aj.flashFechado[id] = v;
   }
   const de = (id) => (id in r ? r[id] : regraPadrao(id, padrao));
   for (const k of ['faixas', 'gatilhoVolumePct', 'bonusConfronto']) if (k in r) aj.regras[k] = r[k];
@@ -641,7 +543,6 @@ function rotuloItem(chave) {
   if (tipo === 'canais') return `Canal da rota ${id}`;
   if (tipo === 'canaisSV') return `Canal do SV ${id}`;
   if (tipo === 'agrupadores') return `Agrupador extra ${id}`;
-  if (tipo === 'flash') return `Flash de vendas de ${NOMES_MES[Number(id.slice(4))] || id}/${id.slice(2, 4)} fechado`;
   if (tipo === 'confrontos') {
     const [mes, a, b] = id.split('|');
     return `Confronto de ${NOMES_MES[Number(mes)] || mes}: ${String(a).replace('#', ' · ')} × ${String(b).replace('#', ' · ')}`;
@@ -651,9 +552,7 @@ function rotuloItem(chave) {
 /** Valor do ajuste para a tela; null = ausente (padrão, ou não existe). */
 function textoItem(chave, v) {
   const [tipo, id] = partesChave(chave);
-  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês',
-                                                flash: 'não (prévia)' })[tipo] || 'não existe';
-  if (tipo === 'flash') return `sim, em ${dataBR(v.em)} ${horaBR(v.em)}`.trim();
+  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês' })[tipo] || 'não existe';
   if (tipo === 'regras' && id === 'faixas') return v.map((f) => `${String(f.min).replace('.', ',')}%: ${f.pontos} pts`).join(' · ');
   if (tipo === 'regras') return String(v).replace('.', ',');
   if (tipo === 'pilares') return v.map((n) => n.replace('Volume ', '')).join(', ');
@@ -1168,7 +1067,7 @@ function montarEntrada(dados, cfg, confrontos) {
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
-                     fechadoDaApi, fechadosDoIndex, estadoFechado, estadoAcumulado, normalizarFlash, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
+                     fechadoDaApi, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
                      montarEstrat, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,

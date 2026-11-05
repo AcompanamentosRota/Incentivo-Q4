@@ -15,7 +15,7 @@ vale para este site; uma página hospedada em outro endereço não consegue ler 
 
 Os arquivos são regerados a cada 15 minutos, de segunda a sexta, das 7h às 18h45 (Brasília). Só o
 `index.json` muda em toda execução (traz `atualizado_em`); os outros só mudam quando o dado muda (o
-`fechado/{AAAAMM}.json` em prévia é regravado a cada execução do fechamento). Para
+`fechado/{AAAAMM}.json` do mês em fechamento é regravado a cada execução do fechamento). Para
 atualizar a tela sem recarregar a página, releia o `index.json` de tempos em tempos (5 a 15 minutos) e,
 quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 
@@ -112,30 +112,14 @@ novo), a API mostra o mês anterior fechado: `index.json` → `mes_referencia.fe
 Quando a API vira para o mês novo, os números do mês anterior deixam de existir nos outros arquivos. Para o
 acumulado do trimestre, o gerador guarda um arquivo por mês fechado:
 
-Um mês fechado tem **dois estados** (decisão de 04/11/2026: o fechamento oficial do incentivo é feito depois do
-**flash de vendas**, por volta do dia 12, porque até lá notas são canceladas e retornadas):
-
-- **Prévia** (`fechamento_final: false`): os números ainda podem mudar. Em toda execução com
-  `mes_referencia.fechamento = true`, o gerador grava (ou sobrescreve) `fechado/{anomes do mês de referência}.json` em
-  prévia. Vale o último gravado: as notas do último dia do mês só entram de madrugada. A virada para o mês novo **não**
-  sela mais o arquivo (até 04/11/2026 selava).
-- **Oficial** (`fechamento_final: true`): o Back Office marca o flash do mês como fechado no botão da Administração do
-  painel, que grava em `frontend/ajustes.json` → `flashFechado` (`{"202610": {"fechado": true, "em":
-  "2026-11-12T14:30"}}`, hora de Brasília; publicado por PR). Na 1ª execução depois dessa hora o arquivo é **selado**:
-  `fechamento_final` passa a `true`, `oficial_em` recebe a hora da execução e `fonte_selo` = `"flash"`; os números não
-  mudam. Daí em diante ele nunca é sobrescrito nem apagado. Nunca se sela por data fixa. Se o `ajustes.json` não puder
-  ser lido, nada é selado e a execução registra o motivo em `avisos`.
-- Para reabrir um mês selado (volta a prévia; os números não mudam): Actions > "Atualizar dados" > Run workflow, campo
-  `reabrir` = AAAAMM (`backend/scripts/reabrir_fechado.py`). O script recusa enquanto o mês estiver marcado como flash
-  fechado no `ajustes.json` e registra a reabertura no campo `reaberto` do arquivo.
-- Só é gravado quando a execução passa na validação e na conferência: a soma da meta e do realizado das rotas tem de
-  bater com o total da empresa da execução (`resumo.json`), o total de cada gerência e o da empresa guardados no arquivo
-  têm de ser os da execução (`gerencias/{GC}.json` e `resumo.json`), e a soma das rotas de cada gerência e a das
-  gerências têm de bater com esses totais; senão nada é gravado. Falha aqui não derruba a execução normal: ela vira um
-  item em `index.json` → `avisos`.
-- Hoje o arquivo só é regravado nas execuções do período de fechamento. Regravar um mês em prévia depois disso (para
-  pegar as notas canceladas e retornadas até o flash) depende de consultar no Datasphere um mês que já passou: ainda
-  não implementado.
+- Em toda execução com `mes_referencia.fechamento = true`, grava (ou sobrescreve) `fechado/{anomes do mês de
+  referência}.json`, com `fechamento_final: false`. Vale o último gravado: as notas do último dia do mês só entram
+  de madrugada.
+- Na 1ª execução com o mês novo (`fechamento = false`), o arquivo é **selado**: só `fechamento_final` passa a
+  `true`, os números não mudam. Daí em diante ele nunca é sobrescrito nem apagado.
+- Só é gravado quando a execução passa na validação, e a soma da meta e do realizado das rotas tem de bater com o
+  total da empresa da execução (`resumo.json`); senão nada é gravado. Falha aqui não derruba a execução normal: ela
+  vira um item em `index.json` → `avisos`.
 
 Formato compacto (os nomes de produto, gerência e supervisor estão em `index.json` e nos arquivos do mês):
 
@@ -143,12 +127,10 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 {
   "anomes": "202610", "rotulo": "Outubro/26",
   "gerado_em": "2026-11-03T18:46:02", "atualizado_em": "2026-11-03T18:45:10",
-  "simulado": false, "fechamento_final": true, "oficial_em": "2026-11-12T14:31:05", "fonte_selo": "flash",
+  "simulado": false, "fechamento_final": true,
   "campos": ["rota", "gerencia", "supervisao", "produtos"],
   "campos_produto": ["meta", "realizado"],
-  "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] }] ],
-  "gerencias": { "G1": { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] } },
-  "empresa": { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] }
+  "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] }] ]
 }
 ```
 
@@ -156,12 +138,7 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 |---|---|
 | `gerado_em` | Quando o arquivo foi gravado (relógio do gerador). |
 | `atualizado_em` | O `atualizado_em` da execução de onde vieram os números (o mesmo do `index.json` dela). |
-| `fechamento_final` | `false` = **prévia** (pode mudar até o flash de vendas); `true` = **oficial** (definitivo). |
-| `oficial_em` | Data/hora da execução que selou o arquivo (`null` em prévia). Arquivo selado antes de 04/11/2026 não tem o campo. |
-| `fonte_selo` | Como foi selado: `"flash"` (botão "Flash de vendas de <mês> fechado"); `null` em prévia. Arquivo selado antes de 04/11/2026 não tem o campo (no `index.json` aparece como `"virada"`). |
-| `gerencias` | Total de cada gerência da execução, `{GC: {produto: [meta, realizado]}}`: os mesmos valores de `gerencias/{GC}.json` → `produtos` (todas as rotas com Real, também as de fora do incentivo). Arquivos anteriores a 05/11/2026 não têm. |
-| `empresa` | Total da empresa da execução, `{produto: [meta, realizado]}`: os mesmos de `resumo.json` → `empresa.produtos`. Arquivos anteriores a 05/11/2026 não têm. |
-| `reaberto` | Só em arquivo reaberto pela migração: lista de `{em, motivo, selo_anterior, oficial_em_anterior}`. |
+| `fechamento_final` | `false` enquanto o mês ainda está em fechamento (pode mudar); `true` depois da virada (definitivo). |
 | `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado (até outubro/26). |
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
 
@@ -171,12 +148,8 @@ Não há online, tendência nem meta do dia: no fechamento eles não existem. O 
 
 ```json
 "fechados": [ { "anomes": "202610", "rotulo": "Outubro/26", "arquivo": "fechado/202610.json",
-                "gerado_em": "2026-11-03T18:46:02", "fechamento_final": true,
-                "oficial_em": "2026-11-12T14:31:05", "fonte_selo": "flash" } ]
+                "gerado_em": "2026-11-03T18:46:02", "fechamento_final": true } ]
 ```
-
-`oficial_em` e `fonte_selo` repetem os do arquivo (`null` em prévia); arquivo selado antes de 04/11/2026, sem esses
-campos, aparece com `"oficial_em": null, "fonte_selo": "virada"` (selado na virada do mês, antes do flash).
 
 ## Exemplos de estrutura
 
@@ -195,8 +168,7 @@ campos, aparece com `"oficial_em": null, "fonte_selo": "virada"` (selado na vira
               "sem_meta": "Sem meta" },
   "gerencias": [ { "id": "G1", "nome": "Goiânia 01", "arquivo": "gerencias/G1.json" }, "..." ],
   "fechados": [ { "anomes": "202609", "rotulo": "Setembro/26", "arquivo": "fechado/202609.json",
-                  "gerado_em": "2026-10-01T18:46:02", "fechamento_final": true,
-                  "oficial_em": "2026-10-13T09:01:10", "fonte_selo": "flash" } ],
+                  "gerado_em": "2026-10-01T18:46:02", "fechamento_final": true } ],
   "avisos": []
 }
 ```
