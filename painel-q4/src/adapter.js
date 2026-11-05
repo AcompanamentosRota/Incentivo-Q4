@@ -174,7 +174,7 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       refriCategoria: !faltam.includes(cfg.refri), produtosApi: [...ids],
       totalEmpresaOrigem: temResumo ? 'resumo' : 'gerencias',
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
-      acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [] },
+      acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [], previa: [] },
     },
     rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
     segmentacao: linhasSegmentacao(lista, base, canais),
@@ -203,7 +203,41 @@ function fechadoDaApi(f, base, cfg, canais) {
     }
     rotas.push({ gc: titulo(linha[iGer]), sv: svNome(linha[iSv]), rota: id, canal: c.canal, sub: c.sub, v });
   }
-  return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true, rotas };
+  return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true,
+           oficialEm: f.oficial_em || null, fonteSelo: f.fonte_selo || null, rotas };
+}
+
+/** "2026-11-12T14:30:00" -> "12/11/2026"; sem data, ''. */
+const dataBr = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
+
+/*
+ * Estado de um mês fechado para a tela (prévia x oficial, decisão de 04/11/2026). Quem sela é o gerador, quando o
+ * Back Office marca o flash de vendas (ajustes.json -> flashFechado) e o PR é mesclado; aqui só se decide o rótulo:
+ *   - oficial: a API já traz fechamento_final = true, com a data do selo;
+ *   - prévia:  os números ainda podem mudar até o fechamento do flash;
+ *   - prévia + marcado: o flash está marcado nos ajustes em uso, mas a API ainda não selou (PR não mesclado, ou a
+ *     próxima rodada do gerador ainda não rodou): para o resto da empresa o mês continua em prévia.
+ * Nenhuma regra de cálculo depende disto: pontos, gatilhos e ranking continuam saindo do motor.
+ */
+function estadoFechado(usado, flashAjuste) {
+  if (!usado) return null;
+  const marcado = !!(flashAjuste && flashAjuste.fechado);
+  if (usado.final) {
+    const d = dataBr(usado.oficialEm);
+    return { previa: false, marcado, oficialEm: usado.oficialEm || null, curto: 'oficial',
+             longo: d ? `Oficial, selado em ${d}` : 'Oficial (data do selo não informada)' };
+  }
+  if (marcado) {
+    const d = dataBr(flashAjuste.em);
+    return { previa: true, marcado: true, oficialEm: null, curto: 'prévia',
+             longo: `Prévia · flash de vendas marcado${d ? ' em ' + d : ''}, esperando a próxima rodada do gerador`
+                    + ' (para o resto da empresa o mês continua em prévia até o PR ser mesclado)' };
+  }
+  return { previa: true, marcado: false, oficialEm: null, curto: 'prévia',
+           longo: 'Prévia (pode mudar até o fechamento do flash)' };
 }
 
 /*
@@ -211,21 +245,26 @@ function fechadoDaApi(f, base, cfg, canais) {
  * falhe ao carregar ou não tenha pilares configurados vai para meta.acumulado.faltando, e o acumulado do SV fica
  * marcado como incompleto (o motor recebe a lista em mesesIncompletos).
  */
-async function carregarFechados(d, index, ler, base, cfg, canais) {
+async function carregarFechados(d, index, ler, base, cfg, canais, flash) {
   const lista = index.fechados || [];
   for (const mes of MESES_Q4.filter((m) => m < d.meta.mes)) {
-    const item = lista.find((x) => x.anomes === anomesDe(d.meta.ano, mes));
+    const anomes = anomesDe(d.meta.ano, mes);
+    const item = lista.find((x) => x.anomes === anomes);
     if (!item) { d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não está nos meses fechados da API` }); continue; }
     try {
       const f = fechadoDaApi(await ler(item.arquivo), base, cfg, canais);
       if (f.anomes !== item.anomes) throw new Error(`${item.arquivo} traz o mês ${f.anomes}`);
       d.fechados.push(f);
-      d.meta.acumulado.usados.push({ mes, rotulo: f.rotulo, final: f.final });
+      const u = { mes, anomes, rotulo: f.rotulo, final: f.final, oficialEm: f.oficialEm, fonteSelo: f.fonteSelo };
+      u.estado = estadoFechado(u, (flash || {})[anomes]);
+      d.meta.acumulado.usados.push(u);
       if (!mesConfigurado(cfg, mes)) d.meta.acumulado.faltando.push({ mes, motivo: avisoSemPilares(mes) });
     } catch (e) {
       d.meta.acumulado.faltando.push({ mes, motivo: `${NOMES_MES[mes]} não carregou (${e.message})` });
     }
   }
+  // acumulado provisório: algum mês fechado usado ainda está em prévia (só rótulo; o cálculo não muda)
+  d.meta.acumulado.previa = d.meta.acumulado.usados.filter((u) => !u.final).map((u) => u.mes);
   if (d.meta.acumulado.faltando.length) {
     const txt = 'acumulado do trimestre incompleto: ' + d.meta.acumulado.faltando.map((x) => x.motivo).join('; ');
     d.meta.aviso = [d.meta.aviso, txt].filter(Boolean).join('; ');
@@ -240,7 +279,7 @@ function daBase(base, canais, motivo, hoje) {
     .concat(base.semCanal.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv || null }))), base, canais);
   d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
                                           aviso: motivo, fonte: base.meta.fonte + ' · ' + rotuloBase,
-                                          acumulado: { meses: [base.meta.mes], usados: [], faltando: [] } });
+                                          acumulado: { meses: [base.meta.mes], usados: [], faltando: [], previa: [] } });
   const h = hoje || new Date();
   if (h.getFullYear() !== base.meta.ano || h.getMonth() + 1 !== base.meta.mes) {
     d.rotas = []; d.semCanal = [];
@@ -292,7 +331,7 @@ async function carregarDados(base, cfg, ajustes, hoje) {
   }
   if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
   if (d.meta.semCalculo) d.meta.aviso = [d.meta.semCalculo, d.meta.aviso].filter(Boolean).join('; ');
-  else await carregarFechados(d, index, ler, base, cfg, canais);
+  else await carregarFechados(d, index, ler, base, cfg, canais, ajustes ? ajustes.flashFechado : null);
   return aplicarCanalSV(d, canaisSV);
 }
 
@@ -399,9 +438,29 @@ function normalizarConfrontos(lista, avisos) {
   return out;
 }
 
-const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores', 'confrontos'];
+const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores',
+  'confrontos', 'flashFechado'];
 const CAMPOS_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas'];
 const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/*
+ * Flash de vendas fechado, por mês (decisão da Karen em 04/11/2026): {"202610": {"fechado": true, "em": "..."}}.
+ * Campo opcional e retrocompatível — arquivo sem ele continua válido, e mês ausente (ou `fechado: false`) quer dizer
+ * que o flash daquele mês ainda não fechou. Só meses do Q4 do ano do painel; quem sela o snapshot é o gerador.
+ */
+function normalizarFlash(bruto, ano, avisos) {
+  const out = {};
+  const av = (t) => { if (avisos) avisos.push(t); };
+  if (bruto !== undefined && bruto !== null && !ehObjeto(bruto)) { av('flashFechado: precisa ser um objeto {anomes: {fechado, em}}: ignorado'); return out; }
+  for (const [mes, v] of Object.entries(ehObjeto(bruto) ? bruto : {})) {
+    const naoEhQ4 = !MESES_Q4.some((m) => anomesDe(ano, m) === mes);
+    if (naoEhQ4 || !ehObjeto(v)) { av(`flash de vendas de ${JSON.stringify(mes)}: ${naoEhQ4 ? 'mês fora do trimestre do painel' : 'precisa ser {fechado, em}'}: ignorado`); continue; }
+    if (v.fechado !== true) continue; // mês não marcado = flash ainda não fechou (o mesmo que ausente)
+    if (v.em !== undefined && v.em !== null && !textoOk(v.em, 40)) { av(`flash de vendas de ${JSON.stringify(mes)}: data ${JSON.stringify(v.em)} inválida: marcado sem data`); out[mes] = { fechado: true, em: null }; continue; }
+    out[mes] = { fechado: true, em: v.em ? v.em.trim() : null };
+  }
+  return out;
+}
 
 /** Só os campos válidos; o resto é ignorado, e cada valor ignorado vira aviso em `avisos` (nunca em silêncio: um mínimo
  *  de pontos inválido que volta ao padrão sem aviso repete o problema de 29/10/2026). Sem nenhum campo válido, null. */
@@ -448,9 +507,10 @@ function normalizarAjustes(aj, avisos) {
     if (textoOk(sv, 120) && (c === 'Mista' || c === 'Segmentada')) canaisSV[sv] = c;
     else if (avisos) avisos.push(`SV ${sv}: canal do SV ${JSON.stringify(c)} não é Mista nem Segmentada: ajuste ignorado`);
   }
+  const flashFechado = normalizarFlash(aj.flashFechado, CONFIG.ano, avisos);
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
-      && !agrupadores.length && !confrontos.length) return null;
-  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos };
+      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length) return null;
+  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado };
 }
 
 /** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
@@ -484,7 +544,7 @@ function aplicarCoringas(aj, cfg, mes) {
 const MotorPadrao = JSON.parse(JSON.stringify(MotorRegras())); // REGRAS do motor antes de qualquer ajuste
 const CHAVES_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos.RT', 'gatilhoPontos.SV',
   'premiadas.RT.Mista', 'premiadas.RT.Segmentada', 'premiadas.SV.Mista', 'premiadas.SV.Segmentada'].map((k) => 'regras:' + k);
-const ORDEM_TIPOS = ['regras', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos'];
+const ORDEM_TIPOS = ['regras', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos', 'flash'];
 const ROTULOS_REGRAS = {
   faixas: 'Faixas de pontos', gatilhoVolumePct: 'Gatilho de Refrigerantes (%)', bonusConfronto: 'Bônus do confronto (pontos)',
   'gatilhoPontos.RT': 'Mínimo da Rota (pontos no mês)', 'gatilhoPontos.SV': 'Mínimo do SV (pontos no trimestre)',
@@ -513,19 +573,21 @@ function itensDosAjustes(aj) {
   for (const e of aj.agrupadores || []) out['agrupadores:' + e.id] = { id: e.id, nome: e.nome, agrupador: e.agrupador };
   for (const c of aj.confrontos || []) out[`confrontos:${c.mes}|${c.id_sv_desafiante}|${c.id_sv_desafiado}`] =
     { mes: c.mes, id_sv_desafiante: c.id_sv_desafiante, id_sv_desafiado: c.id_sv_desafiado, pilar: c.pilar };
+  for (const [mes, v] of Object.entries(aj.flashFechado || {})) out['flash:' + mes] = { fechado: true, em: v.em || null };
   return out;
 }
 
 /** {chave: valor} -> objeto no formato do ajustes.json (mínimo de pontos e premiadas completos com o padrão). */
 function objetoDosItens(itens, padrao) {
   padrao = padrao || MotorPadrao;
-  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [] }, r = {};
+  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {} }, r = {};
   for (const [chave, v] of Object.entries(itens || {})) {
     if (v === null || v === undefined) continue;
     const [tipo, id] = partesChave(chave);
     if (tipo === 'regras') r[id] = v;
     else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV') aj[tipo][id] = v;
     else if (tipo === 'agrupadores' || tipo === 'confrontos') aj[tipo].push(v);
+    else if (tipo === 'flash') aj.flashFechado[id] = v;
   }
   const de = (id) => (id in r ? r[id] : regraPadrao(id, padrao));
   for (const k of ['faixas', 'gatilhoVolumePct', 'bonusConfronto']) if (k in r) aj.regras[k] = r[k];
@@ -543,6 +605,7 @@ function rotuloItem(chave) {
   if (tipo === 'canais') return `Canal da rota ${id}`;
   if (tipo === 'canaisSV') return `Canal do SV ${id}`;
   if (tipo === 'agrupadores') return `Agrupador extra ${id}`;
+  if (tipo === 'flash') return `Flash de vendas de ${NOMES_MES[Number(id.slice(4))] || id}`;
   if (tipo === 'confrontos') {
     const [mes, a, b] = id.split('|');
     return `Confronto de ${NOMES_MES[Number(mes)] || mes}: ${String(a).replace('#', ' · ')} × ${String(b).replace('#', ' · ')}`;
@@ -552,13 +615,14 @@ function rotuloItem(chave) {
 /** Valor do ajuste para a tela; null = ausente (padrão, ou não existe). */
 function textoItem(chave, v) {
   const [tipo, id] = partesChave(chave);
-  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês' })[tipo] || 'não existe';
+  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês', flash: 'ainda não fechou' })[tipo] || 'não existe';
   if (tipo === 'regras' && id === 'faixas') return v.map((f) => `${String(f.min).replace('.', ',')}%: ${f.pontos} pts`).join(' · ');
   if (tipo === 'regras') return String(v).replace('.', ',');
   if (tipo === 'pilares') return v.map((n) => n.replace('Volume ', '')).join(', ');
   if (tipo === 'canais') return rotuloSeg(valorSeg(v.canal, v.sub));
   if (tipo === 'agrupadores') return `${v.nome} (${v.agrupador})`;
   if (tipo === 'confrontos') return 'pilar ' + String(v.pilar).replace('Volume ', '');
+  if (tipo === 'flash') return 'fechado' + (dataBr(v.em) ? ' em ' + dataBr(v.em) : '');
   return String(v);
 }
 
@@ -1073,6 +1137,7 @@ if (typeof module === 'object' && module.exports) {
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
                      diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
+                     normalizarFlash, estadoFechado, dataBr,
                      SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,

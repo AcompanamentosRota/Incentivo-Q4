@@ -25,12 +25,13 @@ Incentivo-Q4/
 │   │   ├── modelo.py        contas de meta, realizado, tendência e status
 │   │   ├── api.py           montagem dos JSONs
 │   │   ├── validacao.py     conferência antes de publicar
-│   │   ├── fechado.py       snapshot do mês fechado (api/v1/fechado/AAAAMM.json)
+│   │   ├── fechado.py       snapshot do mês fechado, em prévia ou oficial (api/v1/fechado/AAAAMM.json)
 │   │   └── simulado.py      dados fictícios no mesmo formato
 │   ├── scripts/gerar.py     gera a API
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
 │   ├── scripts/descobrir_produtos.py   confere a grafia dos agrupadores no Datasphere
 │   ├── scripts/diagnosticar_real.py    compara o Real da API com o Real do SAC (só leitura)
+│   ├── scripts/reabrir_fechado.py      volta um mês fechado de oficial para prévia (ajuste único, por PR)
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
     ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
@@ -47,8 +48,12 @@ Incentivo-Q4/
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
 4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também
-   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota; na 1ª execução do mês novo o
-   arquivo é selado e não muda mais. É dele que sai o acumulado do trimestre. Formato em [API.md](API.md).
+   `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota, mais os totais por gerência e da
+   empresa. Esse arquivo nasce em **prévia**: até o fechamento do **flash de vendas** (em torno do dia 12) os números
+   ainda mudam, porque notas são canceladas e retornadas, e cada execução consulta o mês de novo e regrava o arquivo.
+   Ele só vira **oficial** (e nunca mais muda) quando o Back Office marca, na Administração do painel, que o flash
+   daquele mês fechou — nunca por data no código. É desse arquivo que sai o acumulado do trimestre.
+   Formato em [API.md](API.md).
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com
 NF_STATUS em Acertado, Meta Neg ou Em Aberto; tendência = realizado + restante da curva de META_NEG;
@@ -72,11 +77,13 @@ O mês de referência vem da API (`index.json` → `mes_referencia`) e os pilare
 coringas 4 e 5 de outubro, e em dezembro, por enquanto, só os pilares 1 a 3, com os coringas 4 e 5 a decidir). Mês sem os 5 pilares configurados: o painel
 mostra "Pilares de <mês> ainda não configurados" e não calcula pontos nem ranking — nunca usa os números de outro mês
 no lugar nem calcula com parte dos pilares. O acumulado do SV soma os meses fechados (`fechado/AAAAMM.json`) e o mês
-corrente.
+corrente; enquanto algum mês fechado estiver em **prévia** (antes do fechamento do flash de vendas), o painel mostra o
+acumulado como **provisório** na Supervisão, no Ranking e no rodapé. Os números não mudam por isso: só o rótulo.
 
 **Ajustes do admin** (aba Regras > Administração do painel): regras, pilares coringa, segmentação da supervisão (canal e
 segmento de cada rota, escolhidos por SV, e o canal do SV, um só por supervisão; o motor só vê o canal),
-**agrupadores extras** e os **confrontos entre supervisores**. Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
+**agrupadores extras**, os **confrontos entre supervisores** e o **flash de vendas fechado** de cada mês (o que faz o
+gerador selar o mês fechado). Publicados em `frontend/ajustes.json` por PR (botão "Publicar no GitHub (PR)"); depois do
 merge, o site passa a usá-los e o workflow "Atualizar dados" roda sozinho: o `gerar.py` lê os agrupadores extras
 desse arquivo e os inclui na API (para testar outro arquivo: `python scripts/gerar.py --ajustes arquivo.json`).
 O arquivo tem de ser **um único objeto JSON**: no editor do GitHub, selecione tudo e substitua o conteúdo, nunca cole

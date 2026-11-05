@@ -21,19 +21,20 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | Pasta / arquivo | O que é | Quem altera |
 |---|---|---|
 | `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
-| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota), base do acumulado do trimestre | **só o gerador**; selado na virada, nunca apagado |
+| `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota + totais por gerência e empresa), base do acumulado do trimestre | **só o gerador**; selado quando o Back Office marca o flash, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
 | `backend/scripts/servir.py` | sobe o site local como no Pages | — |
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
+| `backend/scripts/reabrir_fechado.py` | volta um mês fechado de oficial para prévia (ajuste único) | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
 | `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores) | só por **PR** do botão da Administração |
+| `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores, flash de vendas fechado) | só por **PR** do botão da Administração |
 | `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
 
 Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram nas abas do
@@ -44,10 +45,10 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 120 testes (42 do motor, 78 do adaptador); precisa de Node 18+
+# testes do painel — 126 testes (42 do motor, 84 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 80 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -101,7 +102,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.3, 31/10/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.5, 05/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -135,6 +136,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   "vencendo · +5 pts no fechamento". ⚠️ O mês conta como fechado já no período de fechamento da API
   (`entrada.fechamento`, de `meta.fechamento`); os meses anteriores do trimestre, sempre.
   Desempate (confronto e ranking): maior % de Refrigerantes.
+- **Fechamento oficial só depois do flash de vendas (04/11/2026, informada pela Karen; ⚠️ item 7 das pendências do
+  documento de regras):** o mês fechado fica em **prévia** (números ainda mudam, acumulado do SV marcado como provisório)
+  até o Back Office marcar, no painel, que o flash daquele mês fechou; só então o resultado congela. Nunca sele por data
+  no código. Detalhe na seção 7.
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
 - **Real e Online iguais ao SAC (03/11/2026, decisão da Karen; a partir de novembro/26):** o gerador lê o Real e o Online
@@ -216,16 +221,29 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `meta_dia` e `online_hoje` nulos. Teste esse período com `--simulado --hoje` (o simulado entra em fechamento
   do dia 1 até o fim do 1º dia útil, pelos dias úteis locais).
 - **Snapshot do mês fechado** (`backend/gerador/fechado.py`): em cada rodada do fechamento o gerador grava
-  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto, `fechamento_final: false`); na 1ª rodada do mês
-  novo ele é selado (`fechamento_final: true`) e não muda mais. `index.json` → `fechados` lista esses arquivos. A
+  `api/v1/fechado/AAAAMM.json` (meta e realizado por rota e produto + `totais` por gerência e da empresa,
+  `fechamento_final: false`). `index.json` → `fechados` lista esses arquivos, com `oficial_em` e `fonte_selo`. A
   limpeza de `saida.gravar_api` não toca `fechado/` (`saida.PRESERVADAS`). Formato em `API.md`.
+- **Prévia × oficial: o selo vem do flash de vendas (04/11/2026, ⚠️ ainda fora do documento de regras v3.5 na parte do
+  painel):** o fechamento oficial do incentivo é depois do fechamento do **flash de vendas** (em torno do dia 12), porque
+  até lá notas fiscais são canceladas e retornadas. Enquanto `fechamento_final` é false, o mês está em **prévia** e cada
+  rodada o consulta de novo e regrava (`fechado.em_previa` + `fechado.regravar`, no máximo os 3 meses mais recentes;
+  `fontes.carregar(..., ref=...)` consulta um mês encerrado). O selo (`fechamento_final: true`, `oficial_em`,
+  `fonte_selo: "flash"`) sai **só** quando o Back Office marca o mês no botão da Administração, que grava
+  `frontend/ajustes.json` → `flashFechado: {"202610": {"fechado": true, "em": "..."}}`, o PR é mesclado e a rodada
+  seguinte lê a marca (`fechado.flash_dos_ajustes`). **Nunca sele por data nem por dia fixo no código, nem por conta
+  própria.** Ajustes ilegíveis: nada é selado e a rodada registra o aviso. Reabrir um mês já oficial é um passo à parte:
+  `cd backend && python scripts/reabrir_fechado.py --anomes AAAAMM --confirmar`, e o arquivo vai para o GitHub por PR
+  (é a única situação em que um arquivo de `api/v1/` entra num commit de pessoa).
+  No painel, mês em prévia deixa o acumulado do trimestre do SV marcado como **provisório** (Supervisão, Ranking, rodapé
+  e Regras > Dados e alertas); o rótulo sai de `estadoFechado` no adaptador e **nenhuma regra de cálculo muda**.
 
 ## 8. Checklist antes do PR
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 120 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 80 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 126 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

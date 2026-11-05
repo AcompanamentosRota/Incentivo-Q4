@@ -375,7 +375,8 @@ const cfgNov = (missoes) => {
 };
 const FECHADO_OUT = {
   anomes: '202610', rotulo: 'Outubro/26', gerado_em: '2026-11-03T18:46:02', atualizado_em: '2026-11-03T18:45:10',
-  simulado: false, fechamento_final: true, campos: ['rota', 'gerencia', 'supervisao', 'produtos'], campos_produto: ['meta', 'realizado'],
+  simulado: false, fechamento_final: true, oficial_em: '2026-11-12T14:30:00', fonte_selo: 'flash',
+  campos: ['rota', 'gerencia', 'supervisao', 'produtos'], campos_produto: ['meta', 'realizado'],
   rotas: [
     ['N1', 'NV', 'SV.NV.1', { sabores: [100, 105], retornaveis: [100, 100], sucos: [100, 90], powerade: [100, 80], individuais: [100, 100], refrigerantes: [1000, 900] }],
     ['N2', 'NV', 'SV.NV.1', { sabores: [100, 100], retornaveis: [100, 95], sucos: [100, 100], powerade: [100, 106], individuais: [100, 100], refrigerantes: [1000, 850] }],
@@ -388,7 +389,8 @@ const INDEX_NOV = {
   mes_referencia: { anomes: '202611', rotulo: 'Novembro/26', fechamento: false },
   produtos: ['sucos', 'powerade', 'sabores', 'retornaveis', 'individuais', 'refrigerantes', 'missoes'].map((id) => ({ id, nome: id })),
   gerencias: [{ id: 'NV', nome: 'Gerência Nova', arquivo: 'gerencias/NV.json' }],
-  fechados: [{ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json', gerado_em: '2026-11-03T18:46:02', fechamento_final: true }],
+  fechados: [{ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json', gerado_em: '2026-11-03T18:46:02',
+               fechamento_final: true, oficial_em: '2026-11-12T14:30:00', fonte_selo: 'flash' }],
 };
 const rotaNv = (id, sv, produtos) => ({ id, tipo: 'normal', gerencia: 'NV', supervisao: sv, produtos });
 const GER_NOV = { rotas: [
@@ -536,7 +538,10 @@ test('virada: no fechamento de outubro (1º dia útil de novembro) o painel most
   assert.deepEqual([d.meta.mes, d.meta.fechamento, d.meta.semCalculo, d.fechados.length], [10, true, null, 0]); // o próprio mês não vira "fechado"
   assert.ok(res.pessoas.length > 0);
   const nov = await calcularNov(cfgNov());
-  assert.deepEqual(nov.d.meta.acumulado.usados, [{ mes: 10, rotulo: 'Outubro/26', final: true }]);
+  assert.deepEqual(nov.d.meta.acumulado.usados, [{ mes: 10, anomes: '202610', rotulo: 'Outubro/26', final: true,
+    oficialEm: '2026-11-12T14:30:00', fonteSelo: 'flash',
+    estado: { previa: false, marcado: false, oficialEm: '2026-11-12T14:30:00', curto: 'oficial', longo: 'Oficial, selado em 12/11/2026' } }]);
+  assert.deepEqual(nov.d.meta.acumulado.previa, []);
 });
 
 test('virada: API indisponível usa a base embutida só no mês dela, com o rótulo "base embutida (outubro)"', async () => {
@@ -1425,4 +1430,123 @@ test('fonte nova: Barlow Condensed 800 (subset latino, woff2) no fonts.json e na
   assert.equal(Buffer.from(bc[0].b64, 'base64').subarray(0, 4).toString('latin1'), 'wOF2');
   const build = fs.readFileSync(path.join(__dirname, '../scripts/build.py'), 'utf8');
   assert.match(build, /manter = \[\('Anton', 400, 'normal'\), \('Barlow', 800, 'italic'\), \('Barlow Condensed', 800, 'normal'\)\]/);
+});
+
+// ── etapa 16: fechamento oficial só depois do flash de vendas (prévia × oficial) ──
+// Fixtures sintéticas: a mesma FECHADO_OUT de novembro, com o selo tirado ou posto.
+const { normalizarFlash, estadoFechado, dataBr } = require('../src/adapter.js');
+const semSelo = (f) => ({ ...f, fechamento_final: false, oficial_em: null, fonte_selo: null });
+const itemFech = (final, oficialEm) => ({ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json',
+  gerado_em: '2026-11-03T18:46:02', fechamento_final: final, oficial_em: oficialEm || null, fonte_selo: final ? 'flash' : null });
+const API_PREVIA = { ...API_NOV, 'index.json': { ...INDEX_NOV, fechados: [itemFech(false)] },
+                     'fechado/202610.json': semSelo(FECHADO_OUT) };
+
+test('flash: mês fechado em prévia vem marcado como provisório, e oficial traz a data do selo', async () => {
+  const nov = await calcularNov(cfgNov(), API_PREVIA);
+  const u = nov.d.meta.acumulado.usados[0];
+  assert.deepEqual([u.mes, u.anomes, u.final, u.oficialEm], [10, '202610', false, null]);
+  assert.deepEqual(nov.d.meta.acumulado.previa, [10]);
+  assert.deepEqual([u.estado.previa, u.estado.curto, u.estado.longo],
+    [true, 'prévia', 'Prévia (pode mudar até o fechamento do flash)']);
+  // oficial: o mesmo mês com o selo do gerador
+  const oficial = await calcularNov(cfgNov());
+  assert.deepEqual(oficial.d.meta.acumulado.previa, []);
+  assert.deepEqual(oficial.d.meta.acumulado.usados[0].estado,
+    { previa: false, marcado: false, oficialEm: '2026-11-12T14:30:00', curto: 'oficial', longo: 'Oficial, selado em 12/11/2026' });
+});
+
+test('flash: prévia e oficial não mudam nenhum número; só o rótulo (o cálculo é todo do motor)', async () => {
+  const comPrevia = await calcularNov(cfgNov(), API_PREVIA);
+  const comSelo = await calcularNov(cfgNov());
+  const limpar = (res) => res.pessoas.map((p) => [p.id, p.pontosAtuais, p.pontosAcumulados, p.volume.pct, p.posicao, p.elegivel]);
+  assert.deepEqual(limpar(comPrevia.res), limpar(comSelo.res));
+  assert.deepEqual(comPrevia.res.mesesIncompletos, comSelo.res.mesesIncompletos);
+  // o mês em prévia não é "incompleto": os dados existem, só podem mudar
+  assert.deepEqual(comPrevia.d.meta.acumulado.faltando, []);
+});
+
+test('flash: marcado nos ajustes e ainda não selado pela API => prévia, com o aviso de que vale depois do PR', () => {
+  const marcado = { fechado: true, em: '2026-11-12T09:00' };
+  const e = estadoFechado({ mes: 10, anomes: '202610', final: false, oficialEm: null }, marcado);
+  assert.deepEqual([e.previa, e.marcado, e.curto], [true, true, 'prévia']);
+  assert.match(e.longo, /^Prévia · flash de vendas marcado em 12\/11\/2026/);
+  assert.match(e.longo, /continua em prévia até o PR ser mesclado/);
+  // já selado: a marca não muda o rótulo de oficial
+  const sel = estadoFechado({ mes: 10, anomes: '202610', final: true, oficialEm: '2026-11-12T14:30:00' }, marcado);
+  assert.deepEqual([sel.previa, sel.marcado, sel.longo], [false, true, 'Oficial, selado em 12/11/2026']);
+  // oficial sem data (snapshot antigo) não inventa data
+  assert.equal(estadoFechado({ mes: 10, final: true }, null).longo, 'Oficial (data do selo não informada)');
+  assert.equal(estadoFechado(null, null), null);
+  assert.deepEqual([dataBr('2026-11-12T14:30:00'), dataBr(null), dataBr('qualquer')], ['12/11/2026', '', '']);
+});
+
+test('flash: só meses do Q4 do painel, só com fechado: true, e data inválida vira "marcado sem data"', () => {
+  const avisos = [];
+  const flash = normalizarFlash({
+    '202610': { fechado: true, em: '2026-11-12T14:30' },
+    '202611': { fechado: false, em: '2026-12-12T10:00' },   // não marcado = ainda não fechou
+    '202612': { fechado: true },                             // marcado sem data
+    '202509': { fechado: true },                             // fora do trimestre do painel
+    '202610x': { fechado: true },                            // fora do formato
+    '202601': true,                                          // não é objeto
+  }, 2026, avisos);
+  assert.deepEqual(flash, { '202610': { fechado: true, em: '2026-11-12T14:30' }, '202612': { fechado: true, em: null } });
+  assert.equal(avisos.length, 3);
+  assert.ok(avisos.every((a) => /flash de vendas de/.test(a)));
+  const av2 = [];
+  assert.deepEqual(normalizarFlash({ '202610': { fechado: true, em: '  ' } }, 2026, av2), { '202610': { fechado: true, em: null } });
+  assert.equal(av2.length, 1);
+  assert.deepEqual(normalizarFlash(undefined, 2026, []), {});
+  const av3 = [];
+  assert.deepEqual(normalizarFlash([], 2026, av3), {});
+  assert.equal(av3.length, 1);
+});
+
+test('flash: entra no ajustes.json como um item só dele, com a mesma precedência dos outros ajustes', async () => {
+  const pub = { versao: 1, atualizado_em: '2026-11-12T15:00', flashFechado: { '202610': { fechado: true, em: '2026-11-12T14:30' } } };
+  const aj = normalizarAjustes(pub);
+  assert.deepEqual(aj.flashFechado, { '202610': { fechado: true, em: '2026-11-12T14:30' } });
+  const itens = A.itensDosAjustes(aj);
+  assert.deepEqual(itens['flash:202610'], { fechado: true, em: '2026-11-12T14:30' });
+  assert.deepEqual(A.objetoDosItens(itens).flashFechado, { '202610': { fechado: true, em: '2026-11-12T14:30' } });
+  assert.equal(A.rotuloItem('flash:202610'), 'Flash de vendas de outubro');
+  assert.equal(A.textoItem('flash:202610', itens['flash:202610']), 'fechado em 12/11/2026');
+  assert.equal(A.textoItem('flash:202610', null), 'ainda não fechou');
+  // navegador tira o item publicado (null) e põe outro mês: item a item, como os demais ajustes
+  const nav = { formato: 2, atualizado_em: '2026-11-12T16:00', publicado_em: '2026-11-12T15:00',
+                itens: { 'flash:202610': null, 'flash:202611': { fechado: true, em: '2026-12-12T10:00' } } };
+  await comAjustes(JSON.stringify(pub), nav, async () => {
+    const carregado = await carregarAjustes(CONFIG);
+    assert.deepEqual(carregado.ativo.flashFechado, { '202611': { fechado: true, em: '2026-12-12T10:00' } });
+    assert.deepEqual(carregado.diferencas.map((d) => [d.chave, d.textoPublicado, d.textoNovo]),
+      [['flash:202610', 'fechado em 12/11/2026', 'ainda não fechou'],
+       ['flash:202611', 'ainda não fechou', 'fechado em 12/12/2026']]);
+  });
+  // ajustes.json só com o flash continua sendo um ajuste válido; sem nada válido, null
+  assert.deepEqual(normalizarAjustes({ flashFechado: { '202610': { fechado: true } } }).flashFechado,
+    { '202610': { fechado: true, em: null } });
+  assert.equal(normalizarAjustes({ flashFechado: { '202509': { fechado: true } } }), null);
+  // arquivo publicado sem a chave (retrocompatível) continua válido e não marca nada
+  assert.deepEqual(normalizarAjustes({ regras: { bonusConfronto: 5 } }).flashFechado, {});
+});
+
+test('flash: a tela mostra prévia x oficial e o botão da Administração, sem data de flash fixa no código', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  // o rótulo do estado vem do adaptador (estadoFechado), não de texto montado na tela
+  assert.match(tpl, /const estadoMes = \(u\)=> u\.estado \|\|/);
+  assert.match(tpl, /const PREVIA = ACUM\.previa/);
+  // provisório na Supervisão, no Ranking e no rodapé
+  assert.match(tpl, /\$\('rk-sv-pv'\)\.innerHTML = tagPrevia\(true\)/);
+  assert.match(tpl, /\+ tagPrevia\(\);/);
+  assert.match(tpl, /acumulado do SV provisório: \$\{listaPrevia\(\)\} em prévia/);
+  // botão de duas vias na Administração, com confirmação e o aviso do PR
+  assert.match(tpl, /data-flash="\$\{esc\(u\.anomes\)\}"/);
+  assert.match(tpl, /Isto congela o resultado de \$\{nome\}/);
+  assert.match(tpl, /desmarcar não reabre o mês/);
+  assert.match(tpl, /continua em <b>prévia<\/b> para o resto da empresa/);
+  // o selo nunca sai de data no código: nenhum dia fixo de flash no template
+  assert.doesNotMatch(tpl, /getDate\(\) *[<>=]+ *1[0-9]/);
+  assert.match(html, /Flash de vendas \(fechamento oficial do mês\)/, 'rode python painel-q4/scripts/build.py');
 });

@@ -1,4 +1,9 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.4 (04/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.5 (05/11/2026)
+
+**v3.5:** o **fechamento oficial** de cada mês é feito **depois do fechamento do flash de vendas** (decisão informada
+pela Karen em 04/11/2026; seções 8 e 9). Até lá o mês fica em **prévia**: os números ainda mudam, porque notas fiscais
+são canceladas e retornadas. Quem marca que o flash de um mês fechou é o Back Office, no painel — a data varia todo mês
+e não existe dia fixo.
 
 **v3.4:** os pilares **coringa 4 e 5 de novembro** são os mesmos de outubro (decisão informada pela Karen em
 04/11/2026; seção 4). Dezembro continua com os coringas **a decidir**, e Missões Guiadas de novembro segue **sem fonte**
@@ -155,6 +160,21 @@ o vencedor e o motivo quando o confronto não vale.
 | **Pontos atuais** | Pontos do mês corrente: pilares; os +5 do confronto vencido só entram depois do fechamento do mês (30/10/2026) |
 | **Pontos acumulados** | SV: trimestre (meses fechados, com os +5 dos confrontos vencidos neles, + pilares do mês corrente). Consultor: não se aplica, pois zera todo mês ⚠️ |
 
+**Fechamento do mês: prévia × oficial (decisão informada pela Karen em 04/11/2026)**
+
+| Estado | O que significa |
+|---|---|
+| **Prévia** | O mês já encerrou, mas o resultado ainda pode mudar: até o fechamento do **flash de vendas** (o acompanhamento oficial de notas e volume da Bandeirantes, em torno do dia 12) notas fiscais são canceladas e retornadas. O painel marca o acumulado do trimestre do SV como **provisório**. |
+| **Oficial** | O flash daquele mês fechou e o Back Office marcou isso no painel. O resultado do mês **congela**: não muda mais. |
+
+- A data do flash **varia de mês para mês**: não há dia fixo. O mês só vira oficial quando o Back Office marca, na
+  Administração do painel, que o flash daquele mês fechou.
+- Enquanto o mês está em prévia, os pontos, os gatilhos e o ranking continuam aparecendo e sendo calculados
+  normalmente, com os números que existem naquele momento — o que muda é só o aviso de que o resultado é provisório.
+- ⚠️ Isto é diferente de "mês fechado" para os **+5 do confronto** (seção 5): ali o mês conta como fechado já no
+  período de fechamento da API (dia 1 até o fim do 1º dia útil). A confirmar com o Back Office se os +5 do confronto
+  devem esperar o fechamento oficial do flash.
+
 **Status (⚠️ interpretação da regra do Back Office):**
 
 | Situação | Status |
@@ -175,9 +195,10 @@ cinza. A premiação continua restrita a quem é elegível.
 3. **Confrontos:** prazo de registro em cada mês.
 4. **Coringas 4 e 5 de dezembro:** ainda não decididos. Até entrarem na configuração do painel, dezembro não calcula pontos nem ranking.
 5. **Fonte de Missões Guiadas de novembro e dezembro:** meta e realizado por rota ainda não definidos; o pilar aparece "sem dados" e não pontua.
-6. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte).
+6. **+5 do confronto no fechamento (30/10/2026):** o mês conta como fechado já no período de fechamento da API (do dia 1 até o fim do 1º dia útil do mês seguinte). Com o fechamento oficial passando a depender do flash de vendas (seção 8, 04/11/2026), falta confirmar se os +5 continuam entrando no fechamento da API ou se passam a esperar o flash.
+7. **Fechamento oficial pelo flash de vendas (04/11/2026):** quem marca que o flash de um mês fechou é o Back Office, no painel, e é isso que congela o mês. Falta definir o prazo combinado para essa marcação depois de cada flash.
 
-**Resolvidos:** +5 do confronto só depois do fechamento do mês, para o SV (no acumulado) e para a mesa (nos pontos do mês fechado), com o vencedor parcial durante o mês (30/10/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
+**Resolvidos:** fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); +5 do confronto só depois do fechamento do mês, para o SV (no acumulado) e para a mesa (nos pontos do mês fechado), com o vencedor parcial durante o mês (30/10/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
 cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); 5 pontos do confronto na Rota; volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
 
 ## 10. Glossário
