@@ -92,7 +92,22 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
 Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, a **segmentação da
 supervisão** (canal e segmento de cada rota), os **agrupadores extras**, os **confrontos do mês** e o **flash de vendas
-fechado** de cada mês.
+fechado** de cada mês. No fim da página fica a **consulta do fechamento do mês**, que é só leitura.
+- **Fechamento do mês (consulta e exportação)**, decisão de 04/11/2026: confere o resultado de um mês já fechado e
+  exporta em **.xlsx**. Um seletor escolhe o mês entre os fechados que o painel carregou (abre no mais recente; mês
+  que fechou mas não pôde ser lido aparece como "indisponível" e nada é apurado). O cabeçalho de corte traz o mês, o
+  estado (**Prévia**, com o aviso de que os números mudam até o fechamento do flash, ou **Oficial**, com a data do
+  selo), o `gerado_em` e o `atualizado_em` do arquivo e a origem (`api/v1/fechado/AAAAMM.json`). São três visões, por
+  botão: **Consultor** (uma linha por rota), **Supervisão** (uma por SV, com o acumulado do trimestre até aquele mês)
+  e **Estratégicos** (uma por gerência, só volume, dos totais guardados no snapshot — sem pontos, sem gatilhos e sem
+  premiação; se o arquivo do mês não tiver esses totais, a visão diz "Estratégicos indisponível" e **não** soma rotas
+  por conta própria). Filtros de canal e busca por código valem **só na tela**: o botão **Exportar .xlsx** baixa
+  `fechamento-<anomes>-<previa|oficial>.xlsx` com quatro abas — Contexto, Consultores, Supervisões e Estratégicos —
+  sempre com **todas** as linhas. A aba Contexto registra mês, estado, data do selo, `gerado_em`, `atualizado_em`, a
+  origem dos dados, as regras em uso e, na prévia, a advertência de que os números ainda mudam, para a planilha nunca
+  circular sem contexto. Nada é consultado ao vivo e nada é recalculado fora do motor: pontos, %, gatilhos, status e
+  ranking saem de `motor.js`, com os dados e os pilares daquele mês (mês sem os 5 pilares não apura nada). A planilha
+  é gerada no próprio navegador, sem biblioteca externa (um .xlsx é um ZIP de XMLs: `planilhaXlsx` no adaptador).
 - **Flash de vendas (fechamento oficial)**, decisão de 04/11/2026: uma linha por mês fechado, com o estado na API
   (prévia ou oficial, com a data do selo) e a caixa "Flash de vendas de <mês> fechado". Marcar pede confirmação
   ("isto congela o resultado de <mês>") e grava `flashFechado` nos ajustes; **salvar neste navegador** vale só para
@@ -156,12 +171,13 @@ fechado** de cada mês.
 ../frontend/desafio-q4.html  painel pronto (gerado; publicado no Pages junto com a API)
 src/app.tpl.html             tela (HTML, CSS e lógica de exibição)
 src/motor.js                 motor de cálculo (pontos, gatilhos, confronto, status, ranking)
-src/adapter.js               lê a API (mês corrente e meses fechados) e liga os dados ao motor; CONFIG com os pilares por mês
+src/adapter.js               lê a API (mês corrente e meses fechados) e liga os dados ao motor; CONFIG com os pilares por mês;
+                             consulta do fechamento (consultaFechamento, tabelaFechamento) e o gerador de .xlsx (planilhaXlsx)
 src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa Inter/fonte do sistema
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 78 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
+tests/                       42 testes do motor e 100 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!")
 docs/                        regras do incentivo (fonte de verdade)
 ```
 

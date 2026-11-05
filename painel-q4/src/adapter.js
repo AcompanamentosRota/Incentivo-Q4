@@ -87,7 +87,8 @@ const avisoSemPilares = (mes) => `Pilares de ${NOMES_MES[mes]} ainda não config
 /** Missões Guiadas (ou outro pilar) sem fonte de meta e real por rota: aparece "sem dados" e não pontua. */
 const semFonte = (cfg, nome) => !cfg.fonteDoPilar[nome];
 /** Regras do motor (meses com Missões Guiadas validada): no painel vem de window.MotorQ4; no Node, de motor.js. */
-const MotorRegras = () => (typeof MotorQ4 !== 'undefined' ? MotorQ4 : require('./motor.js')).REGRAS;
+const Motor = () => (typeof MotorQ4 !== 'undefined' ? MotorQ4 : require('./motor.js'));
+const MotorRegras = () => Motor().REGRAS;
 const VAZIO = [null, null, null, null, null]; // agrupador sem dado (ex.: extra que a API ainda não traz)
 const CHAVE_REFRI = '__refri__'; // coluna % Refri do Estratégicos (a categoria, ou a soma provisória)
 
@@ -204,7 +205,37 @@ function fechadoDaApi(f, base, cfg, canais) {
     rotas.push({ gc: titulo(linha[iGer]), sv: svNome(linha[iSv]), rota: id, canal: c.canal, sub: c.sub, v });
   }
   return { mes: Number(f.anomes.slice(4)), anomes: f.anomes, rotulo: f.rotulo, final: f.fechamento_final === true,
-           oficialEm: f.oficial_em || null, fonteSelo: f.fonte_selo || null, rotas };
+           oficialEm: f.oficial_em || null, fonteSelo: f.fonte_selo || null, rotas,
+           geradoEm: f.gerado_em || null, atualizadoEm: f.atualizado_em || null,
+           totais: totaisDoFechado(f, cfg) };
+}
+
+/*
+ * `totais` do snapshot (meta e realizado por gerência e da empresa, como em resumo.json e gerencias/{GC}.json) ->
+ * o mesmo formato de `totaisGerencia`/`totalEmpresa` do mês corrente, para a visão Estratégicos da consulta reusar
+ * `montarEstrat` sem somar rota por rota. Arquivo gravado antes da etapa dos totais não tem o campo: devolve null, e
+ * a consulta mostra "Estratégicos indisponível" em vez de somar por conta própria.
+ * No mês fechado não existe online nem meta dia: online = 0 e meta dia null, como em `fechadoDaApi`.
+ */
+function totaisDoFechado(f, cfg) {
+  const t = f.totais;
+  if (!t || typeof t !== 'object' || !t.empresa || !t.gerencias) return null;
+  const I = cfg.idx, cp = (n) => f.campos_produto.indexOf(n);
+  const [iMeta, iReal] = [cp('meta'), cp('realizado')];
+  if (iMeta < 0 || iReal < 0) return null;
+  const linha = (prod) => {
+    const v = {};
+    for (const [ag, pid] of Object.entries(cfg.produtoDaApi)) {
+      const x = (prod || {})[pid], l = [null, null, null, null, null];
+      if (x) { l[I.meta] = x[iMeta]; l[I.real] = x[iReal]; l[I.online] = 0; }
+      v[ag] = l;
+    }
+    return v;
+  };
+  return {
+    empresa: linha(t.empresa),
+    gerencias: Object.keys(t.gerencias).sort().map((id) => ({ id, gc: titulo(id), v: linha(t.gerencias[id]) })),
+  };
 }
 
 /** "2026-11-12T14:30:00" -> "12/11/2026"; sem data, ''. */
@@ -1129,6 +1160,479 @@ function montarEntrada(dados, cfg, confrontos) {
                       confrontos: confrontos || [], mesesIncompletos, fechamento: !!dados.meta.fechamento }, notasRefri };
 }
 
+/*
+ * ─────────────── Consulta do fechamento do mês (Administração, 04/11/2026) ───────────────
+ * Lê um mês fechado que já está em dados.fechados (fechado/AAAAMM.json, pelo index.json -> fechados) e monta as
+ * linhas das três visões: Consultor (uma por rota), Supervisão (uma por SV) e Estratégicos (uma por gerência).
+ * NADA é calculado aqui: pontos, %, gatilhos, status e ranking saem do motor, com os dados daquele mês (a mesma
+ * entrada que o painel monta para o mês corrente, com mesRef = o mês consultado e `fechamento` = true, porque o
+ * mês já fechou e o +5 do confronto dele já entra). A visão Estratégicos é só volume, dos totais do snapshot.
+ */
+
+/** Pilares das colunas da consulta: os do mês nos dois canais, sem repetir (a Mista primeiro, na ordem do mês). */
+function pilaresDaConsulta(cfg, mes) {
+  const out = [];
+  for (const canal of ['Mista', 'Segmentada']) for (const p of pilaresDoMes(cfg, mes, canal) || []) {
+    if (!out.some((x) => x.nome === p.nome)) out.push({ nome: p.nome, tipo: p.tipo });
+  }
+  return out;
+}
+
+/*
+ * Dados do painel recortados num mês fechado: o mês consultado passa a ser o "corrente" (as rotas dele viram as
+ * pessoas) e os meses fechados anteriores continuam nos fechados, para o acumulado do trimestre do SV. Assim
+ * `montarEntrada` e `montarEstrat` são reusados sem cópia de regra. Devolve null se o mês não foi carregado.
+ */
+function dadosDoFechado(dados, mes, cfg) {
+  cfg = cfg || CONFIG;
+  const f = (dados.fechados || []).find((x) => x.mes === mes);
+  if (!f) return null;
+  const acum = dados.meta.acumulado || { usados: [], faltando: [], previa: [] };
+  const usado = (acum.usados || []).find((u) => u.mes === mes) || null;
+  const [dia, hora] = String(f.atualizadoEm || '').split('T');
+  const corte = dia ? (dia.split('-').reverse().join('/') + ' ' + String(hora || '').slice(0, 5)).trim() : dados.meta.corte;
+  const meta = Object.assign({}, dados.meta, {
+    mes, rotulo: f.rotulo, corte, fechamento: true,
+    semCalculo: mesConfigurado(cfg, mes) ? null : avisoSemPilares(mes),
+    // o acumulado do SV naquele mês: só os meses do trimestre até ele
+    acumulado: Object.assign({}, acum, {
+      meses: MESES_Q4.filter((m) => m <= mes),
+      usados: (acum.usados || []).filter((u) => u.mes <= mes),
+      faltando: (acum.faltando || []).filter((x) => x.mes < mes),
+      previa: (acum.previa || []).filter((m2) => m2 <= mes),
+    }),
+  });
+  // o snapshot guarda só o id da gerência: o nome vem do index.json do mês corrente (sem ele, fica o id)
+  const nomeGc = {};
+  (dados.totaisGerencia || []).forEach((g) => { nomeGc[g.id] = g.nome; });
+  const t = f.totais;
+  return Object.assign({}, dados, {
+    meta, rotas: f.rotas, fechados: (dados.fechados || []).filter((x) => x.mes < mes),
+    totaisGerencia: t ? t.gerencias.map((g) => Object.assign({}, g, { nome: nomeGc[g.id] || g.gc })) : null,
+    totalEmpresa: t ? t.empresa : null,
+    fechadoUsado: usado, snapshot: f,
+  });
+}
+
+/** Ordem das linhas na tela (a mesma das abas Rota e Supervisão): elegíveis na posição oficial e, depois, os de
+ *  fora por pontos. A posição oficial continua só para quem bate os dois gatilhos; aqui toda linha recebe número. */
+const ordemPainel = (a, b) => {
+  if (a.elegivel !== b.elegivel) return a.elegivel ? -1 : 1;
+  if (a.elegivel) return a.posicao - b.posicao;
+  if (a.gatilhoPontos.valor !== b.gatilhoPontos.valor) return b.gatilhoPontos.valor - a.gatilhoPontos.valor;
+  const pct = (x) => (x.volume.pct === null || x.volume.pct === undefined ? -1 : x.volume.pct);
+  return pct(b) - pct(a) || (a.id < b.id ? -1 : 1);
+};
+/** Numera todas as linhas por cargo x canal, na ordem da tela (`posTela`), sem mexer na posição oficial do motor. */
+function posicoesDeTela(pessoas) {
+  const out = {};
+  for (const cargo of ['RT', 'SV']) for (const canal of ['Mista', 'Segmentada']) {
+    pessoas.filter((p) => p.cargo === cargo && p.canal === canal).slice().sort(ordemPainel)
+      .forEach((p, i) => { out[p.id] = i + 1; });
+  }
+  return out;
+}
+
+/** % para a planilha e para a tela: truncado em 1 casa, como em todo o painel (99,96% nunca vira 100,0%). */
+const pctConsulta = (v) => (typeof v === 'number' && Number.isFinite(v) ? Motor().truncar1(v) : null);
+
+/*
+ * Consulta de um mês fechado: devolve o cabeçalho de corte, o estado (prévia ou oficial) e as três visões.
+ * `confrontos` são os do ajustes.json em uso (o motor apura o do mês consultado com os dados dele).
+ */
+function consultaFechamento(dados, mes, cfg, confrontos) {
+  cfg = cfg || CONFIG;
+  const d = dadosDoFechado(dados, mes, cfg);
+  if (!d) return { mes, disponivel: false, motivo: `fechamento de ${NOMES_MES[mes]} indisponível` };
+  const f = d.snapshot, u = d.fechadoUsado;
+  const estado = (u && u.estado) || estadoFechado({ final: f.final, oficialEm: f.oficialEm }, null);
+  const base = { mes, disponivel: true, anomes: f.anomes, rotulo: f.rotulo, estado, previa: !!estado.previa,
+                 oficialEm: f.oficialEm, fonteSelo: f.fonteSelo, geradoEm: f.geradoEm, atualizadoEm: f.atualizadoEm,
+                 corte: d.meta.corte, simulado: !!d.meta.simulado, dados: d };
+  // mês sem os 5 pilares na configuração: nada é calculado (nunca com parte dos pilares), nem na consulta
+  if (d.meta.semCalculo) {
+    return Object.assign(base, { semPilares: d.meta.semCalculo, pilares: [], consultor: [], supervisao: [],
+                                 estrat: null, motivoEstrat: d.meta.semCalculo, mesesIncompletos: [] });
+  }
+  const { entrada } = montarEntrada(d, cfg, confrontos);
+  const res = Motor().calcular(entrada);
+  const pilares = pilaresDaConsulta(cfg, mes);
+  const posTela = posicoesDeTela(res.pessoas);
+  const rotaDe = {}; (d.rotas || []).forEach((r) => { rotaDe[r.rota] = r; });
+  const nRotas = {}; (d.rotas || []).forEach((r) => { const k = svKey(r); nRotas[k] = (nRotas[k] || 0) + 1; });
+  const comum = (p) => ({
+    pontosPilares: p.pontosPilares, bonus: p.pontosConfronto, pontosMes: p.pontosMes,
+    refriPct: pctConsulta(p.volume.pct), volumeOk: p.volume.atingido,
+    pontosOk: p.gatilhoPontos.atingido, minimoPontos: p.gatilhoPontos.minimo,
+    status: p.status, posicao: posTela[p.id] || null, posicaoOficial: p.posicao !== null,
+    pilares: pilares.map((pl) => {
+      const x = p.pilares.find((y) => y.nome === pl.nome);
+      return x ? { nome: pl.nome, meta: x.meta, real: x.real, pct: pctConsulta(x.pct), pontos: x.pontos, noCanal: true }
+               : { nome: pl.nome, meta: null, real: null, pct: null, pontos: null, noCanal: false };
+    }),
+  });
+  const consultor = res.pessoas.filter((p) => p.cargo === 'RT').sort(ordemPainel).map((p) => {
+    const r = rotaDe[p.id] || {};
+    return Object.assign({ tipo: 'RT', codigo: p.id, gerencia: r.gc || p.unidade, supervisao: r.sv || null,
+                           canal: p.canal, segmento: r.sub || null }, comum(p));
+  });
+  const supervisao = res.pessoas.filter((p) => p.cargo === 'SV').sort(ordemPainel).map((p) => Object.assign(
+    { tipo: 'SV', codigo: p.nome, id: p.id, canal: p.canal, gerencia: p.unidade, rotas: nRotas[p.id] || 0,
+      acumulado: p.pontosAcumulados, acumuladoIncompleto: (p.acumuladoIncompleto || []).slice() }, comum(p)));
+  const estrat = estratDoFechado(d, cfg);
+  return Object.assign(base, { semPilares: null, pilares, res, consultor, supervisao, estrat,
+    motivoEstrat: estrat ? null : `Estratégicos indisponível para este mês: o fechado/${f.anomes}.json não traz os totais por gerência`,
+    mesesIncompletos: res.mesesIncompletos || [] });
+}
+
+/*
+ * Visão Estratégicos do mês fechado: volume por gerência e o TOTAL da empresa, dos totais guardados no snapshot
+ * (a gerência inteira, com todas as rotas que tiveram Real), sem pontos, sem gatilhos e sem premiação. É a mesma
+ * `montarEstrat` da aba Estratégicos; sem os totais no arquivo, devolve null (a consulta avisa e não soma rotas).
+ */
+function estratDoFechado(d, cfg) {
+  if (!d.totaisGerencia || !d.totalEmpresa) return null;
+  const fora = ['Volume Refri Single']; // já está dentro da coluna % Refri, como na aba Estratégicos
+  const itens = pilaresDaConsulta(cfg, d.meta.mes)
+    .filter((p) => p.tipo === 'volume' && !fora.includes(p.nome) && cfg.fonteDoPilar[p.nome])
+    .map((p) => ({ nome: p.nome, chave: cfg.fonteDoPilar[p.nome] }));
+  const est = montarEstrat(d, itens.map((i) => i.chave), cfg);
+  return { itens, linhas: est.linhas, total: est.total, origem: est.origem };
+}
+
+/*
+ * ─────────────── Tabelas da consulta (tela e planilha, uma definição só) ───────────────
+ * Cada visão vira {colunas, linhas}: a tela desenha e a planilha grava as MESMAS colunas e linhas, então o arquivo
+ * nunca sai com colunas diferentes da tela nem com outra contagem de linhas. `tipo` diz como a célula é gravada:
+ * 'texto', 'volume' (1 casa), 'pct' (número já truncado, com formato de 1 casa) e 'inteiro'.
+ */
+const ROT_PILAR = (nome) => nome.replace('Volume ', '').replace('Missões Guiadas', 'Missões');
+const SIM_NAO = (v) => (v ? 'sim' : 'não');
+
+function colunasConsultor(c) {
+  const cols = [
+    { rotulo: 'Rota', tipo: 'texto', largura: 10 },
+    { rotulo: 'Gerência', tipo: 'texto', largura: 11 },
+    { rotulo: 'Supervisão', tipo: 'texto', largura: 13 },
+    { rotulo: 'Canal', tipo: 'texto', largura: 12 },
+    { rotulo: 'Segmento', tipo: 'texto', largura: 11 },
+  ];
+  for (const p of c.pilares) {
+    const r = ROT_PILAR(p.nome);
+    cols.push({ rotulo: r + ' · Meta', tipo: 'volume', largura: 13, grupo: r });
+    cols.push({ rotulo: r + ' · Real', tipo: 'volume', largura: 13, grupo: r });
+    cols.push({ rotulo: r + ' · %', tipo: 'pct', largura: 10, grupo: r });
+    cols.push({ rotulo: r + ' · Pts', tipo: 'inteiro', largura: 7, grupo: r });
+  }
+  return cols.concat([
+    { rotulo: 'Pontos dos pilares', tipo: 'inteiro', largura: 11 },
+    { rotulo: 'Bônus de confronto', tipo: 'inteiro', largura: 11 },
+    { rotulo: 'Pontos do mês', tipo: 'inteiro', largura: 11 },
+    { rotulo: '% Refrigerantes', tipo: 'pct', largura: 13 },
+    { rotulo: 'Gatilho de volume', tipo: 'simnao', largura: 12 },
+    { rotulo: 'Gatilho de pontos', tipo: 'simnao', largura: 12 },
+    { rotulo: 'Status', tipo: 'status', largura: 26 },
+    { rotulo: 'Posição', tipo: 'inteiro', largura: 9 },
+    { rotulo: 'Posição oficial', tipo: 'simnao', largura: 12 },
+  ]);
+}
+
+function colunasSupervisao(c) {
+  const cols = [
+    { rotulo: 'Supervisão', tipo: 'texto', largura: 13 },
+    { rotulo: 'Canal', tipo: 'texto', largura: 12 },
+    { rotulo: 'Gerência', tipo: 'texto', largura: 11 },
+    { rotulo: 'Rotas na mesa', tipo: 'inteiro', largura: 10 },
+  ];
+  for (const p of c.pilares) {
+    const r = ROT_PILAR(p.nome);
+    cols.push({ rotulo: r + ' · Meta', tipo: 'volume', largura: 13, grupo: r });
+    cols.push({ rotulo: r + ' · Real', tipo: 'volume', largura: 13, grupo: r });
+    cols.push({ rotulo: r + ' · %', tipo: 'pct', largura: 10, grupo: r });
+    cols.push({ rotulo: r + ' · Pts', tipo: 'inteiro', largura: 7, grupo: r });
+  }
+  return cols.concat([
+    { rotulo: 'Pontos dos pilares', tipo: 'inteiro', largura: 11 },
+    { rotulo: 'Pontos do mês', tipo: 'inteiro', largura: 11 },
+    { rotulo: 'Bônus de confronto', tipo: 'inteiro', largura: 11 },
+    { rotulo: 'Pontos acumulados do trimestre', tipo: 'inteiro', largura: 15 },
+    { rotulo: '% Refrigerantes acumulado', tipo: 'pct', largura: 15 },
+    { rotulo: 'Gatilho de volume', tipo: 'simnao', largura: 12 },
+    { rotulo: 'Gatilho de pontos', tipo: 'simnao', largura: 12 },
+    { rotulo: 'Status', tipo: 'status', largura: 26 },
+    { rotulo: 'Posição', tipo: 'inteiro', largura: 9 },
+    { rotulo: 'Posição oficial', tipo: 'simnao', largura: 12 },
+  ]);
+}
+
+function colunasEstrat(c) {
+  const cols = [{ rotulo: 'Gerência', tipo: 'texto', largura: 11 }, { rotulo: 'Nome', tipo: 'texto', largura: 22 }];
+  for (const i of (c.estrat ? c.estrat.itens : [])) {
+    const r = ROT_PILAR(i.nome);
+    cols.push({ rotulo: r + ' · Meta', tipo: 'volume', largura: 14, grupo: r });
+    cols.push({ rotulo: r + ' · Real', tipo: 'volume', largura: 14, grupo: r });
+    cols.push({ rotulo: r + ' · Dif', tipo: 'volume', largura: 13, grupo: r });
+    cols.push({ rotulo: r + ' · %', tipo: 'pct', largura: 10, grupo: r });
+  }
+  return cols.concat([{ rotulo: '% Refrigerantes', tipo: 'pct', largura: 13 }]);
+}
+
+const pilarCelulas = (l) => l.pilares.reduce((a, p) => a.concat([p.meta, p.real, p.pct, p.pontos]), []);
+
+/** Uma visão da consulta -> {colunas, linhas}. `linhas[i]` tem as células e a chave de filtro (canal e código). */
+function tabelaFechamento(c, visao) {
+  if (!c.disponivel) return { colunas: [], linhas: [] };
+  if (visao === 'estrategicos') {
+    const colunas = colunasEstrat(c);
+    if (!c.estrat) return { colunas, linhas: [] };
+    const pctDe = (x) => (x.meta > 0 ? pctConsulta(((x.real + x.online) / x.meta) * 100) : null);
+    const difDe = (x) => (x.meta > 0 ? x.real + x.online - x.meta : null);
+    const linha = (nome, gc, v, total) => ({
+      canal: null, codigo: gc, total: !!total, nome,
+      celulas: [gc, nome].concat(c.estrat.itens.reduce((a, i) => {
+        const x = v[i.chave];
+        return a.concat([x.meta, x.real, difDe(x), pctDe(x)]);
+      }, [])).concat([pctDe(v[CHAVE_REFRI])]),
+    });
+    return { colunas, linhas: c.estrat.linhas.map((g) => linha(g.nome, g.gc, g.v, false))
+      .concat([linha('TOTAL da empresa', 'TOTAL', c.estrat.total.v, true)]) };
+  }
+  if (visao === 'supervisao') {
+    return { colunas: colunasSupervisao(c), linhas: c.supervisao.map((l) => ({
+      canal: l.canal, codigo: l.codigo, total: false,
+      celulas: [l.codigo, l.canal, l.gerencia, l.rotas].concat(pilarCelulas(l)).concat([
+        l.pontosPilares, l.pontosMes, l.bonus, l.acumulado, l.refriPct,
+        SIM_NAO(l.volumeOk), SIM_NAO(l.pontosOk), l.status, l.posicao, SIM_NAO(l.posicaoOficial)]),
+    })) };
+  }
+  return { colunas: colunasConsultor(c), linhas: c.consultor.map((l) => ({
+    canal: l.canal, codigo: l.codigo, total: false,
+    celulas: [l.codigo, l.gerencia, l.supervisao || '—', l.canal, l.segmento || '—'].concat(pilarCelulas(l)).concat([
+      l.pontosPilares, l.bonus, l.pontosMes, l.refriPct,
+      SIM_NAO(l.volumeOk), SIM_NAO(l.pontosOk), l.status, l.posicao, SIM_NAO(l.posicaoOficial)]),
+  })) };
+}
+
+/** Filtro da TELA (o arquivo exportado leva sempre todas as linhas): canal e busca por código. */
+function filtrarFechamento(linhas, canal, busca) {
+  const b = String(busca || '').trim().toLowerCase();
+  return linhas.filter((l) => (!canal || canal === 'Todos' || l.canal === canal || l.total)
+    && (!b || String(l.codigo || '').toLowerCase().includes(b) || String(l.nome || '').toLowerCase().includes(b)));
+}
+
+const VISOES_FECHAMENTO = [
+  { id: 'consultor', rotulo: 'Consultor', aba: 'Consultores', unidade: 'rotas' },
+  { id: 'supervisao', rotulo: 'Supervisão', aba: 'Supervisões', unidade: 'supervisões' },
+  { id: 'estrategicos', rotulo: 'Estratégicos', aba: 'Estratégicos', unidade: 'gerências' },
+];
+
+/** Aba Contexto: de onde vieram os números e a advertência da prévia, para a planilha nunca circular sem contexto. */
+function contextoFechamento(c, cfg) {
+  cfg = cfg || CONFIG;
+  const R = MotorRegras();
+  const linhas = [
+    ['Mês do fechamento', c.rotulo || String(c.mes)],
+    ['Estado', c.previa ? 'PRÉVIA' : 'OFICIAL'],
+    ['O que o estado significa', c.estado ? c.estado.longo : ''],
+    ['Data do selo oficial', c.oficialEm ? dataBr(c.oficialEm) : '—'],
+    ['Como foi selado', c.fonteSelo === 'flash' ? 'marca do flash de vendas (Back Office, na Administração)' : '—'],
+    ['gerado_em (gravação do arquivo)', c.geradoEm || '—'],
+    ['atualizado_em (execução de origem)', c.atualizadoEm || '—'],
+    ['Origem dos dados', `API metas-produtos · SAP Datasphere · api/v1/fechado/${c.anomes}.json (meta e realizado por rota) e os totais por gerência do mesmo arquivo`],
+    ['Cálculo', `pontos, %, gatilhos, status e ranking do motor do painel (regras v${R.versao}), com os dados deste mês`],
+    ['% exibido', 'truncado em 1 casa, nunca arredondado (99,96% não vira 100,0%)'],
+    ['Faixas de pontos', R.faixas.filter((f) => f.pontos > 0).map((f) => `${f.min}% = ${f.pontos} pts`).join(' · ')],
+    ['Gatilho de volume', `${R.gatilhoVolumePct}% da categoria Refrigerantes (Consultor: o mês; SV: acumulado do trimestre)`],
+    ['Gatilho de pontos', `Consultor ${R.gatilhoPontos.RT} no mês · SV ${R.gatilhoPontos.SV} acumulados no trimestre`],
+    ['Bônus de confronto', `+${R.bonusConfronto} só para o SV vencedor, depois do fechamento do mês; as rotas da mesa não recebem (por isso a coluna da visão Consultor é sempre 0)`],
+    ['Posição', 'oficial só para quem bate os dois gatilhos; nas outras linhas é apenas a ordem da tela, por pontos'],
+    ['Estratégicos', 'só volume por gerência, com todas as rotas que tiveram Real: sem pontos, sem gatilhos e sem premiação'],
+    ['Linhas', VISOES_FECHAMENTO.map((v) => `${v.aba}: ${(tabelaFechamento(c, v.id).linhas || []).length}`).join(' · ')],
+  ];
+  if ((c.pilares || []).some((p) => p.tipo === 'missao') && R.missaoValidadaMeses.includes(c.mes)) {
+    linhas.push(['Missões Guiadas', `em ${NOMES_MES[c.mes]} entra validada em 100% para todos os cargos que a têm `
+      + `(${Motor().faixaPontos(R.missaoValidadaPct, 100)} pontos): por isso a meta e o real do pilar ficam vazios`]);
+  }
+  if (c.simulado) linhas.push(['ATENÇÃO', 'DADOS SIMULADOS: este fechamento não é real']);
+  if (c.semPilares) linhas.push(['ATENÇÃO', `${c.semPilares}: nada foi calculado neste mês`]);
+  if (!c.estrat && c.motivoEstrat) linhas.push(['Estratégicos indisponível', c.motivoEstrat]);
+  if ((c.mesesIncompletos || []).length) {
+    linhas.push(['Acumulado do trimestre incompleto', c.mesesIncompletos.map((x) => x.motivo).join('; ')]);
+  }
+  if (c.previa) {
+    linhas.push(['ADVERTÊNCIA', 'Os números deste mês ainda podem mudar até o fechamento do flash de vendas: '
+      + 'até lá notas fiscais são canceladas e retornadas. Este resultado é PROVISÓRIO.']);
+  }
+  return { colunas: [{ rotulo: 'Item', tipo: 'texto', largura: 34 }, { rotulo: 'Conteúdo', tipo: 'texto', largura: 110 }],
+           linhas: linhas.map((l) => ({ canal: null, codigo: l[0], total: false, celulas: l })) };
+}
+
+/** Nome do arquivo: fechamento-<anomes>-<previa|oficial>.xlsx */
+const nomeArquivoFechamento = (c) => `fechamento-${c.anomes}-${c.previa ? 'previa' : 'oficial'}.xlsx`;
+
+/** As quatro abas do arquivo (Contexto + as três visões), sempre com TODAS as linhas (os filtros da tela não valem). */
+function abasFechamento(c, cfg) {
+  const abas = [Object.assign({ nome: 'Contexto' }, contextoFechamento(c, cfg))];
+  for (const v of VISOES_FECHAMENTO) abas.push(Object.assign({ nome: v.aba }, tabelaFechamento(c, v.id)));
+  return abas;
+}
+
+/*
+ * ─────────────── Planilha .xlsx mínima, feita no próprio painel ───────────────
+ * O painel é um HTML único que precisa funcionar offline, e o build.py só embute fontes: nenhuma biblioteca externa.
+ * Um .xlsx é um ZIP de XMLs; aqui o ZIP é gravado com os arquivos "stored" (sem compressão, só o CRC32), que é o
+ * suficiente para o Excel e o LibreOffice abrirem. O que o arquivo garante:
+ *   - número é NÚMERO (<v>), nunca texto: a planilha soma e ordena;
+ *   - % é número já TRUNCADO em 1 casa (como em todo o painel) com formato de 1 casa, para o formato nunca
+ *     arredondar o que a regra manda truncar (99,9% não pode virar 100,0%);
+ *   - cabeçalho na 1ª linha, em negrito, congelado (`pane`) e com filtro (`autoFilter`);
+ *   - largura de coluna declarada; uma aba por visão.
+ * Data do ZIP fixa (01/01/2026): o arquivo de um mesmo fechamento sai sempre igual, byte a byte (testável). A data
+ * de verdade do corte está na aba Contexto.
+ */
+const XLSX_DATA = (46 << 9) | (1 << 5) | 1; // 01/01/2026 no formato DOS
+const XLSX_HORA = 0;
+const XLSX_EST = { texto: 0, cabecalho: 1, volume: 2, pct: 3, inteiro: 4 };
+
+const bytesUtf8 = (s) => (typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s) : Buffer.from(String(s), 'utf8'));
+const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+let XLSX_CRC_TAB = null;
+function crcTabela() {
+  if (XLSX_CRC_TAB) return XLSX_CRC_TAB;
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return (XLSX_CRC_TAB = t);
+}
+/** CRC-32 (o do ZIP). */
+function crc32(bytes) {
+  const t = crcTabela();
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = t[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/** ZIP com os arquivos "stored" (método 0): [{nome, bytes}] -> Uint8Array. */
+function zipStored(arquivos) {
+  const u16 = (v) => [v & 0xFF, (v >>> 8) & 0xFF];
+  const u32 = (v) => [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF];
+  const partes = [], central = [];
+  let desloc = 0;
+  for (const a of arquivos) {
+    const nome = bytesUtf8(a.nome), n = a.bytes.length, crc = crc32(a.bytes);
+    const comum = [].concat(u16(20), u16(0x0800), u16(0), u16(XLSX_HORA), u16(XLSX_DATA), u32(crc), u32(n), u32(n));
+    const local = new Uint8Array([0x50, 0x4b, 0x03, 0x04].concat(comum, u16(nome.length), u16(0)));
+    partes.push(local, nome, a.bytes);
+    central.push(new Uint8Array([0x50, 0x4b, 0x01, 0x02].concat(u16(20), comum, u16(nome.length), u16(0), u16(0),
+      u16(0), u16(0), u32(0), u32(desloc))), nome);
+    desloc += local.length + nome.length + n;
+  }
+  const inicio = desloc;
+  let tamCentral = 0;
+  for (const p of central) tamCentral += p.length;
+  const fim = new Uint8Array([0x50, 0x4b, 0x05, 0x06].concat(u16(0), u16(0), u16(arquivos.length), u16(arquivos.length),
+    u32(tamCentral), u32(inicio), u16(0)));
+  const todas = partes.concat(central, [fim]);
+  let total = 0;
+  for (const p of todas) total += p.length;
+  const out = new Uint8Array(total);
+  let i = 0;
+  for (const p of todas) { out.set(p, i); i += p.length; }
+  return out;
+}
+
+/** 1 -> 'A', 27 -> 'AA' (coluna da planilha). */
+function colunaXlsx(n) {
+  let s = '';
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; }
+  return s;
+}
+/** Nome de aba aceito pelo Excel: no máximo 31 caracteres, sem [ ] : * ? / \ */
+const nomeAba = (s) => String(s).replace(/[[\]:*?/\\]/g, ' ').slice(0, 31) || 'Planilha';
+
+const XLSX_ESTILOS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.0"/><numFmt numFmtId="165" formatCode="0.0&quot;%&quot;"/></numFmts>
+<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+<borders count="1"><border/></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>\
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>\
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>\
+<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>\
+<xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+/** Célula: número vira <v> (com o formato do tipo); o resto vira texto embutido (inlineStr). Vazio não vira célula. */
+function celulaXlsx(ref, valor, tipo) {
+  if (valor === null || valor === undefined || valor === '') return '';
+  const numerico = tipo === 'volume' || tipo === 'pct' || tipo === 'inteiro';
+  if (numerico && typeof valor === 'number' && Number.isFinite(valor)) {
+    // volume com 1 casa (o mesmo que o painel mostra): soma de floats não deixa 14476.900000000001 no arquivo.
+    // O % já chega truncado em 1 casa de pctConsulta: aqui nada é arredondado.
+    const v = tipo === 'volume' ? Math.round(valor * 10) / 10 : valor;
+    return `<c r="${ref}" s="${XLSX_EST[tipo]}"><v>${v}</v></c>`;
+  }
+  return `<c r="${ref}" s="${XLSX_EST.texto}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(valor)}</t></is></c>`;
+}
+
+/** Uma aba: {nome, colunas:[{rotulo,tipo,largura}], linhas:[{celulas:[...]}]} -> XML da planilha. */
+function abaXlsx(aba) {
+  const cols = aba.colunas || [], linhas = aba.linhas || [];
+  const nc = Math.max(1, cols.length), nl = linhas.length + 1;
+  const ref = `A1:${colunaXlsx(nc)}${nl}`;
+  const largs = cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.largura || 14}" customWidth="1"/>`).join('');
+  let corpo = `<row r="1">${cols.map((c, i) => `<c r="${colunaXlsx(i + 1)}1" s="${XLSX_EST.cabecalho}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(c.rotulo)}</t></is></c>`).join('')}</row>`;
+  linhas.forEach((l, i) => {
+    const r = i + 2;
+    corpo += `<row r="${r}">` + (l.celulas || []).map((v, j) => celulaXlsx(colunaXlsx(j + 1) + r, v, (cols[j] || {}).tipo)).join('') + '</row>';
+  });
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="${ref}"/>`
+    + `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    + `<sheetFormatPr defaultRowHeight="15"/>`
+    + (largs ? `<cols>${largs}</cols>` : '')
+    + `<sheetData>${corpo}</sheetData><autoFilter ref="A1:${colunaXlsx(nc)}1"/></worksheet>`;
+}
+
+/**
+ * Abas -> arquivo .xlsx (Uint8Array). Cada aba: {nome, colunas, linhas}, no mesmo formato que a tela desenha.
+ * Sem biblioteca externa e sem servidor: é só ZIP + XML.
+ */
+function planilhaXlsx(abas) {
+  const lista = (abas || []).map((a, i) => Object.assign({}, a, { nome: nomeAba(a.nome || 'Aba ' + (i + 1)) }));
+  if (!lista.length) throw new Error('planilhaXlsx: nenhuma aba');
+  const n = lista.length;
+  const tipos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`
+    + `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`
+    + `<Default Extension="xml" ContentType="application/xml"/>`
+    + `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`
+    + `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`
+    + lista.map((a, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')
+    + `</Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+    + `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const livro = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
+    + `<sheets>${lista.map((a, i) => `<sheet name="${xmlEsc(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`;
+  const relLivro = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+    + lista.map((a, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')
+    + `<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const arquivos = [
+    { nome: '[Content_Types].xml', bytes: bytesUtf8(tipos) },
+    { nome: '_rels/.rels', bytes: bytesUtf8(rels) },
+    { nome: 'xl/workbook.xml', bytes: bytesUtf8(livro) },
+    { nome: 'xl/_rels/workbook.xml.rels', bytes: bytesUtf8(relLivro) },
+    { nome: 'xl/styles.xml', bytes: bytesUtf8(XLSX_ESTILOS) },
+  ].concat(lista.map((a, i) => ({ nome: `xl/worksheets/sheet${i + 1}.xml`, bytes: bytesUtf8(abaXlsx(a)) })));
+  return zipStored(arquivos);
+}
+
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
                      fechadoDaApi, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
@@ -1137,7 +1641,10 @@ if (typeof module === 'object' && module.exports) {
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
                      diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
-                     normalizarFlash, estadoFechado, dataBr,
+                     normalizarFlash, estadoFechado, dataBr, totaisDoFechado,
+                     pilaresDaConsulta, dadosDoFechado, ordemPainel, posicoesDeTela, consultaFechamento, estratDoFechado,
+                     tabelaFechamento, filtrarFechamento, contextoFechamento, abasFechamento, nomeArquivoFechamento,
+                     VISOES_FECHAMENTO, planilhaXlsx, zipStored, crc32, colunaXlsx, nomeAba,
                      SEGMENTOS, OPCOES_SEGMENTACAO, SEM_SV, valorSeg, deValorSeg, rotuloSeg, validarCanalRota, linhasSegmentacao,
                      svsDaSegmentacao, buscarSVs, rotasDoFiltro, canalDaMesa, aplicarNaMesa, restaurarPadrao, pendenciasSegmentacao,
                      canaisDaEdicao, segmentosDaMesa, confrontoInvalidadoPorAjuste,

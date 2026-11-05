@@ -1550,3 +1550,393 @@ test('flash: a tela mostra prévia x oficial e o botão da Administração, sem 
   assert.doesNotMatch(tpl, /getDate\(\) *[<>=]+ *1[0-9]/);
   assert.match(html, /Flash de vendas \(fechamento oficial do mês\)/, 'rode python painel-q4/scripts/build.py');
 });
+
+// ── etapa 17: consulta do fechamento do mês, com exportação em .xlsx (Administração) ──
+// Fixtures sintéticas: a gerência Nova (NV) de novembro, com outubro fechado (FECHADO_OUT). Nomes fictícios.
+const { consultaFechamento, dadosDoFechado, tabelaFechamento, filtrarFechamento, contextoFechamento, abasFechamento,
+        nomeArquivoFechamento, VISOES_FECHAMENTO, pilaresDaConsulta, posicoesDeTela, ordemPainel, totaisDoFechado,
+        planilhaXlsx, colunaXlsx, nomeAba, crc32 } = require('../src/adapter.js');
+
+// totais por gerência e da empresa, como o gerador grava no snapshot (etapa 16): a gerência INTEIRA, com todas as
+// rotas que tiveram Real — de propósito acima da soma das 3 rotas do incentivo, para a visão Estratégicos não poder
+// estar somando rotas por conta própria.
+const TOTAIS_OUT = {
+  empresa: { sabores: [500, 540], retornaveis: [400, 395], sucos: [350, 330], powerade: [320, 300],
+             individuais: [300, 310], refrigerantes: [4000, 3900] },
+  gerencias: { NV: { sabores: [500, 540], retornaveis: [400, 395], sucos: [350, 330], powerade: [320, 300],
+                     individuais: [300, 310], refrigerantes: [4000, 3900] } },
+};
+const comTotais = (f) => ({ ...f, totais: JSON.parse(JSON.stringify(TOTAIS_OUT)) });
+const API_FECH = { ...API_NOV, 'fechado/202610.json': comTotais(FECHADO_OUT) };                       // outubro OFICIAL
+const API_FECH_PREVIA = { ...API_PREVIA, 'fechado/202610.json': comTotais(semSelo(FECHADO_OUT)) };    // outubro em PRÉVIA
+const CONF_OUT = [{ mes: 10, id_sv_desafiante: 'Sv. Nv.1#Mista', id_sv_desafiado: 'Sv. Nv.2#Mista', pilar: 'Volume Sabores' }];
+
+/** Carrega os dados de novembro e devolve a consulta de um mês fechado, como a Administração faz. */
+const consultaDe = async (mes, arquivos = API_FECH, confrontos, cfg) => comApi(arquivos, async () => {
+  const c = cfg || cfgNov();
+  const d = await carregarDados(BASE_V, c);
+  return { d, c: consultaFechamento(d, mes, c, confrontos), cfg: c };
+});
+const ROT_PILAR_T = (n) => n.replace('Volume ', '').replace('Missões Guiadas', 'Missões');
+const porCodigo = (t, cod) => t.linhas.find((l) => l.codigo === cod);
+const celula = (t, cod, rotulo) => porCodigo(t, cod).celulas[t.colunas.findIndex((x) => x.rotulo === rotulo)];
+
+test('consulta: cabeçalho de corte do mês oficial (estado, selo, gerado_em e atualizado_em) e as colunas dos pilares do mês', async () => {
+  const { c } = await consultaDe(10);
+  assert.equal(c.disponivel, true);
+  assert.deepEqual([c.anomes, c.rotulo, c.previa], ['202610', 'Outubro/26', false]);
+  assert.equal(c.estado.longo, 'Oficial, selado em 12/11/2026');
+  assert.deepEqual([c.oficialEm, c.fonteSelo], ['2026-11-12T14:30:00', 'flash']);
+  assert.deepEqual([c.geradoEm, c.atualizadoEm], ['2026-11-03T18:46:02', '2026-11-03T18:45:10']);
+  assert.equal(c.corte, '03/11/2026 18:45'); // o corte é o do mês consultado, não o de novembro
+  // pilares dos DOIS canais daquele mês, sem repetir: nada fixo no código
+  assert.deepEqual(c.pilares.map((p) => p.nome),
+    ['Volume Sabores', 'Volume Retornáveis', 'Missões Guiadas', 'Volume Sucos', 'Volume Powerade', 'Volume Refri Single']);
+  assert.deepEqual(pilaresDaConsulta(cfgNov(), 11).map((p) => p.nome), // novembro tem outros coringas: a consulta segue o mês
+    ['Volume Sabores', 'Volume Retornáveis', 'Missões Guiadas', 'Volume Powerade', 'Volume Refri Single', 'Volume Sucos']);
+});
+
+test('consulta: mês em prévia avisa que os números ainda mudam, e nenhum número muda entre prévia e oficial', async () => {
+  const previa = await consultaDe(10, API_FECH_PREVIA);
+  assert.equal(previa.c.previa, true);
+  assert.deepEqual([previa.c.oficialEm, previa.c.fonteSelo], [null, null]);
+  assert.equal(previa.c.estado.longo, 'Prévia (pode mudar até o fechamento do flash)');
+  assert.equal(nomeArquivoFechamento(previa.c), 'fechamento-202610-previa.xlsx');
+  const oficial = await consultaDe(10);
+  assert.equal(nomeArquivoFechamento(oficial.c), 'fechamento-202610-oficial.xlsx');
+  // só o rótulo muda: linhas idênticas nas três visões
+  for (const v of VISOES_FECHAMENTO) {
+    assert.deepEqual(tabelaFechamento(previa.c, v.id).linhas.map((l) => l.celulas),
+                     tabelaFechamento(oficial.c, v.id).linhas.map((l) => l.celulas), 'visão ' + v.id);
+  }
+  // a advertência da prévia entra na aba Contexto; no mês oficial, não
+  const txt = (x) => contextoFechamento(x, CONFIG).linhas.map((l) => l.celulas.join(' = ')).join('\n');
+  assert.match(txt(previa.c), /ADVERTÊNCIA = Os números deste mês ainda podem mudar até o fechamento do flash/);
+  assert.match(txt(previa.c), /Estado = PRÉVIA/);
+  assert.doesNotMatch(txt(oficial.c), /ADVERTÊNCIA/);
+  assert.match(txt(oficial.c), /Estado = OFICIAL/);
+  assert.match(txt(oficial.c), /Data do selo oficial = 12\/11\/2026/);
+});
+
+test('consulta: mês sem arquivo em fechados fica indisponível, sem apurar nada', async () => {
+  const semLista = { ...API_FECH, 'index.json': { ...INDEX_NOV, fechados: [] } };
+  const { c } = await consultaDe(10, semLista);
+  assert.deepEqual([c.disponivel, c.motivo], [false, 'fechamento de outubro indisponível']);
+  assert.deepEqual(tabelaFechamento(c, 'consultor'), { colunas: [], linhas: [] });
+  // mês que nem é do trimestre anterior ao de referência também não existe na consulta
+  const { c: c12 } = await consultaDe(12);
+  assert.deepEqual([c12.disponivel, c12.motivo], [false, 'fechamento de dezembro indisponível']);
+  // arquivo que falha ao carregar: o mês não entra na consulta
+  const falhou = await comApi(API_FECH, async () => {
+    const d = await carregarDados(BASE_V, cfgNov());
+    return consultaFechamento(d, 10, cfgNov());
+  }, ['fechado/202610.json']);
+  assert.equal(falhou.disponivel, false);
+});
+
+test('consulta: mês sem os 5 pilares configurados não apura nada (nem com parte dos pilares)', async () => {
+  const cfg = cfgNov();
+  cfg.pilaresConfig.find((x) => x.mes === 10 && x.canal === 'Mista').pilares =
+    cfg.pilaresConfig.find((x) => x.mes === 10 && x.canal === 'Mista').pilares.slice(0, 3); // só os pilares 1 a 3
+  const { c } = await consultaDe(10, API_FECH, undefined, cfg);
+  assert.equal(c.disponivel, true);
+  assert.equal(c.semPilares, 'Pilares de outubro ainda não configurados');
+  assert.deepEqual([c.consultor, c.supervisao, c.pilares, c.estrat], [[], [], [], null]);
+  assert.deepEqual(tabelaFechamento(c, 'consultor').linhas, []);
+  assert.match(contextoFechamento(c, cfg).linhas.map((l) => l.celulas.join(' = ')).join('\n'),
+    /ATENÇÃO = Pilares de outubro ainda não configurados: nada foi calculado/);
+});
+
+test('consulta: snapshot sem os totais por gerência => Estratégicos indisponível, sem somar rotas por conta própria', async () => {
+  const { c } = await consultaDe(10, API_NOV); // FECHADO_OUT original, sem o campo `totais`
+  assert.equal(c.disponivel, true);
+  assert.equal(c.estrat, null);
+  assert.match(c.motivoEstrat, /Estratégicos indisponível para este mês/);
+  assert.match(c.motivoEstrat, /fechado\/202610\.json não traz os totais/);
+  assert.deepEqual(tabelaFechamento(c, 'estrategicos').linhas, []);
+  // as outras duas visões continuam inteiras
+  assert.equal(tabelaFechamento(c, 'consultor').linhas.length, 3);
+  assert.equal(tabelaFechamento(c, 'supervisao').linhas.length, 2);
+  assert.equal(totaisDoFechado(FECHADO_OUT, CONFIG), null);
+  assert.equal(totaisDoFechado({ ...FECHADO_OUT, totais: { empresa: {} } }, CONFIG), null); // sem gerencias
+});
+
+test('consulta Consultor: uma linha por rota, com os pilares do canal e os pontos, o status e a posição do motor', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const t = tabelaFechamento(c, 'consultor');
+  assert.deepEqual(t.linhas.map((l) => l.codigo).sort(), ['N1', 'N2', 'N3']);
+  assert.deepEqual(t.colunas.slice(0, 5).map((x) => x.rotulo), ['Rota', 'Gerência', 'Supervisão', 'Canal', 'Segmento']);
+  // N1 (Mista): sabores 105% = 5, retornáveis 100% = 3, Missões validada em outubro = 3, sucos 90% = 2, powerade 80% = 0
+  assert.deepEqual([celula(t, 'N1', 'Sabores · Meta'), celula(t, 'N1', 'Sabores · Real'),
+                    celula(t, 'N1', 'Sabores · %'), celula(t, 'N1', 'Sabores · Pts')], [100, 105, 105, 5]);
+  assert.deepEqual([celula(t, 'N1', 'Sucos · %'), celula(t, 'N1', 'Sucos · Pts')], [90, 2]);
+  assert.deepEqual([celula(t, 'N1', 'Powerade · %'), celula(t, 'N1', 'Powerade · Pts')], [80, 0]);
+  // Missões Guiadas de outubro entra validada em 100%, sem meta e sem real
+  assert.deepEqual([celula(t, 'N1', 'Missões · Meta'), celula(t, 'N1', 'Missões · Real'),
+                    celula(t, 'N1', 'Missões · %'), celula(t, 'N1', 'Missões · Pts')], [null, null, 100, 3]);
+  // pilar do outro canal fica vazio, nunca zero
+  for (const col of ['Refri Single · Meta', 'Refri Single · Real', 'Refri Single · %', 'Refri Single · Pts']) {
+    assert.equal(celula(t, 'N1', col), null, col);
+  }
+  assert.deepEqual([celula(t, 'N1', 'Pontos dos pilares'), celula(t, 'N1', 'Pontos do mês')], [13, 13]);
+  assert.deepEqual([celula(t, 'N2', 'Pontos dos pilares'), celula(t, 'N3', 'Pontos dos pilares')], [16, 17]);
+  // o +5 do confronto é só do SV: a rota da mesa vencedora não recebe (decisão de 03/11/2026)
+  assert.deepEqual(t.linhas.map((l) => celula(t, l.codigo, 'Bônus de confronto')), [0, 0, 0]);
+  // gatilho de volume pelo % da categoria Refrigerantes do mês
+  assert.deepEqual([celula(t, 'N1', '% Refrigerantes'), celula(t, 'N1', 'Gatilho de volume')], [90, 'não']);
+  assert.deepEqual([celula(t, 'N3', '% Refrigerantes'), celula(t, 'N3', 'Gatilho de volume')], [100, 'sim']);
+  assert.deepEqual([celula(t, 'N1', 'Gerência'), celula(t, 'N1', 'Supervisão'), celula(t, 'N1', 'Canal'), celula(t, 'N1', 'Segmento')],
+    ['Nv', 'Sv. Nv.1', 'Mista', '—']);
+});
+
+test('consulta Supervisão: uma linha por SV, com o acumulado do trimestre até o mês e o +5 do confronto vencido', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const t = tabelaFechamento(c, 'supervisao');
+  assert.deepEqual(t.linhas.map((l) => l.codigo), ['Sv. Nv.2', 'Sv. Nv.1']); // ordem da tela: mais pontos primeiro
+  assert.deepEqual(t.colunas.slice(0, 4).map((x) => x.rotulo), ['Supervisão', 'Canal', 'Gerência', 'Rotas na mesa']);
+  assert.deepEqual([celula(t, 'Sv. Nv.1', 'Rotas na mesa'), celula(t, 'Sv. Nv.2', 'Rotas na mesa')], [2, 1]);
+  // a mesa soma todas as rotas: Sv. Nv.1 = N1 + N2 em sabores (200 de meta, 205 de real = 102,5%)
+  assert.deepEqual([celula(t, 'Sv. Nv.1', 'Sabores · Meta'), celula(t, 'Sv. Nv.1', 'Sabores · Real'),
+                    celula(t, 'Sv. Nv.1', 'Sabores · %'), celula(t, 'Sv. Nv.1', 'Sabores · Pts')], [200, 205, 102.5, 3]);
+  assert.deepEqual([celula(t, 'Sv. Nv.1', 'Pontos dos pilares'), celula(t, 'Sv. Nv.1', 'Bônus de confronto'),
+                    celula(t, 'Sv. Nv.1', 'Pontos do mês'), celula(t, 'Sv. Nv.1', 'Pontos acumulados do trimestre')], [12, 0, 12, 12]);
+  // Sv. Nv.2 venceu o confronto de sabores (110% x 102,5%): +5 só para o SV, e o mês já fechou
+  assert.deepEqual([celula(t, 'Sv. Nv.2', 'Pontos dos pilares'), celula(t, 'Sv. Nv.2', 'Bônus de confronto'),
+                    celula(t, 'Sv. Nv.2', 'Pontos do mês'), celula(t, 'Sv. Nv.2', 'Pontos acumulados do trimestre')], [17, 5, 22, 22]);
+  // % de Refrigerantes do SV: acumulado do trimestre até o mês consultado (em outubro, só outubro)
+  assert.deepEqual([celula(t, 'Sv. Nv.1', '% Refrigerantes acumulado'), celula(t, 'Sv. Nv.2', '% Refrigerantes acumulado')], [87.5, 100]);
+  assert.deepEqual([celula(t, 'Sv. Nv.1', 'Gatilho de volume'), celula(t, 'Sv. Nv.2', 'Gatilho de volume')], ['não', 'sim']);
+  // nenhum SV chega aos 60 do trimestre em outubro: status "-" e posição só de tela
+  assert.deepEqual(t.linhas.map((l) => [celula(t, l.codigo, 'Gatilho de pontos'), celula(t, l.codigo, 'Status'),
+                                        celula(t, l.codigo, 'Posição'), celula(t, l.codigo, 'Posição oficial')]),
+    [['não', '-', 1, 'não'], ['não', '-', 2, 'não']]);
+});
+
+test('consulta: pontos, status e posição de cada linha são os do motor, e a soma dos pilares fecha com os pontos do mês', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  assert.deepEqual(c.res.alertas, []);
+  assert.deepEqual(M.conferir(c.res, c.dados ? null : null), []); // o recálculo do próprio motor não acha divergência
+  for (const visao of ['consultor', 'supervisao']) {
+    const t = tabelaFechamento(c, visao);
+    for (const l of t.linhas) {
+      const p = c.res.pessoas.find((x) => (visao === 'consultor' ? x.id : x.nome) === l.codigo);
+      const col = (r) => l.celulas[t.colunas.findIndex((x) => x.rotulo === r)];
+      assert.equal(col('Status'), p.status, `${l.codigo}: status`);
+      assert.equal(col('Gatilho de volume'), p.volume.atingido ? 'sim' : 'não', `${l.codigo}: gatilho de volume`);
+      assert.equal(col('Gatilho de pontos'), p.gatilhoPontos.atingido ? 'sim' : 'não', `${l.codigo}: gatilho de pontos`);
+      assert.equal(col('Posição oficial'), p.posicao !== null ? 'sim' : 'não', `${l.codigo}: posição oficial`);
+      assert.equal(col('Pontos dos pilares'), p.pontosPilares, `${l.codigo}: pontos dos pilares`);
+      assert.equal(col('Pontos do mês'), p.pontosMes, `${l.codigo}: pontos do mês`);
+      assert.equal(col('Bônus de confronto'), p.pontosConfronto, `${l.codigo}: bônus`);
+      // a soma dos pontos por pilar é a coluna de pontos dos pilares; com o bônus, os pontos do mês
+      const soma = c.pilares.reduce((s, pl) => s + (col(ROT_PILAR_T(pl.nome) + ' · Pts') || 0), 0);
+      assert.equal(soma, p.pontosPilares, `${l.codigo}: soma dos pilares`);
+      assert.equal(soma + col('Bônus de confronto'), col('Pontos do mês'), `${l.codigo}: pilares + bônus`);
+      // % de cada pilar: o do motor, truncado em 1 casa (nunca arredondado)
+      for (const pl of p.pilares) {
+        assert.equal(col(ROT_PILAR_T(pl.nome) + ' · %'), pl.pct === null ? null : Math.floor(pl.pct * 10 + 1e-9) / 10, `${l.codigo}: % ${pl.nome}`);
+      }
+    }
+  }
+});
+test('consulta: a numeração da tela é a mesma das abas Rota e Supervisão (elegíveis primeiro, pela posição oficial)', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const pos = posicoesDeTela(c.res.pessoas);
+  for (const cargo of ['RT', 'SV']) for (const canal of ['Mista', 'Segmentada']) {
+    const g = c.res.pessoas.filter((p) => p.cargo === cargo && p.canal === canal).slice().sort(ordemPainel);
+    assert.deepEqual(g.map((p) => pos[p.id]), g.map((_, i) => i + 1), `${cargo} ${canal}`);
+    g.filter((p) => p.elegivel).forEach((p) => assert.equal(pos[p.id], p.posicao, `${p.id}: elegível na posição oficial`));
+  }
+});
+
+test('consulta Estratégicos: volume por gerência dos totais do snapshot, com o TOTAL da empresa e sem pontos', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const t = tabelaFechamento(c, 'estrategicos');
+  assert.deepEqual(t.linhas.map((l) => l.codigo), ['Nv', 'TOTAL']);
+  assert.equal(t.linhas[1].total, true);
+  assert.deepEqual(t.colunas.slice(0, 2).map((x) => x.rotulo), ['Gerência', 'Nome']);
+  // sem coluna de pontos, gatilho, status, posição ou premiação em nenhuma coluna
+  const rot = t.colunas.map((x) => x.rotulo).join(' | ');
+  assert.doesNotMatch(rot, /Pts|Pontos|Gatilho|Status|Posição|Prêmio|Premia/);
+  // Refri Single fica fora (já está dentro do % Refrigerantes), como na aba Estratégicos
+  assert.doesNotMatch(rot, /Refri Single/);
+  assert.equal(t.colunas[t.colunas.length - 1].rotulo, '% Refrigerantes');
+  // os números são os do snapshot (gerência inteira), não a soma das 3 rotas do incentivo (que daria 400 de meta)
+  assert.deepEqual([celula(t, 'Nv', 'Sabores · Meta'), celula(t, 'Nv', 'Sabores · Real'),
+                    celula(t, 'Nv', 'Sabores · Dif'), celula(t, 'Nv', 'Sabores · %')], [500, 540, 40, 108]);
+  assert.equal(celula(t, 'Nv', '% Refrigerantes'), 97.5); // 3900 / 4000
+  assert.deepEqual([celula(t, 'TOTAL', 'Sabores · Meta'), celula(t, 'TOTAL', 'Nome')], [500, 'TOTAL da empresa']);
+  assert.equal(c.estrat.origem, 'api');
+});
+
+test('consulta: o filtro é só da TELA (canal e busca); o arquivo leva sempre todas as linhas', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const t = tabelaFechamento(c, 'consultor');
+  assert.equal(filtrarFechamento(t.linhas, 'Mista', '').length, 3);
+  assert.equal(filtrarFechamento(t.linhas, 'Segmentada', '').length, 0);
+  assert.equal(filtrarFechamento(t.linhas, 'Todos', 'n1').length, 1);
+  assert.equal(filtrarFechamento(t.linhas, 'Todos', '').length, 3);
+  // a linha de TOTAL do Estratégicos nunca é recortada por canal
+  const te = tabelaFechamento(c, 'estrategicos');
+  assert.deepEqual(filtrarFechamento(te.linhas, 'Mista', '').map((l) => l.codigo), ['TOTAL']);
+  // as abas do arquivo são montadas das linhas inteiras
+  const abas = abasFechamento(c, CONFIG);
+  assert.deepEqual(abas.map((a) => a.nome), ['Contexto', 'Consultores', 'Supervisões', 'Estratégicos']);
+  assert.deepEqual(abas.slice(1).map((a) => a.linhas.length), [3, 2, 2]);
+});
+
+// ── a planilha .xlsx: lida de volta com um leitor de ZIP independente (CRC bit a bit, não a tabela do gerador) ──
+/** CRC-32 bit a bit: implementação diferente da do gerador, para a conferência do CRC não ser circular. */
+function crc32Bit(buf) {
+  let c = 0xFFFFFFFF >>> 0;
+  for (let i = 0; i < buf.length; i++) {
+    c = (c ^ buf[i]) >>> 0;
+    for (let k = 0; k < 8; k++) c = (c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1) >>> 0;
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+/** Lê um ZIP com arquivos "stored" pelo diretório central, conferindo o CRC de cada um. */
+function lerZip(bytes) {
+  const b = Buffer.from(bytes);
+  const fim = b.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  assert.ok(fim > 0, 'ZIP sem fim de diretório central');
+  const n = b.readUInt16LE(fim + 10), inicio = b.readUInt32LE(fim + 16), tamCentral = b.readUInt32LE(fim + 12);
+  assert.equal(b.readUInt16LE(fim + 8), n, 'contagem de entradas inconsistente');
+  const out = {};
+  let p = inicio;
+  for (let i = 0; i < n; i++) {
+    assert.equal(b.readUInt32LE(p), 0x02014b50, 'assinatura do diretório central');
+    const metodo = b.readUInt16LE(p + 10), crc = b.readUInt32LE(p + 16), tam = b.readUInt32LE(p + 24);
+    const nl = b.readUInt16LE(p + 28), el = b.readUInt16LE(p + 30), cl = b.readUInt16LE(p + 32), desl = b.readUInt32LE(p + 42);
+    const nome = b.subarray(p + 46, p + 46 + nl).toString('utf8');
+    assert.equal(metodo, 0, 'arquivo comprimido (o gerador grava "stored"): ' + nome);
+    assert.equal(b.readUInt32LE(p + 20), tam, nome + ': tamanho comprimido diferente do original');
+    assert.equal(b.readUInt32LE(desl), 0x04034b50, nome + ': assinatura do cabeçalho local');
+    assert.equal(b.readUInt32LE(desl + 14), crc, nome + ': CRC diferente entre o cabeçalho local e o central');
+    const ini = desl + 30 + b.readUInt16LE(desl + 26) + b.readUInt16LE(desl + 28);
+    const dados = b.subarray(ini, ini + tam);
+    assert.equal(crc32Bit(dados), crc, nome + ': CRC do ZIP não bate');
+    out[nome] = dados.toString('utf8');
+    p += 46 + nl + el + cl;
+  }
+  assert.equal(p - inicio, tamCentral, 'tamanho do diretório central');
+  return out;
+}
+const linhasDaAba = (xml) => (xml.match(/<row /g) || []).length;
+const celulasDaLinha = (xml, r) => {
+  const m = new RegExp(`<row r="${r}">(.*?)</row>`, 's').exec(xml);
+  return m ? (m[1].match(/<c [^>]*>.*?<\/c>/gs) || []) : [];
+};
+
+test('xlsx: o arquivo gerado abre, tem as quatro abas e o CRC de cada parte do ZIP bate', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const z = lerZip(planilhaXlsx(abasFechamento(c, CONFIG)));
+  assert.deepEqual(Object.keys(z), ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels',
+    'xl/styles.xml', 'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml', 'xl/worksheets/sheet3.xml', 'xl/worksheets/sheet4.xml']);
+  const nomes = [...z['xl/workbook.xml'].matchAll(/<sheet name="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(nomes, ['Contexto', 'Consultores', 'Supervisões', 'Estratégicos']);
+  // cada aba tem a mesma contagem de linhas da visão (mais o cabeçalho), congelamento e filtro
+  const abas = abasFechamento(c, CONFIG);
+  abas.forEach((a, i) => {
+    const xml = z[`xl/worksheets/sheet${i + 1}.xml`];
+    assert.equal(linhasDaAba(xml), a.linhas.length + 1, a.nome + ': linhas');
+    assert.match(xml, /<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"\/>/, a.nome + ': cabeçalho congelado');
+    assert.match(xml, /<autoFilter ref="A1:[A-Z]+1"\/>/, a.nome + ': filtro');
+    assert.match(xml, /<cols><col min="1"/, a.nome + ': larguras de coluna');
+    // cabeçalho na 1ª linha, com o estilo de negrito (s="1")
+    const cab = celulasDaLinha(xml, 1);
+    assert.equal(cab.length, a.colunas.length, a.nome + ': colunas do cabeçalho');
+    cab.forEach((cel) => assert.match(cel, /s="1" t="inlineStr"/, a.nome + ': cabeçalho em texto e negrito'));
+  });
+  assert.equal((z['[Content_Types].xml'].match(/worksheets\/sheet/g) || []).length, 4);
+  assert.match(z['xl/styles.xml'], /formatCode="#,##0.0"/);
+  assert.match(z['xl/styles.xml'], /formatCode="0.0&quot;%&quot;"/);
+});
+
+test('xlsx: número é NÚMERO (nunca texto) e o % vai truncado em 1 casa, com formato de 1 casa', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT);
+  const abas = abasFechamento(c, CONFIG);
+  const z = lerZip(planilhaXlsx(abas));
+  const iCons = abas.findIndex((a) => a.nome === 'Consultores');
+  const xml = z[`xl/worksheets/sheet${iCons + 1}.xml`];
+  const cols = abas[iCons].colunas;
+  // toda célula de coluna numérica preenchida sai como <v>, e nenhuma como texto
+  abas[iCons].linhas.forEach((l, i) => {
+    const cels = celulasDaLinha(xml, i + 2);
+    const porRef = {};
+    cels.forEach((cel) => { porRef[/r="([A-Z]+)\d+"/.exec(cel)[1]] = cel; });
+    l.celulas.forEach((v, j) => {
+      const cel = porRef[colunaXlsx(j + 1)], tipo = cols[j].tipo;
+      if (v === null || v === undefined || v === '') return assert.equal(cel, undefined, `linha ${i + 2} col ${j + 1}: vazia`);
+      if (tipo === 'volume' || tipo === 'pct' || tipo === 'inteiro') {
+        assert.doesNotMatch(cel, /inlineStr/, `${cols[j].rotulo}: número gravado como texto`);
+        assert.match(cel, /<v>-?[0-9.]+<\/v>/, `${cols[j].rotulo}: sem valor numérico`);
+        const lido = Number(/<v>(-?[0-9.]+)<\/v>/.exec(cel)[1]);
+        assert.equal(lido, tipo === 'volume' ? Math.round(v * 10) / 10 : v, `${cols[j].rotulo}: valor`);
+      } else {
+        assert.match(cel, /t="inlineStr"/, `${cols[j].rotulo}: texto`);
+      }
+    });
+  });
+  // o % do pilar na planilha é o truncado do motor: 102,5% do SV não vira 103
+  const abaSv = abas.find((a) => a.nome === 'Supervisões');
+  const jPct = abaSv.colunas.findIndex((x) => x.rotulo === 'Sabores · %');
+  const lSv = abaSv.linhas.find((l) => l.codigo === 'Sv. Nv.1');
+  assert.equal(lSv.celulas[jPct], 102.5);
+  assert.equal(abaSv.colunas[jPct].tipo, 'pct');
+  // nenhum valor de prêmio, orçamento ou custo e nenhum dado de cliente em nenhuma aba
+  const tudo = Object.values(z).join('\n');
+  assert.doesNotMatch(tudo, /iPhone|PS5|Air Fryer|Lava-louças|R\$|orçament|\bcusto\b|\bcliente/i);
+});
+
+test('xlsx: utilitários (coluna, nome de aba e CRC) e recusa sem aba', () => {
+  assert.deepEqual([1, 26, 27, 28, 52, 53].map(colunaXlsx), ['A', 'Z', 'AA', 'AB', 'AZ', 'BA']);
+  assert.equal(nomeAba('Supervisões'), 'Supervisões');
+  assert.equal(nomeAba('a/b[c]:d*e?f\\g'), 'a b c  d e f g');
+  assert.equal(nomeAba('x'.repeat(40)).length, 31);
+  assert.equal(nomeAba(''), 'Planilha');
+  assert.equal(crc32(Buffer.from('123456789', 'utf8')), crc32Bit(Buffer.from('123456789', 'utf8')));
+  assert.equal(crc32(Buffer.from('', 'utf8')), 0);
+  assert.throws(() => planilhaXlsx([]), /nenhuma aba/);
+});
+
+test('xlsx: a aba Contexto diz o estado, a origem e o cálculo, e conta as linhas das três visões', async () => {
+  const { c } = await consultaDe(10, API_FECH_PREVIA, CONF_OUT);
+  const ctx = contextoFechamento(c, CONFIG);
+  const mapa = Object.fromEntries(ctx.linhas.map((l) => l.celulas));
+  assert.equal(mapa['Mês do fechamento'], 'Outubro/26');
+  assert.equal(mapa['Estado'], 'PRÉVIA');
+  assert.equal(mapa['gerado_em (gravação do arquivo)'], '2026-11-03T18:46:02');
+  assert.equal(mapa['atualizado_em (execução de origem)'], '2026-11-03T18:45:10');
+  assert.match(mapa['Origem dos dados'], /api\/v1\/fechado\/202610\.json/);
+  assert.match(mapa['Cálculo'], /motor do painel/);
+  assert.match(mapa['% exibido'], /truncado/);
+  assert.match(mapa['Gatilho de volume'], /95%/);
+  assert.match(mapa['Gatilho de pontos'], new RegExp(`Consultor ${M.REGRAS.gatilhoPontos.RT} no mês`));
+  assert.match(mapa['Bônus de confronto'], /as rotas da mesa não recebem/);
+  assert.match(mapa['Estratégicos'], /sem pontos, sem gatilhos e sem premiação/);
+  assert.equal(mapa['Linhas'], 'Consultores: 3 · Supervisões: 2 · Estratégicos: 2');
+  assert.match(mapa['Missões Guiadas'], /em outubro entra validada em 100%/);
+  assert.deepEqual(ctx.colunas.map((x) => x.rotulo), ['Item', 'Conteúdo']);
+});
+
+test('consulta: o bloco da Administração tem o seletor de mês, as três visões, o filtro e o botão de exportar', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  assert.match(tpl, /<h3>Fechamento do mês \(consulta e exportação\)<\/h3>/);
+  assert.match(tpl, /id="fc-mes"/);
+  assert.match(tpl, /id="fc-visoes"/);
+  assert.match(tpl, /id="fc-canal"/);
+  assert.match(tpl, /id="fc-busca"/);
+  assert.match(tpl, /id="fc-exportar"[^>]*>Exportar \.xlsx/);
+  // acessibilidade e print: cabeçalho de coluna e de linha marcados, status com cor E texto
+  assert.match(tpl, /<th scope="col"/);
+  assert.match(tpl, /<th scope="row">/);
+  assert.match(tpl, /class="fcst \$\{fcStatusCls\(v\)\}">\$\{esc\(v\)\}/);
+  // a consulta não recalcula nada: as linhas e as abas vêm do adaptador
+  assert.match(tpl, /tabelaFechamento\(c, FC\.visao\)/);
+  assert.match(tpl, /planilhaXlsx\(abasFechamento\(c, CONFIG\)\)/);
+  assert.match(html, /Fechamento do mês \(consulta e exportação\)/, 'rode python painel-q4/scripts/build.py');
+  assert.match(html, /function planilhaXlsx/, 'rode python painel-q4/scripts/build.py');
+});
