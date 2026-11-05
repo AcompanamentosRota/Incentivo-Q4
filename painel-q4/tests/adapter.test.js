@@ -589,11 +589,38 @@ test('regressão: outubro pela API (fixture) dá o mesmo resultado de antes da v
   assert.deepEqual(res.mesesIncompletos, []);
 });
 
+// As fixtures de regressão foram gravadas quando o mínimo do Consultor no padrão do motor era 20 (hoje é 17,
+// desde 29/10/2026). Compará-las com o mínimo de então mantém a regressão inteira: pilares, pontos, % e canais
+// não podem mudar. O que o 17 muda está no teste do impacto, logo abaixo.
+const comMinimoRT = (valor, fn) => {
+  const guardado = M.REGRAS.gatilhoPontos.RT;
+  M.REGRAS.gatilhoPontos.RT = valor;
+  try { return fn(); } finally { M.REGRAS.gatilhoPontos.RT = guardado; }
+};
+
 test('regressão: outubro pela base embutida (data.json) dá o mesmo resultado de antes da virada', () => {
   const base = require('../data/data.json');
   const esperado = require('./fixtures/regressao-outubro-base.json').base;
-  const res = M.calcular(montarEntrada(base, CONFIG).entrada);
-  assert.deepEqual(resumoRes(res), esperado);
+  const res = comMinimoRT(20, () => resumoRes(M.calcular(montarEntrada(base, CONFIG).entrada)));
+  assert.deepEqual(res, esperado);
+});
+
+test('mínimo 17 no padrão (29/10/2026): em outubro mudam só elegibilidade, posição e status; pontos, % e canais ficam iguais', () => {
+  const base = require('../data/data.json');
+  const esperado = require('./fixtures/regressao-outubro-base.json').base; // gravada com o mínimo 20
+  const agora = resumoRes(M.calcular(montarEntrada(base, CONFIG).entrada)); // padrão de hoje: 17
+  // resumoRes: [id, cargo, canal, pilares, pontosMes, pontosAcumulados, pctTexto, volume.atingido, elegivel, posicao, status]
+  assert.equal(agora.length, esperado.length);
+  assert.deepEqual(agora.map((l) => l.slice(0, 8)), esperado.map((l) => l.slice(0, 8)));
+  const mudaram = agora.filter((l, i) => JSON.stringify(l.slice(8)) !== JSON.stringify(esperado[i].slice(8)));
+  // só Consultores com 17, 18 ou 19 pontos e o gatilho de volume: antes não batiam o mínimo de 20, agora batem
+  assert.ok(mudaram.length > 0, 'o 17 tem de mudar alguma coisa no padrão puro');
+  for (const l of mudaram) {
+    assert.deepEqual([l[1], l[7], l[8]], ['RT', true, true], `${l[0]}: só Consultor com volume passa a ser elegível`);
+    assert.ok(l[4] >= 17 && l[4] < 20, `${l[0]}: ${l[4]} pontos fora da faixa 17-19`);
+  }
+  // nenhum SV muda: o mínimo do SV continua 60
+  assert.equal(agora.filter((l) => l[1] === 'SV').length, esperado.filter((l) => l[1] === 'SV').length);
 });
 
 // ── pilares de novembro e dezembro (etapa 9): 1 a 3 do Back Office no CONFIG, coringas 4 e 5 a decidir ──
@@ -855,7 +882,8 @@ test('segmentação: ajustes.json antigo (canal + sub, sem segmento) dá o mesmo
   const aj = normalizarAjustes(fx.ajustes);
   assert.deepEqual(aj.canais, fx.esperado.canais);
   const d = A.comCanais(require('../data/data.json'), aj.canais);
-  const res = M.calcular(montarEntrada(d, CONFIG).entrada);
+  // fixture gravada com o mínimo do Consultor em 20 (hoje o padrão é 17): comparada com o mínimo de então
+  const res = comMinimoRT(20, () => M.calcular(montarEntrada(d, CONFIG).entrada));
   assert.deepEqual([d.rotas.length, d.semCanal.length], [fx.esperado.rotas, fx.esperado.semCanal]);
   assert.deepEqual(res.pessoas.map((p) => [p.id, p.canal, p.pontosMes, p.volume.pctTexto, p.elegivel, p.posicao, p.status]), fx.esperado.res);
 });
@@ -1057,10 +1085,12 @@ test('canal do SV: confronto cadastrado com o canal antigo do SV mostra "canal a
 });
 
 // ── ajustes do admin: publicado × navegador (etapa 8) ──
-// ajustes.json com dois objetos seguidos, como o de 29/10/2026 (texto colado depois do antigo); dados fictícios
-const DOIS_OBJETOS = '{\n  "atualizado_em": "2026-10-29T10:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 17 } }\n}\n'
-  + '{\n  "atualizado_em": "2026-10-29T11:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 17 } }\n}\n';
-const PUB = { versao: 1, atualizado_em: '2026-10-29T15:00', regras: { gatilhoPontos: { SV: 60, RT: 17 } },
+// ajustes.json com dois objetos seguidos, como o de 29/10/2026 (texto colado depois do antigo); dados fictícios.
+// O mínimo da Rota nestas fixtures é 25, de propósito diferente do padrão do motor (17, desde 29/10/2026):
+// é o que deixa os testes verem se um valor veio do arquivo ou do padrão.
+const DOIS_OBJETOS = '{\n  "atualizado_em": "2026-10-29T10:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 25 } }\n}\n'
+  + '{\n  "atualizado_em": "2026-10-29T11:00",\n  "regras": { "gatilhoPontos": { "SV": 60, "RT": 25 } }\n}\n';
+const PUB = { versao: 1, atualizado_em: '2026-10-29T15:00', regras: { gatilhoPontos: { SV: 60, RT: 25 } },
   canais: { X2: { canal: 'Segmentada', sub: 'Mini', segmento: 'Mini' } },
   confrontos: [{ mes: 10, id_sv_desafiante: 'Sv. Fx.1#Mista', id_sv_desafiado: 'Sv. Fx.4#Mista', pilar: 'Volume Sucos' }] };
 // fetch devolve o texto do ajustes.json como o servidor (null = 404, número = outro HTTP); localStorage em memória
@@ -1085,7 +1115,7 @@ test('ajustes: publicado inválido (dois objetos seguidos) => aviso de arquivo i
     assert.deepEqual([aj.publicado, aj.ativo, aj.origem, aj.existePublicado], [null, null, null, true]);
     const regras = JSON.parse(JSON.stringify(A.MotorPadrao));
     aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), regras);
-    assert.equal(regras.gatilhoPontos.RT, 20); // o 17 do arquivo ilegível não entra: vale o padrão, com o aviso na tela
+    assert.equal(regras.gatilhoPontos.RT, 17); // o 25 do arquivo ilegível não entra: vale o padrão (17), com o aviso na tela
   });
   // sem como comparar com o publicado, o navegador fica como está e o ajuste dele continua valendo
   const nav = { formato: 2, atualizado_em: '2026-10-29T09:00', publicado_em: null, itens: { 'regras:bonusConfronto': 7 } };
@@ -1110,7 +1140,7 @@ test('ajustes: publicado inválido (dois objetos seguidos) => aviso de arquivo i
 test('ajustes: navegador igual ao publicado => o aviso some e nada sobra no navegador', async () => {
   // formato novo (só as diferenças) e formato antigo (cópia completa do arquivo), os dois iguais ao publicado
   const novo = { formato: 2, atualizado_em: '2026-10-29T16:00', publicado_em: '2026-10-29T15:00',
-    itens: { 'regras:gatilhoPontos.RT': 17, 'canais:X2': { canal: 'Segmentada', sub: 'Mini' } } };
+    itens: { 'regras:gatilhoPontos.RT': 25, 'canais:X2': { canal: 'Segmentada', sub: 'Mini' } } };
   for (const salvo of [novo, Object.assign({}, PUB, { atualizado_em: '2026-10-29T14:00' })]) {
     await comAjustes(JSON.stringify(PUB), salvo, async ({ ler, gravados }) => {
       const aj = await carregarAjustes(CONFIG);
@@ -1134,7 +1164,7 @@ test('ajustes: navegador diferente do publicado => vale por cima, item a item, e
     const aj = await carregarAjustes(CONFIG);
     assert.equal(aj.origem, 'local');
     assert.deepEqual(aj.diferencas.map((d) => [d.rotulo, d.textoPublicado, d.textoNovo]), [
-      ['Mínimo da Rota (pontos no mês)', '17', '18'],
+      ['Mínimo da Rota (pontos no mês)', '25', '18'],
       ['Canal da rota X3', 'padrão da base', 'Mista'],
       ['Confronto de outubro: Sv. Fx.1 · Mista × Sv. Fx.4 · Mista', 'pilar Sucos', 'não existe'],
     ]);
@@ -1149,13 +1179,13 @@ test('ajustes: navegador diferente do publicado => vale por cima, item a item, e
 });
 
 test('ajustes: cópia antiga do navegador, anterior ao publicado => aviso, e o que falta nela continua vindo do publicado', async () => {
-  // cópia completa salva às 09:00 (formato de antes), sem o mínimo 17, o X2 e o confronto publicados às 15:00
+  // cópia completa salva às 09:00 (formato de antes), sem o mínimo 25, o X2 e o confronto publicados às 15:00
   const copia = { versao: 1, atualizado_em: '2026-10-29T09:00', regras: { bonusConfronto: 7 }, canais: { X3: { canal: 'Mista', sub: null, segmento: null } } };
   await comAjustes(JSON.stringify(PUB), copia, async ({ ler }) => {
     const aj = await carregarAjustes(CONFIG);
     assert.equal(aj.navegadorAnterior, true);
     assert.deepEqual(aj.diferencas.map((d) => d.chave), ['regras:bonusConfronto', 'canais:X3']);
-    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 17); // publicado depois da cópia: vale (decisão de 29/10/2026)
+    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 25); // publicado depois da cópia: vale sobre o padrão 17 (decisão de 29/10/2026)
     assert.ok(aj.ativo.canais.X2);
     assert.equal(aj.ativo.confrontos.length, 1);
     assert.deepEqual(ler(), { formato: 2, atualizado_em: '2026-10-29T09:00', publicado_em: '2026-10-29T15:00',
@@ -1177,8 +1207,8 @@ test('ajustes: o formulário abre com o estado em uso e "Alterações para publi
     assert.deepEqual(regras.gatilhoPontos, { SV: 60, RT: 18 });
     // formulário sem mexer = estado em uso: a lista para publicar é só o que o navegador muda
     assert.deepEqual(A.diferencasAjustes(aj.publicado, aj.ativo).map((d) => d.chave), ['regras:gatilhoPontos.RT']);
-    // o admin volta o mínimo para 17 e muda o bônus para 6: só o bônus fica na lista (o que já está publicado não aparece)
-    const form = normalizarAjustes({ regras: { gatilhoPontos: { SV: 60, RT: 17 }, bonusConfronto: 6 }, canais: PUB.canais, confrontos: PUB.confrontos });
+    // o admin volta o mínimo para o publicado (25) e muda o bônus para 6: só o bônus fica na lista (o que já está publicado não aparece)
+    const form = normalizarAjustes({ regras: { gatilhoPontos: { SV: 60, RT: 25 }, bonusConfronto: 6 }, canais: PUB.canais, confrontos: PUB.confrontos });
     const dif = A.diferencasAjustes(aj.publicado, form);
     assert.deepEqual(dif.map((d) => [d.rotulo, d.textoPublicado, d.textoNovo]), [['Bônus do confronto (pontos)', '5', '6']]);
     // salvar neste navegador guarda só isso; tudo igual ao publicado não guarda nada
@@ -1195,7 +1225,7 @@ test('ajustes: item inválido salvo no navegador é ignorado com aviso e, nele, 
   await comAjustes(JSON.stringify(PUB), salvo, async ({ ler }) => {
     const aj = await carregarAjustes(CONFIG);
     assert.deepEqual(aj.diferencas, []);
-    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 17);
+    assert.equal(aj.ativo.regras.gatilhoPontos.RT, 25); // vale o publicado, não o padrão 17
     assert.equal(aj.avisos.filter((t) => t.startsWith('neste navegador:')).length, 2);
     assert.equal(ler(), null);
   });
@@ -1234,32 +1264,49 @@ test('ajustes: ajustes.json antigo (sem campos novos) lido pelo carregarAjustes 
     assert.deepEqual([aj.erroPublicado, aj.avisos, aj.diferencas, aj.origem], [null, [], [], 'publicado']);
     assert.deepEqual(aj.ativo, normalizarAjustes(fx.ajustes));
     const d = A.comCanais(require('../data/data.json'), aj.ativo.canais);
-    const res = M.calcular(montarEntrada(d, CONFIG).entrada);
+    // fixture gravada com o mínimo do Consultor em 20 (hoje o padrão é 17): comparada com o mínimo de então
+    const res = comMinimoRT(20, () => M.calcular(montarEntrada(d, CONFIG).entrada));
     assert.deepEqual(res.pessoas.map((p) => [p.id, p.canal, p.pontosMes, p.volume.pctTexto, p.elegivel, p.posicao, p.status]), fx.esperado.res);
   });
 });
 
-test('mínimo do Consultor: com 17 (ajustes.json), quem tem 17 a 19 pontos e o gatilho de volume tem status; com 16, "-"', async () => {
-  // rotas fictícias na Mista de outubro: Missões Guiadas validada (3) + 4 pilares de volume; Refrigerantes em 96% para todas
-  const pct = { R16: [105, 105, 100, 80], R17: [105, 105, 90, 90], R19: [105, 105, 100, 100], R20: [105, 105, 105, 90] };
-  const pil = ['Volume Sabores', 'Volume Retornáveis', 'Volume Sucos', 'Volume Powerade'];
-  const entrada = { mesRef: 10, pilaresConfig: CONFIG.pilaresConfig, confrontos: [],
-    pessoas: Object.keys(pct).map((id) => ({ id, nome: id, cargo: 'RT', canal: 'Mista', unidade: 'Fx', id_supervisor: null })),
-    medidas: Object.entries(pct).flatMap(([id, ps]) => ps.map((p, i) => ({ id, mes: 10, pilar: pil[i], meta: 100, real: p, online: 0 }))
-      .concat([{ id, mes: 10, pilar: 'Refrigerantes', meta: 100, real: 96, online: 0 }])) };
-  const statusCom = async (texto) => {
-    const guardado = JSON.parse(JSON.stringify(M.REGRAS));
-    try {
-      const aj = await comAjustes(texto, undefined, () => carregarAjustes(CONFIG));
-      aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), M.REGRAS);
-      return Object.fromEntries(M.calcular(entrada).pessoas.map((p) => [p.id, [p.pontosMes, p.status]]));
-    } finally { Object.assign(M.REGRAS, guardado); }
-  };
-  const premiadas = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 2, Segmentada: 10 } }; // 2 premiadas, para ver os dois status
-  assert.deepEqual(await statusCom(JSON.stringify({ regras: { gatilhoPontos: { SV: 60, RT: 17 }, premiadas } })), {
+// ── mínimo de pontos do Consultor: 17, padrão do motor desde 29/10/2026 (gerência de planejamento e IM) ──
+// rotas fictícias na Mista de outubro: Missões Guiadas validada (3) + 4 pilares de volume; Refrigerantes em 96% para todas
+const PCT_MIN = { R16: [105, 105, 100, 80], R17: [105, 105, 90, 90], R19: [105, 105, 100, 100], R20: [105, 105, 105, 90] };
+const PIL_MIN = ['Volume Sabores', 'Volume Retornáveis', 'Volume Sucos', 'Volume Powerade'];
+const ENTRADA_MIN = { mesRef: 10, pilaresConfig: CONFIG.pilaresConfig, confrontos: [],
+  pessoas: Object.keys(PCT_MIN).map((id) => ({ id, nome: id, cargo: 'RT', canal: 'Mista', unidade: 'Fx', id_supervisor: null })),
+  medidas: Object.entries(PCT_MIN).flatMap(([id, ps]) => ps.map((p, i) => ({ id, mes: 10, pilar: PIL_MIN[i], meta: 100, real: p, online: 0 }))
+    .concat([{ id, mes: 10, pilar: 'Refrigerantes', meta: 100, real: 96, online: 0 }])) };
+const PREMIADAS_MIN = { SV: { Mista: 12, Segmentada: 2 }, RT: { Mista: 2, Segmentada: 10 } }; // 2 premiadas, para ver os dois status
+/** Carrega o ajustes.json publicado (texto; null = 404), aplica nas REGRAS e devolve [pontos, status] de cada rota. */
+const statusMinimo = async (texto) => {
+  const guardado = JSON.parse(JSON.stringify(M.REGRAS));
+  try {
+    const aj = await comAjustes(texto, undefined, () => carregarAjustes(CONFIG));
+    aplicarAjustes(aj.ativo, JSON.parse(JSON.stringify(CONFIG)), M.REGRAS);
+    return Object.fromEntries(M.calcular(ENTRADA_MIN).pessoas.map((p) => [p.id, [p.pontosMes, p.status]]));
+  } finally { Object.assign(M.REGRAS, guardado); }
+};
+
+test('mínimo do Consultor: 17 vem do padrão do motor (16 = "-", 17 a 19 com status) e o ajuste do admin ainda troca o valor', async () => {
+  // o ajustes.json daqui só reduz as posições premiadas: o mínimo não é ajustado e vale o padrão (17)
+  assert.deepEqual(await statusMinimo(JSON.stringify({ regras: { premiadas: PREMIADAS_MIN } })), {
     R16: [16, '-'], R17: [17, 'Bateu, mas não está no total'], R19: [19, 'Bateu!'], R20: [20, 'Bateu!'] });
-  assert.deepEqual(await statusCom(JSON.stringify({ regras: { premiadas } })), { // padrão do motor (20)
+  // o caminho de configuração continua vivo: o admin leva o mínimo para 20 e as rotas de 17 e 19 perdem o status
+  assert.deepEqual(await statusMinimo(JSON.stringify({ regras: { gatilhoPontos: { SV: 60, RT: 20 }, premiadas: PREMIADAS_MIN } })), {
     R16: [16, '-'], R17: [17, '-'], R19: [19, '-'], R20: [20, 'Bateu!'] });
+});
+
+test('mínimo do Consultor: sem nenhum ajuste (ajustes.json ausente ou ilegível) o mínimo é 17 e a rota com 17 pontos bate o gatilho', async () => {
+  assert.equal(A.MotorPadrao.gatilhoPontos.RT, 17, 'o padrão do motor é a regra em vigor (29/10/2026)');
+  assert.equal(M.REGRAS.gatilhoPontos.SV, 60, 'o mínimo do SV não muda');
+  // 404 (ninguém publicou) e arquivo ilegível (dois objetos seguidos, como em 29/10/2026): em nenhum dos dois
+  // o painel pode voltar a 20 em silêncio. Sem ajuste de premiadas valem as 40 posições do padrão.
+  for (const [publicado, caso] of [[null, 'ajustes.json ausente'], [DOIS_OBJETOS, 'ajustes.json ilegível']]) {
+    assert.deepEqual(await statusMinimo(publicado),
+      { R16: [16, '-'], R17: [17, 'Bateu!'], R19: [19, 'Bateu!'], R20: [20, 'Bateu!'] }, caso);
+  }
 });
 
 test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gatilhoPontos)', () => {

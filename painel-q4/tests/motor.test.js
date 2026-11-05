@@ -205,44 +205,42 @@ test('SV: abaixo de 95% acumulado os pontos acumulados aparecem, mas o status fi
 });
 
 // ── 7. gatilho de pontos ─────────────────────────────────
-test('Consultor: 20 pontos no mês é o mínimo (19 = "-", 20 = ranqueado), só com os pilares', () => {
-  // out: Missões validada (3) + 4 pilares de volume. RT1 = 5+5+5+2 (+3) = 20; RT2 = 5+5+3+3 (+3) = 19.
+test('Consultor: 17 pontos no mês é o mínimo no padrão do motor (16 = "-", 17 = ranqueado), só com os pilares', () => {
+  // Mínimo do Consultor = 17 desde 29/10/2026 (gerência de planejamento e IM); antes eram 20, e este teste
+  // media a fronteira em 19/20. Agora a fronteira é 16/17, e o valor vem do padrão do motor, sem ajuste nenhum.
+  // out: Missões validada (3) + 4 pilares de volume. RT1 = 5+5+2+2 (+3) = 17; RT2 = 5+5+3+0 (+3) = 16.
   // Desde 03/11/2026 o +5 do confronto é só do SV: a rota chega ao mínimo só pelos pilares.
   const pessoas = [pessoa('SV1', 'SV', 'Mista'), pessoa('RT1', 'RT', 'Mista', 'SV1'), pessoa('RT2', 'RT', 'Mista', 'SV1')];
   const medidas = [...med('SV1', 10, CFG_OUT, 'Mista', 100), ...med('RT1', 10, CFG_OUT, 'Mista', 105), ...med('RT2', 10, CFG_OUT, 'Mista', 105)];
-  medidas.find((m) => m.id === 'RT1' && m.pilar === 'Volume Powerade').real = vol(90);
-  for (const pl of ['Volume Sucos', 'Volume Powerade']) medidas.find((m) => m.id === 'RT2' && m.pilar === pl).real = vol(100);
+  for (const pl of ['Volume Sucos', 'Volume Powerade']) medidas.find((m) => m.id === 'RT1' && m.pilar === pl).real = vol(90);
+  medidas.find((m) => m.id === 'RT2' && m.pilar === 'Volume Sucos').real = vol(100);
+  medidas.find((m) => m.id === 'RT2' && m.pilar === 'Volume Powerade').real = vol(80);
   const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: [], fechamento: true });
   const rt1 = res.pessoas.find((p) => p.id === 'RT1'), rt2 = res.pessoas.find((p) => p.id === 'RT2');
-  assert.equal(rt1.pontosMes, 20);
-  assert.equal(rt1.gatilhoPontos.atingido, true);
-  assert.equal(rt1.status, 'Bateu!');
-  assert.equal(rt2.pontosMes, 19);
-  assert.equal(rt2.gatilhoPontos.atingido, false);
-  assert.equal(rt2.status, '-');
-  assert.equal(rt2.pontosAtuaisExibidos, 19, 'volume ok: pontos aparecem, só o status fica "-"');
+  assert.equal(M.REGRAS.gatilhoPontos.RT, 17, 'o padrão do motor é a regra em vigor (29/10/2026), sem depender do ajustes.json');
+  assert.deepEqual([rt1.pontosMes, rt1.gatilhoPontos.minimo, rt1.gatilhoPontos.atingido, rt1.status], [17, 17, true, 'Bateu!']);
+  assert.deepEqual([rt2.pontosMes, rt2.gatilhoPontos.minimo, rt2.gatilhoPontos.atingido, rt2.status], [16, 17, false, '-']);
+  assert.equal(rt2.pontosAtuaisExibidos, 16, 'volume ok: pontos aparecem, só o status fica "-"');
+  assert.deepEqual(conferir(res), []);
 });
 
 test('bônus só do SV (03/11/2026): rota da mesa do vencedor com 15 de pilares não chega ao mínimo de 17 nem no fechamento', () => {
-  // até 03/11/2026 o +5 da mesa levava a rota de 15 a 20 e ela batia o mínimo de 17 (ajustes.json)
-  const guardado = JSON.parse(JSON.stringify(M.REGRAS.gatilhoPontos));
-  M.REGRAS.gatilhoPontos.RT = 17;
-  try {
-    const pessoas = [pessoa('Sv. Ficticio A', 'SV', 'Mista'), pessoa('Sv. Ficticio B', 'SV', 'Mista'), pessoa('R901', 'RT', 'Mista', 'Sv. Ficticio A')];
-    const medidas = [...med('Sv. Ficticio A', 10, CFG_OUT, 'Mista', 110), ...med('Sv. Ficticio B', 10, CFG_OUT, 'Mista', 100), ...med('R901', 10, CFG_OUT, 'Mista', 100)];
-    const confrontos = [{ mes: 10, id_sv_desafiante: 'Sv. Ficticio A', id_sv_desafiado: 'Sv. Ficticio B', pilar: 'Volume Sabores', ordem_registro: 1 }];
-    for (const fechamento of [false, true]) {
-      const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento });
-      const rt = res.pessoas.find((p) => p.id === 'R901');
-      assert.equal(res.confrontos[0].vencedor, 'Sv. Ficticio A');
-      assert.deepEqual([rt.pontosPilares, rt.pontosConfronto, rt.bonusPendente, rt.pontosMes], [15, 0, 0, 15], `fechamento=${fechamento}`);
-      assert.deepEqual(rt.porMes.map((m) => m.confrontoVencido), [false]);
-      assert.deepEqual([rt.gatilhoPontos.minimo, rt.gatilhoPontos.valor, rt.gatilhoPontos.atingido], [17, 15, false]);
-      assert.deepEqual([rt.status, rt.posicao, rt.premiada], ['-', null, false]);
-      assert.equal(rt.id_supervisor, 'Sv. Ficticio A'); // a rota continua na mesa (soma do SV e filtros)
-      assert.deepEqual(conferir(res), []);
-    }
-  } finally { M.REGRAS.gatilhoPontos = guardado; }
+  // até 03/11/2026 o +5 da mesa levava a rota de 15 a 20 e ela batia o mínimo de 17. O 17 vinha do
+  // ajustes.json e este teste o forçava nas REGRAS; desde 29/10/2026 ele é o padrão do motor, e o teste usa o padrão.
+  const pessoas = [pessoa('Sv. Ficticio A', 'SV', 'Mista'), pessoa('Sv. Ficticio B', 'SV', 'Mista'), pessoa('R901', 'RT', 'Mista', 'Sv. Ficticio A')];
+  const medidas = [...med('Sv. Ficticio A', 10, CFG_OUT, 'Mista', 110), ...med('Sv. Ficticio B', 10, CFG_OUT, 'Mista', 100), ...med('R901', 10, CFG_OUT, 'Mista', 100)];
+  const confrontos = [{ mes: 10, id_sv_desafiante: 'Sv. Ficticio A', id_sv_desafiado: 'Sv. Ficticio B', pilar: 'Volume Sabores', ordem_registro: 1 }];
+  for (const fechamento of [false, true]) {
+    const res = calcular({ mesRef: 10, pessoas, pilaresConfig: CFG_OUT, medidas, confrontos, fechamento });
+    const rt = res.pessoas.find((p) => p.id === 'R901');
+    assert.equal(res.confrontos[0].vencedor, 'Sv. Ficticio A');
+    assert.deepEqual([rt.pontosPilares, rt.pontosConfronto, rt.bonusPendente, rt.pontosMes], [15, 0, 0, 15], `fechamento=${fechamento}`);
+    assert.deepEqual(rt.porMes.map((m) => m.confrontoVencido), [false]);
+    assert.deepEqual([rt.gatilhoPontos.minimo, rt.gatilhoPontos.valor, rt.gatilhoPontos.atingido], [17, 15, false]);
+    assert.deepEqual([rt.status, rt.posicao, rt.premiada], ['-', null, false]);
+    assert.equal(rt.id_supervisor, 'Sv. Ficticio A'); // a rota continua na mesa (soma do SV e filtros)
+    assert.deepEqual(conferir(res), []);
+  }
 });
 
 test('bônus só do SV (03/11/2026): o ranking dos Consultores usa só os pilares', () => {
