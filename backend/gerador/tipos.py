@@ -80,3 +80,5 @@ class Dados:
     simulado: bool = False
     # agrupadores com META_VOLUME no mês, [{"nome", "meta"}] (sugestões do painel); None = não consultado
     agrupadores_meta: list[dict] | None = None
+    # valores originais de gerência da base de clientes (dividem as consultas por gerência; fontes.carregar)
+    gcs_originais: list[str] = field(default_factory=list)

@@ -29,6 +29,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 
 from . import calendario as calmod
@@ -462,4 +463,28 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
     return Dados(agora=agora, cal=cal, clientes=clientes, volume=dict(volume), volume_cliente=vol_cli,
                  online=None if online is None else {r: v for r, v in online.items() if r in gc_da_rota},
                  online_cliente={r: v for r, v in online_cli.items() if r in gc_da_rota},
-                 eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta)
+                 eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta, gcs_originais=gcs)
+
+
+# ------------------------------------------------------------------ rodada incremental (gerador/base_dia.py)
+def assinatura_real(cons: Consulta, anomes: str) -> dict[str, float]:
+    """Vol Real do mês por agrupador, numa consulta só e sem rota nem cliente no groupby: {agrupador: volume}.
+    Barata, serve só para saber se o Real (até ontem) mudou desde a base do dia."""
+    col_mes, col_ag, _ = _chaves(anomes)
+    sel = _colunas(cons, M.OBJ_META, [col_ag, CM.NF_STATUS, CM.VOL_MES])
+    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), M.FILTRO_PEDIDOS_ONLINE)
+    out: dict[str, float] = {}
+    for l in cons.linhas(M.OBJ_META, sel, filtro):
+        if M.status_nf_real(l.get(CM.NF_STATUS)):
+            _somar(out, normalizar(l.get(col_ag)), numero(l.get(CM.VOL_MES)))
+    return {ag: round(v, 3) for ag, v in sorted(out.items())}
+
+
+def atualizar_online(cons: Consulta, agora: datetime, base: Dados) -> Dados:
+    """A base do dia (tudo menos o Online) com os pedidos de hoje consultados agora: só as consultas do Online.
+    Vale só para mês aberto pela chave da meta (base_dia.utilizavel confere antes)."""
+    online, online_cli = carregar_online_pela_meta(cons, base.cal.anomes, list(base.gcs_originais), None)
+    rotas = {c.rota for c in base.clientes}
+    return replace(base, agora=agora, avisos=list(base.avisos),
+                   online={r: v for r, v in online.items() if r in rotas},
+                   online_cliente={r: v for r, v in online_cli.items() if r in rotas})
