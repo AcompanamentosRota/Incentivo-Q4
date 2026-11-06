@@ -45,7 +45,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 154 testes (42 do motor, 112 do adaptador); precisa de Node 18+
+# testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
@@ -191,6 +191,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `resultadoConfrontoAdmin`, `pilaresDoTopico`, `contagemPorTopico`); o resultado do confronto é o do motor
   (`RES.confrontos`). Confrontos: mês anterior ao de referência (ou o de referência no período de fechamento da API) é
   **só leitura**; mês corrente e futuro aceitam cadastro só com os 5 pilares configurados.
+  **Canal das rotas em lista empilhada (06/11/2026, etapa 21):** todos os SVs, um bloco por SV (código, nome da API,
+  canal do SV e as rotas), com rolagem dentro da lista (`ajustarListaCanais`); a busca filtra a lista (`listaCanais` no
+  adaptador). Texto explicativo de todo tópico fica recolhido (`sobre(...)`, fechado por padrão); avisos e alertas
+  nunca entram nele.
 - **A senha do admin existe só como hash** (SHA-256) dentro do HTML. Ela evita mudança por engano; não é
   proteção forte e nunca deve ser escrita em texto claro em lugar nenhum.
 - **`.env` nunca é versionado** (já está no `.gitignore`). Nunca imprima credenciais. Se a autenticação no
@@ -271,7 +275,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 154 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

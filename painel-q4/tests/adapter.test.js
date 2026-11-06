@@ -2158,3 +2158,49 @@ test('admin: o template usa as funções do adaptador e mantém os ids dos botõ
   assert.ok(ini > 0 && fim > ini);
   for (const n of ['17', '20', '60', '95', '105', ' 40', ' 12 ']) assert.doesNotMatch(bloco.replace(/04\/11\/2026|28 e 30\/10|29\/10|30\/10|3\.6|dia 12/g, ''), new RegExp('[^0-9]' + n.trim() + '[^0-9/]'), n);
 });
+
+// ───────────── Canal das rotas em lista empilhada (etapa 21): busca e Pendências sobre a lista inteira ─────────────
+test('canal das rotas: a lista traz todos os SVs na ordem do código; a busca filtra por código, nome ou gerência', () => {
+  const nomes = { 'Sv. Xx.1': 'FULANO FICTICIO', 'Sv. Xx.2': 'BELTRANA TESTE' };
+  const ids = (l) => l.map((s) => s.sv);
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', '', nomes)), ['Sv. Xx.1', 'Sv. Xx.2', 'Sv. Yy.3']); // sem o bloco "sem SV"
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', 'xx.2', nomes)), ['Sv. Xx.2']);       // código
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', 'SV.XX.1', nomes)), ['Sv. Xx.1']);    // código da API
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', 'beltrana', nomes)), ['Sv. Xx.2']);   // nome, sem acento/caixa
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', 'yy', nomes)), ['Sv. Yy.3']);         // gerência
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'todas', 'ninguem', nomes)), []);
+  const l = A15.listaCanais(SEG15, {}, {}, 'todas', '', nomes);
+  assert.deepEqual(l.map((s) => [s.nome, s.pendente]), [['FULANO FICTICIO', true], ['BELTRANA TESTE', true], [null, true]]);
+});
+
+test('canal das rotas: "Pendências" filtra a lista inteira e segue a edição em curso; a busca vale junto', () => {
+  const ids = (l) => l.map((s) => s.sv);
+  assert.deepEqual(ids(A15.listaCanais(SEG15, {}, {}, 'pend', '', {})), ['Sv. Xx.1', 'Sv. Xx.2', 'Sv. Yy.3']);
+  // dar canal à R04 e escolher o canal da Xx.2 tira as duas da lista de pendências
+  assert.deepEqual(ids(A15.listaCanais(SEG15, { R04: 'Mista' }, { 'Sv. Xx.2': 'Mista' }, 'pend', '', {})), ['Sv. Yy.3']);
+  assert.deepEqual(ids(A15.listaCanais(SEG15, { R04: 'Mista' }, {}, 'pend', 'xx', {})), ['Sv. Xx.2']);
+  // em "Todas" o SV sem pendência continua na lista, marcado como sem pendência
+  const t = A15.listaCanais(SEG15, { R04: 'Mista' }, {}, 'todas', '', {});
+  assert.deepEqual(t.map((s) => [s.sv, s.pendente]), [['Sv. Xx.1', false], ['Sv. Xx.2', true], ['Sv. Yy.3', true]]);
+});
+
+test('canal das rotas: nome do SV vem de gerencias/{GC}.json -> supervisoes (código no formato do painel)', () => {
+  assert.deepEqual(A15.nomesDosSVs([{ supervisoes: [{ id: 'SV.XX.1', nome: ' FULANO FICTICIO ' }, { id: 'SV.XX.2', nome: '' }, { id: 7 }] },
+    { rotas: [] }, null]), { 'Sv. Xx.1': 'FULANO FICTICIO' });
+  assert.deepEqual(A15.nomesDosSVs(undefined), {});
+  const d = A15.dadosDaApi(INDEX, GERENCIAS, BASE, CONFIG);
+  assert.deepEqual(d.nomesSV, {}); // fixture sem supervisoes: a tela mostra só o código
+});
+
+test('canal das rotas: o tópico abre sem o seletor de SV, com o texto recolhido e os avisos fora dele', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  assert.doesNotMatch(tpl, /id="seg-sv"/);
+  const ini = tpl.indexOf('function canaisTopicoHtml(){'), fim = tpl.indexOf('function regrasTopicoHtml(');
+  const bloco = tpl.slice(ini, fim);
+  assert.match(bloco, /sobre\('seg-sobre'/);
+  assert.ok(bloco.indexOf('AVISOS_AJ') < bloco.indexOf("sobre('seg-sobre'"), 'o aviso de erro fica fora do bloco recolhido');
+  assert.match(bloco, /pendência 7 do documento/);
+  assert.match(tpl, /const sobre = \(id, rotulo, html\)=> `<button class="admlink admsobre" type="button" data-sobre="\$\{id\}" aria-expanded="false"/);
+  assert.match(tpl, /<div class="admcomo" id="\$\{id\}" hidden>/);
+});
