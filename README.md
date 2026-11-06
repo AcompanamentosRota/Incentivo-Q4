@@ -54,6 +54,13 @@ Incentivo-Q4/
    Ele só vira **oficial** (e nunca mais muda) quando o Back Office marca, na Administração do painel, que o flash
    daquele mês fechou — nunca por data no código. É desse arquivo que sai o acumulado do trimestre.
    Formato em [API.md](API.md).
+5. **Base do dia** (`backend/gerador/base_dia.py`): o Real é "até ontem" e não muda ao longo do dia, então só a
+   primeira execução agendada do dia faz a consulta completa. Ela guarda tudo menos os pedidos de hoje no cache do
+   Actions (nunca no repositório), e as execuções seguintes consultam **só o Online**. A cada execução, uma consulta
+   barata do Real por agrupador confere a base: se o Real mudou, se a base é de outro dia ou não foi encontrada, a
+   execução volta à consulta completa. O fechamento do mês, a execução manual e a do `ajustes.json` são sempre
+   completas. Os meses em prévia são consultados de novo só na carga completa do dia. A API sai igual à da consulta
+   completa.
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com
 NF_STATUS em Acertado, Meta Neg ou Em Aberto; tendência = realizado + restante da curva de META_NEG;

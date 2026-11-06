@@ -127,6 +127,10 @@ class ColMeta:
     META_VOLUME = "META_VOLUME_Chave_Meta_SAP"       # meta de volume da rota no mês (denominador, como o SAC)
     META_NEG = "META_NEG"                            # meta distribuída por cliente e por dia (curva e meta do cliente)
     META_RECUPERAVEL = "META_RECUPERAVEL_ROTA"       # meta do dia (DATA_MOVIMENTO = hoje), pela rota da meta
+    # cobertura (clientes que compraram): 0 ou 1 por cliente x agrupador; soma entre clientes e rotas, nunca entre produtos
+    META_COBERTURA = "META_COBERTURA_Chave_Meta_SAP"  # meta de cobertura da rota no mês (como a META_VOLUME)
+    COB_REAL = "FX_COBERTURA_REALIZADO"               # cliente coberto no mês (faturado, até ontem)
+    COB_ONLINE = "FX_COBERTURA_WF_ONLINE"             # pedido de hoje de cliente ainda não coberto no mês
 
 
 class ColBase:

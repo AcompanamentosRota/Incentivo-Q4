@@ -29,6 +29,7 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref:
     """Dados fictícios da rodada. Com `ref` (1º dia de um mês já encerrado), gera aquele mês como fechado — o
     equivalente simulado de fontes.carregar(..., ref=...), para regravar o snapshot de um mês em prévia."""
     rnd = random.Random(agora.date().toordinal())
+    rnd_cob = random.Random(agora.date().toordinal() + 1)   # à parte: a cobertura não muda o volume simulado
     cal = calmod.calcular_local(agora.date())
     if ref is not None:
         cal = calmod.fechado(cal.hoje, ref, len(calmod.dias_uteis_do_mes(ref.year, ref.month)))
@@ -41,6 +42,9 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref:
     vol_cli: dict = {}
     online: dict = {}
     online_cli: dict = {}
+    cob_meta: dict = {}
+    cob_cli: dict = {}
+    cob_hoje: dict = {}
     pv = 1_000_000
     for gc in gerencias:
         for n_sv in range(1, rnd.randint(2, 3) + 1):
@@ -53,6 +57,8 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref:
                 metas_rota = {k: 0.0 for k in M.IDS_PRODUTOS}
                 reais_rota = {k: 0.0 for k in M.IDS_PRODUTOS}
                 vol_cli[rota], online_cli[rota], online[rota] = {}, {}, {k: 0.0 for k in M.IDS_PRODUTOS}
+                cob_cli[rota], cob_hoje[rota] = {}, {}
+                com_meta_cli = {k: 0 for k in M.IDS_PRODUTOS}
                 for _ in range(rnd.randint(8, 14)):
                     pv += rnd.randint(1, 40)
                     nome = f"{rnd.choice(_NOMES)} {rnd.choice(_SOBRENOMES)}"
@@ -67,10 +73,17 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref:
                         vol_cli[rota][pv][k] = (meta, real)
                         metas_rota[k] += meta
                         reais_rota[k] += real
+                        com_meta_cli[k] += 1
+                        coberto = real > 0 and rnd_cob.random() < 0.3 + frac   # cobertura: cliente que comprou no mês
+                        if coberto:
+                            cob_cli[rota].setdefault(pv, set()).add(k)
                         if not cal.fechamento and rnd.random() < 0.15:
                             on = round(_BASE.get(k, 5.0) * rnd.uniform(0.2, 1.0), 1)
                             online_cli[rota].setdefault(pv, {})[k] = on
                             online[rota][k] += on
+                            if not coberto:   # coberto hoje: pedido de quem ainda não estava coberto
+                                cob_hoje[rota].setdefault(pv, set()).add(k)
+                cob_meta[rota] = {k: float(round(n * rnd_cob.uniform(0.75, 0.95))) for k, n in com_meta_cli.items() if n}
                 volume[rota] = {}
                 for k in M.IDS_PRODUTOS:
                     meta = round(metas_rota[k] * rnd.uniform(0.98, 1.05), 1)   # META_VOLUME perto da soma dos clientes
@@ -81,4 +94,6 @@ def gerar(agora: datetime, gerencias: tuple[str, ...] = ("G1", "G2", "AP"), ref:
                                                  meta_dia=None if cal.fechamento else round(meta / cal.total_dias_uteis, 1))
     return Dados(agora=agora, cal=cal, clientes=clientes, volume=volume, volume_cliente=vol_cli,
                  online=None if cal.fechamento else online, online_cliente=online_cli,
+                 cobertura_meta=cob_meta, cobertura_cliente=cob_cli,
+                 cobertura_hoje_cliente=None if cal.fechamento else cob_hoje,
                  avisos=["Dados SIMULADOS (fictícios): não use para decisões."], simulado=True)

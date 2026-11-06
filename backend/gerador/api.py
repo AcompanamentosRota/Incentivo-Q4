@@ -33,8 +33,12 @@ def _mais_comum(valores: list[str]) -> str:
     return Counter(valores).most_common(1)[0][0] if valores else ""
 
 
-def _produtos(acumulados: dict[str, modelo.Acumulado | None], cal) -> dict:
-    return {k: modelo.bloco(acumulados.get(k), cal) for k in M.IDS_PRODUTOS}
+def _produtos(acumulados: dict[str, modelo.Acumulado | None], cal,
+              cobertura: dict[str, modelo.Cobertura] | None = None) -> dict:
+    """Bloco de cada produto, com a cobertura junto ("cobertura": null quando ela está indisponível)."""
+    return {k: {**modelo.bloco(acumulados.get(k), cal),
+                "cobertura": modelo.bloco_cobertura(cobertura[k], cal) if cobertura else None}
+            for k in M.IDS_PRODUTOS}
 
 
 def montar(d: Dados) -> dict[str, dict]:
@@ -63,6 +67,27 @@ def montar(d: Dados) -> dict[str, dict]:
 
     acum = {r: acum_rota(r) for r in rotas}
 
+    # cobertura: quantidade de clientes cobertos (cada cliente conta 1 por produto); None = indisponível
+    tem_cobertura = d.cobertura_meta is not None
+    hoje_cli = d.cobertura_hoje_cliente
+
+    def cob_rota(r: str) -> dict[str, modelo.Cobertura]:
+        meta, cli, hoje = d.cobertura_meta.get(r, {}), d.cobertura_cliente.get(r, {}), (hoje_cli or {}).get(r, {})
+        return {k: modelo.Cobertura(meta=meta.get(k, 0.0), realizado=sum(1 for ks in cli.values() if k in ks),
+                                    online=None if hoje_cli is None else sum(1 for ks in hoje.values() if k in ks))
+                for k in M.IDS_PRODUTOS}
+
+    cob = {r: cob_rota(r) for r in rotas} if tem_cobertura else {}
+
+    def somar_cob(lista_rotas: list[str]) -> dict[str, modelo.Cobertura] | None:
+        if not tem_cobertura:
+            return None
+        out = {k: modelo.Cobertura(online=None if hoje_cli is None else 0) for k in M.IDS_PRODUTOS}
+        for r in lista_rotas:
+            for k in M.IDS_PRODUTOS:
+                out[k].somar(cob[r][k])
+        return out
+
     def somar(lista_rotas: list[str]) -> dict[str, modelo.Acumulado | None]:
         out: dict[str, modelo.Acumulado | None] = {}
         for k in M.IDS_PRODUTOS:
@@ -81,18 +106,25 @@ def montar(d: Dados) -> dict[str, dict]:
         roster = {c.pv: c for c in por_rota.get(r, [])}
         vol_cli = d.volume_cliente.get(r, {})
         on_cli = d.online_cliente.get(r, {})
+        cob_cli, hoje_r = d.cobertura_cliente.get(r, {}), (hoje_cli or {}).get(r, {})
         clientes = []
-        for pv in sorted(set(roster) | set(vol_cli), key=lambda p: (roster[p].nome if p in roster else "~", p)):
+        for pv in sorted(set(roster) | set(vol_cli) | set(cob_cli) | set(hoje_r),
+                         key=lambda p: (roster[p].nome if p in roster else "~", p)):
             c = roster.get(pv)
             vc, oc = vol_cli.get(pv, {}), on_cli.get(pv, {})
+            cc, hc = cob_cli.get(pv, set()), hoje_r.get(pv, set())
             clientes.append({
                 "pv": pv, "nome": c.nome if c else "", "segmento": c.segmento if c else "", "na_base": c is not None,
-                "produtos": {k: modelo.bloco_cliente(vc.get(k, (None, 0.0))[0], vc.get(k, (None, 0.0))[1],
-                                                     oc.get(k, 0.0), cal) for k in M.IDS_PRODUTOS},
+                "produtos": {k: {**modelo.bloco_cliente(vc.get(k, (None, 0.0))[0], vc.get(k, (None, 0.0))[1],
+                                                        oc.get(k, 0.0), cal),
+                                 "coberto": (k in cc) if tem_cobertura else None,
+                                 "coberto_hoje": None if not tem_cobertura or hoje_cli is None or cal.fechamento
+                                 else k in hc}
+                             for k in M.IDS_PRODUTOS},
             })
         arquivos[f"v1/rotas/{r}.json"] = {
             "rota": {**info, "nome_supervisor": nome_sv.get(info["supervisao"], "")},
-            "produtos": _produtos(acum[r], cal),
+            "produtos": _produtos(acum[r], cal, cob.get(r)),
             "clientes": clientes,
         }
 
@@ -108,20 +140,20 @@ def montar(d: Dados) -> dict[str, dict]:
         por_sv: dict[str, list[str]] = defaultdict(list)
         for r in rs:
             por_sv[rotas[r]["supervisao"]].append(r)
-        produtos_gc = _produtos(somar(rs), cal)
+        produtos_gc = _produtos(somar(rs), cal, somar_cob(rs))
         gerencia = {"id": gc, "nome": M.GC_NOMES.get(gc, gc)}
         arquivos[f"v1/gerencias/{gc}.json"] = {
             "gerencia": gerencia,
             "produtos": produtos_gc,
             "supervisoes": [{"id": sv, "nome": nome_sv.get(sv, ""), "rotas": por_sv[sv],
-                             "produtos": _produtos(somar(por_sv[sv]), cal)}
+                             "produtos": _produtos(somar(por_sv[sv]), cal, somar_cob(por_sv[sv]))}
                             for sv in sorted(por_sv, key=_chave_natural)],
-            "rotas": [{**rotas[r], "produtos": _produtos(acum[r], cal)} for r in rs],
+            "rotas": [{**rotas[r], "produtos": _produtos(acum[r], cal, cob.get(r))} for r in rs],
         }
         resumo_gcs.append({**gerencia, "produtos": produtos_gc})
 
     arquivos["v1/resumo.json"] = {
-        "empresa": {"produtos": _produtos(somar(list(rotas)), cal)},
+        "empresa": {"produtos": _produtos(somar(list(rotas)), cal, somar_cob(list(rotas)))},
         "gerencias": resumo_gcs,
     }
     arquivos["v1/busca.json"] = {

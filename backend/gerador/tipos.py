@@ -80,3 +80,12 @@ class Dados:
     simulado: bool = False
     # agrupadores com META_VOLUME no mês, [{"nome", "meta"}] (sugestões do painel); None = não consultado
     agrupadores_meta: list[dict] | None = None
+    # valores originais de gerência da base de clientes (dividem as consultas por gerência; fontes.carregar)
+    gcs_originais: list[str] = field(default_factory=list)
+    # cobertura (clientes que compraram); cobertura_meta None = indisponível (colunas ausentes no modelo)
+    # rota -> produto -> META_COBERTURA da rota
+    cobertura_meta: dict[str, dict[str, float]] | None = None
+    # rota -> pv -> produtos em que o cliente está coberto no mês (faturado, até ontem)
+    cobertura_cliente: dict[str, dict[int, set[str]]] = field(default_factory=dict)
+    # rota -> pv -> produtos em que o cliente foi coberto hoje (pedido válido); None = sem online (ex.: fechamento)
+    cobertura_hoje_cliente: dict[str, dict[int, set[str]]] | None = None

@@ -9,11 +9,12 @@ API de **meta x realizado de volume** da Comercial Bandeirantes, alimentada pelo
 publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, que lê essa API no mesmo site.
 
 - A API cobre 6 produtos de volume (Sucos, Powerade, Sabores, Retornáveis, Individuais e Refrigerantes) nos
-  níveis cliente, rota, supervisão, gerência e empresa. Contrato em `API.md`.
+  níveis cliente, rota, supervisão, gerência e empresa, com a **cobertura** (clientes que compraram: meta, realizado e
+  online de hoje) em cada produto. Contrato em `API.md`.
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - **Quem usa:** o Back Office e a equipe comercial (gerências, supervisores e consultores); o painel é feito
-  para tela de PC e para print. A Karen é a dona do repositório.
+  para tela de PC e para print. Donos do repositório: Matheus (API e back-end) e Karen (painel).
 - Os dados se atualizam sozinhos: um workflow roda o gerador a cada 15 min em dias úteis e comita em `api/`.
 
 ## 2. Mapa do repositório
@@ -48,7 +49,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do back-end — 98 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -89,6 +90,11 @@ Detalhes que o `--help` não deixa óbvios:
 - `--replay` exige um cache gravado antes por `--gravar-cache` (que faz a consulta real).
 - `--forcar` ignora a janela de horário (padrão 07:00–18:59 de Brasília); sem ele, fora da janela nada acontece.
 - Saída: `0` ok, `1` erro de execução, `2` dados reprovados na validação (nada é gravado).
+- `--base-dia ARQ` (o workflow usa `saida/base_dia/base.json`, no cache do Actions): depois da 1ª carga completa do dia,
+  as rodadas consultam só o Online (`gerador/base_dia.py`); Real mudou, base de outro dia ou ilegível, fechamento do
+  mês: carga completa. `--completa` força a carga completa e grava a base nova (execução manual e push do
+  `ajustes.json`). Não vale com `--rota` nem `--simulado`. Na rodada incremental os meses em prévia não são
+  consultados de novo (só mudam de um dia para o outro).
 
 ## 4. Fluxo de uma mudança
 
@@ -276,7 +282,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 98 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.
