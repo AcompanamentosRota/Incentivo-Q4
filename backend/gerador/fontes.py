@@ -21,6 +21,12 @@ do SAC; antes, os do faturamento (ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a ro
   meta_dia    AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_RECUPERAVEL_ROTA de hoje
   agrupadores AM_FAT_BND_ANALISE_META           agrupador x rota da meta, todos os agrupadores: META_VOLUME (sugestões
                                                 do painel para incluir agrupadores extras)
+  cobertura   AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_COBERTURA; rota x cliente x agrupador
+                                                (uma consulta por gerência): FX_COBERTURA_REALIZADO (cliente coberto)
+                                                e, na consulta do online, FX_COBERTURA_WF_ONLINE (coberto hoje)
+
+Cobertura: cada cliente vale 0 ou 1 por agrupador, então a do produto é a quantidade de clientes cobertos (soma entre
+clientes e rotas; nunca entre produtos). Sem as colunas no modelo, a cobertura fica fora (null na API), com aviso.
 
 DATA_MOVIMENTO só aparece no $filter, nunca no groupby (por dia a consulta fica lenta demais).
 """
@@ -205,25 +211,82 @@ def carregar_clientes_meta_online(cons: Consulta, anomes: str, gcs_originais: li
 
 
 def carregar_online_pela_meta(cons: Consulta, anomes: str, gcs_originais: list[str], rota: str | None):
-    """(online {rota: {prod: v}}, online_cli {rota: {pv: {prod: v}}}) pela chave e pela rota da meta, como o SAC."""
+    """(online {rota: {prod: v}}, online_cli {rota: {pv: {prod: v}}}, cob_hoje {rota: {pv: {prod}}} ou None) pela chave e
+    pela rota da meta, como o SAC. cob_hoje: clientes cobertos hoje (pedido válido de quem ainda não estava coberto no
+    mês), na mesma consulta; None se a coluna não existir no modelo."""
     obj = M.OBJ_META
     col_mes, col_ag, col_rota = _chaves(anomes)
-    sel = _colunas(cons, obj, [col_rota, CM.CLIENTE, col_ag, CM.VOL_ONLINE])
+    sel = _colunas(cons, obj, [col_rota, CM.CLIENTE, col_ag, CM.VOL_ONLINE], [CM.COB_ONLINE])
     filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), M.FILTRO_PEDIDOS_ONLINE,
                eq(col_rota, rota) if rota else None)
     partes = _por_gerencia(obj, sel, filtro, gcs_originais, rota, outras=True)
     linhas = [l for ls in cons.em_paralelo(partes).values() for l in ls]
     online: dict = defaultdict(dict)
     online_cli: dict = defaultdict(lambda: defaultdict(dict))
+    cob_hoje: dict = defaultdict(lambda: defaultdict(set))
     for l in linhas:
         r, pv, k = _rota(l.get(col_rota)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(col_ag))
+        if not r or pv is None or not k:
+            continue
+        if numero(l.get(CM.COB_ONLINE)) > 0:
+            cob_hoje[r][pv].add(k)
         vol_on = numero(l.get(CM.VOL_ONLINE))
-        if not r or pv is None or not k or not vol_on:
+        if not vol_on:
             continue
         _somar(online[r], k, vol_on)
         _somar(online_cli[r][pv], k, vol_on)
     log.info("Pedidos de hoje pela rota da meta: %d linhas, %d rotas", len(linhas), len(online))
-    return dict(online), {r: dict(v) for r, v in online_cli.items()}
+    return (dict(online), {r: dict(v) for r, v in online_cli.items()},
+            {r: dict(v) for r, v in cob_hoje.items()} if CM.COB_ONLINE in sel else None)
+
+
+# ------------------------------------------------------------------ cobertura (clientes que compraram)
+def _sem_colunas(cons: Consulta, colunas: list[str]) -> list[str]:
+    existentes = set(cons.colunas(M.OBJ_META))
+    return [c for c in colunas if c not in existentes]
+
+
+def carregar_cobertura_meta(cons: Consulta, anomes: str, rota: str | None) -> dict | None:
+    """META_COBERTURA {rota: {prod: meta}}, com a mesma conta da META_VOLUME: o maior valor por rota x agrupador (as
+    linhas repetem), somado no produto. None se a coluna não existir no modelo."""
+    if faltam := _sem_colunas(cons, [CM.META_COBERTURA]):
+        log.warning("%s não existe no $metadata: cobertura fora da API.", ", ".join(faltam))
+        return None
+    linhas = cons.linhas(M.OBJ_META, [CM.META_ROTA, CM.META_AGRUPADOR, CM.META_COBERTURA],
+                         e(eq(CM.META_ANOMES, anomes), ou(CM.META_AGRUPADOR, M.AGRUPADORES_CONSULTA),
+                           eq(CM.META_ROTA, rota) if rota else None))
+    por_ag: dict = defaultdict(dict)
+    for l in linhas:
+        r, ag = _rota(l.get(CM.META_ROTA)), normalizar(l.get(CM.META_AGRUPADOR))
+        if r and M.produto_do_agrupador(ag) and l.get(CM.META_COBERTURA) not in (None, ""):
+            por_ag[r][ag] = max(por_ag[r].get(ag, 0.0), numero(l.get(CM.META_COBERTURA)))
+    metas: dict = defaultdict(dict)
+    for r, ags in por_ag.items():
+        for ag, v in ags.items():
+            if v > 0:
+                _somar(metas[r], M.produto_do_agrupador(ag), v)
+    log.info("META_COBERTURA em %d rotas", len(metas))
+    return dict(metas)
+
+
+def carregar_cobertura_real(cons: Consulta, anomes: str, gcs_originais: list[str], rota: str | None) -> dict | None:
+    """Clientes cobertos no mês {rota: {pv: {prod}}} (FX_COBERTURA_REALIZADO > 0), pela mesma chave e rota do Real.
+    Sem NF_STATUS no groupby: a medida já conta cada cliente uma vez (separada por status, contaria duas)."""
+    if faltam := _sem_colunas(cons, [CM.COB_REAL]):
+        log.warning("%s não existe no $metadata: cobertura fora da API.", ", ".join(faltam))
+        return None
+    col_mes, col_ag, col_rota = _chaves(anomes)
+    sel = [col_rota, CM.CLIENTE, col_ag, CM.COB_REAL]
+    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), eq(col_rota, rota) if rota else None)
+    partes = _por_gerencia(M.OBJ_META, sel, filtro, gcs_originais, rota, outras=M.real_pela_meta(anomes))
+    cob: dict = defaultdict(lambda: defaultdict(set))
+    for ls in cons.em_paralelo(partes).values():
+        for l in ls:
+            r, pv, k = _rota(l.get(col_rota)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(col_ag))
+            if r and pv is not None and k and numero(l.get(CM.COB_REAL)) > 0:
+                cob[r][pv].add(k)
+    log.info("Cobertura: %d clientes cobertos em %d rotas", sum(len(v) for v in cob.values()), len(cob))
+    return {r: dict(v) for r, v in cob.items()}
 
 
 # ------------------------------------------------------------------ metas da rota e curva da META_NEG
@@ -399,14 +462,18 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
         f_neg = ex.submit(carregar_curva_neg, cons, anomes, gcs, rota, hoje, not fech)
         f_dia = None if fech else ex.submit(carregar_meta_dia, cons, anomes, gcs, rota, hoje)
         f_ags = None if rota else ex.submit(carregar_agrupadores_meta, cons, anomes)
+        f_cob_meta = ex.submit(carregar_cobertura_meta, cons, anomes, rota)
+        f_cob = ex.submit(carregar_cobertura_real, cons, anomes, gcs, rota)
         real, real_cli, ev = f_real.result()
         meta_cli, online, online_cli = f_cli.result()
+        cob_hoje = None
         if f_on:
-            online, online_cli = f_on.result()
+            online, online_cli, cob_hoje = f_on.result()
         metas = f_metas.result()
         neg_mes, neg_rest, fonte_neg = f_neg.result()
         meta_dia = f_dia.result() if f_dia else None
         agrupadores_meta = f_ags.result() if f_ags else None
+        cob_meta, cob = f_cob_meta.result(), f_cob.result()
 
     rotas = sorted(gc_da_rota)
     dias_restantes = cal.total_dias_uteis - cal.dia_ontem
@@ -445,6 +512,8 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
         avisos.append("Tendência por dias úteis (META_VOLUME sem curva de META_NEG) em: " + ", ".join(casos[modelo.SEM_CURVA]))
     if casos[modelo.SEM_META_ROTA]:
         avisos.append("Meta = soma de META_NEG (sem META_VOLUME) em: " + ", ".join(casos[modelo.SEM_META_ROTA]))
+    if cob_meta is None or cob is None:
+        avisos.append("Cobertura indisponível: colunas de cobertura ausentes no modelo")
     if pela_meta:
         fora = {r: sum(ks.values()) for r, ks in real.items() if r not in gc_da_rota and not M.rota_eventual(r)}
         if fora:
@@ -463,28 +532,45 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
     return Dados(agora=agora, cal=cal, clientes=clientes, volume=dict(volume), volume_cliente=vol_cli,
                  online=None if online is None else {r: v for r, v in online.items() if r in gc_da_rota},
                  online_cliente={r: v for r, v in online_cli.items() if r in gc_da_rota},
-                 eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta, gcs_originais=gcs)
+                 eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta, gcs_originais=gcs,
+                 **_cobertura(cob_meta, cob, cob_hoje, set(gc_da_rota), fech))
+
+
+def _cobertura(meta: dict | None, cob: dict | None, hoje: dict | None, rotas: set[str], fechamento: bool) -> dict:
+    """Campos de cobertura de tipos.Dados, só com as rotas da base (como o volume)."""
+    if meta is None or cob is None:
+        return {}
+    return {"cobertura_meta": {r: v for r, v in meta.items() if r in rotas},
+            "cobertura_cliente": {r: v for r, v in cob.items() if r in rotas},
+            "cobertura_hoje_cliente": None if fechamento or hoje is None
+            else {r: v for r, v in hoje.items() if r in rotas}}
 
 
 # ------------------------------------------------------------------ rodada incremental (gerador/base_dia.py)
 def assinatura_real(cons: Consulta, anomes: str) -> dict[str, float]:
-    """Vol Real do mês por agrupador, numa consulta só e sem rota nem cliente no groupby: {agrupador: volume}.
-    Barata, serve só para saber se o Real (até ontem) mudou desde a base do dia."""
+    """Vol Real do mês por agrupador e a cobertura por agrupador e status ("cob|<agrupador>"), numa consulta só e sem
+    rota nem cliente no groupby. Barata, serve só para saber se o Real (até ontem) mudou desde a base do dia: a soma da
+    cobertura entre status não é a cobertura do agrupador, mas muda quando ela muda."""
     col_mes, col_ag, _ = _chaves(anomes)
-    sel = _colunas(cons, M.OBJ_META, [col_ag, CM.NF_STATUS, CM.VOL_MES])
+    sel = _colunas(cons, M.OBJ_META, [col_ag, CM.NF_STATUS, CM.VOL_MES], [CM.COB_REAL])
     filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), M.FILTRO_PEDIDOS_ONLINE)
     out: dict[str, float] = {}
     for l in cons.linhas(M.OBJ_META, sel, filtro):
+        ag = normalizar(l.get(col_ag))
         if M.status_nf_real(l.get(CM.NF_STATUS)):
-            _somar(out, normalizar(l.get(col_ag)), numero(l.get(CM.VOL_MES)))
+            _somar(out, ag, numero(l.get(CM.VOL_MES)))
+        if CM.COB_REAL in sel:
+            _somar(out, f"cob|{ag}", numero(l.get(CM.COB_REAL)))
     return {ag: round(v, 3) for ag, v in sorted(out.items())}
 
 
 def atualizar_online(cons: Consulta, agora: datetime, base: Dados) -> Dados:
     """A base do dia (tudo menos o Online) com os pedidos de hoje consultados agora: só as consultas do Online.
     Vale só para mês aberto pela chave da meta (base_dia.utilizavel confere antes)."""
-    online, online_cli = carregar_online_pela_meta(cons, base.cal.anomes, list(base.gcs_originais), None)
+    online, online_cli, cob_hoje = carregar_online_pela_meta(cons, base.cal.anomes, list(base.gcs_originais), None)
     rotas = {c.rota for c in base.clientes}
     return replace(base, agora=agora, avisos=list(base.avisos),
                    online={r: v for r, v in online.items() if r in rotas},
-                   online_cliente={r: v for r, v in online_cli.items() if r in rotas})
+                   online_cliente={r: v for r, v in online_cli.items() if r in rotas},
+                   cobertura_hoje_cliente=None if base.cobertura_meta is None or cob_hoje is None
+                   else {r: v for r, v in cob_hoje.items() if r in rotas})

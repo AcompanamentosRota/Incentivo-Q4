@@ -9,7 +9,8 @@ prévia também não. Só os pedidos de hoje (Online) mudam a cada rodada. Entã
   2. as rodadas seguintes leem a base e consultam só o Online (fontes.atualizar_online).
 
 A base só vale se for de hoje, do mesmo mês, com os mesmos agrupadores e modelo, e se o Real não mudou desde ela:
-cada rodada faz uma consulta barata do Real do mês por agrupador (fontes.assinatura_real) e compara com a da base.
+cada rodada faz uma consulta barata do Real do mês por agrupador, com a cobertura (fontes.assinatura_real), e compara
+com a da base. A cobertura de hoje vem na mesma consulta do Online.
 Real diferente (ex.: o Datasphere carregou o Real de ontem depois da primeira rodada), base ausente, ilegível ou de
 outro dia: carga completa, que grava uma base nova. A base nunca vale no fechamento do mês nem antes de
 M.REAL_PELA_META_DESDE (`guardavel`). A saída da API é a mesma da carga completa; o contrato não muda.
@@ -27,7 +28,7 @@ from .tipos import Calendario, Cliente, Dados, VolumeRota
 
 log = logging.getLogger(__name__)
 
-FORMATO = 1
+FORMATO = 2   # 2: com a cobertura
 TOLERANCIA = 0.001   # diferença de Real (por agrupador) que ainda conta como "não mudou"
 
 
@@ -65,6 +66,9 @@ def para_json(dados: Dados, assinatura: dict[str, float]) -> dict:
                            for r, pvs in dados.volume_cliente.items()},
         "eventuais": dados.eventuais, "avisos": dados.avisos, "agrupadores_meta": dados.agrupadores_meta,
         "gcs_originais": dados.gcs_originais,
+        "cobertura_meta": dados.cobertura_meta,
+        "cobertura_cliente": {r: {str(pv): sorted(ks) for pv, ks in pvs.items()}
+                              for r, pvs in dados.cobertura_cliente.items()},
     }
 
 
@@ -81,7 +85,9 @@ def de_json(obj: dict) -> Dados:
         volume_cliente={r: {int(pv): {k: tuple(t) for k, t in ks.items()} for pv, ks in pvs.items()}
                         for r, pvs in obj["volume_cliente"].items()},
         online=None, eventuais=obj["eventuais"], avisos=obj["avisos"], agrupadores_meta=obj["agrupadores_meta"],
-        gcs_originais=obj["gcs_originais"])
+        gcs_originais=obj["gcs_originais"], cobertura_meta=obj["cobertura_meta"],
+        cobertura_cliente={r: {int(pv): set(ks) for pv, ks in pvs.items()}
+                           for r, pvs in obj["cobertura_cliente"].items()})
 
 
 # ------------------------------------------------------------------ leitura e gravação
