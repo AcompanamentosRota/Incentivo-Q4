@@ -222,6 +222,15 @@ button{background:none;border:0;cursor:pointer}
 .adm .admsvh .sub{margin:0}
 .adm .admsvh label{display:flex;align-items:center;gap:10px}
 .adm td.num{text-align:right;white-space:nowrap}
+/* Canal das rotas (etapa 21): uma linha de contexto, texto explicativo recolhido e a lista empilhada com rolagem própria */
+.adm .admctx{flex-wrap:wrap;gap:4px 14px;color:var(--muted);font-size:19px}
+.adm .admsobre{font-size:17px}
+.adm #seg-mesa{overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:rgba(0,0,0,.18)}
+.adm #seg-mesa .admsvb{margin:10px 0}
+.adm #seg-mesa .admsvb:first-child{margin-top:12px}
+.adm .admsvn{font-size:18px;font-weight:600;color:#fff}
+.adm .admsvr{margin:4px 0}
+.adm .admrod{margin:8px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none}
 /* consulta do fechamento do mês (Administração): tabela própria, curta, com rolagem nos dois eixos e cabeçalho fixo */
 .fccab{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;margin:10px 0;font-size:19px}
 .fccab b{font-size:22px;font-weight:700}
@@ -1330,7 +1339,7 @@ async function hashSenha(s){
 let EDIC = {};                                  // rota -> valor escolhido na tela (só as que mudaram em relação ao uso)
 const SV_CANAL_USO = Object.assign({}, (AJ.ativo && AJ.ativo.canaisSV) || {});
 let EDIC_SV = Object.assign({}, SV_CANAL_USO);  // sv -> canal do SV escolhido ('' ou ausente = padrão, a maioria das rotas)
-const SEGADM = { sv:null, busca:'', filtro:'todas' };   // filtro: 'todas' (o SV escolhido) ou 'pend' (todos os SVs com pendência)
+const SEGADM = { busca:'', filtro:'todas' };   // filtro: 'todas' (todos os SVs) ou 'pend' (só os SVs com pendência); a busca filtra a lista
 const SVS_SEG = svsDaSegmentacao(SEG);
 const valEdic = (l)=> l.rota in EDIC ? EDIC[l.rota] : l.atual;
 // de onde vem o canal em uso da rota: base de segmentação, ajustes.json publicado ou só este navegador
@@ -1338,26 +1347,21 @@ const ITENS_NAV = (AJ.navegador && AJ.navegador.itens) || {};
 const origemSeg = (l)=> l.origem!=='ajuste' ? 'base' : ('canais:'+l.rota) in ITENS_NAV ? '<b>este navegador</b>' : '<b>publicado</b>';
 const opcoesSeg = (atual)=> (OPCOES_SEGMENTACAO.includes(atual) ? OPCOES_SEGMENTACAO : OPCOES_SEGMENTACAO.concat([atual]))
   .map(v=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(rotuloSeg(v))}${OPCOES_SEGMENTACAO.includes(v)?'':' (como na base)'}</option>`).join('');
-function segSvOpcoes(){
-  const lst = buscarSVs(SVS_SEG.filter(x=>x.sv!==SEM_SV), SEGADM.busca);
-  if (!lst.some(x=>x.sv===SEGADM.sv)) SEGADM.sv = lst.length ? lst[0].sv : null;
-  return lst.length ? lst.map(x=>`<option value="${esc(x.sv)}"${x.sv===SEGADM.sv?' selected':''}>${esc(x.rotulo)} · ${esc(x.gcs.join(', '))} · ${x.n} ${x.n===1?'rota':'rotas'}</option>`).join('')
-    : '<option value="">Nenhum SV encontrado</option>';
-}
 /* tópico Canal das rotas: um bloco por SV (canal do SV e, dentro, as rotas da mesa com canal e segmento). O vínculo
    rota -> SV vem do cadastro e não é editável aqui; as "Rotas sem SV" ficam num bloco final, com canal editável. */
 const segPend = ()=> pendenciasCanais(SEG, EDIC, EDIC_SV);
-function segBlocoHtml(sv){
+function segBlocoHtml(sv, pend){
   const rotas = rotasDoFiltro(SEG, sv), semSv = sv===SEM_SV, escolhido = semSv ? '' : (EDIC_SV[sv]||'');
   const cm = canalDaMesa(rotas, EDIC, escolhido), info = SVS_SEG.find(x=>x.sv===sv) || { gcs:[], n:rotas.length };
   const cab = semSv ? `<div class="admsvh"><b>Sem supervisão no cadastro</b><span class="sg sc">Sem SV</span>
         <span class="sub">${rotas.length} ${rotas.length===1?'rota da API':'rotas da API'} sem SV: não formam mesa nem supervisão no ranking. O canal e o segmento continuam editáveis.</span></div>`
-    : `<div class="admsvh"><b>${esc(sv)}</b><span class="sub">${esc(info.gcs.join(', '))} · ${rotas.length} ${rotas.length===1?'rota':'rotas'}</span>
+    : `<div class="admsvh"><b>${esc(sv)}</b>${NOMES_SV[sv] ? `<span class="admsvn">${esc(NOMES_SV[sv])}</span>` : ''}<span class="sub">${esc(info.gcs.join(', '))} · ${rotas.length} ${rotas.length===1?'rota':'rotas'}</span>
+        ${pend ? `<span class="sg sc" title="${esc(pend.svSemCanal ? 'SV sem canal' : 'rota sem canal na mesa')}">Pendência: ${pend.svSemCanal ? 'SV sem canal' : pend.rotasSemCanal.length===1 ? '1 rota sem canal' : pend.rotasSemCanal.length+' rotas sem canal'}</span>` : ''}
         <label>Canal do SV <select data-svcanal="${esc(sv)}" aria-label="Canal do SV ${esc(sv)}">
           <option value=""${escolhido?'':' selected'}>Padrão: maioria das rotas (${esc(cm.maioria||'empate')})</option>
           ${['Mista','Segmentada'].map(c=>`<option value="${c}"${escolhido===c?' selected':''}>${c}</option>`).join('')}</select></label>
         <span>→ o SV aparece só na <b>${esc(cm.canal||'— (sem canal)')}</b>${cm.canal?'':' <span class="sg sc">Sem canal</span>'}${escolhido!==(SV_CANAL_USO[sv]||'')?' <b>(alteração pendente)</b>':''}</span></div>
-      <p class="sub">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela). O SV soma todas as rotas da mesa que têm canal, medidas nos pilares do canal dele (rotas sem canal: soma decidida em 30/10, implementação pendente). ⚠️ canal do SV a confirmar (documento de regras v3.6, pendência 7).</p>`
+      <p class="sub admsvr">Rotas da mesa: ${cm.canais.map(esc).join(' e ')} (com as alterações desta tela).</p>`
       + (!cm.canal ? `<div class="seg-av" role="alert">⚠️ ${cm.canais.some(c=>c!=='Sem canal') ? 'Mesmo número de rotas Mista e Segmentada' : 'Nenhuma rota da mesa tem canal'}: escolha o canal do SV. Até lá o SV fica fora do ranking.</div>`
         : cm.mista ? `<div class="seg-av" role="alert">⚠️ Mesa com rotas de canais diferentes: o SV fica só na ${esc(cm.canal)} e soma também as rotas da ${cm.canal==='Mista'?'Segmentada':'Mista'}, nos pilares da ${esc(cm.canal)}. As rotas continuam no ranking do canal delas.</div>` : '');
   const nome = semSv ? 'sem SV' : 'desta mesa';
@@ -1373,14 +1377,15 @@ function segBlocoHtml(sv){
       <td><button class="adm-btn" type="button" data-restaurar="${esc(l.rota)}"${valEdic(l)===l.padrao?' disabled':''} title="Base: ${esc(rotuloSeg(l.padrao))}">Restaurar padrão</button></td></tr>`; }).join('')}
     </tbody></table></div>`;
 }
+const NOMES_SV = DADOS.nomesSV || {};
+/* lista empilhada (etapa 21): todos os SVs, um bloco por SV, na ordem do código; "Pendências" e a busca filtram a lista
+   (listaCanais no adaptador). As rotas sem SV no cadastro ficam no último bloco. */
 function segMesaHtml(){
-  const comSemSv = SVS_SEG.some(x=>x.sv===SEM_SV);
-  const fim = comSemSv ? segBlocoHtml(SEM_SV) : '';
-  if (SEGADM.filtro==='pend') {
-    const pend = segPend().filter(p=>buscarSVs(SVS_SEG.filter(x=>x.sv===p.sv), SEGADM.busca).length);
-    return (pend.length ? pend.map(p=>segBlocoHtml(p.sv)).join('') : '<p class="sub">Nenhum SV com pendência de canal no filtro.</p>') + fim;
-  }
-  return (SEGADM.sv ? segBlocoHtml(SEGADM.sv) : '<p class="sub">Nenhum SV no filtro.</p>') + fim;
+  const lst = listaCanais(SEG, EDIC, EDIC_SV, SEGADM.filtro, SEGADM.busca, NOMES_SV);
+  const pend = {}; segPend().forEach(p=>{ pend[p.sv] = p; });
+  const fim = SVS_SEG.some(x=>x.sv===SEM_SV) ? segBlocoHtml(SEM_SV, null) : '';
+  return (lst.length ? lst.map(x=>segBlocoHtml(x.sv, pend[x.sv])).join('')
+      : `<p class="sub">${SEGADM.filtro==='pend' ? 'Nenhum SV com pendência de canal no filtro.' : 'Nenhum SV encontrado na busca.'}</p>`) + fim;
 }
 // agrupadores extras em edição (começa pelos ajustes em uso); viram o pilar "Volume <nome>"
 /* flash de vendas (04/11/2026): o mês fechado só vira OFICIAL quando o Back Office marca aqui que o flash daquele mês
@@ -1549,12 +1554,12 @@ function consultaHtml(){
   const lst = mesesConsulta();
   if(!lst.some(x=>x.mes===FC.mes)) FC.mes = (lst.find(x=>x.ok) || lst[0] || {}).mes || null;
   const texto = `<h3>Fechamento do mês (consulta e exportação)</h3>
-    <p class="sub">Confere o resultado de um mês já fechado e exporta em <b>.xlsx</b>. Os números vêm do
+    ${sobre('fc-sobre', 'Como funciona a consulta?', `<p>Confere o resultado de um mês já fechado e exporta em <b>.xlsx</b>. Os números vêm do
       <code>api/v1/fechado/AAAAMM.json</code> que o gerador gravou (nada é consultado ao vivo) e os pontos, o %, os
       gatilhos, o status e o ranking são calculados pelo <b>motor do painel</b>, com os dados daquele mês e os pilares
       daquele mês. O mês em <b>prévia</b> ainda pode mudar até o fechamento do flash de vendas; só o <b>oficial</b>
       está congelado. A visão <b>Estratégicos</b> é só volume por gerência (todas as rotas que tiveram Real), sem
-      pontos, sem gatilhos e sem premiação.</p>`;
+      pontos, sem gatilhos e sem premiação.</p>`)}`;
   if(!lst.length) return texto + `<p class="sub">Nenhum mês fechado disponível${DADOS.meta.origem==='api'?'':' (o painel está sem a API)'}: o primeiro aparece aqui no fechamento do mês seguinte.</p>`;
   return texto + `<div class="adm-linha">
       <label for="fc-mes">Mês</label>
@@ -1641,9 +1646,9 @@ function pilaresTopicoHtml(opcoesPilar, cor){
       <span class="seg" role="group" aria-label="Canal dos pilares">${['Mista','Segmentada'].map(c=>`<button type="button" data-apc="${c}" aria-pressed="${c===ADMV.pilcanal}">${c}</button>`).join('')}</span></div>`
     + MESES_Q4.map(m=>['Mista','Segmentada'].map(c=>pilaresBlocoHtml(m, c, opcoesPilar, cor)).join('')).join('')
     + `<h3>Agrupadores extras</h3>
-    <p class="sub">Para usar como pilar coringa um agrupador que ainda não está no painel. Depois do merge do PR, o gerador da API passa a
+    ${sobre('ext-sobre', 'Sobre os agrupadores extras', `<p>Para usar como pilar coringa um agrupador que ainda não está no painel. Depois do merge do PR, o gerador da API passa a
       buscá-lo no Datasphere (cerca de 3 minutos). O nome do agrupador precisa ser exatamente o do Datasphere: o campo sugere os que têm meta no mês.
-      Fixos, sem exclusão: ${AGRUPADORES_FIXOS.map(esc).join(', ')}.</p>
+      Fixos, sem exclusão: ${AGRUPADORES_FIXOS.map(esc).join(', ')}.</p>`)}
     <table id="adm-ext"><thead><tr><th>Pilar</th><th>Agrupador no Datasphere</th><th>Na API</th><th></th></tr></thead>
       <tbody>${EXTRAS.map(linhaExtra).join('')}</tbody></table>
     <p class="sub" id="adm-ext-vazio"${EXTRAS.length?' hidden':''}>Nenhum agrupador extra.</p>
@@ -1653,8 +1658,14 @@ function pilaresTopicoHtml(opcoesPilar, cor){
       <button class="adm-btn pri" type="button" id="adm-ext-incluir">Incluir</button></div>
     <datalist id="adm-ags"></datalist>`;
 }
+/* texto explicativo de um tópico: link que expande e recolhe (fechado por padrão), no padrão do "Como publicar?".
+   Só explicação: alerta e aviso de erro ficam sempre visíveis, fora daqui. */
+const sobre = (id, rotulo, html)=> `<button class="admlink admsobre" type="button" data-sobre="${id}" aria-expanded="false" aria-controls="${id}">${rotulo}</button>
+  <div class="admcomo" id="${id}" hidden>${html}</div>`;
 function canaisTopicoHtml(){
-  return `<p class="sub">Ajuste o canal e o segmento de cada rota da mesa. O <b>canal</b> é o que conta para pilares, ranking,
+  return `${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
+    <div class="adm-linha admctx"><span>Canal e segmento de cada rota, por supervisão.</span>
+      ${sobre('seg-sobre', 'Como funciona o canal das rotas?', `<p>Ajuste o canal e o segmento de cada rota da mesa. O <b>canal</b> é o que conta para pilares, ranking,
       confrontos e premiação (Mista, Segmentada ou sem canal); o <b>segmento</b> é só a etiqueta (Mini ou Mod na Segmentada; Neutraliza,
       Eventual, Coke Net ou Virtual sem canal). Rota sem ajuste fica como está na base. Linhas em azul mudam em relação ao que está em uso;
       a coluna Origem diz de onde vem o valor em uso (base, publicado ou só este navegador). O vínculo rota → SV vem do cadastro e não se edita aqui.
@@ -1663,15 +1674,14 @@ function canaisTopicoHtml(){
       premiação; Mini × Mod é confronto válido). A <b>rota</b> sem canal fica fora de pontos, ranking e premiação e aparece nos alertas com o segmento;
       o volume e a meta dela contam na soma do <b>SV</b> (decisão de 30/10), com <b>implementação pendente</b>: hoje o painel ainda as deixa fora da soma.
       ⚠️ A confirmar (pendência 7 do documento, decisão de 29/10): cada SV aparece em <b>um canal só</b> (o escolhido aqui ou, sem escolha, o da maioria das rotas da mesa) e soma as rotas da mesa que têm canal nos pilares desse canal.</div>
-    ${AVISOS_AJ.length ? `<div class="seg-av" role="alert">Valores inválidos nos ajustes em uso, ignorados: ${AVISOS_AJ.map(esc).join('; ')}.</div>` : ''}
+    <p>"Pendências" mostra só os SVs sem canal ou com rota sem canal na mesa (a busca também vale). As rotas sem SV no cadastro ficam no último bloco.</p>`)}</div>
     <div class="adm-linha"><span class="seg" role="group" aria-label="Filtro das mesas" id="seg-filtro">
         <button type="button" data-segf="todas" aria-pressed="${SEGADM.filtro==='todas'}">Todas</button>
         <button type="button" data-segf="pend" aria-pressed="${SEGADM.filtro==='pend'}">Pendências (<span id="seg-npend">${segPend().length}</span>)</button></span>
-      <label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1) ou gerência" value="${esc(SEGADM.busca)}" style="width:330px;text-align:left">
-      <label for="seg-sv" id="seg-sv-lbl"${SEGADM.filtro==='pend'?' hidden':''}>SV <select id="seg-sv" style="min-width:380px">${segSvOpcoes()}</select></label></div>
-    <p class="sub">"Pendências" mostra, de uma vez, todos os SVs sem canal ou com rota sem canal na mesa (a busca também vale). As rotas sem SV no cadastro ficam no último bloco.</p>
-    <div id="seg-mesa">${segMesaHtml()}</div>
-    <p class="sub">Origem do canal: base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)} (provisória: a API ainda não traz o canal) e os ajustes do admin.</p>`;
+      <label for="seg-busca">Buscar SV</label><input id="seg-busca" type="search" autocomplete="off" placeholder="código (ex.: Sv. An.1), nome ou gerência" value="${esc(SEGADM.busca)}" style="width:460px;text-align:left">
+      <span class="sub" id="seg-nlista" role="status"></span></div>
+    <div id="seg-mesa" tabindex="0" aria-label="Supervisões e rotas">${segMesaHtml()}</div>
+    <p class="sub admrod">Origem do canal: base de segmentação de ${esc(BASE_EMBUTIDA.meta.corteSeg)} (provisória: a API ainda não traz o canal) e os ajustes do admin.</p>`;
 }
 function regrasTopicoHtml(num, campo){
   const f = R.faixas;
@@ -1690,10 +1700,10 @@ function regrasTopicoHtml(num, campo){
 }
 function fechamentoTopicoHtml(){
   return `<h3>Flash de vendas (fechamento oficial do mês)</h3>
-    <p class="sub">O fechamento <b>oficial</b> do incentivo é feito <b>depois</b> do fechamento do <b>flash de vendas</b> (decisão de 04/11/2026):
+    ${sobre('flash-sobre', 'Como funciona o flash de vendas?', `<p>O fechamento <b>oficial</b> do incentivo é feito <b>depois</b> do fechamento do <b>flash de vendas</b> (decisão de 04/11/2026):
       até lá os números do mês anterior ainda mudam, porque notas fiscais são canceladas e retornadas. Enquanto o mês está em
       <b>prévia</b>, o gerador o regrava a cada rodada e o acumulado do trimestre do SV aparece como <b>provisório</b> na Supervisão, no
-      Ranking e no rodapé. A data do flash varia (em torno do dia 12), então quem marca é o Back Office: nunca há data fixa no código.</p>
+      Ranking e no rodapé. A data do flash varia (em torno do dia 12), então quem marca é o Back Office: nunca há data fixa no código.</p>`)}
     <div class="seg-av">⚠️ Marcar aqui e <b>Salvar neste navegador</b> vale só para você. Para valer para todos é preciso
       <b>Publicar no GitHub (PR)</b>: enquanto o PR não for mesclado, o mês continua em <b>prévia</b> para o resto da empresa, e o
       gerador sela o mês na primeira rodada depois do merge. Desmarcar volta o mês para prévia <b>só enquanto ele ainda não foi
@@ -1756,8 +1766,9 @@ function adminHtml(){
    ${adminTopo()}
    <div class="admtabs" role="tablist" aria-label="Tópicos da Administração">${TOPICOS_ADMIN.map(t=>`<button type="button" role="tab" id="admt-${t.id}" aria-controls="admp-${t.id}" aria-selected="${t.id===ADM_TOP}" tabindex="${t.id===ADM_TOP?0:-1}" data-top="${t.id}">${t.rotulo}<span class="admselo" data-selo="${t.id}" hidden></span></button>`).join('')}</div>
    ${painel('resumo', `<div id="adm-resumo">${resumoHtml()}</div>`)}
-   ${painel('confrontos', `<p class="sub">O +${R.bonusConfronto} do confronto vale só para o supervisor vencedor; as rotas da mesa não recebem. Ele entra só depois do fechamento do mês, e quem perde não perde pontos.
-      Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. O resultado é o mesmo da tela <b>Confrontos</b> (botão ao lado das abas).</p>
+   ${painel('confrontos', sobre('conf-sobre', 'Como funcionam os confrontos?', `<p>O +${R.bonusConfronto} do confronto vale só para o supervisor vencedor; as rotas da mesa não recebem. Ele entra só depois do fechamento do mês, e quem perde não perde pontos.
+      Só valem pilares de volume entre supervisores do mesmo canal, e cada supervisor recebe no máximo um desafio por mês. O resultado é o mesmo da tela <b>Confrontos</b> (botão ao lado das abas).</p>`)
+      + `
       <div id="adm-conf-nav">${confNavHtml()}</div><div id="adm-conf-corpo">${confCorpoHtml()}</div>`)}
    ${painel('pilares', pilaresTopicoHtml(opcoesPilar, cor))}
    ${painel('canais', canaisTopicoHtml())}
@@ -1825,6 +1836,22 @@ function lerAjustes(){
       && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length) return null;
   return { versao:1, atualizado_em:agoraAj(), regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado };
 }
+/* Canal das rotas: a rolagem fica DENTRO da lista. A área de regras rola até as abas encostarem no cabeçalho fixo e a
+   lista ganha a altura que sobra até o rodapé do tópico; cabeçalho, abas, filtros e busca ficam parados. */
+function ajustarListaCanais(){
+  const bd = $('rgbd'), lista = $('seg-mesa'), painel = $('admp-canais');
+  if (!bd || !lista || !painel || painel.hidden) return;
+  const cab = bd.querySelector('.admcab'), abasEl = bd.querySelector('.admtabs'), rod = painel.querySelector('.admrod');
+  const k = bd.getBoundingClientRect().height / (bd.offsetHeight || 1) || 1;   // escala do palco (fit)
+  const y = (el)=> el.getBoundingClientRect().top / k, fundo = (el)=> el.getBoundingClientRect().bottom / k;
+  const folga = parseFloat(getComputedStyle(bd).paddingBottom) || 0;
+  for (let i = 0; i < 2; i++) {
+    bd.scrollTop += y(abasEl) - fundo(cab);
+    const h = fundo(bd) - y(lista) - (rod ? rod.offsetHeight + 14 : 0) - folga;
+    lista.style.height = Math.max(240, Math.floor(h)) + 'px';
+  }
+}
+addEventListener('resize', ()=> ajustarListaCanais());
 function ligarAdmin(){
   const msg = (t)=>{ const m=$('adm-msg'); if(m) m.textContent=t; };
   const recarregar = ()=>{ try{ sessionStorage.setItem('q4_voltar','admin'); }catch(e){} location.reload(); };
@@ -1852,6 +1879,7 @@ function ligarAdmin(){
     ADM_TOP = id; try{ localStorage.setItem('q4_admin_topico', id); }catch(e){}
     document.querySelectorAll('.admtabs [role=tab]').forEach(b=>{ const on = b.dataset.top===id; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; if (on && foco) b.focus(); });
     document.querySelectorAll('.adm .admtp').forEach(p=>{ p.hidden = p.id!=='admp-'+id; });
+    ajustarListaCanais();
   };
   const abas = $('rgbd').querySelector('.admtabs');
   abas.addEventListener('click', e=>{ const b = e.target.closest('[data-top]'); if (b) abrirTopico(b.dataset.top); });
@@ -1862,17 +1890,21 @@ function ligarAdmin(){
   });
   $('admp-resumo').addEventListener('click', e=>{ const b = e.target.closest('[data-ir]'); if (b) abrirTopico(b.dataset.ir, true); });
   const alternar = (botao, caixa)=> botao.addEventListener('click', ()=>{ const ab = botao.getAttribute('aria-expanded')!=='true';
-    botao.setAttribute('aria-expanded', ab); $(caixa).hidden = !ab; });
+    botao.setAttribute('aria-expanded', ab); $(caixa).hidden = !ab; ajustarListaCanais(); });
   alternar($('adm-chip'), 'adm-pend-box');
   alternar($('adm-como'), 'adm-como-box');
-  // canal das rotas: filtro Todas/Pendências, busca e seletor de SV, canal do SV, canal e segmento por rota, aplicar à mesa e restaurar padrão
-  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); $('seg-npend').textContent = segPend().length; refazPend(); };
+  // textos explicativos dos tópicos (fechados por padrão): o link abre e fecha o bloco dele
+  $('rgbd').querySelectorAll('[data-sobre]').forEach(b=>alternar(b, b.dataset.sobre));
+  // canal das rotas: filtro Todas/Pendências, busca filtrando a lista, canal do SV, canal e segmento por rota, aplicar à mesa e restaurar padrão
+  const contaLista = ()=>{ const n = $('seg-mesa').querySelectorAll(`[data-mesa]:not([data-mesa="${SEM_SV}"])`).length;
+    $('seg-nlista').textContent = n===1 ? '1 supervisão na lista' : n+' supervisões na lista'; };
+  const refazSeg = ()=>{ $('seg-mesa').innerHTML = segMesaHtml(); $('seg-npend').textContent = segPend().length; contaLista(); refazPend(); };
   const editar = (nova)=>{ EDIC = {}; SEG.forEach(l=>{ if (l.rota in nova && nova[l.rota]!==l.atual) EDIC[l.rota] = nova[l.rota]; }); refazSeg(); };
   $('seg-filtro').addEventListener('click', e=>{ const b = e.target.closest('[data-segf]'); if (!b) return;
     SEGADM.filtro = b.dataset.segf; $('seg-filtro').querySelectorAll('[data-segf]').forEach(x=>x.setAttribute('aria-pressed', x===b));
-    $('seg-sv-lbl').hidden = SEGADM.filtro==='pend'; refazSeg(); });
-  $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-sv').innerHTML = segSvOpcoes(); refazSeg(); });
-  $('seg-sv').addEventListener('change', e=>{ SEGADM.sv = e.target.value || null; refazSeg(); });
+    $('seg-mesa').scrollTop = 0; refazSeg(); });
+  $('seg-busca').addEventListener('input', e=>{ SEGADM.busca = e.target.value; $('seg-mesa').scrollTop = 0; refazSeg(); });
+  contaLista();
   $('seg-mesa').addEventListener('change', e=>{
     const svc = e.target.closest('select[data-svcanal]');
     if (svc) { const sv = svc.dataset.svcanal; EDIC_SV[sv] = svc.value; if (!svc.value) delete EDIC_SV[sv]; refazSeg();
@@ -2061,6 +2093,7 @@ function ligarAdmin(){
     renderFechamento();
   }
   refazPend();
+  ajustarListaCanais();
 }
 
 popularFiltros(); setTab('ranking');

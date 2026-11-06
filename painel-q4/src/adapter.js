@@ -137,6 +137,15 @@ const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. 
  * a aba Estratégicos mostra. O mês é o da API (mes_referencia.anomes); devolve null se ele estiver fora do Q4.
  * Mês sem pilares configurados: `meta.semCalculo` traz o aviso e o painel não calcula pontos nem ranking.
  */
+/** Nome de cada SV, pelo código do painel ("Sv. An.1" -> nome), de gerencias/{GC}.json -> supervisoes[].nome. Só para
+ *  a Administração (cabeçalho do bloco do SV e busca); sem o campo, {} e a tela mostra só o código. */
+function nomesDosSVs(gerencias) {
+  const out = {};
+  for (const g of gerencias || []) for (const s of (g && g.supervisoes) || []) {
+    if (s && typeof s.id === 'string' && typeof s.nome === 'string' && s.nome.trim()) out[svNome(s.id)] = s.nome.trim();
+  }
+  return out;
+}
 function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
   const ref = index.mes_referencia;
   const ano = Number(ref.anomes.slice(0, 4)), mes = Number(ref.anomes.slice(4));
@@ -179,6 +188,7 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
     },
     rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
     segmentacao: linhasSegmentacao(lista, base, canais),
+    nomesSV: nomesDosSVs(gerencias),
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
   };
 }
@@ -868,11 +878,12 @@ function svsDaSegmentacao(linhas) {
   }
   return Object.values(por).sort((a, b) => (a.sv === SEM_SV) - (b.sv === SEM_SV) || a.sv.localeCompare(b.sv, 'pt-BR', { numeric: true }));
 }
-/** Busca por código do SV como o painel mostra ("Sv. An.1") ou como a API traz ("SV.AN.1"), e pela gerência. */
+/** Busca por código do SV como o painel mostra ("Sv. An.1") ou como a API traz ("SV.AN.1"), pelo nome do SV (`nome`,
+ *  quando a lista o traz) e pela gerência. */
 function buscarSVs(svs, texto) {
   const t = normalizarTexto(texto || '').replace(/[\s.]/g, '');
   if (!t) return svs;
-  return svs.filter((s) => [s.rotulo, s.sv === SEM_SV ? 'sem sv' : s.sv].concat(s.gcs)
+  return svs.filter((s) => [s.rotulo, s.sv === SEM_SV ? 'sem sv' : s.sv, s.nome || ''].concat(s.gcs)
     .some((x) => normalizarTexto(x).replace(/[\s.]/g, '').includes(t)));
 }
 /** Rotas da mesa de um SV (ou as sem SV), na ordem do código. */
@@ -1036,6 +1047,19 @@ function pendenciasCanais(linhas, edicao, escolhas) {
     if (!cm.canal || semCanal.length) out.push({ sv: s.sv, svSemCanal: !cm.canal, empate: !cm.canal && semCanal.length < rotas.length, rotasSemCanal: semCanal });
   }
   return out;
+}
+
+/**
+ * Canal das rotas (etapa 21): SVs da lista empilhada, na ordem do código. `filtro` 'todas' ou 'pend' (só os SVs com
+ * pendência de canal, sobre a lista inteira); a `busca` filtra por código, nome ou gerência. `nomes` = sv -> nome. As
+ * rotas sem SV não entram aqui: têm bloco próprio no fim da lista.
+ */
+function listaCanais(linhas, edicao, escolhas, filtro, busca, nomes) {
+  const svs = svsDaSegmentacao(linhas).filter((s) => s.sv !== SEM_SV)
+    .map((s) => Object.assign({}, s, { nome: (nomes || {})[s.sv] || null }));
+  const pend = new Set(pendenciasCanais(linhas, edicao, escolhas).map((p) => p.sv));
+  return buscarSVs(filtro === 'pend' ? svs.filter((s) => pend.has(s.sv)) : svs, busca)
+    .map((s) => Object.assign(s, { pendente: pend.has(s.sv) }));
 }
 
 /** Resumo > Canal e supervisão: SVs sem canal (e, entre eles, os em empate, que pedem a escolha do admin), rotas sem
@@ -1798,5 +1822,5 @@ if (typeof module === 'object' && module.exports) {
                      estadoConfronto, larguraBarra, lugarEtiquetas,
                      TOPICOS_ADMIN, topicoDoItem, contagemPorTopico, estadoMesApi, estadoPilaresMes, estadoMesesFechados,
                      pendenciasCanais, contagensCanal, etiquetaRota, estadoMesConfrontos, confrontosDoMes,
-                     resultadoConfrontoAdmin, pilaresDoTopico };
+                     resultadoConfrontoAdmin, pilaresDoTopico, listaCanais, nomesDosSVs };
 }

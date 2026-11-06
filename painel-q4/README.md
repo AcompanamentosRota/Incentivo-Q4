@@ -116,11 +116,20 @@ fechado** de cada mês, além da **consulta do fechamento do mês**, que é só 
     Só os coringas 4 e 5 do mês de referência são editáveis, como antes; mês sem os 5 pilares mostra o aviso dourado, e a
     linha "Missões Guiadas: fonte de meta e realizado — Não definida" aparece quando o mês tem meta e não há fonte.
     Os **agrupadores extras** ficam aqui, com o botão "+ Agrupador extra".
-  - **Canal das rotas:** o que era "Segmentação da supervisão", um bloco por SV (Canal do SV e as rotas da mesa com canal,
-    segmento, origem e as etiquetas "Sem canal" e "Difere do SV", esta só informativa). Filtros "Todas" (o SV do
-    seletor, com a busca) e "Pendências (n)" (todos os SVs sem canal ou com rota sem canal na mesa). As rotas sem SV no
-    cadastro ficam num bloco final "Sem supervisão no cadastro", com canal e segmento ainda editáveis. O vínculo rota →
-    SV não se edita.
+  - **Canal das rotas** (lista empilhada desde a etapa 21, 06/11/2026): abre com uma linha de contexto, os filtros, a
+    busca e a lista; a explicação (canal × segmento, coluna Origem, regras da v3.6 com o ⚠️ do canal do SV e o filtro
+    Pendências) fica no link recolhido "Como funciona o canal das rotas?". A lista mostra **todos** os SVs, um bloco
+    por SV na ordem do código: cabeçalho com o código, o **nome** (de `gerencias/{GC}.json` → `supervisoes[].nome`), a
+    gerência, o nº de rotas, a etiqueta de pendência e o "Canal do SV"; abaixo, as rotas da mesa com canal, segmento,
+    origem e as etiquetas "Sem canal" e "Difere do SV" (só informativa). A **busca filtra a lista** por código, nome
+    ou gerência; "Todas" e "Pendências (n)" (SVs sem canal ou com rota sem canal na mesa) continuam. A **rolagem fica
+    dentro da lista**: cabeçalho, abas, filtros e busca ficam parados. As rotas sem SV no cadastro ficam no último
+    bloco, "Sem supervisão no cadastro", com canal e segmento ainda editáveis. O vínculo rota → SV não se edita. A
+    origem do canal (base de segmentação) fica numa linha abaixo da lista. Montar a lista inteira (48 SVs, 233 rotas)
+    leva ~40–80 ms.
+  - **Textos explicativos recolhidos (etapa 21):** em Confrontos ("Como funcionam os confrontos?"), nos agrupadores
+    extras ("Sobre os agrupadores extras"), no flash de vendas ("Como funciona o flash de vendas?") e na consulta
+    ("Como funciona a consulta?"). Avisos e alertas (⚠️, valores inválidos, prévia) continuam sempre visíveis.
   - **Pontuação e regras:** três quadros — faixas de pontos, gatilhos (Refrigerantes, mínimo do SV e da Rota) e
     confronto e premiação (bônus e posições premiadas). Mesmos campos e ids de antes.
   - **Fechamento do mês:** o flash de vendas e a consulta do fechamento, como antes.
@@ -148,8 +157,8 @@ fechado** de cada mês, além da **consulta do fechamento do mês**, que é só 
   foi selado**; depois de oficial, desmarcar não reabre nada: a reabertura é um passo à parte, no servidor
   (`cd backend && python scripts/reabrir_fechado.py --anomes AAAAMM --confirmar`, e o arquivo vai para o GitHub por
   PR). Nunca há dia fixo de flash no código: a data varia todo mês e quem decide é o Back Office.
-- **Segmentação da supervisão** (decisão de 28/10/2026): escolha o SV (busca pelo código que o painel mostra, ex.
-  "Sv. An.1", pelo da API, "SV.AN.1", ou pela gerência; as rotas sem SV ficam no bloco final "Sem supervisão no cadastro") e ajuste cada
+- **Segmentação da supervisão** (decisão de 28/10/2026): encontre o SV na lista (a busca filtra pelo código que o painel
+  mostra, ex. "Sv. An.1", pelo da API, "SV.AN.1", pelo nome ou pela gerência; as rotas sem SV ficam no bloco final "Sem supervisão no cadastro") e ajuste cada
   rota da mesa entre **Mista · Segmentada – Mini · Segmentada – Mod · Sem canal – Neutraliza · Sem canal – Eventual ·
   Sem canal – Coke Net · Sem canal – Virtual**. A tabela mostra canal e segmento atuais e a origem ("base",
   "publicado" ou "este navegador"); há "aplicar a todas as rotas desta mesa" e "restaurar padrão" (por rota e pela mesa), as duas com
@@ -211,7 +220,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 112 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
+tests/                       42 testes do motor e 116 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
                              as duas de outubro foram gravadas com o mínimo do Consultor em 20 e são comparadas com esse mínimo)
 docs/                        regras do incentivo (fonte de verdade)
 ```
