@@ -14,7 +14,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - **Quem usa:** o Back Office e a equipe comercial (gerências, supervisores e consultores); o painel é feito
-  para tela de PC e para print. A Karen é a dona do repositório.
+  para tela de PC e para print. Donos do repositório: Matheus (API e back-end) e Karen (painel).
 - Os dados se atualizam sozinhos: um workflow roda o gerador a cada 15 min em dias úteis e comita em `api/`.
 
 ## 2. Mapa do repositório
