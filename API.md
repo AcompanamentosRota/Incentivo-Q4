@@ -53,7 +53,8 @@ produtos entre si. Cada produto traz sempre os mesmos campos:
   "tendencia_pct": 94,
   "meta_dia": 103.8,
   "online_hoje": 162.8,
-  "status": "abaixo_do_ritmo"
+  "status": "abaixo_do_ritmo",
+  "cobertura": { "meta": 97.0, "realizado": 64, "atingimento_pct": 66, "diferenca": -33.0, "online_hoje": 12 }
 }
 ```
 
@@ -75,14 +76,34 @@ Regras do `status` nos níveis rota, supervisão, gerência e empresa: `meta_bat
 
 Volume é sempre em volume padrão (`index.json` → `unidade`), com uma casa decimal.
 
+### Cobertura (`cobertura`, desde 11/2026)
+
+Quantidade de **clientes** que compraram o produto no mês, com os mesmos níveis do volume. Cada cliente conta uma vez
+por produto; por isso a cobertura soma entre rotas, supervisões e gerências, mas **nunca entre produtos**.
+
+| Campo | Significado |
+|---|---|
+| `meta` | META_COBERTURA da rota no mês (nos níveis acima, a soma das rotas com meta). `null` quando não há meta de cobertura (ex.: Sucos em novembro/26). |
+| `realizado` | Clientes cobertos no mês (FX_COBERTURA_REALIZADO, faturado até ontem), pela mesma chave e rota da meta do `realizado` de volume. Inteiro. Vem mesmo sem meta. |
+| `atingimento_pct` | `realizado / meta`, inteiro; `null` sem meta. |
+| `diferenca` | `realizado - meta`; `null` sem meta. |
+| `online_hoje` | Clientes **ainda não cobertos no mês** com pedido válido hoje (FX_COBERTURA_WF_ONLINE, mesmo filtro de pedidos do `online_hoje` de volume). Não se repetem no `realizado`, então `realizado + online_hoje` é a cobertura com os pedidos de hoje. `null` no fechamento do mês. |
+
+`cobertura` inteiro vem `null` quando o modelo não tem as colunas de cobertura. Os meses fechados
+(`fechado/{AAAAMM}.json`) **não** trazem cobertura.
+
 ## O bloco do cliente
 
 Dentro de `rotas/{ROTA}.json` → `clientes[].produtos`:
 
 ```json
 { "meta": 27.1, "realizado": 6.6, "atingimento_pct": 24, "diferenca": -20.5, "online_hoje": 0.0,
-  "status": "abaixo_do_ritmo" }
+  "status": "abaixo_do_ritmo", "coberto": true, "coberto_hoje": false }
 ```
+
+`coberto`: o cliente já está coberto no mês nesse produto (conta no `cobertura.realizado` da rota). `coberto_hoje`: não
+estava coberto e tem pedido válido hoje (conta no `cobertura.online_hoje`); `null` no fechamento do mês. Os dois vêm
+`null` quando a cobertura está indisponível. Na rota, a soma dos `coberto` dos clientes é o `cobertura.realizado`.
 
 A meta do cliente é a META_NEG dele no mês. O cliente não tem tendência: ele fica `no_ritmo` quando o
 `atingimento_pct` alcança o ritmo esperado (`index.json` → `calendario.ritmo_esperado_pct`, o % de dias

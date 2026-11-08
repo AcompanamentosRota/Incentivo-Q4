@@ -56,6 +56,21 @@ jobs:
 
       - run: pip install -r backend/requirements.txt
 
+      # Base do dia (backend/gerador/base_dia.py): a 1ª rodada do dia faz a carga completa e guarda tudo menos o Online
+      # no cache do Actions (nunca no repositório); as seguintes consultam só o Online. Uma chave por rodada que gravou
+      # base (o cache não se sobrescreve); a restauração pega a mais recente do dia pelo prefixo.
+      - name: Dia de hoje (Brasília)
+        id: dia
+        run: echo "dia=$(TZ=America/Sao_Paulo date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar a base do dia
+        if: github.event_name == 'schedule'
+        uses: actions/cache/restore@v4
+        with:
+          path: backend/saida/base_dia
+          key: base-dia-${{ steps.dia.outputs.dia }}-${{ github.run_id }}
+          restore-keys: base-dia-${{ steps.dia.outputs.dia }}-
+
       - name: Gerar a API
         id: gerar
         working-directory: backend
@@ -64,9 +79,17 @@ jobs:
           MODO: ${{ inputs.modo }}
         run: |
           ARGS=()
-          if [ "$EVENTO" = "workflow_dispatch" ] || [ "$EVENTO" = "push" ]; then ARGS+=(--forcar); fi
-          if [ "$MODO" = "simulado" ]; then ARGS+=(--simulado); fi
+          # agendada: incremental pela base do dia; manual e push (ajustes): sempre a carga completa, que grava a base
+          if [ "$EVENTO" = "workflow_dispatch" ] || [ "$EVENTO" = "push" ]; then ARGS+=(--forcar --completa); fi
+          if [ "$MODO" = "simulado" ]; then ARGS+=(--simulado); else ARGS+=(--base-dia saida/base_dia/base.json); fi
           python scripts/gerar.py "${ARGS[@]}"
+
+      - name: Guardar a base do dia
+        if: steps.gerar.outputs.base_nova == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: backend/saida/base_dia
+          key: base-dia-${{ steps.dia.outputs.dia }}-${{ github.run_id }}
 
       - name: Guardar log
         if: always()

@@ -133,3 +133,29 @@ def bloco_cliente(meta: float | None, realizado: float, online: float | None, ca
         status = ABAIXO
     return {"meta": r1(meta), "realizado": r1(realizado), "atingimento_pct": ating,
             "diferenca": r1(realizado - meta), "online_hoje": on, "status": status}
+
+
+# ------------------------------------------------------------------ cobertura (clientes que compraram)
+@dataclass
+class Cobertura:
+    """Cobertura de uma rota ou soma de rotas: meta = META_COBERTURA (rotas com meta > 0), realizado = clientes
+    cobertos no mês (até ontem), online = clientes cobertos hoje (ainda não cobertos no mês; None sem online)."""
+    meta: float = 0.0
+    realizado: int = 0
+    online: int | None = None
+
+    def somar(self, outra: "Cobertura") -> None:
+        self.meta += outra.meta
+        self.realizado += outra.realizado
+        if outra.online is not None:
+            self.online = (self.online or 0) + outra.online
+
+
+def bloco_cobertura(c: Cobertura, cal: Calendario) -> dict:
+    """Cobertura de rota, supervisão, gerência ou empresa. Sem meta: só o realizado (e o online)."""
+    online = None if cal.fechamento else c.online
+    if not c.meta:
+        return {"meta": None, "realizado": c.realizado, "atingimento_pct": None, "diferenca": None,
+                "online_hoje": online}
+    return {"meta": r1(c.meta), "realizado": c.realizado, "atingimento_pct": pct(c.realizado, c.meta),
+            "diferenca": r1(c.realizado - c.meta), "online_hoje": online}
