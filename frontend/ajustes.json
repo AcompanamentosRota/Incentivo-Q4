@@ -1,12 +1,7 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-11-05T19:05",
-  "regras": {
-    "gatilhoPontos": {
-      "SV": 60,
-      "RT": 17
-    }
-  },
+  "atualizado_em": "2026-11-08T20:37",
+  "regras": {},
   "pilares": {},
   "canais": {
     "I19": {
@@ -23,7 +18,18 @@
   "canaisSV": {
     "Sv. An.1": "Segmentada"
   },
-  "agrupadores": [],
+  "agrupadores": [
+    {
+      "id": "aperitivos",
+      "nome": "Aperitivos",
+      "agrupador": "Aperitivo"
+    },
+    {
+      "id": "skyy",
+      "nome": "Skyy",
+      "agrupador": "Skyy"
+    }
+  ],
   "confrontos": [
     {
       "mes": 10,
@@ -229,5 +235,6 @@
       "id_sv_desafiado": "Sv. An.3#Mista",
       "pilar": "Volume Powerade"
     }
-  ]
+  ],
+  "flashFechado": {}
 }
