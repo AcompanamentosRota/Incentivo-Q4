@@ -836,6 +836,23 @@ test('mesesDoSeletor: mês indisponível fica desabilitado e o padrão cai no ú
   assert.equal(s.padrao, 11);
 });
 
+test('mesesDoSeletor (4F): `referencia` é o mês VIGENTE da API, e não muda com a escolha do seletor', () => {
+  assert.equal(A.mesesDoSeletor(montar3()).referencia, 11);
+  // em período de fechamento da API o volume do mês vem do fechado/ (nenhum mês "aberto"), e a referência segue
+  // sendo o mês publicado em mes_referencia: é ela que decide as colunas de dezembro e o quadradinho do Aperitivo
+  const emFech = montar3({ index: indexDe('202611', true, ['202610', '202611']),
+                           fechados: { 202610: OUT, 202611: fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 90] }]],
+                             { empresa: { aperitivos: [100, 90] }, gerencias: { XA: { aperitivos: [100, 90] } } }) } });
+  const s = A.mesesDoSeletor(emFech);
+  assert.equal(s.referencia, 11);
+  assert.equal(s.meses.every((m) => !m.aberto), true);
+  // mês de referência sem fonte de volume (outubro sem o fechado) continua sendo a referência
+  assert.equal(A.mesesDoSeletor(montar3({ index: indexDe('202611', false, []), fechados: {} })).referencia, 11);
+  // referência fora da vigência: null (a tela não marca coluna nenhuma)
+  assert.equal(A.mesesDoSeletor({ mesReferencia: { anomes: '202609' }, meses: [] }).referencia, null);
+  assert.equal(A.mesesDoSeletor({}).referencia, null);
+});
+
 test('valoresDoMes: lê a tabela da linha; mês ausente devolve tudo null, nunca zero', () => {
   const xa = achar(montar3().gc, 'XA');
   const nov = A.valoresDoMes(xa.tabela, 'aperitivo', 11);
@@ -924,6 +941,11 @@ test('alertasDaTela: pendência 10 (cobertura do mês fechado) e a premissa da m
   assert.match(texto, /Cobertura de outubro indisponível/);
   assert.match(texto, /pendência 10/);
   assert.match(texto, /Meta dia de volume: premissa a confirmar/);
+  // etapa 4F: a ⚠️ pendência 25 (limite do quadradinho do Aperitivo no mês sem trava) é sinalizada, não decidida,
+  // e o número vem do motor
+  assert.match(texto, /Quadradinho do % de Aperitivo: premissa a confirmar/);
+  assert.match(texto, new RegExp('pendência 25'));
+  assert.match(texto, new RegExp(A.fmtPct(Motor.REGRAS.corAperitivoSemTrava).replace('%', '%')));
   assert.match(texto, /Outubro em prévia/);
   assert.match(texto, /Dezembro ainda não começou/);
   // pendências resolvidas não podem voltar à tela
@@ -1295,6 +1317,92 @@ test('tela 4B: os dois blocos têm cor (título escuro, células em tom claro) e
   assert.ok(Math.min.apply(null, tamanhos) >= 13, 'menor fonte: ' + Math.min.apply(null, tamanhos));
 });
 
+/* ─── Etapa 4F: ajustes de tabela (regras v1.7, seção 7) — só apresentação e rótulos ─────────────────────── */
+
+test('tela 4F: o conteúdo das células fica centralizado em todas as tabelas, inclusive a coluna de identificação', () => {
+  assert.match(TPL, /\.tb th\{font-size:13px;[^}]*text-align:center;/);
+  assert.match(TPL, /\.tb td\{padding:5px 5px;[^}]*text-align:center;/);
+  // a regra que alinhava a coluna de identificação à esquerda saiu; a classe .l continua, só como marca dela
+  assert.doesNotMatch(TPL, /\.tb th\.l,\.tb td\.l\{text-align:left\}/);
+  assert.match(TPL, /\.tb\.g2 th\.l:first-child,\.tb\.g2 td\.l:first-child\{width:200px\}/);
+  // e nenhuma regra das tabelas alinha mais à esquerda ou à direita
+  assert.doesNotMatch(TPL, /\.tb[^{}\n]*\{[^}]*text-align:(left|right)/);
+});
+
+test('tela 4F: a coluna Dez do Aperitivo só existe em dezembro, pelo mês VIGENTE da API (não pelo seletor)', () => {
+  // o mês vigente vem do adaptador (SEL.referencia); o último e o penúltimo mês saem de R.meses
+  assert.match(SEM_CSS, /const mesUltimo = R\.meses\[R\.meses\.length-1\], mesPenultimo = R\.meses\[R\.meses\.length-2\];/);
+  assert.match(SEM_CSS, /const emDezembro = SEL\.referencia === mesUltimo;/);
+  assert.match(SEM_CSS, /const mesesAp = R\.meses\.filter\(\(m\)=>m!==mesUltimo \|\| emDezembro\);/);
+  assert.match(SEM_CSS, /const mostrarPctNov = emDezembro;/);
+  // cabeçalho e corpo usam a MESMA lista de meses, e o colspan do bloco acompanha
+  assert.match(SEM_CSS, /const apCols = 6 \+ mesesAp\.length/);
+  assert.match(SEM_CSS, /mesesAp\.map\(\(m\)=>mesCel\(valoresDoMes\(l\.tabela,'aperitivo',m\), m===SEL\.referencia\)\)/);
+  assert.doesNotMatch(SEM_CSS, /R\.meses\.map\(\(m\)=>mesCel/);
+  assert.doesNotMatch(SEM_CSS, /const apCols = 9/);
+  // e nenhum número de mês digitado na tela para decidir as colunas
+  assert.doesNotMatch(SEM_CSS, /=== ?12|NOMES_MES\[11\]/);
+});
+
+test('tela 4F: os rótulos novos — "% Acum." no Aperitivo e "% Médio" no Skyy, e nenhuma "Soma" na tela', () => {
+  assert.match(SEM_CSS, /<th class="hd-ap k">% Acum\.<\/th>/);
+  assert.match(SEM_CSS, /<th class="hd-sk k">% Médio<\/th>/);
+  assert.doesNotMatch(SEM_CSS, /Soma/);                        // nem cabeçalho, nem nota, nem texto da aba Regras
+  assert.match(SEM_CSS, /ordem pelo % Acum\. de Aperitivo/);
+  // o CONCEITO das regras não mudou: o motor segue com `soma` e o gatilho segue sendo a média dos meses
+  assert.match(SEM_CSS, /pct\(bAp\.soma\)/);
+  assert.match(SEM_CSS, /pct\(R\.gatilho\.minimo\)/);
+});
+
+test('tela 4F: o quadradinho do Aperitivo fica só na coluna do mês vigente, e a cor vem do motor', () => {
+  // a tela pergunta a cor, passando o mês (o limite é o da trava dele) e o valor BRUTO
+  assert.match(SEM_CSS, /M\.corDoPercentualAperitivo\(m\.pct, m\.mes\)/);
+  const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
+  assert.match(cel, /vigente \? M\.corDoPercentualAperitivo/);  // nas outras colunas de mês, nenhum quadradinho
+  // o % Acum. não ganha quadradinho
+  assert.match(SEM_CSS, /'<td class="k">'\+\(opc\.total\?esc\(TRACO\):pct\(bAp\.soma\)\)\+'<\/td>'/);
+  // e a tela não compara nada com limite nenhum
+  assert.doesNotMatch(SEM_CSS, />= ?130|>= ?R\.trava|>= ?R\.corAperitivoSemTrava/);
+  for (const cor of [Motor.corDoPercentualAperitivo(130, 11), Motor.corDoPercentualAperitivo(0, 11)]) {
+    assert.match(TPL, new RegExp('\\.pchip\\.' + cor + '\\{'), cor);
+  }
+});
+
+test('tela 4F: os números do Aperitivo saem da fonte condensada grande (ficam como os do bloco Skyy)', () => {
+  assert.doesNotMatch(SEM_CSS, /class="n g"/);                 // o número grande da Soma saiu
+  assert.doesNotMatch(TPL, /\.n\.g\{/);                        // e o CSS que só ele usava saiu junto
+  const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
+  assert.doesNotMatch(cel, /class="n"|class="n /);             // nem as colunas de mês usam a condensada
+  // a fonte condensada continua no que não mudou: Pos., Of. e os % do bloco Skyy
+  assert.match(TPL, /\.n\{font-family:var\(--cond\)/);
+  assert.match(SEM_CSS, /<span class="n pos/);
+});
+
+test('tela 4F: a linha do total mostra só "Total Band" — "Diretoria e GP" sai de todas as abas', () => {
+  assert.doesNotMatch(TPL, /Diretoria e GP/);                  // a tela inteira mora no template
+  assert.match(SEM_CSS, /'Total Band'/);                       // o rótulo do total do Detalhe do mês continua
+  // no HTML gerado entram também o motor e o adaptador: o termo só pode sobrar em COMENTÁRIO de código, nunca
+  // em texto que a tela escreva (ele é a explicação de quem é o Total Band nas regras, seções 1 e 4)
+  const semComentarios = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(semComentarios(fs.readFileSync(GERADO, 'utf8')), /Diretoria e GP/);
+});
+
+test('tela 4F: Consultor e Detalhe do mês com as cores e os quadradinhos das tabelas de ranking', () => {
+  const g2 = /function tabelaGrupos\([\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  // mesmas classes e variáveis do ranking: nenhum CSS novo
+  assert.match(g2, /<colgroup class="cg-ap"><col span="'\+COLS\.length\+'">/);
+  assert.match(g2, /<colgroup class="cg-sk"><col span="'\+COLS\.length\+'">/);
+  assert.match(g2, /class="sep bl-ap">VOLUME DE APERITIVO/);
+  assert.match(g2, /class="sep bl-sk">COBERTURA DE SKYY/);
+  assert.match(g2, /cabHd\('hd-ap'\)\+cabHd\('hd-sk'\)/);
+  // Dif. negativa em vermelho (já era difCel) e os dois quadradinhos, cada um com a sua regra do motor
+  assert.match(g2, /difCel\(ap\.dif, fmtVolume\)/);
+  assert.match(g2, /difCel\(sk\.dif, fmtCobertura\)/);
+  assert.match(g2, /pctGrupoCel\(ap\.pct, M\.corDoPercentualAperitivo\(ap\.pct, mes\)\)/);
+  assert.match(g2, /pctGrupoCel\(sk\.pct, M\.corDoPercentual\(sk\.pct\)\)/);
+  assert.doesNotMatch(g2, /'<td style="font-weight:700">'\+pct\(/);  // o % sem quadradinho saiu
+});
+
 test('tela: as cinco abas do mockup, nessa ordem', () => {
   const abas = /const ABAS = \[([\s\S]*?)\];/.exec(SEM_CSS)[1];
   assert.deepEqual(Array.from(abas.matchAll(/nome:'([^']+)'/g), (m) => m[1]),
@@ -1311,9 +1419,10 @@ test('tela 4C: o bloco Aperitivo em laranja (título e cabeçalhos das colunas),
   // o laranja vai também aos cabeçalhos das colunas do bloco, e o texto deles é escuro
   assert.match(TPL, /\.tb tr\.hdr th\.hd-ap\{background:var\(--ap-tit\)\}/);
   assert.match(TPL, /th\.bl-ap,\.tb tr\.grp th\.bl-ap small,\.tb tr\.hdr th\.hd-ap\{color:var\(--ap-tit-fg\)\}/);
-  // as nove colunas do Aperitivo (Meta, Real, M. Dia, Online, Dif. + os três meses + Soma) levam a classe
-  assert.equal((SEM_CSS.match(/hd-ap/g) || []).length, 7);   // 5 fixas + o map dos meses + a Soma
-  assert.match(SEM_CSS, /R\.meses\.map\(\(m\)=>'<th class="hd-ap">'/);
+  // as colunas do Aperitivo (Meta, Real, M. Dia, Online, Dif. + os meses + % Acum.) levam a classe, e desde a
+  // etapa 4F a tabela de dois grupos (Consultor e Detalhe do mês) usa as mesmas classes
+  assert.equal((SEM_CSS.match(/hd-ap/g) || []).length, 8);   // 5 fixas + o map dos meses + o % Acum. + o cabHd da g2
+  assert.match(SEM_CSS, /mesesAp\.map\(\(m\)=>'<th class="hd-ap">'/);
 });
 
 // Guarda de CSS: comentário mal fechado não quebra teste nenhum e não aparece no console — só some com a cor na
@@ -1342,11 +1451,12 @@ test('tela: os comentários do CSS abrem e fecham (um `*/` solto apaga a cor sem
 
 /* --- Etapa 4F: a coluna do mês travado mostra só o limite ---------------------------------------------------- */
 
-test('tela 4F: mês travado mostra só o limite, sem o % real ao lado (decisão da Karen, 09/11/2026)', () => {
-  const cel = /const mesCel = \(m\)=>\{[\s\S]*?\};/.exec(SEM_CSS)[0];
+test('tela 4D/4F: mês travado mostra só o limite, sem o % real ao lado (decisão da Karen, 09/11/2026)', () => {
+  const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
   assert.match(cel, /pct\(m\.pctTravado\)/);
   assert.doesNotMatch(cel, /m\.travado/);          // a tela não escreve mais o % de antes da trava
-  assert.doesNotMatch(cel, /m\.pct[^T]/);
+  assert.doesNotMatch(cel, /pct\(m\.pct\)/);       // o % bruto entra só na pergunta da cor (etapa 4F), nunca na célula
+  assert.doesNotMatch(cel, /class="tv"/);
   // e o CSS do número pequeno saiu junto com o laranja que só ele usava
   assert.doesNotMatch(TPL, /\.tv\{/);
   assert.doesNotMatch(TPL, /var\(--laranja\)/);
@@ -1383,8 +1493,9 @@ test('tela 4E: o bloco Skyy ganha o mesmo tratamento — título e cabeçalhos d
   assert.match(TPL, /\.tb tr\.grp th\.bl-sk,\.tb tr\.hdr th\.hd-sk\{color:var\(--sk-tit-fg\)\}/);
   assert.match(TPL, /\.tb colgroup\.cg-sk\{background:var\(--sk-cel\)\}/);
   assert.doesNotMatch(TPL, /--sk-tit:#0A2A6E/i);             // o azul mais claro da 4B/4C saiu
-  // as colunas do Skyy (Meta, Real, M. Dia, Online, Dif., % do mês, o % Nov de dezembro e o % Acum.)
-  assert.equal((SEM_CSS.match(/hd-sk/g) || []).length, 8);
+  // as colunas do Skyy (Meta, Real, M. Dia, Online, Dif., % do mês, o % Nov de dezembro e o % Médio) e, desde a
+  // etapa 4F, o cabHd da tabela de dois grupos
+  assert.equal((SEM_CSS.match(/hd-sk/g) || []).length, 9);
 });
 
 test('tela 4C: o Ranking GC lê as linhas agrupadas e o Detalhe do mês as gerências da API', () => {

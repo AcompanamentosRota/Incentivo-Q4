@@ -1,7 +1,12 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.6 (09/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.7 (09/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.7 (09/11/2026, fim da tarde):** ajustes de tabela e navegação, pedidos pela Karen (seção 7): conteúdo das tabelas centralizado em todas as
+abas; coluna Dez só em dezembro; rótulos novos ("Soma" do Aperitivo vira "% Acum.", "% Acum." de Skyy vira "% Médio", só na tela: o gatilho
+continua sendo a média simples de novembro e dezembro); quadradinho no % do mês vigente do Aperitivo; linha do total só com "Total Band"; Detalhe do mês com as
+mesmas cores; Supervisão e Consultor paginados (15 linhas) e Consultor aberto com todas as rotas. Abre a pendência 25 (premissas).
 
 **v1.6 (09/11/2026, tarde):** a Karen enviou o print do SAC com a **gerência comercial agrupada** (12 linhas) e o Ranking GC passa a usar
 esse agrupamento (seção 4 e pendência 24). Valem as premissas ⚠️ da seção 4 até ela confirmar.
@@ -162,8 +167,8 @@ posição e o status:
 | Parte | Colunas |
 | --- | --- |
 | Identificação | Pos. · Oficial · Gerência (ou SV) |
-| Aperitivo (volume) | Meta · Real · M. Dia · Online · Dif · Out · Nov · Dez · Soma (os % mensais com a trava; Soma = pontuação do ranking) |
-| Skyy (cobertura · clientes) | Meta · Real · M. Dia · Online · Dif · % do mês · % Nov (só em dezembro) · % Acumulado (= gatilho; em novembro, parcial) |
+| Aperitivo (volume) | Meta · Real · M. Dia · Online · Dif · Out · Nov · Dez (só em dezembro) · **% Acum.** (os % mensais com a trava somados; era "Soma"; é a pontuação do ranking) |
+| Skyy (cobertura · clientes) | Meta · Real · M. Dia · Online · Dif · % do mês · % Nov (só em dezembro) · **% Médio** (era "% Acum."; = gatilho: média simples de novembro e dezembro; em novembro, parcial) |
 | Resultado | Status (só o selo: "✓ Bateu!" ou "-") |
 
 - **Seletor "Mês de referência"** (Ranking GC; vale também na Supervisão): troca **Meta, Real, Dif e o % do mês** dos
@@ -179,6 +184,17 @@ posição e o status:
   Sem valor ("—"): sem quadradinho.
 - **Sem legendas** no Ranking GC e na Supervisão (decisão de 09/11/2026): saem a legenda do selo, a explicação da trava e da
   soma e o aviso "N fora do ranking". O rodapé comum continua.
+- **Ajustes de tabela (decisão de 09/11/2026, fim da tarde):** (1) o conteúdo das células fica **centralizado** em todas as tabelas de todas as
+  abas; (2) a coluna **Dez** do Aperitivo só aparece quando o mês de referência é dezembro; (3) a linha do total mostra só "Total Band" (sem
+  "Diretoria e GP"); (4) o **Detalhe do mês** usa as mesmas cores da tabela de ranking (blocos laranja e azul, Dif vermelha, quadradinhos).
+- **Quadradinho no % do Aperitivo (decisão de 09/11/2026, 16h20):** **só na coluna do mês vigente** (a do mês de referência). Em outubro ou
+  novembro: verde quando o % bruto ≥ **130%** (o limite da trava), vermelho abaixo de 130%; em dezembro (sem trava): verde a partir de **100%**,
+  vermelho abaixo. A coluna **% Acum. não ganha quadradinho**, nem as colunas dos outros meses. Sem valor: sem quadradinho. A cor usa o valor
+  bruto, nunca o truncado (129,99999 é vermelho; 130 é verde).
+- **Fonte do Aperitivo (decisão de 09/11/2026, 16h25):** os números do bloco Aperitivo (Out, Nov, Dez, % Acum.) têm o mesmo tamanho, peso e fonte
+  dos números do bloco Skyy; hoje são maiores e em fonte condensada.
+- **Paginação (decisão de 09/11/2026):** Supervisão e Consultor mostram **15 linhas por página**, com botões de navegação (‹ 1 2 ›) no lugar da
+  rolagem; o **Total Band** fica fixo no rodapé de todas as páginas. **Consultor abre com todas as rotas** (filtro de SV em "Todas").
 - **Total Band** é a última linha das tabelas de ranking e do Detalhe do mês (mockup de 08/11/2026), sem coluna lateral
   e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking.
 - **Consultor e Detalhe do mês:** mesmas colunas (Meta, Real, M. Dia, Online, Dif, %) nos dois grupos, **Volume de
@@ -225,6 +241,7 @@ previsão 12/11/2026.
 | 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
 | 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
+| 25 | Centralização total (inclui a coluna de identificação) e limite de 100% em dezembro para o quadradinho do Aperitivo | **Em aberto**: valem as premissas da seção 7 até a Karen confirmar. O quadradinho do mês vigente (≥ 130% verde, < 130% vermelho; % Acum. sem quadradinho) foi decidido em 09/11/2026 | Karen |
 | 24 | Ranking GC pela **gerência comercial agrupada** do SAC: quais gerências formam cada grupo? | **Resolvida** em 09/11/2026 (print do SAC, 12 linhas; seção 4). Ficam as premissas (a) a (e) da seção 4 para a Karen confirmar | Karen |
 
 ## 11. Intencionalmente fora deste arquivo

@@ -6,21 +6,22 @@ const vm = require('node:vm');
 const M = require('../src/motor.js');
 
 // Etapa 1 testava versaoRegras '1.1' e "só versaoRegras"; a etapa 2 passou para a v1.3 e a etapa 4 para a v1.4.
-// A etapa 4B sobe para a v1.6 (09/11/2026), dos ajustes visuais das tabelas de ranking (seções 5 e 7). Os dois
+// A etapa 4B subiu para a v1.6 (09/11/2026) e a 4F sobe para a v1.7 (ajustes de tabela, seção 7). Os dois
 // testes abaixo substituem os anteriores, com a lista exata do que o motor exporta.
-test('motor carrega no Node e exporta versaoRegras 1.6', () => {
-  assert.equal(M.versaoRegras, '1.6');
-  assert.equal(M.REGRAS.versao, '1.6');
+test('motor carrega no Node e exporta versaoRegras 1.7', () => {
+  assert.equal(M.versaoRegras, '1.7');
+  assert.equal(M.REGRAS.versao, '1.7');
 });
 
-// A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura) e a 4C acrescenta `somarGrupo`
-// (a soma da gerência comercial agrupada do Ranking GC, regras v1.6, seção 4): a lista exata substitui a da 4B.
+// A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
+// gerência comercial agrupada do Ranking GC) e a 4F `corDoPercentualAperitivo` (a cor do quadradinho do % do mês
+// de Aperitivo, regras v1.7, seção 7): a lista exata substitui a da 4C.
 // A tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
-test('etapa 4C: motor exporta o ranking, o gatilho, o status, as metas dia, a cor do % e a soma do grupo', () => {
+test('etapa 4F: motor exporta o ranking, o gatilho, o status, as metas dia, as duas cores e a soma do grupo', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
-    'corDoPercentual', 'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'metaDiaVolume',
-    'montarRanking', 'numerarOficial', 'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes',
-    'somaRanking', 'somarGrupo', 'statusLinha', 'versaoRegras']);
+    'corDoPercentual', 'corDoPercentualAperitivo', 'diferenca', 'gatilhoCobertura', 'hojeAtingiu',
+    'metaDiaCobertura', 'metaDiaVolume', 'montarRanking', 'numerarOficial', 'numerarRanking', 'ordenarRanking',
+    'percentualCobertura', 'percentualMes', 'somaRanking', 'somarGrupo', 'statusLinha', 'versaoRegras']);
 });
 
 test('no navegador o motor fica em window.MotorCampari', () => {
@@ -28,7 +29,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.6');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.7');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -416,6 +417,60 @@ test('corDoPercentual concorda com o gatilho batido: mesma leitura do valor brut
   for (const alvo of [99.99999, 100, 100.0000001, 120]) {
     const g = M.gatilhoCobertura([OUT_INDISP, cm(11, 100000, alvo * 1000, 0)], 11);
     assert.equal(M.corDoPercentual(g.valor), g.batido ? 'verde' : 'vermelho', String(alvo));
+  }
+});
+
+/* ─── Etapa 4F — cor do quadradinho do % do MÊS de Aperitivo (regras v1.7, seção 7; pendência 25) ─────────── */
+
+test('corDoPercentualAperitivo: no mês travado o verde começa no limite da trava (não no mínimo do gatilho)', () => {
+  for (const mes of [10, 11]) {
+    assert.equal(M.corDoPercentualAperitivo(129.99999, mes), 'vermelho', String(mes)); // a tela mostra "129,9%"
+    assert.equal(M.corDoPercentualAperitivo(130, mes), 'verde', String(mes));          // exatamente no limite já é verde
+    assert.equal(M.corDoPercentualAperitivo(130.0000001, mes), 'verde', String(mes));
+    // e o % que basta no Skyy não basta aqui: o limite é outro
+    assert.equal(M.corDoPercentualAperitivo(100, mes), 'vermelho', String(mes));
+  }
+});
+
+test('corDoPercentualAperitivo: no mês SEM trava (dezembro) o verde começa em REGRAS.corAperitivoSemTrava', () => {
+  assert.equal(M.corDoPercentualAperitivo(99.99999, 12), 'vermelho');
+  assert.equal(M.corDoPercentualAperitivo(100, 12), 'verde');
+  assert.equal(M.corDoPercentualAperitivo(100.0000001, 12), 'verde');
+  assert.equal(M.corDoPercentualAperitivo(130, 12), 'verde');
+});
+
+test('corDoPercentualAperitivo: sem valor não desenha quadradinho (nunca vermelho por engano)', () => {
+  for (const mes of [10, 11, 12]) {
+    assert.equal(M.corDoPercentualAperitivo(null, mes), null, String(mes));
+    for (const v of [undefined, NaN, Infinity, '130', '', {}]) {
+      assert.equal(M.corDoPercentualAperitivo(v, mes), null, mes + ' ' + String(v));
+    }
+  }
+  assert.equal(M.corDoPercentualAperitivo(0, 11), 'vermelho'); // 0 é um número medido: vermelho
+});
+
+test('corDoPercentualAperitivo: os limites saem das REGRAS (nenhum 130 nem 100 fixo) e aceitam outro cfg', () => {
+  assert.equal(M.corDoPercentualAperitivo(M.REGRAS.trava[11], 11), 'verde');
+  assert.equal(M.corDoPercentualAperitivo(M.REGRAS.trava[11] - 1e-9, 11), 'vermelho');
+  assert.equal(M.corDoPercentualAperitivo(M.REGRAS.corAperitivoSemTrava, 12), 'verde');
+  assert.equal(M.corDoPercentualAperitivo(M.REGRAS.corAperitivoSemTrava - 1e-9, 12), 'vermelho');
+  const cfg = { trava: { 10: 120, 11: 120, 12: null }, corAperitivoSemTrava: 90 };
+  assert.equal(M.corDoPercentualAperitivo(120, 11, cfg), 'verde');
+  assert.equal(M.corDoPercentualAperitivo(119.9, 11, cfg), 'vermelho');
+  assert.equal(M.corDoPercentualAperitivo(90, 12, cfg), 'verde');
+});
+
+test('corDoPercentualAperitivo: mês fora da vigência é erro, como em aplicarTrava (nunca adivinha o limite)', () => {
+  assert.throws(() => M.corDoPercentualAperitivo(130, 9), /fora da vigência/);
+  assert.throws(() => M.corDoPercentualAperitivo(null, 1), /fora da vigência/);
+});
+
+test('corDoPercentualAperitivo concorda com a trava: no mês travado, verde é o mesmo que bater o limite', () => {
+  // a tela passa o % BRUTO: quem é travado chega ao limite, e quem não chega fica vermelho
+  for (const bruto of [95, 129.99999, 130, 142.2631]) {
+    const t = M.aplicarTrava(bruto, 11);
+    const noLimite = t.travado || bruto === M.REGRAS.trava[11];
+    assert.equal(M.corDoPercentualAperitivo(bruto, 11), noLimite ? 'verde' : 'vermelho', String(bruto));
   }
 });
 

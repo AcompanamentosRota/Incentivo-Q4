@@ -2,13 +2,14 @@
 
 Painel de acompanhamento do incentivo **Campari Club** (outubro a dezembro de 2026, Coca-Cola Bandeirantes):
 gatilho de **cobertura de Skyy** e ranking por **volume de aperitivo**, nos níveis Gerente Comercial, Supervisão Mista
-e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e Diretoria e GP ficam na linha "Total Band".
+e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o total da empresa fica na linha
+"Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.6, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
+Regras: [`docs/regras.md`](docs/regras.md) (v1.7, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4C — a tela, com o Ranking GC pela gerência comercial agrupada
+## Estado: etapa 4F — a tela, com os ajustes de tabela da v1.7
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -24,10 +25,15 @@ sinaliza, não decide.
   A tela não calcula nada: lê o que o motor e o adaptador entregam.
 - **Etapa 4B:** ajustes de **apresentação** das duas tabelas de ranking (regras v1.6, seções 5 e 7), descritos no fim
   deste arquivo.
-- **Etapa 4C (esta):** o **Ranking GC pela gerência comercial agrupada** do SAC (regras v1.6, seção 4 e pendência 24):
+- **Etapa 4C:** o **Ranking GC pela gerência comercial agrupada** do SAC (regras v1.6, seção 4 e pendência 24):
   **12 linhas** no lugar das 16 gerências da API. A linha agrupada **soma** as gerências do grupo e só depois calcula
   (`somarGrupo` no motor) — o % é o da soma, nunca a média dos %. No mesmo PR, a cor do bloco Aperitivo passou ao
   **laranja do SAC**. Supervisão, Consultor e Detalhe do mês seguem com as gerências da API.
+- **Etapa 4F (esta):** os **ajustes de tabela** das regras v1.7, seção 7, descritos no fim deste arquivo:
+  centralização, coluna Dez só em dezembro, rótulos "% Acum." e "% Médio", quadradinho no % do mês vigente do
+  Aperitivo (`corDoPercentualAperitivo`, a única regra nova), números do Aperitivo na fonte da tabela, linha do
+  total só com "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. **Nenhum número muda.**
+  A **paginação** de Supervisão e Consultor (15 linhas), também da v1.7, **não entra nesta etapa**.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -36,8 +42,8 @@ sinaliza, não decide.
 | P1 | **Fonte:** só **Barlow Condensed 800** embutida (`src/assets/fonts.json`, ~28 KB), nos números e nos títulos das tabelas. Onde o mockup usa os pesos 600 e 700, o painel usa o 800. O resto é Inter, com reserva na fonte do sistema. **Nenhuma fonte de site externo** (um teste varre o template atrás de `http`, Google Fonts e CDNs) |
 | P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
 | P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
-| P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); Out, Nov, Dez, Soma, % Nov e % Acumulado não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador |
-| P5 | **Colunas da v1.4** (20 no total, 21 em dezembro com o "% Nov"), não as 18 do mockup. Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
+| P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); as colunas de mês, o % Acum., o % Nov e o % Médio não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador. O **mês vigente** (`mesesDoSeletor(...).referencia`) é outra coisa: é o mês de referência da **API**, e é ele que decide as colunas que só existem em dezembro e onde fica o quadradinho do Aperitivo |
+| P5 | **Colunas da v1.4** (19 no total em outubro e novembro, 21 em dezembro com a coluna Dez e o "% Nov"; etapa 4F). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
 | P6 | **Nenhum número de regra digitado na tela:** gatilho, trava e posições premiadas saem de `motor.REGRAS`. Um teste varre o template (sem o CSS) atrás de `130`, "precisa de 100" e "GC: 6 / Mista: 12 / Segmentada: 3" |
 | — | **Consultor lista só as rotas `tipo: "normal"`** (decisão da Karen, 09/11/2026). As `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV: a linha "Total da mesa" pode ser maior que a soma das linhas, e a tela conta quantas ficaram fora (`rotasDaMesa` + `textoDasOcultas`) |
 
@@ -45,11 +51,11 @@ sinaliza, não decide.
 
 | Aba | O que mostra |
 | --- | --- |
-| **Ranking GC** | as **12 linhas da gerência comercial agrupada** (etapa 4C) na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria). A coluna Gerência mostra o código da linha; quem agrupa é `CONFIG.gruposGC` |
+| **Ranking GC** | as **12 linhas da gerência comercial agrupada** (etapa 4C) na ordem do % Acum. de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem % Acum. e sem status: a empresa não tem apuração própria). A coluna Gerência mostra o código da linha; quem agrupa é `CONFIG.gruposGC` |
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão, o aviso de que ranking e premiação são do supervisor para cima, e as rotas da mesa em dois grupos (Volume de Aperitivo · Cobertura de Skyy), com a linha "Total da mesa" |
 | **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos e a linha "Total Band" |
-| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 20) não aparecem |
+| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**) aparecem |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
 
@@ -72,6 +78,7 @@ sinaliza, não decide.
 | `metaDiaCobertura(meta, real, diasRestantes)` | (Meta − Real) ÷ dias restantes, travada, inteiro para cima (tolerância 1e-9); meta batida 0; 0 dias dá a diferença total |
 | `metaDiaVolume(metaDia, real, meta)` | **regra de exibição da meta dia de volume (v1.4)**: Real > Meta → 0; `meta_dia` negativa → 0; não numérica → null ("—"). Nunca recalcula: a `meta_dia` vem pronta da API |
 | `corDoPercentual(valor, cfg)` | **cor do quadradinho do % de cobertura (v1.6)**: `'verde'` com o valor **bruto** ≥ `REGRAS.gatilho.minimo`, `'vermelho'` abaixo dele, `null` sem valor (a tela não desenha quadradinho). O truncado da tela nunca decide a cor: 99,99999% mostra "99,9%" e fica vermelho |
+| `corDoPercentualAperitivo(valor, mes, cfg)` | **cor do quadradinho do % do mês de Aperitivo (v1.7, seção 7)**, só na coluna do mês vigente: `'verde'` com o valor **bruto** ≥ o limite do mês — a trava (`REGRAS.trava[mes]`) nos meses travados e `REGRAS.corAperitivoSemTrava` no mês sem trava (⚠️ pendência 25) —, `'vermelho'` abaixo, `null` sem valor. Mês fora da vigência: erro, como em `aplicarTrava`. É regra **diferente** da do % de cobertura: o limite não é o do gatilho |
 | `hojeAtingiu(online, metaDia)` | "Hoje" colorido: Online > 0 **e** Online ≥ Meta dia (a meta dia **exibida**, para a cor concordar com a coluna ao lado) |
 
 ### Adaptador (`src/adapter.js`)
@@ -183,7 +190,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 170 testes (55 do motor, 115 do adaptador); precisa de Node 18+
+# testes do painel — 184 testes (61 do motor, 123 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -281,13 +288,50 @@ e vale agora também para os **cabeçalhos das colunas** do bloco (`hd-sk`), com
 **11,2:1**; nos cabeçalhos, **11,6:1**. O **corpo** do Skyy ficou como estava (`rgba(29,123,255,.20)`,
 `rgb(12,46,95)`, branco 13,4:1), escolha da Karen entre 12%, 20%, 30% e 40%.
 
-**Etapa 4F — mês travado mostra só o limite (09/11/2026, decisão da Karen).** As colunas Out | Nov | Dez mostravam
+**Mês travado mostra só o limite (09/11/2026, decisão da Karen).** (No PR da etapa 4D este item foi chamado de
+"etapa 4F"; a etapa 4F de verdade é a dos ajustes de tabela, mais abaixo.) As colunas Out | Nov | Dez mostravam
 `130,0%` e, ao lado, o % real do mês em laranja (classe `.tv`). Esse número saiu: a célula mostra só o limite. O
 **motor não mudou** — continua devolvendo `pct` e `travado` —, só a tela deixou de escrever; o CSS do `.tv` e a
 variável `--laranja`, que só ele usava, saíram junto, e o texto da aba Regras deixou de prometer o número ao lado.
-⚠️ **Pendência:** a seção 7 do documento de regras ainda descreve o % real ao lado; a correção é de uma v1.7, em PR
-próprio.
+Na época, a seção 7 do documento de regras ainda descrevia o % real ao lado; a **v1.7** (etapa 4F) já não o
+descreve, e a pendência está fechada.
 
 **CSS com guarda (09/11/2026).** Um comentário mal fechado dentro do `:root` apagou o fundo do bloco Skyy inteiro sem
 erro no console e sem quebrar teste nenhum. Há agora um teste que varre o CSS do template **e** do HTML gerado atrás
 de comentário sem par e de chave desbalanceada.
+
+## Etapa 4F — ajustes de tabela (regras v1.7, seção 7)
+
+Pedidos da Karen em 09/11/2026, depois de ver a 4D na tela. **Só apresentação e rótulos: nenhum número muda** — uma
+comparação linha a linha do que o adaptador e o motor devolvem, antes e depois, em cima da mesma cópia de `api/v1`,
+deu tudo igual (12 linhas de GC, 16 gerências da API, 30 SV Mista, 5 SV Segmentada, 233 rotas e o Total Band).
+
+| # | Ajuste | Onde |
+| --- | --- | --- |
+| 1 | **Centralização** do conteúdo de todas as células, cabeçalho e corpo, nas quatro abas com tabela — inclusive a coluna de identificação (Gerência, SV, Rota) | `.tb th` / `.tb td`; a regra `text-align:left` do `.l` saiu, e a classe continua só como marca dessa coluna |
+| 2 | **Coluna Dez** do Aperitivo só quando o **mês vigente** é dezembro (em outubro e novembro ela não existe, nem cabeçalho nem célula), com `colspan` e `<colgroup>` acompanhando | `mesesAp` na tela, de `R.meses`; o mês vigente vem de `mesesDoSeletor(...).referencia` |
+| 3 | **Rótulos:** "Soma" do Aperitivo vira **"% Acum."**, "% Acum." do Skyy vira **"% Médio"**, e a nota das duas telas passa a "ordem pelo % Acum. de Aperitivo" | só texto de tela: `soma`, `acumulado` e os testes de cálculo não mudam |
+| 4 | **Quadradinho no % do Aperitivo**, só na coluna do **mês vigente**: verde quando o % **bruto** chega ao limite do mês, vermelho abaixo. O "% Acum." e as colunas dos outros meses não têm quadradinho | `motor.corDoPercentualAperitivo(valor, mes)` — a tela pergunta a cor, nunca compara |
+| 4B | **Fonte do Aperitivo:** os números das colunas de mês e do % Acum. saem da condensada grande (`.n`, 19 px / `.n.g`, 23 px) e ficam na fonte da tabela, como as células de cobertura. O CSS do `.n.g`, que só a Soma usava, saiu | `mesCel` e a célula do % Acum. |
+| 5 | **Linha do total** só com **"Total Band"** (sem "· Diretoria e GP"), em todas as abas em que aparece | `linhaRanking` e o texto de Medidas da aba Regras |
+| 6 | **Detalhe do mês** (e o **Consultor**, que é a mesma tabela) com as cores das tabelas de ranking: bloco Aperitivo laranja, Skyy azul, Dif. negativa vermelha e quadradinho nos dois % | `tabelaGrupos`, com as classes `cg-ap`/`cg-sk`, `bl-*` e `hd-*` que já existiam — **nenhum CSS novo** |
+
+**A regra nova.** `corDoPercentualAperitivo(valor, mes, cfg)` é a única regra desta etapa, e mora no motor como a
+`corDoPercentual` da 4B. Ela é **diferente** da do % de cobertura: o limite não é o mínimo do gatilho, e sim o do
+**mês** — a trava (`REGRAS.trava[mes]`) nos meses travados e `REGRAS.corAperitivoSemTrava` no mês sem trava. A cor sai
+do valor **bruto**: no dado real de 09/11/2026 a SV.G2.1 tinha 129,99239% em novembro, mostra "129,9%" e fica
+**vermelha**. Mês fora da vigência é erro, como em `aplicarTrava`.
+
+**Mês vigente ≠ mês do seletor.** O seletor "Mês de referência" troca Meta, Real, Dif e o % do mês; ele **não** mexe
+nas colunas de mês. Por isso a coluna Dez e o quadradinho seguem o mês de referência da **API**
+(`mesesDoSeletor(...).referencia`, campo novo do adaptador), e não a escolha do usuário.
+
+⚠️ **Premissas desta etapa** (pendência 25 das regras; a Karen confirma): o limite do mês **sem trava** (dezembro) e a
+centralização também da coluna de identificação. A primeira está sinalizada em Regras > Dados e alertas. Duas
+interpretações a mais, anotadas aqui porque o pedido não as cobre palavra por palavra: o **Consultor** recebeu as
+cores e os quadradinhos junto com o Detalhe do mês (é a mesma função de tabela e os mesmos dois blocos), e a linha
+**Total Band** também recebe o quadradinho do mês vigente.
+
+**Fora desta etapa:** a **paginação** de Supervisão e Consultor (15 linhas por página, Total Band fixo no rodapé,
+Consultor aberto com todas as rotas), que está na mesma seção 7 da v1.7 e não entrou no pedido da 4F. A Supervisão
+Mista continua rolando (30 linhas).

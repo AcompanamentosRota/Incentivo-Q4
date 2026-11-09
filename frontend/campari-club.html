@@ -15,7 +15,13 @@
    selo (o motor continua devolvendo o motivo, a tela não escreve mais), as legendas e o aviso de SVs fora do
    ranking saem da tela (o aviso continua em Regras > Dados e alertas), os blocos ganham cor (Aperitivo laranja,
    Skyy azul, no padrão do Desafio Q4: título escuro e células em tom bem claro), a Dif. negativa fica vermelha
-   e o % de cobertura ganha o quadradinho verde/vermelho — a cor vem de motor.corDoPercentual, nunca daqui. */
+   e o % de cobertura ganha o quadradinho verde/vermelho — a cor vem de motor.corDoPercentual, nunca daqui.
+   Etapa 4F (regras v1.7, seção 7; pedidos da Karen em 09/11/2026, vendo a 4D na tela): só apresentação outra vez
+   — o conteúdo de TODAS as tabelas fica centralizado, a coluna Dez do Aperitivo só existe em dezembro, "Soma"
+   passa a "% Acum." e o "% Acum." do Skyy a "% Médio", os números do Aperitivo deixam a fonte condensada grande
+   e ficam do tamanho dos do bloco Skyy, a coluna do mês vigente do Aperitivo ganha quadradinho (cor de
+   motor.corDoPercentualAperitivo, que lê o limite da trava do mês) e o Consultor e o Detalhe do mês recebem as
+   mesmas cores e os mesmos quadradinhos das tabelas de ranking. Nenhum número muda. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -101,7 +107,7 @@ button{cursor:pointer}
 
 /* tabelas */
 .tb{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
-.tb th{font-size:13px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;color:var(--muted);text-align:right;padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.18);white-space:nowrap;background:#0B1E3C;position:sticky;z-index:2}
+.tb th{font-size:13px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;color:var(--muted);text-align:center;padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.18);white-space:nowrap;background:#0B1E3C;position:sticky;z-index:2}
 .tb tr.grp th{top:0;border-bottom:none;text-align:center;font-family:var(--cond);font-weight:800;font-size:18px;letter-spacing:.04em;color:#fff;padding-bottom:0}
 /* Etapa 4B: cor dos dois blocos (Ranking GC e Supervisão). O título leva o tom ESCURO e o corpo das células o tom
    BEM CLARO da mesma cor, pelo <colgroup> — assim nenhuma célula precisa de classe e o fundo claro fica embaixo
@@ -119,8 +125,10 @@ button{cursor:pointer}
 .tb tr.hdr th.hd-sk{background:var(--sk-tit)}
 .tb tr.grp th.bl-sk,.tb tr.hdr th.hd-sk{color:var(--sk-tit-fg)}
 .tb tr.hdr th{top:25px}
-.tb th.l,.tb td.l{text-align:left}
-.tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;white-space:nowrap;color:#fff}
+/* Etapa 4F: o conteúdo das células fica CENTRALIZADO em todas as tabelas de todas as abas, inclusive a coluna
+   de identificação (Gerência, SV, Rota). A classe .l continua, só como marca dessa coluna (largura e colspan):
+   o text-align:left que ela trazia saiu. */
+.tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:center;white-space:nowrap;color:#fff}
 .tb td.sep,.tb th.sep{border-left:1px solid rgba(255,255,255,.16)}
 .tb.g2 th.l:first-child,.tb.g2 td.l:first-child{width:200px}
 .tb th.k,.tb td.k{background:rgba(255,255,255,.05)}
@@ -133,11 +141,9 @@ button{cursor:pointer}
 .tb.rk td,.tb.rk th{padding-top:3px;padding-bottom:3px}
 .tb.rk tr.grp th{font-size:17px}
 .tb.rk .n{font-size:19px}
-.tb.rk .n.g{font-size:23px}
 .tb.rk .cod{font-size:15px}
 .cod{font-weight:700;font-size:16px}
 .n{font-family:var(--cond);font-weight:800;font-size:20px;line-height:1}
-.n.g{font-size:24px}
 /* Diferença negativa: vermelha (regras v1.6, seção 7; substitui o laranja). O seletor precisa do `td` para
    ganhar de `.tb td{color:#fff}`: só com `.neg` a cor não chegava à célula (era o caso do laranja da etapa 4). */
 .tb td.neg{color:var(--negv)}
@@ -205,7 +211,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.6 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.7 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -219,6 +225,10 @@ button{cursor:pointer}
  * Etapa 4C: a soma da gerência comercial agrupada do Ranking GC (`somarGrupo`, regras v1.6, seção 4 e pendência
  * 24). O agrupamento em si (quais gerências formam cada linha) é configuração do adaptador; a REGRA que mora aqui
  * é a de somar as medidas e só depois calcular — o % é o da soma, nunca a média dos % das gerências.
+ * Etapa 4F: a cor do quadradinho do % do mês de Aperitivo (`corDoPercentualAperitivo`, regras v1.7, seção 7;
+ * decisão da Karen de 09/11/2026). Exibição outra vez, e regra outra vez — e é regra DIFERENTE da do % de
+ * cobertura: o verde começa no limite da TRAVA do mês e, no mês sem trava, em `REGRAS.corAperitivoSemTrava`,
+ * nunca no mínimo do gatilho, que é de cobertura.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -229,10 +239,15 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.6',
+    versao: '1.7',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
+    // Limite do quadradinho VERDE do % do mês de Aperitivo no mês SEM trava (dezembro), em pontos percentuais
+    // (regras v1.7, seção 7; ⚠️ pendência 25, a confirmar com a Karen). Nos meses com trava o limite é a própria
+    // trava, por isso ele não se repete aqui. É outro número que o mínimo do gatilho, ainda que hoje coincidam:
+    // um é volume de Aperitivo, o outro é cobertura de Skyy.
+    corAperitivoSemTrava: 100,
     // Gatilho de cobertura de Skyy (regras, seção 2): média simples dos % de novembro e dezembro, mínimo 100%.
     // Outubro nunca entra. Em novembro o gatilho é parcial (só novembro).
     gatilho: { meses: [11, 12], minimo: 100 },
@@ -517,6 +532,27 @@ button{cursor:pointer}
   }
 
   /**
+   * Cor do quadradinho do % do MÊS de Aperitivo (regras v1.7, seção 7; decisão da Karen de 09/11/2026). Vale só
+   * para a coluna do mês vigente das tabelas de ranking e para o % do Consultor e do Detalhe do mês: a tela
+   * pergunta a cor e nunca compara nada.
+   *   - 'verde'    -> o valor BRUTO chega ao limite do mês: a trava (`REGRAS.trava[mes]`) nos meses travados e
+   *                   `REGRAS.corAperitivoSemTrava` no mês sem trava (dezembro) — ⚠️ pendência 25;
+   *   - 'vermelho' -> o valor bruto está abaixo desse limite;
+   *   - null       -> sem valor ("—"): a tela não desenha quadradinho nenhum.
+   * A comparação é no valor BRUTO, nunca no truncado da tela: 129,99999% aparece como "129,9%" e fica VERMELHO.
+   * Mês fora da vigência: erro, como em `aplicarTrava` (nunca adivinhar o limite de um mês que não existe).
+   * O % ACUMULADO de Aperitivo (a soma do ranking) não tem quadradinho: esta função não serve a ele.
+   */
+  function corDoPercentualAperitivo(valor, mes, cfg) {
+    const regras = cfg || REGRAS;
+    if (!Object.prototype.hasOwnProperty.call(regras.trava, mes)) throw new Error(`mês ${mes} fora da vigência do Campari Club`);
+    if (!numero(valor)) return null;
+    const trava = regras.trava[mes];
+    const limite = trava === null || trava === undefined ? regras.corAperitivoSemTrava : trava;
+    return valor >= limite ? 'verde' : 'vermelho';
+  }
+
+  /**
    * "Hoje" colorido (regras, seção 7; pendência 17, confirmada em 08/11/2026): Online > 0 E Online ≥ Meta dia.
    * Meta dia 0 com Online > 0 colore; meta dia 0 com Online 0 não colore; meta dia null (API em período de
    * fechamento, ou cobertura sem meta) não colore. Serve para volume (`meta_dia` da API) e para cobertura
@@ -532,7 +568,7 @@ button{cursor:pointer}
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
-           hojeAtingiu };
+           corDoPercentualAperitivo, hojeAtingiu };
 });
 </script>
 <script>const BASE_CANAIS_CAMPARI = {
@@ -1481,12 +1517,16 @@ const rotuloDoMes = (mes, ano, estado) =>
   maiusc1(NOMES_MES[mes] || '?') + '/' + String(ano).slice(-2) + (estado === 'previa' ? ' (prévia)' : '');
 
 /**
- * Opções do seletor "Mês de referência" (premissa P4) e o mês padrão.
- * Devolve { meses: [{ mes, anomes, rotulo, fonte, estado, aberto, habilitado, motivo }], padrao }.
+ * Opções do seletor "Mês de referência" (premissa P4), o mês padrão e o mês vigente.
+ * Devolve { meses: [{ mes, anomes, rotulo, fonte, estado, aberto, habilitado, motivo }], padrao, referencia }.
  *   - `habilitado` = o mês tem fonte de volume ('api' ou 'fechado'); mês futuro ou indisponível fica DESABILITADO;
  *   - `aberto` = mês de referência fora do período de fechamento da API (é o único com M. Dia e Online);
  *   - `padrao` = o mês de referência do index.json, quando habilitado; senão o último habilitado; nenhum: null.
- * O seletor troca só Meta, Real, Dif e o % do mês: Out, Nov, Dez, Soma, % Nov e % Acumulado não dependem dele.
+ *   - `referencia` = o mês VIGENTE: o mês da vigência que o index.json publica como referência, mesmo sem fonte
+ *     de volume e mesmo no período de fechamento da API; referência fora da vigência: null. É ele, e não a
+ *     escolha do seletor, que decide as colunas que só existem em dezembro e em qual coluna de mês fica o
+ *     quadradinho do % de Aperitivo (regras v1.7, seção 7).
+ * O seletor troca só Meta, Real, Dif e o % do mês: Out, Nov, Dez, % Acum., % Nov e % Médio não dependem dele.
  */
 function mesesDoSeletor(dados, cfg) {
   cfg = cfg || CONFIG;
@@ -1500,8 +1540,10 @@ function mesesDoSeletor(dados, cfg) {
   });
   const ref = String(dados && dados.mesReferencia ? dados.mesReferencia.anomes : '');
   const doRef = meses.find((m) => m.anomes === ref && m.habilitado);
+  const naVigencia = meses.find((m) => m.anomes === ref);
   const hab = meses.filter((m) => m.habilitado);
-  return { meses, padrao: doRef ? doRef.mes : hab.length ? hab[hab.length - 1].mes : null };
+  return { meses, padrao: doRef ? doRef.mes : hab.length ? hab[hab.length - 1].mes : null,
+           referencia: naVigencia ? naVigencia.mes : null };
 }
 
 /** Mês sem nenhuma medida: a tela mostra "—" em tudo, nunca zero. */
@@ -1587,7 +1629,7 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.6.
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.7.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -1624,7 +1666,13 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.6, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.7, seção 7).');
+  // ⚠️ pendência 25 das regras v1.7: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
+  // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
+  // ainda confirma. O número sai do motor, nunca escrito aqui.
+  add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
+      'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
+      ' (regras v1.7, pendência 25). Nos meses travados o limite é o da trava.');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
@@ -1668,9 +1716,14 @@ const NOME_NIVEL = { gc:'GC', svMista:'SV Mista', svSegmentada:'SV Segmentada' }
 const D = await carregarRanking(CONFIG.api);
 const SEL = mesesDoSeletor(D);
 const FIL = filtrosDoPainel(D);
-const mesAbertoObj = SEL.meses.find((m)=>m.aberto) || null;
-const mesAberto = mesAbertoObj ? mesAbertoObj.mes : null;
-const mostrarPctNov = mesAberto === 12;   /* "% Nov" só quando o mês aberto for dezembro (premissa P4) */
+/* Mês VIGENTE = o mês de referência da API (SEL.referencia, do adaptador), nunca o escolhido no seletor: o
+   seletor troca Meta, Real, Dif e o % do mês, e nenhuma coluna de mês (regras v1.7, seção 7). Ele decide as duas
+   colunas que só existem em dezembro — a coluna Dez do Aperitivo e o "% Nov" do Skyy — e em qual coluna de mês
+   fica o quadradinho do Aperitivo. O último e o penúltimo mês saem de R.meses: nenhum mês digitado aqui. */
+const mesUltimo = R.meses[R.meses.length-1], mesPenultimo = R.meses[R.meses.length-2];
+const emDezembro = SEL.referencia === mesUltimo;
+const mesesAp = R.meses.filter((m)=>m!==mesUltimo || emDezembro);
+const mostrarPctNov = emDezembro;
 const st = { aba:'gc', mes:SEL.padrao, canal:'Mista', ger:'', sv:(FIL.svs[0]||{}).codigo||'', detVisao:'gc', detMes:SEL.padrao };
 
 /* ─── faixa de topo: API fora, dados simulados ou produtos não publicados ─────────────────────────────── */
@@ -1705,10 +1758,14 @@ const hojeCel = (m, f)=>'<td><span class="hoje'+(m.hojeOk?' ok':'')+'">'+esc(m.a
 const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
 /* Out | Nov | Dez: SÓ o % travado. Mês acima do limite mostra o limite e nada mais — o % real do mês, que até a
    etapa 4D aparecia em laranja ao lado (classe .tv), saiu a pedido da Karen em 09/11/2026. O motor continua
-   devolvendo `pct` e `travado`: é só a tela que deixou de escrever. */
-const mesCel = (m)=>{
-  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td><span class="n">'+esc(TRACO)+'</span></td>';
-  return '<td><span class="n">'+pct(m.pctTravado)+'</span></td>';
+   devolvendo `pct` e `travado`: é só a tela que deixou de escrever.
+   Etapa 4F: os números saem da fonte condensada grande (.n) e ficam do tamanho dos do bloco Skyy, e a coluna do
+   mês VIGENTE ganha o quadradinho. A cor vem de motor.corDoPercentualAperitivo, pelo mês (o limite é o da trava
+   dele) e pelo valor BRUTO — que a tela lê para perguntar a cor e continua sem escrever. */
+const mesCel = (m, vigente)=>{
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+'</td>';
+  const cor = vigente ? M.corDoPercentualAperitivo(m.pct, m.mes) : null;
+  return '<td><span'+(cor?' class="pchip '+cor+'"':'')+'>'+pct(m.pctTravado)+'</span></td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -1717,6 +1774,10 @@ const pctCobCel = (v, extra)=>{
   const cor = M.corDoPercentual(v);
   return '<td'+(extra||'')+'><span class="n'+(cor?' pchip '+cor:'')+'">'+pct(v)+'</span></td>';
 };
+/* % de um mês com o quadradinho, na fonte da própria tabela — o % do Consultor e do Detalhe do mês (etapa 4F,
+   item 6). A cor já vem decidida pelo motor: do mínimo do gatilho no Skyy (M.corDoPercentual) e do limite do mês
+   no Aperitivo (M.corDoPercentualAperitivo). Sem valor: sem quadradinho. */
+const pctGrupoCel = (v, cor)=>'<td style="font-weight:700"><span'+(cor?' class="pchip '+cor+'"':'')+'>'+pct(v)+'</span></td>';
 /* Status: só o selo (regras v1.6, seção 5; decisão de 09/11/2026). O motor continua devolvendo o motivo
    (l.status.motivo) e nada na tela o escreve. */
 const statusCel = (l)=>{
@@ -1726,7 +1787,8 @@ const statusCel = (l)=>{
 
 /* ─── tabela de ranking (Ranking GC e Supervisão; colunas da premissa P5 / regras v1.4, seção 7) ──────── */
 function cabecalhoRanking(rotuloId){
-  const apCols = 9, skCols = mostrarPctNov?8:7;
+  /* Aperitivo: 5 colunas fixas + as colunas de mês que a tela mostra (etapa 4F, item 2) + o % Acum. */
+  const apCols = 6 + mesesAp.length, skCols = mostrarPctNov?8:7;
   return '<colgroup><col span="3"></colgroup>'+
     '<colgroup class="cg-ap"><col span="'+apCols+'"></colgroup>'+
     '<colgroup class="cg-sk"><col span="'+skCols+'"></colgroup>'+
@@ -1739,10 +1801,10 @@ function cabecalhoRanking(rotuloId){
     '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
     '<th class="hd-ap sep">Meta</th><th class="hd-ap">Real</th><th class="hd-ap">M. Dia</th>'+
     '<th class="hd-ap">Online</th><th class="hd-ap">Dif.</th>'+
-    R.meses.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">Soma</th>'+
+    mesesAp.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">% Acum.</th>'+
     '<th class="hd-sk sep">Meta</th><th class="hd-sk">Real</th><th class="hd-sk">M. Dia</th>'+
     '<th class="hd-sk">Online</th><th class="hd-sk">Dif.</th><th class="hd-sk">% mês</th>'+
-    (mostrarPctNov?'<th class="hd-sk">% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="hd-sk k">% Acum.</th>'+
+    (mostrarPctNov?'<th class="hd-sk">% '+esc(NOMES_MES[mesPenultimo].slice(0,3))+'</th>':'')+'<th class="hd-sk k">% Médio</th>'+
     '<th class="l sep">Status</th></tr></thead>';
 }
 function linhaRanking(l, opc){
@@ -1750,14 +1812,14 @@ function linhaRanking(l, opc){
   const ap = valoresDoMes(l.tabela,'aperitivo',st.mes), sk = valoresDoMes(l.tabela,'skyy',st.mes);
   const bAp = l.tabela.aperitivo, bSk = l.tabela.skyy;
   const idCels = opc.total
-    ? '<td class="l" colspan="3">'+esc(l.codigo)+' <span style="font-weight:500;font-size:13px;color:var(--muted)">· Diretoria e GP</span></td>'
+    ? '<td class="l" colspan="3">'+esc(l.codigo)+'</td>'
     : '<td class="l"><span class="n pos'+(l.oficial?'':' cinza')+'">'+esc(l.pos)+'º</span></td>'+
       '<td class="l"><span class="n of">'+(l.oficial?esc(l.oficial)+'º':esc(TRACO))+'</span></td>'+
       '<td class="l cod">'+esc(l.codigo)+'</td>';
   return '<tr'+(opc.total?' class="tot"':'')+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
-    R.meses.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m))).join('')+
-    '<td class="k"><span class="n g">'+(opc.total?esc(TRACO):pct(bAp.soma))+'</span></td>'+
+    mesesAp.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m), m===SEL.referencia)).join('')+
+    '<td class="k">'+(opc.total?esc(TRACO):pct(bAp.soma))+'</td>'+
     '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+
     pctCobCel(sk.pct)+
     (mostrarPctNov?'<td><span class="n">'+pct(bSk.pctNov)+'</span></td>':'')+
@@ -1765,8 +1827,8 @@ function linhaRanking(l, opc){
     (opc.total?'<td class="l sep" style="font-weight:500;font-size:13px;color:var(--muted)">sem ranking</td>':statusCel(l))+
     '</tr>';
 }
-/* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava, a Soma
-   e o % Acum. ficam explicados na aba Regras, e o rodapé comum continua. */
+/* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava e os
+   dois % acumulados ficam explicados na aba Regras, e o rodapé comum continua. */
 function tabelaRanking(linhas, rotuloId, comTotal){
   const corpo = linhas.map((l)=>linhaRanking(l)).join('') +
     (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
@@ -1774,19 +1836,24 @@ function tabelaRanking(linhas, rotuloId, comTotal){
 }
 
 /* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
+/* Etapa 4F (item 6): os dois blocos usam as MESMAS cores e os mesmos quadradinhos das tabelas de ranking, pelas
+   classes e variáveis que já existem (nenhum CSS novo). O pedido da Karen fala do Detalhe do mês; o Consultor é
+   esta mesma tabela, com estes mesmos dois blocos, então recebe o mesmo tratamento. */
 function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal){
-  const cabeca = '<thead><tr class="grp"><th class="l"></th>'+
-    '<th colspan="6" class="sep">VOLUME DE APERITIVO</th>'+
-    '<th colspan="6" class="sep">COBERTURA DE SKYY <small>· CLIENTES</small></th></tr>'+
-    '<tr class="hdr"><th class="l">'+esc(rotuloId)+'</th>'+
-    ['sep','','','','',''].map((c,i)=>'<th'+(i===0?' class="sep"':'')+'>'+['Meta','Real','Meta dia','Hoje','Dif.','%'][i]+'</th>').join('')+
-    ['sep','','','','',''].map((c,i)=>'<th'+(i===0?' class="sep"':'')+'>'+['Meta','Real','Meta dia','Hoje','Dif.','%'][i]+'</th>').join('')+
-    '</tr></thead>';
+  const COLS = ['Meta','Real','Meta dia','Hoje','Dif.','%'];
+  const cabHd = (classe)=>COLS.map((c,i)=>'<th class="'+classe+(i===0?' sep':'')+'">'+c+'</th>').join('');
+  const cabeca = '<colgroup><col></colgroup>'+
+    '<colgroup class="cg-ap"><col span="'+COLS.length+'"></colgroup>'+
+    '<colgroup class="cg-sk"><col span="'+COLS.length+'"></colgroup>'+
+    '<thead><tr class="grp"><th class="l"></th>'+
+    '<th colspan="'+COLS.length+'" class="sep bl-ap">VOLUME DE APERITIVO</th>'+
+    '<th colspan="'+COLS.length+'" class="sep bl-sk">COBERTURA DE SKYY <small>· CLIENTES</small></th></tr>'+
+    '<tr class="hdr"><th class="l">'+esc(rotuloId)+'</th>'+cabHd('hd-ap')+cabHd('hd-sk')+'</tr></thead>';
   const corpo = (l, total)=>{
     const ap = valoresDoMes(l.tabela,'aperitivo',mes), sk = valoresDoMes(l.tabela,'skyy',mes);
     return '<tr'+(total?' class="tot"':'')+'><td class="l cod">'+esc(total?rotuloTotal:l.codigo)+'</td>'+
-      '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+'<td style="font-weight:700">'+pct(ap.pct)+'</td>'+
-      '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+'<td style="font-weight:700">'+pct(sk.pct)+'</td>'+
+      '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+pctGrupoCel(ap.pct, M.corDoPercentualAperitivo(ap.pct, mes))+
+      '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+pctGrupoCel(sk.pct, M.corDoPercentual(sk.pct))+
       '</tr>';
   };
   return '<div class="rolar"><table class="tb g2">'+cabeca+'<tbody>'+linhas.map((l)=>corpo(l,false)).join('')+
@@ -1840,7 +1907,7 @@ function viewGC(){
   /* Etapa 4C: as linhas são as da gerência comercial AGRUPADA (D.gc), somadas pelo adaptador e pelo motor; a
      coluna Gerência mostra o código da própria linha. O Detalhe do mês e os filtros seguem com as da API. */
   return '<div class="panel"><div class="ph"><h2>Ranking das gerências comerciais</h2>'+
-    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comGatilho+' com gatilho batido · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     tabelaRanking(D.gc,'Gerência',true)+'</div>';
 }
@@ -1852,7 +1919,7 @@ function viewSV(){
   /* As supervisões sem canal (ou com empate de canal na mesa) não aparecem mais nesta tela, nem a legenda
      (regras v1.6, seção 7): o aviso continua calculado no adaptador (D.fora) e sai em Regras > Dados e alertas. */
   return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
-    '<div class="nota">'+linhas.length+' supervisores · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+    '<div class="nota">'+linhas.length+' supervisores · '+comGatilho+' com gatilho batido · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
     '</div>';
@@ -1895,15 +1962,18 @@ function viewRegras(){
   const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
   return '<section><h2>Como funciona</h2>'+
     passos.map((p,i)=>'<div class="item"><div class="ic">'+(i+1)+'</div><div><strong>'+esc(p[0])+':</strong> '+esc(p[1])+'</div></div>').join('')+
-    '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula na Soma: a coluna do mês mostra o limite, e só.</div>'+
+    '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula no % Acum.: a coluna do mês mostra o limite, e só.</div>'+
     '</section>'+
     '<section><h2>Status</h2>'+
     '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu o gatilho de cobertura e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
     '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: gatilho pendente ou fora das posições premiadas.</div></div>'+
     '<p>Nas tabelas de ranking a coluna Status mostra só o selo. Nelas, o <strong>% do mês</strong> e o '+
-    '<strong>% Acum.</strong> de Skyy aparecem num quadradinho <span class="pchip verde">verde</span> quando o % '+
+    '<strong>% Médio</strong> de Skyy aparecem num quadradinho <span class="pchip verde">verde</span> quando o % '+
     'chega ao mínimo do gatilho ('+pct(R.gatilho.minimo)+') e <span class="pchip vermelho">vermelho</span> quando '+
-    'não chega; sem valor, não há quadradinho. A <strong>Dif.</strong> negativa aparece '+
+    'não chega; sem valor, não há quadradinho. No <strong>Aperitivo</strong> o quadradinho fica só na coluna do '+
+    'mês vigente, e ali o verde começa no limite da trava do mês ('+pct(R.trava[R.meses[0]])+') e, no mês sem '+
+    'trava, em '+pct(R.corAperitivoSemTrava)+'; o <strong>% Acum.</strong> não tem quadradinho. O Consultor e o '+
+    'Detalhe do mês usam as mesmas cores. A <strong>Dif.</strong> negativa aparece '+
     '<span style="color:var(--negv);font-weight:700">em vermelho</span>.</p>'+
     '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu o gatilho; a posição em cinza é apenas a ordem na tela.</p>'+
     '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
@@ -1913,7 +1983,7 @@ function viewRegras(){
     '<tr><td>Hoje</td><td>Online. Na cobertura, só clientes novos no mês</td></tr>'+
     '<tr><td>Meta dia</td><td>Volume: pronta na API; a tela mostra 0 quando o Real já passou da Meta. Cobertura: (Meta − Real) ÷ dias úteis restantes, em clientes inteiros para cima</td></tr>'+
     '<tr><td>Dif. e %</td><td>Real + Hoje − Meta · (Real + Hoje) ÷ Meta, truncado</td></tr>'+
-    '<tr><td>Total Band</td><td>Todas as gerências (Diretoria e GP), sem ranking</td></tr>'+
+    '<tr><td>Total Band</td><td>Todas as gerências somadas, sem ranking</td></tr>'+
     '</tbody></table>'+
     '<h2 style="margin-top:6px">Dados e alertas</h2><div class="al">'+
     (alertas.length?alertas.map((a)=>'<div class="'+classe[a.tipo]+'"><b>'+esc(a.titulo)+'</b>'+esc(a.texto)+'</div>').join('')
