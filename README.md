@@ -60,8 +60,9 @@ Incentivo-Q4/
    primeira execução agendada do dia faz a consulta completa. Ela guarda tudo menos os pedidos de hoje no cache do
    Actions (nunca no repositório), e as execuções seguintes consultam **só o Online**. A cada execução, uma consulta
    barata do Real por agrupador confere a base: se o Real mudou, se a base é de outro dia ou não foi encontrada, a
-   execução volta à consulta completa. O fechamento do mês, a execução manual e a do `ajustes.json` são sempre
-   completas. Os meses em prévia são consultados de novo só na carga completa do dia. A API sai igual à da consulta
+   execução volta à consulta completa. O fechamento do mês e a execução do `ajustes.json` são sempre completas; a
+   execução manual (botão "Run workflow" ou o robô que dispara a cada 15 min) é incremental, a não ser com a opção
+   "Carga completa" marcada. Os meses em prévia são consultados de novo só na carga completa do dia. A API sai igual à da consulta
    completa.
 
 Regras de volume (iguais às da TI): meta = META_VOLUME da rota; realizado = FX_VOL_PADRAO_FAT com

@@ -112,8 +112,9 @@ Detalhes que o `--help` não deixa óbvios:
 - Saída: `0` ok, `1` erro de execução, `2` dados reprovados na validação (nada é gravado).
 - `--base-dia ARQ` (o workflow usa `saida/base_dia/base.json`, no cache do Actions): depois da 1ª carga completa do dia,
   as rodadas consultam só o Online (`gerador/base_dia.py`); Real mudou, base de outro dia ou ilegível, fechamento do
-  mês: carga completa. `--completa` força a carga completa e grava a base nova (execução manual e push do
-  `ajustes.json`). Não vale com `--rota` nem `--simulado`. Na rodada incremental os meses em prévia não são
+  mês: carga completa. `--completa` força a carga completa e grava a base nova (push do `ajustes.json` e
+  execução manual com "Carga completa" marcado; a manual sem a marca, que é a do robô que dispara o workflow a cada
+  15 min porque o agendamento do GitHub falha, é incremental como a agendada). Não vale com `--rota` nem `--simulado`. Na rodada incremental os meses em prévia não são
   consultados de novo (só mudam de um dia para o outro).
 
 ## 4. Fluxo de uma mudança
