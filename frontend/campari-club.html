@@ -90,7 +90,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <section class="view" id="v-obra" aria-label="Aba em construção">
     <div class="panel"><div class="obra">
       <b id="obra-tt"></b>
-      <p>Esta aba está em construção. Ranking de volume, gatilho de cobertura, colunas, meta dia, Total Band e premiação
+      <p>Esta aba está em construção. Ranking de volume, gatilho de cobertura, colunas, meta dia, Total Band e status
         entram nas próximas etapas. Nenhum número é calculado nesta versão.</p>
       <p class="aviso" id="obra-aviso"></p>
     </div></div>
@@ -103,34 +103,339 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     </div></div>
   </section>
 
-  <div class="foot"><span id="rodtx">Etapa 1: painel sem cálculo. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodtx">Etapa 2: dados e motor do ranking de volume prontos; telas em construção. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.1 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.3 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
- * Etapa 1 (esqueleto): ainda NÃO há regra de cálculo. Nada de %, trava, gatilho, posição nem meta dia.
- * Quando as regras entrarem (etapas seguintes), elas ficam só aqui: nenhuma fórmula no adaptador nem na tela.
+ * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
+ * Etapa 2: ranking de volume de Aperitivo (% do mês, trava, soma, ordem e posição). Gatilho de cobertura, status,
+ * posição oficial e meta dia de cobertura entram na Etapa 3.
+ *
+ * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.MotorCampari = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  return { versaoRegras: '1.1' };
+
+  const REGRAS = {
+    versao: '1.3',
+    meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
+    // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
+    trava: { 10: 130, 11: 130, 12: null },
+  };
+
+  const numero = (v) => typeof v === 'number' && Number.isFinite(v);
+
+  /**
+   * % do mês = (Real + Online) ÷ Meta × 100, bruto (nunca o `atingimento_pct` inteiro da API).
+   * Meta nula, não numérica ou ≤ 0: null (nunca 0 nem 100). Real não numérico: null.
+   * Online ausente (null/undefined) conta 0: no mês fechado não existe online.
+   */
+  function percentualMes(real, online, meta) {
+    if (!numero(meta) || meta <= 0) return null;
+    if (!numero(real)) return null;
+    if (online === null || online === undefined) online = 0;
+    if (!numero(online)) return null;
+    return ((real + online) / meta) * 100;
+  }
+
+  /**
+   * Trava do mês sobre o % bruto: min(%, limite). Exatamente no limite não conta como travado.
+   * Mês sem trava (dezembro): o próprio %. % null: { valor: null, travado: false }.
+   * Mês fora da vigência: erro (nunca adivinhar a regra).
+   */
+  function aplicarTrava(pct, mes, regras) {
+    regras = regras || REGRAS;
+    if (!Object.prototype.hasOwnProperty.call(regras.trava, mes)) throw new Error(`mês ${mes} fora da vigência do Campari Club`);
+    if (pct === null || pct === undefined) return { valor: null, travado: false };
+    const limite = regras.trava[mes];
+    if (limite === null || limite === undefined || pct <= limite) return { valor: pct, travado: false };
+    return { valor: limite, travado: true };
+  }
+
+  /** Pontuação do ranking: soma dos % mensais já travados, só dos meses com %. Nenhum mês com %: null. */
+  function somaRanking(valores) {
+    const com = (valores || []).filter(numero);
+    return com.length ? com.reduce((a, b) => a + b, 0) : null;
+  }
+
+  /**
+   * Um participante (GC, SV ou rota) -> % de cada mês, trava, soma e marca de incompleta.
+   * meses: [{ mes, situacao: 'dado' | 'indisponivel' | 'futuro', meta, real, online, ... }]
+   *   - 'dado': o mês tem fonte (API no mês aberto ou fechado/AAAAMM.json); o % sai de Real + Online sobre a Meta;
+   *   - 'indisponivel': o mês já devia ter dado e não tem (fechado ausente, produto ausente): sem %, linha incompleta;
+   *   - 'futuro': mês posterior ao de referência: sem %, não conta na soma e não deixa a linha incompleta.
+   * Devolve { meses (cópias com pct, pctTravado, travado), soma, incompleta, mesesSemPct }.
+   * incompleta = algum mês que já devia contar ficou sem % (meta nula ou ≤ 0, ou mês indisponível) (premissa P4).
+   */
+  function apurarMeses(meses, regras) {
+    regras = regras || REGRAS;
+    const out = (meses || []).map((m) => {
+      const pct = m.situacao === 'dado' ? percentualMes(m.real, m.online, m.meta) : null;
+      const t = aplicarTrava(pct, m.mes, regras);
+      return Object.assign({}, m, { pct, pctTravado: t.valor, travado: t.travado });
+    });
+    const mesesSemPct = out.filter((m) => m.situacao !== 'futuro' && m.pct === null).map((m) => m.mes);
+    return { meses: out, soma: somaRanking(out.map((m) => m.pctTravado)), incompleta: mesesSemPct.length > 0, mesesSemPct };
+  }
+
+  /** Chave de desempate: o código (id da API) em minúsculas; comparação de texto simples ("sv.g2.10" < "sv.g2.2"). */
+  const chaveCodigo = (codigo) => String(codigo).toLowerCase();
+
+  /**
+   * Ordem do ranking: soma desc; empate (inclusive soma null): código em minúsculas, texto simples (regras, seção 5).
+   * Linha sem soma (nenhum mês com %) vai para o fim. Não altera a entrada; ordem estável.
+   */
+  function ordenarRanking(linhas) {
+    return (linhas || []).map((l, i) => [l, i]).sort(([a, ia], [b, ib]) => {
+      const sa = numero(a.soma) ? a.soma : null, sb = numero(b.soma) ? b.soma : null;
+      if (sa !== sb) {
+        if (sa === null) return 1;
+        if (sb === null) return -1;
+        return sb - sa;
+      }
+      const ca = chaveCodigo(a.codigo), cb = chaveCodigo(b.codigo);
+      if (ca !== cb) return ca < cb ? -1 : 1;
+      return ia - ib;
+    }).map(([l]) => l);
+  }
+
+  /** Posição (coluna "Pos.") 1..n em todas as linhas, na ordem recebida. Devolve cópias. */
+  function numerarRanking(linhas) {
+    return (linhas || []).map((l, i) => Object.assign({}, l, { pos: i + 1 }));
+  }
+
+  /** Ordena e numera (atalho usado pelo adaptador). */
+  const montarRanking = (linhas) => numerarRanking(ordenarRanking(linhas));
+
+  return { versaoRegras: REGRAS.versao, REGRAS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
+           ordenarRanking, numerarRanking, montarRanking, chaveCodigo };
 });
 </script>
+<script>const BASE_CANAIS_CAMPARI = {
+ "meta": {"origem": "painel-q4/data/data.json", "foto": "2026-11-09", "corteSeg": "25/10/2026 13:11", "nota": "cópia do canal das rotas da base embutida do Desafio Q4; regerar com scripts/copiar_canais.py"},
+ "rotas": [
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A11", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A12", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A13", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A14", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A15", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.1", "rota": "A16", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A21", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A22", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A23", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A24", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A25", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A26", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.2", "rota": "A27", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A31", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A32", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A33", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A34", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A35", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A36", "canal": "Mista", "sub": null},
+  {"gc": "An", "sv": "Sv. An.3", "rota": "A37", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.1", "rota": "511", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Ap", "sv": "Sv. Ap.1", "rota": "512", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Ap", "sv": "Sv. Ap.1", "rota": "513", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Ap", "sv": "Sv. Ap.1", "rota": "514", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Ap", "sv": "Sv. Ap.1", "rota": "515", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "521", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "522", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "523", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "524", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "525", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "526", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "527", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.2", "rota": "528", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "531", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "532", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "533", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "534", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "535", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "536", "canal": "Mista", "sub": null},
+  {"gc": "Ap", "sv": "Sv. Ap.3", "rota": "537", "canal": "Mista", "sub": null},
+  {"gc": "At", "sv": "Sv. At.1", "rota": "411", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "At", "sv": "Sv. At.2", "rota": "421", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "111", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "112", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "113", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "114", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "115", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "116", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.1", "rota": "117", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "121", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "122", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "123", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "124", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "125", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "126", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.2", "rota": "127", "canal": "Mista", "sub": null},
+  {"gc": "G1", "sv": "Sv. G1.3", "rota": "131", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "G1", "sv": "Sv. G1.3", "rota": "132", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G1", "sv": "Sv. G1.3", "rota": "133", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "211", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "212", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "213", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "214", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "215", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "216", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.1", "rota": "217", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "221", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "222", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "223", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "224", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "225", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "226", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.2", "rota": "227", "canal": "Mista", "sub": null},
+  {"gc": "G2", "sv": "Sv. G2.3", "rota": "231", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G2", "sv": "Sv. G2.3", "rota": "232", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G2", "sv": "Sv. G2.3", "rota": "233", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G2", "sv": "Sv. G2.3", "rota": "234", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "311", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "312", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "313", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "314", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "315", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "316", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.1", "rota": "317", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.2", "rota": "321", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.2", "rota": "322", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.2", "rota": "323", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.2", "rota": "324", "canal": "Mista", "sub": null},
+  {"gc": "G3", "sv": "Sv. G3.2", "rota": "325", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G11", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G12", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G13", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G14", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G15", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G16", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.1", "rota": "G17", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G21", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G22", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G23", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G24", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G25", "canal": "Mista", "sub": null},
+  {"gc": "Gu", "sv": "Sv. Gu.2", "rota": "G26", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O11", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O12", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O13", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O14", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O15", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O16", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O17", "canal": "Mista", "sub": null},
+  {"gc": "Po", "sv": "Sv. Po.1", "rota": "O18", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I11", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I12", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I13", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I14", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I15", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.1", "rota": "I16", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.2", "rota": "I21", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.2", "rota": "I22", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.2", "rota": "I23", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.2", "rota": "I24", "canal": "Mista", "sub": null},
+  {"gc": "It", "sv": "Sv. It.2", "rota": "I25", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.1", "rota": "M11", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.1", "rota": "M12", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.1", "rota": "M13", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.1", "rota": "M14", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.1", "rota": "M15", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M21", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M22", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M23", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M24", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M25", "canal": "Mista", "sub": null},
+  {"gc": "Mo", "sv": "Sv. Mo.2", "rota": "M26", "canal": "Mista", "sub": null},
+  {"gc": "Di", "sv": "Sv. Di.1", "rota": "D11", "canal": "Mista", "sub": null},
+  {"gc": "Di", "sv": "Sv. Di.1", "rota": "D12", "canal": "Mista", "sub": null},
+  {"gc": "Di", "sv": "Sv. Di.1", "rota": "D13", "canal": "Mista", "sub": null},
+  {"gc": "Di", "sv": "Sv. Di.1", "rota": "D14", "canal": "Mista", "sub": null},
+  {"gc": "Di", "sv": "Sv. Di.1", "rota": "D15", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.1", "rota": "P11", "canal": "Segmentada", "sub": "Mini"},
+  {"gc": "Pa", "sv": "Sv. Pa.1", "rota": "P12", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.1", "rota": "P13", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.1", "rota": "P14", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.1", "rota": "P15", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P21", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P22", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P23", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P24", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P25", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P26", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.2", "rota": "P27", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P31", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P32", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P33", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P34", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P35", "canal": "Mista", "sub": null},
+  {"gc": "Pa", "sv": "Sv. Pa.3", "rota": "P36", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R11", "canal": "Segmentada", "sub": "Mod"},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R12", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R13", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R14", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R15", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.1", "rota": "R16", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R21", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R22", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R23", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R24", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R25", "canal": "Mista", "sub": null},
+  {"gc": "Rv", "sv": "Sv. Rv.2", "rota": "R26", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S11", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S12", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S13", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S14", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S15", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.1", "rota": "S16", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.2", "rota": "S21", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.2", "rota": "S22", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.2", "rota": "S23", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.2", "rota": "S24", "canal": "Mista", "sub": null},
+  {"gc": "Sl", "sv": "Sv. Sl.2", "rota": "S25", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C11", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C12", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C13", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C14", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C15", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.1", "rota": "C16", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C21", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C22", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C23", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C24", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C25", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C26", "canal": "Mista", "sub": null},
+  {"gc": "Ri", "sv": "Sv. Ri.2", "rota": "C27", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.1", "rota": "U11", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.1", "rota": "U12", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.1", "rota": "U13", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.1", "rota": "U14", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.1", "rota": "U15", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.2", "rota": "U21", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.2", "rota": "U22", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.2", "rota": "U23", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.2", "rota": "U24", "canal": "Mista", "sub": null},
+  {"gc": "Ur", "sv": "Sv. Ur.2", "rota": "U25", "canal": "Mista", "sub": null}
+ ]
+};</script>
 <script>/*
- * Adaptador do painel Campari Club: API -> painel.
- * Fonte: a API publicada no mesmo site (./api/v1/). Etapa 1: só lê o index.json e localiza os dois produtos do
- * incentivo (agrupadores extras "Aperitivo" e "Skyy"). Não calcula nada e nunca inventa valor: produto ausente vira
- * motivo, e a tela avisa "Produtos do Campari ainda não publicados".
+ * Adaptador do painel Campari Club: API -> motor.
+ * Fonte: a API publicada no mesmo site (./api/v1/). Lê o index.json, localiza os dois produtos do incentivo
+ * (agrupadores extras "Aperitivo" e "Skyy"), carrega cada mês da vigência pela fonte certa (API no mês aberto,
+ * fechado/AAAAMM.json nos meses encerrados), aplica o canal do SV e entrega os números ao motor.
+ * Não calcula regra: %, trava, soma, ordem e posição são do motor (src/motor.js). Nunca inventa valor: o que falta
+ * vira motivo ou aviso.
  */
 const CONFIG = {
   ano: 2026,          // ano do incentivo
   meses: [10, 11, 12], // vigência: outubro, novembro e dezembro
   api: './api/v1/',
+  ajustes: './ajustes.json', // ajustes do admin publicados (só `canais` e `canaisSV` interessam ao Campari)
   // Papel no incentivo -> nome EXATO do agrupador do modelo SAP (maiúsculas e acentos contam).
   // O id do produto na API não é fixo: é achado em index.json -> produtos pelo campo `agrupadores`.
   agrupadores: { aperitivo: 'Aperitivo', skyy: 'Skyy' },
@@ -191,8 +496,332 @@ async function carregarDados(base, fetchFn) {
   };
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+ * Etapa 2 — dados do ranking de volume de Aperitivo
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/** Motor: no painel vem de window.MotorCampari; no Node, de motor.js. */
+const MotorCampariAqui = () => (typeof MotorCampari !== 'undefined' ? MotorCampari : require('./motor.js'));
+/** Base de canais (cópia da base embutida do Q4): no painel vem embutida pelo build; no Node, de data/data.json. */
+const BaseCanaisAqui = () => (typeof BASE_CANAIS_CAMPARI !== 'undefined' ? BASE_CANAIS_CAMPARI : require('../data/data.json'));
+
+const NOMES_MES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const anomesDe = (ano, mes) => String(ano) + String(mes).padStart(2, '0');
+
+/* ─── Canal das rotas e do SV: CÓPIA de painel-q4/src/adapter.js (premissa P3; nada é importado de lá) ───────────
+ * titulo, svNome, SEGMENTOS, ehObjeto, textoOk, validarCanalRota e mapaCanal: cópias literais.
+ * canaisDosSVs: cópia com UMA diferença — SV sem nenhuma rota com canal na mesa (no Q4 ele nem aparece, porque as
+ * rotas sem canal ficam fora) sai com origem 'sem canal' em vez de 'empate'. Rota sem canal não vota.
+ * Extração para uma pasta comum: proposta para uma etapa futura. */
+const titulo = (s) => s.charAt(0) + s.slice(1).toLowerCase(); // 'AN' -> 'An'
+const svNome = (sv) => sv.replace(/^SV\.([A-Z0-9]+)\.(\d+)$/, (_, g, n) => `Sv. ${titulo(g)}.${n}`); // 'SV.AN.1' -> 'Sv. An.1'
+const SEGMENTOS = { Mista: [], Segmentada: ['Mini', 'Mod'], '': ['Neutraliza', 'Eventual', 'Coke Net', 'Virtual'] };
+const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const textoOk = (s, n) => typeof s === 'string' && s.trim().length > 0 && s.trim().length <= n && !/[\u0000-\u001f\u007f]/.test(s);
+
+/** Canal e segmento de uma rota no ajustes.json -> {canal, sub}; inválido é ignorado e vira aviso, nunca em silêncio. */
+function validarCanalRota(rota, c, avisos) {
+  const av = (t) => { if (avisos) avisos.push(`rota ${rota}: ${t}`); };
+  if (!c || typeof c !== 'object' || !(c.canal === null || c.canal === 'Mista' || c.canal === 'Segmentada')) {
+    av(`canal ${JSON.stringify(c && typeof c === 'object' ? c.canal : c)} não é Mista, Segmentada nem sem canal (null): ajuste ignorado`);
+    return null;
+  }
+  const seg = c.segmento !== undefined && c.segmento !== null ? c.segmento : c.sub;
+  if (seg === undefined || seg === null || seg === '') return { canal: c.canal, sub: null };
+  if (SEGMENTOS[c.canal || ''].includes(seg)) return { canal: c.canal, sub: seg };
+  av(`segmento ${JSON.stringify(seg)} não vale para ${c.canal || 'sem canal'}: segmento ignorado, canal mantido`);
+  return { canal: c.canal, sub: null };
+}
+
+/** Canal de cada rota: o da base de segmentação, trocado pelos ajustes do admin (`canais`). `sub` é o segmento. */
+function mapaCanal(base, canais) {
+  const canal = {};
+  base.rotas.forEach((r) => { canal[r.rota] = { canal: r.canal, sub: r.sub, origem: 'base' }; });
+  for (const [rota, c] of Object.entries(canais || {})) canal[rota] = Object.assign({}, c, { origem: 'ajuste' });
+  return canal;
+}
+
+/** Canal do SV: o do admin (canaisSV) ou a maioria das rotas da mesa com canal; empate sem escolha: canal null. */
+function canaisDosSVs(rotas, ajusteSV) {
+  const cont = {};
+  for (const r of rotas || []) {
+    if (!r.sv) continue;
+    const c = (cont[r.sv] = cont[r.sv] || { Mista: 0, Segmentada: 0 });
+    if (r.canal in c) c[r.canal]++;
+  }
+  const out = {};
+  for (const [sv, c] of Object.entries(cont)) {
+    const aj = ajusteSV && ajusteSV[sv];
+    const semVoto = c.Mista + c.Segmentada === 0; // diferença do Q4: mesa sem nenhuma rota com canal
+    const maioria = c.Mista === c.Segmentada ? null : c.Mista > c.Segmentada ? 'Mista' : 'Segmentada';
+    out[sv] = { canal: aj || maioria, padrao: maioria,
+                origem: aj ? 'ajuste' : maioria ? 'maioria' : semVoto ? 'sem canal' : 'empate',
+                rotas: c, misto: c.Mista > 0 && c.Segmentada > 0 };
+  }
+  return out;
+}
+/* ─── fim da cópia ─────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * `canais` e `canaisSV` de um ajustes.json já lido (objeto) -> { canais, canaisSV, avisos }. Mesma validação do Q4
+ * (cópia do trecho de normalizarAjustes); o resto do arquivo não interessa ao Campari.
+ */
+function ajustesDeCanal(aj) {
+  const avisos = [], canais = {}, canaisSV = {};
+  if (!ehObjeto(aj)) return { canais, canaisSV, avisos };
+  if (aj.canais !== undefined && !ehObjeto(aj.canais)) avisos.push('canais: precisa ser um objeto: ignorado');
+  if (aj.canaisSV !== undefined && !ehObjeto(aj.canaisSV)) avisos.push('canaisSV: precisa ser um objeto: ignorado');
+  for (const [rota, c] of Object.entries(ehObjeto(aj.canais) ? aj.canais : {})) {
+    const v = validarCanalRota(rota, c, avisos);
+    if (v) canais[rota] = v;
+  }
+  for (const [sv, c] of Object.entries(ehObjeto(aj.canaisSV) ? aj.canaisSV : {})) {
+    if (textoOk(sv, 120) && (c === 'Mista' || c === 'Segmentada')) canaisSV[sv] = c;
+    else avisos.push(`SV ${sv}: canal do SV ${JSON.stringify(c)} não é Mista nem Segmentada: ajuste ignorado`);
+  }
+  return { canais, canaisSV, avisos };
+}
+
+/**
+ * Lê o ajustes.json PUBLICADO (o Campari não tem Administração nem ajustes do navegador).
+ * 404: ninguém publicou, vale a base. Ilegível ou HTTP ≠ 200/404: nenhum ajuste vale, com aviso (como no Q4).
+ */
+async function lerAjustes(fetchFn, cfg) {
+  cfg = cfg || CONFIG;
+  const vazio = (situacao, aviso) => ({ situacao, canais: {}, canaisSV: {}, avisos: aviso ? [aviso] : [] });
+  let r;
+  try { r = await fetchFn(cfg.ajustes, { cache: 'no-cache' }); } catch (e) {
+    return vazio('sem-acesso', `ajustes.json não pôde ser lido (${e.message}): canais só da base embutida`);
+  }
+  if (r && r.status === 404) return vazio('ausente', null);
+  if (!r || r.status !== 200) return vazio('erro', `ajustes.json ilegível (HTTP ${r ? r.status : '?'}): nenhum ajuste publicado vale`);
+  let aj;
+  try { aj = await r.json(); } catch (e) { return vazio('erro', `ajustes.json ilegível (${e.message}): nenhum ajuste publicado vale`); }
+  if (!ehObjeto(aj)) return vazio('erro', 'ajustes.json ilegível (o conteúdo não é um objeto JSON): nenhum ajuste publicado vale');
+  return Object.assign({ situacao: 'ok' }, ajustesDeCanal(aj));
+}
+
+/**
+ * Fonte de cada mês da vigência (premissa P1), com ref = index.json -> mes_referencia.anomes:
+ *   - mês anterior a ref, ou mês = ref com mes_referencia.fechamento = true: fechado/AAAAMM.json (só Real, Online 0);
+ *     sem o arquivo na lista `fechados`: 'indisponivel' (nunca usa a API de outro mês no lugar);
+ *   - mês = ref sem fechamento: 'api' (Real + online_hoje);
+ *   - mês posterior a ref: 'futuro' (sem dado, não conta na soma).
+ * Devolve [{ mes, anomes, fonte: 'api' | 'fechado' | 'indisponivel' | 'futuro', arquivo, motivo }].
+ */
+function fontesDosMeses(index, cfg) {
+  cfg = cfg || CONFIG;
+  const ref = String(index.mes_referencia.anomes), fech = index.mes_referencia.fechamento === true;
+  const lista = Array.isArray(index.fechados) ? index.fechados : [];
+  return cfg.meses.map((mes) => {
+    const anomes = anomesDe(cfg.ano, mes);
+    if (anomes > ref) return { mes, anomes, fonte: 'futuro', arquivo: null, motivo: null };
+    if (anomes < ref || fech) {
+      const item = lista.find((x) => x && x.anomes === anomes);
+      if (item && typeof item.arquivo === 'string') return { mes, anomes, fonte: 'fechado', arquivo: item.arquivo, motivo: null };
+      return { mes, anomes, fonte: 'indisponivel', arquivo: null, motivo: `${NOMES_MES[mes]} não está nos meses fechados da API` };
+    }
+    return { mes, anomes, fonte: 'api', arquivo: null, motivo: null };
+  });
+}
+
+const VAZIO = () => ({ meta: null, real: null, online: null, metaDia: null });
+/** Bloco de produto da API (mês aberto) -> valores do mês. Produto ausente no bloco: tudo null. */
+const doBlocoApi = (b) => (b ? { meta: b.meta, real: b.realizado, online: b.online_hoje, metaDia: b.meta_dia } : VAZIO());
+/** Par [meta, realizado] do fechado -> valores do mês (sem online nem meta dia no fechamento: online 0). */
+const doPar = (par, iMeta, iReal) => (Array.isArray(par) ? { meta: par[iMeta], real: par[iReal], online: 0, metaDia: null } : VAZIO());
+const ehEventual = (rota) => /-EV$/.test(String(rota)); // rota oculta com o Real das rotas EV* (M.rota_eventuais)
+const somaOuNull = (vs) => { const c = vs.filter((v) => typeof v === 'number'); return c.length ? c.reduce((a, b) => a + b, 0) : null; };
+
+/**
+ * Lê um fechado/AAAAMM.json para o produto `pid`: { ok, motivo, estado, simulado, gc: {GC: valores} | null,
+ * sv: {SV: valores}, gcDoSv: {SV: GC}, rotas: [{rota, gc, sv, valores}] }. GC vem de totais.gerencias (sem eles: GC indisponível,
+ * nunca soma rotas); SV é a soma das linhas de `rotas` pelo campo supervisão (todas as rotas da mesa, premissa P2).
+ */
+function lerFechado(f, anomes, pid) {
+  if (!ehObjeto(f)) return { ok: false, motivo: 'arquivo ilegível' };
+  if (f.anomes !== anomes) return { ok: false, motivo: `o arquivo traz o mês ${f.anomes}` };
+  const col = (n) => (f.campos || []).indexOf(n), cp = (n) => (f.campos_produto || []).indexOf(n);
+  const [iRota, iGer, iSv, iProd, iMeta, iReal] = [col('rota'), col('gerencia'), col('supervisao'), col('produtos'), cp('meta'), cp('realizado')];
+  if ([iRota, iGer, iSv, iProd, iMeta, iReal].some((x) => x < 0) || !Array.isArray(f.rotas)) return { ok: false, motivo: 'formato inesperado' };
+  const temTotais = ehObjeto(f.totais) && ehObjeto(f.totais.gerencias) && ehObjeto(f.totais.empresa);
+  const temProduto = (temTotais && f.totais.empresa[pid] !== undefined) || f.rotas.some((l) => ehObjeto(l[iProd]) && l[iProd][pid] !== undefined);
+  if (!temProduto) return { ok: false, motivo: 'o arquivo não traz o produto Aperitivo' };
+  const gc = temTotais ? Object.fromEntries(Object.keys(f.totais.gerencias).map((g) => [g, doPar((f.totais.gerencias[g] || {})[pid], iMeta, iReal)])) : null;
+  const porSv = {}, gcDoSv = {}, rotas = [];
+  for (const l of f.rotas) {
+    const v = doPar((l[iProd] || {})[pid], iMeta, iReal);
+    (porSv[l[iSv]] = porSv[l[iSv]] || []).push(v);
+    if (!gcDoSv[l[iSv]]) gcDoSv[l[iSv]] = l[iGer];
+    if (!ehEventual(l[iRota])) rotas.push({ rota: l[iRota], gc: l[iGer], sv: l[iSv], valores: v });
+  }
+  const sv = {};
+  for (const [id, vs] of Object.entries(porSv)) {
+    sv[id] = { meta: somaOuNull(vs.map((v) => v.meta)), real: somaOuNull(vs.map((v) => v.real)), online: 0, metaDia: null };
+  }
+  return { ok: true, motivo: temTotais ? null : 'sem totais por gerência', estado: f.fechamento_final === true ? 'oficial' : 'previa',
+           simulado: f.simulado === true, gc, sv, gcDoSv, rotas };
+}
+
+/**
+ * Monta os dados do ranking a partir do que já foi lido (função pura; carregarRanking faz a leitura):
+ *   entrada = { index, gerencias: [gerencias/{GC}.json], fechados: {AAAAMM: json | Error}, base, ajustes }
+ * Devolve, além de mesReferencia/calendario/simulado/avisos:
+ *   meses:        [{ mes, anomes, fonte, estado ('aberto' | 'previa' | 'oficial' | null), motivo }]
+ *   gc, svMista, svSegmentada: linhas ordenadas e numeradas pelo motor (pos 1..n), cada uma com
+ *                 { codigo, chave, gc, canal, origemCanal, meses: [por mês: meta, real, online, metaDia, pct,
+ *                   pctTravado, travado, fonte, estado, situacao], soma, incompleta, mesesSemPct, pos }
+ *   fora:         SVs fora do ranking (empate de canal ou sem canal), com o motivo
+ *   rotas:        consultores, só com os próprios números por mês (sem ranking nem soma)
+ *   canaisSV:     canal de cada SV (pelo código do painel, "Sv. An.1"), com origem e votos
+ */
+function montarDados(entrada, cfg, motor) {
+  cfg = cfg || CONFIG; motor = motor || MotorCampariAqui();
+  const { index, gerencias } = entrada;
+  const base = entrada.base || BaseCanaisAqui();
+  const ajustes = entrada.ajustes || { canais: {}, canaisSV: {}, avisos: [] };
+  const produtos = localizarProdutos(index, cfg);
+  const comum = { mesReferencia: index.mes_referencia || null, calendario: index.calendario || null,
+                  atualizadoEm: index.atualizado_em || null, simulado: index.simulado === true, produtos };
+  if (!produtos.ok) {
+    return Object.assign({ ok: false, erro: 'Produtos do Campari ainda não publicados (' + produtos.motivos.join('; ') + ')',
+                           avisos: [], meses: [], gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], canaisSV: {} }, comum);
+  }
+  const pid = produtos.ids.aperitivo;
+  const avisos = ajustes.avisos.slice();
+
+  // 1. fonte de cada mês (P1) e leitura dos fechados
+  const fontes = fontesDosMeses(index, cfg).map((f) => Object.assign({}, f));
+  const lidos = {};
+  for (const f of fontes) {
+    if (f.fonte === 'api') f.estado = 'aberto';
+    if (f.fonte !== 'fechado') continue;
+    const bruto = (entrada.fechados || {})[f.anomes];
+    const l = bruto instanceof Error ? { ok: false, motivo: bruto.message } : bruto === undefined ? { ok: false, motivo: 'não carregado' } : lerFechado(bruto, f.anomes, pid);
+    if (!l.ok) { Object.assign(f, { fonte: 'indisponivel', motivo: `${f.arquivo}: ${l.motivo}` }); continue; }
+    f.estado = l.estado;
+    if (l.motivo) f.motivo = `${f.arquivo}: ${l.motivo} (GC indisponível neste mês)`;
+    if (l.simulado !== comum.simulado) avisos.push(`${f.arquivo} ${l.simulado ? 'é' : 'não é'} simulado, e o index.json ${comum.simulado ? 'é' : 'não é'}`);
+    lidos[f.anomes] = l;
+  }
+  for (const f of fontes) if (f.fonte === 'indisponivel') avisos.push(`${NOMES_MES[f.mes]} indisponível: ${f.motivo}; a soma das linhas fica incompleta`);
+  for (const f of fontes) if (f.fonte === 'fechado' && f.motivo) avisos.push(f.motivo);
+
+  // 2. valores por nível e mês (anomes -> código -> valores); o que a API publica, sem recalcular
+  const vals = { gc: {}, sv: {}, rota: {} }, info = { gc: {}, sv: {}, rota: {} };
+  const por = (nivel, anomes, cod, v) => { ((vals[nivel][cod] = vals[nivel][cod] || {}))[anomes] = v; };
+  const anotar = (nivel, cod, dados) => { info[nivel][cod] = Object.assign(info[nivel][cod] || {}, dados); };
+  // estrutura atual (API): todas as gerências, supervisões e rotas aparecem, mesmo sem número em algum mês
+  for (const g of gerencias) {
+    const gid = g.gerencia.id;
+    anotar('gc', gid, {});
+    for (const s of g.supervisoes || []) anotar('sv', s.id, { gc: gid });
+    for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) anotar('rota', r.id, { gc: gid, sv: r.supervisao });
+  }
+  for (const f of fontes) {
+    if (f.fonte === 'api') {
+      for (const g of gerencias) {
+        por('gc', f.anomes, g.gerencia.id, doBlocoApi((g.produtos || {})[pid]));
+        for (const s of g.supervisoes || []) por('sv', f.anomes, s.id, doBlocoApi((s.produtos || {})[pid]));
+        for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) por('rota', f.anomes, r.id, doBlocoApi((r.produtos || {})[pid]));
+      }
+    } else if (f.fonte === 'fechado') {
+      const l = lidos[f.anomes];
+      if (l.gc) for (const [g, v] of Object.entries(l.gc)) { anotar('gc', g, {}); por('gc', f.anomes, g, v); }
+      for (const [s, v] of Object.entries(l.sv)) { if (!info.sv[s]) anotar('sv', s, { gc: null }); por('sv', f.anomes, s, v); }
+      for (const r of l.rotas) {
+        if (!info.rota[r.rota]) anotar('rota', r.rota, { gc: r.gc, sv: r.sv });
+        por('rota', f.anomes, r.rota, r.valores);
+      }
+    }
+  }
+  // gerência do SV que só existe num fechado: a das rotas dele naquele mês
+  for (const f of fontes) if (lidos[f.anomes]) for (const [s, g] of Object.entries(lidos[f.anomes].gcDoSv)) if (info.sv[s] && !info.sv[s].gc) info.sv[s].gc = g;
+
+  // 3. meses de uma linha -> motor (situação: dado | indisponivel | futuro)
+  const situacao = (f, nivel) => (f.fonte === 'futuro' ? 'futuro' : f.fonte === 'indisponivel' ? 'indisponivel'
+    : nivel === 'gc' && f.fonte === 'fechado' && !lidos[f.anomes].gc ? 'indisponivel' : 'dado');
+  const apurar = (nivel, cod) => motor.apurarMeses(fontes.map((f) => {
+    const s = situacao(f, nivel);
+    const v = s === 'dado' ? ((vals[nivel][cod] || {})[f.anomes] || VAZIO()) : VAZIO();
+    return Object.assign({ mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s }, v,
+                         { metaDia: f.fonte === 'api' && s === 'dado' ? v.metaDia : null });
+  }));
+
+  // 4. canal das rotas e do SV (admin -> maioria das rotas da mesa com canal -> empate fora, com aviso)
+  const canalRota = mapaCanal(base, ajustes.canais);
+  const votoDe = (rota, sv) => ({ sv: sv ? svNome(sv) : null, canal: (canalRota[rota] && canalRota[rota].canal) || null });
+  const canaisSV = canaisDosSVs(gerencias.flatMap((g) => (g.rotas || []).filter((r) => r.tipo !== 'eventual' && !ehEventual(r.id))
+    .map((r) => votoDe(r.id, r.supervisao))), ajustes.canaisSV);
+  // SV que só existe num mês fechado: a maioria das rotas dele no mês fechado mais recente
+  for (const f of fontes.slice().reverse()) if (lidos[f.anomes]) {
+    const doMes = canaisDosSVs(lidos[f.anomes].rotas.map((r) => votoDe(r.rota, r.sv)), ajustes.canaisSV);
+    for (const [sv, c] of Object.entries(doMes)) if (!canaisSV[sv]) canaisSV[sv] = c;
+  }
+
+  // 5. linhas e ranking (ordem e posição: motor)
+  const linha = (nivel, cod, extra) => Object.assign({ codigo: cod, chave: motor.chaveCodigo(cod) }, extra, apurar(nivel, cod));
+  const gc = motor.montarRanking(Object.keys(info.gc).map((g) => linha('gc', g, { gc: g, canal: null, origemCanal: null })));
+  const svs = { Mista: [], Segmentada: [] }, fora = [];
+  for (const s of Object.keys(info.sv)) {
+    const c = canaisSV[svNome(s)] || { canal: null, origem: 'sem canal', rotas: { Mista: 0, Segmentada: 0 } };
+    const l = linha('sv', s, { gc: info.sv[s].gc, canal: c.canal, origemCanal: c.origem, votos: c.rotas });
+    if (c.canal) svs[c.canal].push(l);
+    else fora.push(Object.assign(l, { motivo: c.origem === 'empate'
+      ? 'empate de canal (mesmo número de rotas Mista e Segmentada): escolha o canal do SV na Administração'
+      : 'sem canal (nenhuma rota da mesa tem canal Mista ou Segmentada)' }));
+  }
+  fora.sort((a, b) => (a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0));
+  const empates = fora.filter((l) => l.origemCanal === 'empate').map((l) => l.codigo);
+  if (empates.length) avisos.push(`mesa com o mesmo número de rotas Mista e Segmentada (${empates.join(', ')}): escolha o canal do SV na Administração; até lá o SV fica fora do ranking`);
+  const rotas = Object.keys(info.rota).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).map((r) => {
+    const a = apurar('rota', r), c = canalRota[r];
+    return { codigo: r, gc: info.rota[r].gc, sv: info.rota[r].sv, canal: (c && c.canal) || null, sub: (c && c.sub) || null, meses: a.meses };
+  });
+  const svMista = motor.montarRanking(svs.Mista), svSegmentada = motor.montarRanking(svs.Segmentada);
+  return Object.assign({ ok: true, erro: null, avisos, meses: fontes.map(({ mes, anomes, fonte, estado, motivo, arquivo }) =>
+    ({ mes, anomes, fonte, estado: estado || null, motivo: motivo || null, arquivo: arquivo || null })),
+    gc, svMista, svSegmentada, fora, rotas, canaisSV,
+    baseCanais: { foto: (base.meta || {}).foto || null, corteSeg: (base.meta || {}).corteSeg || null } }, comum);
+}
+
+/**
+ * Lê a API (index.json, gerencias/*.json e os fechados necessários) e o ajustes.json publicado, e monta os dados do
+ * ranking (montarDados). Falha no index.json ou numa gerência: ok false, com o motivo em `erro`, sem valor inventado.
+ * Fechado que falha: só aquele mês fica indisponível.
+ */
+async function carregarRanking(base, opcoes) {
+  opcoes = opcoes || {};
+  const cfg = opcoes.cfg || CONFIG;
+  base = base || cfg.api;
+  const fetchFn = opcoes.fetchFn || (typeof fetch === 'function' ? fetch : null);
+  const ler = async (caminho) => {
+    const r = await fetchFn(base + caminho, { cache: 'no-cache' });
+    if (!r || r.status !== 200) throw new Error(`${caminho}: HTTP ${r ? r.status : '?'}`);
+    return r.json();
+  };
+  let index, gerencias;
+  try {
+    if (!fetchFn) throw new Error('fetch indisponível');
+    index = await ler('index.json');
+    if (!ehObjeto(index) || !ehObjeto(index.mes_referencia) || !Array.isArray(index.gerencias)) throw new Error('index.json: formato inesperado');
+    gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
+  } catch (e) {
+    return { ok: false, erro: `API indisponível (${e.message})`, avisos: [], meses: [], gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], canaisSV: {} };
+  }
+  const fechados = {};
+  for (const f of fontesDosMeses(index, cfg)) {
+    if (f.fonte !== 'fechado') continue;
+    try { fechados[f.anomes] = await ler(f.arquivo); } catch (e) { fechados[f.anomes] = e; }
+  }
+  const ajustes = await lerAjustes(fetchFn, cfg);
+  return montarDados({ index, gerencias, fechados, base: opcoes.baseCanais, ajustes }, cfg, opcoes.motor);
+}
+
 if (typeof module === 'object' && module.exports) {
-  module.exports = { CONFIG, localizarProdutos, carregarDados };
+  module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, lerFechado, montarDados, carregarRanking,
+                     lerAjustes, ajustesDeCanal, mapaCanal, canaisDosSVs, validarCanalRota, svNome };
 }
 </script>
 <script>
@@ -222,8 +851,8 @@ const REGRAS_TXT = [
     '<h2>Visão geral</h2><ul>'+
     '<li><b>Vigência:</b> outubro, novembro e dezembro de 2026.</li>'+
     '<li><b>Mecânica:</b> um gatilho de cobertura de Skyy habilita o participante; o ranking é por volume de aperitivo.</li>'+
-    '<li><b>Níveis com ranking e premiação:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
-    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem premiação ("contabilizado do supervisor para cima").</li>'+
+    '<li><b>Níveis com ranking:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
+    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem status ("contabilizado do supervisor para cima").</li>'+
     '<li><b>Diretoria e GP:</b> total de todas as gerências, numa linha "Total Band", sem página própria.</li>'+
     '<li><b>Dezembro não tem trava</b> (decisão de 06/11/2026; prevalece sobre o carimbo do slide 2).</li></ul>' },
   { id:'gatilho', nome:'Gatilho (Skyy)', html:
@@ -249,27 +878,19 @@ const REGRAS_TXT = [
     '<li><b>GC:</b> todas as rotas da gerência.</li>'+
     '<li><b>Total Band:</b> total da empresa.</li>'+
     '<li><b>Canal do SV:</b> mesma regra do Desafio Q4 — o escolhido pelo admin ou, sem escolha, o da maioria das rotas da mesa.</li>'+
-    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): soma somente as rotas com meta de cobertura. '+P('leitura adotada: o realizado e o online também só dessas rotas; a confirmar (pendência 11)')+'</li></ul>' },
+    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): a meta soma só as rotas com meta de cobertura; o realizado e o online somam todas as rotas, como a API publica.</li></ul>' },
   { id:'posicao', nome:'Posição e desempate', html:
     '<h2>Posição, status e desempate</h2><ul>'+
-    '<li>Todas as linhas recebem posição. Quem não bate o gatilho aparece com a posição em cinza e fica fora da premiação.</li>'+
-    '<li><b>Desempate:</b> ordem alfabética do código da supervisão ou da gerência. '+P('em ordem alfabética simples, SV.g2.10 vem antes de SV.g2.2')+'</li></ul>' },
-  { id:'premiacao', nome:'Premiação', html:
-    '<h2>Premiação (por posição; sem valores)</h2><table><thead><tr><th>Prêmio</th><th>Quem ganha</th></tr></thead><tbody>'+
-    '<tr><td>Viagem internacional (Aruba), com acompanhante</td><td>Diretoria, 1 GP, GC do 1º ao 4º</td></tr>'+
-    '<tr><td>Viagem nacional (Fernando de Noronha), com acompanhante</td><td>GC 5º e 6º</td></tr>'+
-    '<tr><td>Cruzeiro Santos → Rio de Janeiro</td><td>Supervisor Mista do 1º ao 8º; Supervisor Segmentada 1º e 2º</td></tr>'+
-    '<tr><td>Premiação Plus (ar-condicionado)</td><td>Supervisor Mista do 9º ao 12º; Supervisor Segmentada 3º</td></tr>'+
-    '</tbody></table><p>Diretoria e GP são premiados, mas não têm apuração própria: o painel mostra só a linha "Total Band".</p>' },
+    '<li>Todas as linhas recebem posição (Pos.). Quem não bate o gatilho aparece com a posição em cinza; a coluna Oficial numera só quem bateu o gatilho.</li>'+
+    '<li><b>Status:</b> "✓ Bateu!" = gatilho batido e posição oficial dentro das posições premiadas do ranking; senão "-".</li>'+
+    '<li><b>Desempate</b> (confirmado em 08/11/2026): ordem alfabética do código da supervisão ou da gerência, texto simples (SV.G2.10 vem antes de SV.G2.2).</li></ul>' },
   { id:'pendencias', nome:'Pendências', html:
-    '<h2>Pendências (situação em 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
-    '<tr><td>9</td><td>Publicar Aperitivo e Skyy como agrupadores extras</td><td><span class="okk">Resolvida</span> publicados na API</td><td>—</td></tr>'+
+    '<h2>Pendências em aberto (regras v1.3, 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
     '<tr><td>10</td><td>Incluir a cobertura no fechamento do mês (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho</td><td><span class="pend">Em aberto</span> prazo 01/12/2026</td><td>Matheus</td></tr>'+
-    '<tr><td>11</td><td>% de cobertura de SV e GC</td><td><span class="okk">Respondida</span> somente rotas com meta. '+P('confirmar se o realizado e o online também entram só dessas rotas')+'</td><td>Karen</td></tr>'+
-    '<tr><td>12</td><td>Meta dia de cobertura: a meta restante desconta só o Real ou o Real + Online?</td><td><span class="okk">Resolvida</span> só o Real (até ontem); meta dia travada</td><td>—</td></tr>'+
     '<tr><td>13</td><td>Repositório público, com nomes de clientes e pessoas nos dados</td><td><span class="pend">Confirmado</span> alta prioridade</td><td>Karen / TI</td></tr>'+
-    '<tr><td>14</td><td>Dias úteis restantes da meta dia de cobertura: contam hoje?</td><td><span class="pend">Novo</span> conferir na etapa do motor</td><td>Claude Code</td></tr>'+
-    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Novo</span> conferir a partir de 09/11/2026</td><td>Karen</td></tr>'+
+    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Conferir</span> a partir de 09/11/2026</td><td>Karen</td></tr>'+
+    '<tr><td>21</td><td>Mockup sem as colunas novas do Ranking GC e da Supervisão</td><td><span class="pend">Em aberto</span></td><td>Karen</td></tr>'+
+    '<tr><td>9, 11, 12, 14, 16 a 20</td><td>Demais pendências</td><td><span class="okk">Resolvidas</span> (docs/regras.md, seção 10)</td><td>—</td></tr>'+
     '</tbody></table>' },
 ];
 

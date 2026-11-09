@@ -111,10 +111,11 @@ publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descar
 
 `frontend/campari-club.html` é o painel do incentivo Campari Club (out–dez/2026; regras em
 `painel-campari/docs/regras.md`), independente do Desafio Q4. Ele lê a mesma API (`./api/v1/`) e acha os produtos do
-incentivo em `index.json` → `produtos` pelos agrupadores extras `Aperitivo` e `Skyy`. **Etapa 1: esqueleto, sem
-cálculo** (abas em construção e aba Regras); detalhes em `painel-campari/README.md`.
+incentivo em `index.json` → `produtos` pelos agrupadores extras `Aperitivo` e `Skyy`. **Etapa 2: dados e motor do
+ranking de volume de Aperitivo**, ainda sem números na tela (abas em construção e aba Regras); detalhes em
+`painel-campari/README.md`. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
-Mudou algo em `painel-campari/src/`: rode `python painel-campari/scripts/build.py` e envie também o
+Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado. Testes: `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js`.
 
 ## Antes de ligar: confirmar os agrupadores
