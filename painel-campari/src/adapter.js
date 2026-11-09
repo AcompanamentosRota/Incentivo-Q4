@@ -24,6 +24,10 @@ const CONFIG = {
     G1: ['G1'], G2: ['G2'], G3: ['G3'], AP: ['AP'], AT: ['AT'], AN: ['AN'], RV: ['RV'], SL: ['SL'],
     UR_RI: ['UR', 'RI'], IT_MO: ['IT', 'MO'], PA_DI: ['PA', 'DI'], GU_PO: ['GU', 'PO'],
   },
+  // Linhas por página das tabelas paginadas (etapa 4G; regras v1.7, seção 7). Fica em configuração, nunca na
+  // lógica nem na tela: a Supervisão, o Consultor e o Detalhe do mês pedem a fatia a `fatiar`, que lê este
+  // número. A linha de total (Total Band ou Total da mesa) NÃO entra na conta: ela se repete em toda página.
+  linhasPorPagina: 15,
 };
 
 /*
@@ -831,6 +835,60 @@ function textoDasOcultas(ocultas) {
 }
 
 /**
+ * Rotas da aba Consultor com o filtro da tela -> { rotas, ocultas, total, rotuloTotal }.
+ * `filtro` = { sv, gc }. Desde a etapa 4G o Consultor ABRE em "Todas" (decisão de 09/11/2026, regras v1.7,
+ * seção 7), então o SV pode vir vazio:
+ *   - com SV: a mesa dele, como antes (`rotasDaMesa`), e o total é a linha do SV ("Total da mesa SV.XX.1");
+ *   - sem SV e com gerência: as rotas daquela gerência, e o total é a linha da gerência da API (`gcApi`), que a
+ *     API soma com TODAS as rotas dela (regras, seção 4);
+ *   - sem nada: todas as rotas, e o total é o Total Band (`resumo.json` -> empresa).
+ * Nenhuma soma é feita aqui: o total é sempre uma linha que a API publica. A ordem das rotas é a de `dados.rotas`
+ * (código, numérica), a mesma de antes. Rotas fora dos tipos listados são contadas em `ocultas`, nunca sumidas.
+ */
+function rotasDoConsultor(dados, filtro, tipos) {
+  filtro = filtro || {};
+  tipos = tipos || TIPOS_CONSULTOR;
+  if (filtro.sv) {
+    const m = rotasDaMesa(dados, filtro.sv, tipos);
+    return { rotas: m.rotas, ocultas: m.ocultas, total: m.total, rotuloTotal: 'Total da mesa ' + filtro.sv };
+  }
+  const daTela = ((dados && dados.rotas) || []).filter((r) => !filtro.gc || r.gc === filtro.gc);
+  const ocultas = {};
+  for (const r of daTela) if (tipos.indexOf(r.tipo) < 0) {
+    const k = r.tipo || 'sem tipo';
+    ocultas[k] = (ocultas[k] || 0) + 1;
+  }
+  const total = filtro.gc
+    ? ((dados && dados.gcApi) || []).find((l) => l.codigo === filtro.gc) || null
+    : (dados && dados.totalBand) || null;
+  return { rotas: daTela.filter((r) => tipos.indexOf(r.tipo) >= 0), ocultas, total,
+           rotuloTotal: filtro.gc ? 'Total da gerência ' + filtro.gc : TOTAL_BAND };
+}
+
+/**
+ * Uma página de linhas (etapa 4G; regras v1.7, seção 7) -> { linhas, pagina, paginas, total, tamanho, inicio,
+ * fim, uma }. Função PURA, e a única conta de paginação do painel: a tela só pede a fatia e desenha os botões.
+ *   - `tamanho` padrão: CONFIG.linhasPorPagina (15). Tamanho inválido (≤ 0, não numérico) cai no padrão;
+ *   - `pagina` fora do intervalo é TRAVADA no intervalo (0 e -3 viram 1; 99 vira a última), nunca devolve vazio
+ *     por página alta: filtro que encurta a lista não pode apagar a tabela;
+ *   - lista vazia: uma página, sem linhas (`paginas` nunca é 0, para o "Página 1 de 1" fazer sentido);
+ *   - `uma` = cabe numa página só, e é por ele que a tela decide NÃO desenhar os botões;
+ *   - `inicio`/`fim` são 1-based, para o texto "16–30 de 233"; lista vazia dá 0 e 0.
+ * A linha de total (Total Band ou Total da mesa) fica FORA desta conta: ela não é passada aqui e a tela a repete
+ * em todas as páginas.
+ */
+function fatiar(linhas, pagina, tamanho) {
+  const todas = Array.isArray(linhas) ? linhas : [];
+  const t = numeroOk(tamanho) && tamanho >= 1 ? Math.floor(tamanho) : CONFIG.linhasPorPagina;
+  const paginas = Math.max(1, Math.ceil(todas.length / t));
+  const p = Math.min(paginas, Math.max(1, numeroOk(pagina) ? Math.floor(pagina) : 1));
+  const de = (p - 1) * t;
+  const fatia = todas.slice(de, de + t);
+  return { linhas: fatia, pagina: p, paginas, total: todas.length, tamanho: t, uma: paginas <= 1,
+           inicio: fatia.length ? de + 1 : 0, fim: de + fatia.length };
+}
+
+/**
  * Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional.
  * A visão de gerência usa as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o Detalhe do mês continua
  * com as 16 (premissa (d) da seção 4 das regras v1.6).
@@ -911,5 +969,7 @@ if (typeof module === 'object' && module.exports) {
                      // Etapa 4 (tela): formatação e recortes, todos puros
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
-                     linhasDoDetalhe, alertasDaTela };
+                     linhasDoDetalhe, alertasDaTela,
+                     // Etapa 4G (navegação por páginas), também puras
+                     rotasDoConsultor, fatiar };
 }

@@ -9,7 +9,7 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 Regras: [`docs/regras.md`](docs/regras.md) (v1.7, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4F — a tela, com os ajustes de tabela da v1.7
+## Estado: etapa 4G — a tela, com as tabelas paginadas da v1.7
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -29,11 +29,14 @@ sinaliza, não decide.
   **12 linhas** no lugar das 16 gerências da API. A linha agrupada **soma** as gerências do grupo e só depois calcula
   (`somarGrupo` no motor) — o % é o da soma, nunca a média dos %. No mesmo PR, a cor do bloco Aperitivo passou ao
   **laranja do SAC**. Supervisão, Consultor e Detalhe do mês seguem com as gerências da API.
-- **Etapa 4F (esta):** os **ajustes de tabela** das regras v1.7, seção 7, descritos no fim deste arquivo:
+- **Etapa 4F:** os **ajustes de tabela** das regras v1.7, seção 7, descritos no fim deste arquivo:
   centralização, coluna Dez só em dezembro, rótulos "% Acum." e "% Médio", quadradinho no % do mês vigente do
   Aperitivo (`corDoPercentualAperitivo`, a única regra nova), números do Aperitivo na fonte da tabela, linha do
   total só com "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. **Nenhum número muda.**
-  A **paginação** de Supervisão e Consultor (15 linhas), também da v1.7, **não entra nesta etapa**.
+- **Etapa 4G (esta):** a **navegação por páginas** da v1.7, seção 7, descrita no fim deste arquivo: **15 linhas por
+  página** na Supervisão (uma paginação por canal), no Consultor — que passa a abrir com **todas as rotas** — e no
+  Detalhe do mês, com a linha de total fixa no rodapé de todas as páginas e **sem rolagem** dentro da tabela. A conta
+  é uma função pura do adaptador (`fatiar`), com o tamanho em `CONFIG.linhasPorPagina`. **Nenhum número muda.**
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -43,7 +46,7 @@ sinaliza, não decide.
 | P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
 | P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
 | P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); as colunas de mês, o % Acum., o % Nov e o % Médio não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador. O **mês vigente** (`mesesDoSeletor(...).referencia`) é outra coisa: é o mês de referência da **API**, e é ele que decide as colunas que só existem em dezembro e onde fica o quadradinho do Aperitivo |
-| P5 | **Colunas da v1.4** (19 no total em outubro e novembro, 21 em dezembro com a coluna Dez e o "% Nov"; etapa 4F). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
+| P5 | **Colunas da v1.4** (19 no total em outubro e novembro, 21 em dezembro com a coluna Dez e o "% Nov"; etapa 4F). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). Desde a etapa 4G não há mais rolagem **vertical** em nenhuma aba: as listas longas são paginadas de 15 em 15 |
 | P6 | **Nenhum número de regra digitado na tela:** gatilho, trava e posições premiadas saem de `motor.REGRAS`. Um teste varre o template (sem o CSS) atrás de `130`, "precisa de 100" e "GC: 6 / Mista: 12 / Segmentada: 3" |
 | — | **Consultor lista só as rotas `tipo: "normal"`** (decisão da Karen, 09/11/2026). As `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV: a linha "Total da mesa" pode ser maior que a soma das linhas, e a tela conta quantas ficaram fora (`rotasDaMesa` + `textoDasOcultas`) |
 
@@ -53,8 +56,8 @@ sinaliza, não decide.
 | --- | --- |
 | **Ranking GC** | as **12 linhas da gerência comercial agrupada** (etapa 4C) na ordem do % Acum. de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem % Acum. e sem status: a empresa não tem apuração própria). A coluna Gerência mostra o código da linha; quem agrupa é `CONFIG.gruposGC` |
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
-| **Consultor** | filtros Gerência e Supervisão, o aviso de que ranking e premiação são do supervisor para cima, e as rotas da mesa em dois grupos (Volume de Aperitivo · Cobertura de Skyy), com a linha "Total da mesa" |
-| **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos e a linha "Total Band" |
+| **Consultor** | filtros Gerência e Supervisão (que **abre em "Todas"** desde a etapa 4G), o aviso de que ranking e premiação são do supervisor para cima, e as rotas em dois grupos (Volume de Aperitivo · Cobertura de Skyy), paginadas de 15 em 15, com a linha de total fixa no rodapé — "Total Band" em "Todas", "Total da gerência XX" com uma gerência escolhida e "Total da mesa SV.XX.N" com um SV |
+| **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos, paginada, e a linha "Total Band" |
 | **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**) aparecem |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
@@ -151,6 +154,8 @@ Formatar e recortar não é calcular: o % já vem bruto do motor e estas funçõ
 | `valoresDoMes(tabela, produto, mes)` | os números de um produto num mês; mês ausente devolve tudo null, nunca zero |
 | `filtrosDoPainel(dados)` | gerências e SVs dos filtros, **só códigos**; as gerências são as da API (`gcApi`), não as linhas agrupadas |
 | `rotasDaMesa(dados, sv)` / `textoDasOcultas(ocultas)` | as rotas `normal` da mesa, o que ficou fora (contado por tipo) e a linha do SV que vira "Total da mesa" |
+| `rotasDoConsultor(dados, {sv, gc})` | **(4G)** o recorte da aba Consultor nas três situações do filtro — uma mesa, uma gerência inteira ou todas as rotas — com o rótulo do total ("Total da mesa SV.XX.N", "Total da gerência XX" ou "Total Band"). O total é sempre uma linha que a **API publica**: nada é somado aqui |
+| `fatiar(linhas, pagina, tamanho)` | **(4G)** uma página de linhas: `{ linhas, pagina, paginas, total, tamanho, inicio, fim, uma }`. Página fora do intervalo fica travada no intervalo; lista vazia dá uma página sem linhas; tamanho padrão `CONFIG.linhasPorPagina` (15). A linha de total fica **fora** desta conta |
 | `linhasDoDetalhe(dados, visao, gc)` | as linhas da aba Detalhe do mês; a visão de gerência usa `gcApi` (as 16 da API) |
 | `alertasDaTela(dados)` | `[{tipo: 'erro' \| 'aviso' \| 'nota', titulo, texto}]` com o estado real dos dados |
 
@@ -190,7 +195,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 184 testes (61 do motor, 123 do adaptador); precisa de Node 18+
+# testes do painel — 199 testes (61 do motor, 138 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -335,3 +340,35 @@ cores e os quadradinhos junto com o Detalhe do mês (é a mesma função de tabe
 **Fora desta etapa:** a **paginação** de Supervisão e Consultor (15 linhas por página, Total Band fixo no rodapé,
 Consultor aberto com todas as rotas), que está na mesma seção 7 da v1.7 e não entrou no pedido da 4F. A Supervisão
 Mista continua rolando (30 linhas).
+
+## Etapa 4G — navegação por páginas (regras v1.7, seção 7)
+
+Pedido da Karen em 09/11/2026: botões de navegação no lugar da rolagem, e o Consultor abrindo com todas as rotas.
+**Só apresentação: nenhum número muda** — as linhas da tela, célula a célula, saíram idênticas às da etapa 4F na
+mesma cópia de `api/v1` (foto de 09/11/2026 17:30).
+
+| # | Ajuste | Onde |
+| --- | --- | --- |
+| 1 | **15 linhas por página**, com os botões `‹ 1 2 ›` no rodapé da tabela: a página atual em vermelho, "‹" desabilitado na primeira e "›" na última. Cabendo numa página só, nenhum botão aparece | `fatiar` no adaptador (`CONFIG.linhasPorPagina`) e `navPaginas` na tela, que só desenha |
+| 2 | **Linha de total fixa** no rodapé de **todas** as páginas, fora da contagem das 15 | `tabelaRanking` e `tabelaGrupos`: a fatia não a inclui, e ela é acrescentada depois do corpo |
+| 3 | **Consultor abre com todas as rotas** (filtro de Supervisão em "Todas"), na mesma ordem de antes | `st.sv` começa vazio; o recorte é de `rotasDoConsultor` |
+| 4 | Trocar **aba, canal, mês ou filtro** volta para a página 1 e recalcula o número de páginas; a página **não** é lembrada ao recarregar | `voltarPagina1()` nos três manipuladores de evento |
+| 5 | **Uma paginação por tela**, e a Supervisão **uma por canal** | `chavePag()`: `gc`, `sv:Mista`, `sv:Segmentada`, `rt`, `det:gc`, `det:sv` |
+| 6 | **Acessibilidade:** `aria-label` ("Página 2", "Página anterior", "Próxima página"), `aria-current="page"` na atual, `<button>` de verdade (Tab/Enter) e o foco devolvido ao mesmo controle depois do redesenho | `navPaginas` e `devolverFoco` |
+| 7 | As linhas da tabela de dois grupos (Consultor e Detalhe do mês) passam a 3 px de respiro, como as de ranking desde a 4B. A fonte **não** muda (15 px) | `.tb.g2 td,.tb.g2 th` — é o que faltava para a página cheia caber sem rolagem em 1920×940 |
+
+**Quem ficou paginado.** O Ranking GC tem 12 linhas e cabe numa página só, então continua **sem** botões. O Detalhe do
+mês passa de 15 linhas nas duas visões (16 gerências e 63 supervisões), e por isso **também foi paginado** — ⚠️ é uma
+premissa a confirmar com a Karen, já que a v1.7 cita só Supervisão e Consultor; sem ela, essa aba continuaria com
+rolagem interna, que é o que a etapa pediu para eliminar.
+
+**Contagem na foto de 09/11/2026 17:30:** Ranking GC 12 linhas (1 página) · Supervisão Mista 29 (2) · Supervisão
+Segmentada 6 (1) · Consultor 218 rotas (15) · Detalhe do mês 16 gerências (2) e 63 supervisões (5). As 63
+supervisões são as 48 que a API publica mais as 15 `SV.*.EV` que só existem no `fechado/202610.json` — nada disso
+mudou na 4G.
+
+⚠️ **Premissas desta etapa** (a Karen confirma): (a) paginar também o Detalhe do mês; (b) a Supervisão **não** ganhou
+linha de total, porque não tinha nenhuma até aqui — "o Total Band fixo no rodapé" foi lido como "a linha de total que
+a tela já mostra se repete em todas as páginas", não como uma linha nova; (c) no Consultor em "Todas", o total é o
+**Total Band**, e com uma gerência escolhida é a linha daquela gerência da API (`gcApi`), que soma todas as rotas
+dela — nenhuma soma nova é feita no painel.

@@ -129,7 +129,7 @@ na fonte da tabela, linha do total só com "Total Band" e as mesmas cores no Con
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 184 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 199 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

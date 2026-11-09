@@ -24,8 +24,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   gerência comercial agrupada (12 linhas) e pôs o bloco Aperitivo no laranja do SAC, e a **Etapa 4F** (regras v1.7,
   seção 7) fez os ajustes de tabela: centralização, coluna Dez só em dezembro, rótulos "% Acum." e "% Médio",
   quadradinho no % do mês vigente do Aperitivo, números do Aperitivo na fonte da tabela, linha do total só com
-  "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. A tela **não calcula nada**: lê o que o
-  motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
+  "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. A **Etapa 4G** (regras v1.7, seção 7)
+  trocou a rolagem por **navegação por páginas** (15 linhas) na Supervisão, no Consultor e no Detalhe do mês, e abriu
+  o Consultor com todas as rotas. A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
   Q4, rode o script e o build do Campari.
@@ -51,7 +52,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -71,7 +72,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 184 testes (61 do motor, 123 do adaptador)
+# testes do painel Campari Club — 199 testes (61 do motor, 138 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -247,8 +248,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   em outubro e novembro e **21 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F), cabem em 1.754 px **sem rolagem
   horizontal**, com corpo de 14 px,
   cabeçalho de 13 px e linhas de 3 px de respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
-  isso as 16 gerências e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; a Supervisão
-  Mista, com 30 linhas, continua rolando. O seletor "Mês de referência" vale no Ranking GC **e** na
+  isso as 12 linhas agrupadas e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; desde a
+  etapa 4G as listas longas (Supervisão, Consultor e Detalhe do mês) são paginadas de 15 em 15, e **nenhuma aba rola**. O seletor "Mês de referência" vale no Ranking GC **e** na
   Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`). O **mês
   vigente** é outra coisa: é o mês de referência da API (`mesesDoSeletor(...).referencia`), e é ele — nunca a escolha
   do seletor — que decide as colunas que só existem em dezembro e em qual coluna fica o quadradinho do Aperitivo.
@@ -297,8 +298,16 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   regra **diferente** da de cobertura: o limite é o da **trava do mês** e, no mês sem trava, o
   `REGRAS.corAperitivoSemTrava` (⚠️ pendência 25, sinalizada em Regras > Dados e alertas); o "% Acum." e as colunas dos
   outros meses não têm quadradinho. O Consultor e o Detalhe do mês passam a usar as mesmas cores e os mesmos
-  quadradinhos das tabelas de ranking, pelas classes que já existiam (nenhum CSS novo). A **paginação** de Supervisão
-  e Consultor, que está na mesma seção 7 da v1.7, **ainda não foi feita**.
+  quadradinhos das tabelas de ranking, pelas classes que já existiam (nenhum CSS novo).
+- **Navegação por páginas (etapa 4G, v1.7, seção 7; decisão de 09/11/2026):** só apresentação — **15 linhas por
+  página** (`CONFIG.linhasPorPagina`) na Supervisão (uma paginação por canal), no Consultor e no Detalhe do mês, com
+  os botões `‹ 1 2 ›` no rodapé da tabela (atual em vermelho, setas desabilitadas nos extremos, nenhum botão quando
+  cabe numa página só) e **sem rolagem** dentro de nenhuma aba. A conta é a função pura `fatiar` do adaptador; a
+  linha de total fica **fora** da contagem e se repete em todas as páginas. O **Consultor abre em "Todas"**
+  (`rotasDoConsultor`, que também dá o rótulo do total: Total Band, da gerência ou da mesa). Trocar aba, canal, mês
+  ou filtro volta à página 1; a página não é lembrada ao recarregar. O Ranking GC (12 linhas) cabe numa página e
+  continua sem botões; o **Detalhe do mês foi paginado também** — ⚠️ premissa a confirmar, porque a v1.7 cita só
+  Supervisão e Consultor.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -426,7 +435,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 184 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 199 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
