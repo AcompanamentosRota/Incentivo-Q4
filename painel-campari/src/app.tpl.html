@@ -90,7 +90,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <section class="view" id="v-obra" aria-label="Aba em construção">
     <div class="panel"><div class="obra">
       <b id="obra-tt"></b>
-      <p>Esta aba está em construção. Ranking de volume, gatilho de cobertura, colunas, meta dia, Total Band e premiação
+      <p>Esta aba está em construção. Ranking de volume, gatilho de cobertura, colunas, meta dia, Total Band e status
         entram nas próximas etapas. Nenhum número é calculado nesta versão.</p>
       <p class="aviso" id="obra-aviso"></p>
     </div></div>
@@ -103,10 +103,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     </div></div>
   </section>
 
-  <div class="foot"><span id="rodtx">Etapa 1: painel sem cálculo. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodtx">Etapa 2: dados e motor do ranking de volume prontos; telas em construção. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
 </div>
 
 <script>/*__MOTOR__*/</script>
+<script>const BASE_CANAIS_CAMPARI = /*__BASE__*/;</script>
 <script>/*__ADAPTER__*/</script>
 <script>
 (async function(){
@@ -135,8 +136,8 @@ const REGRAS_TXT = [
     '<h2>Visão geral</h2><ul>'+
     '<li><b>Vigência:</b> outubro, novembro e dezembro de 2026.</li>'+
     '<li><b>Mecânica:</b> um gatilho de cobertura de Skyy habilita o participante; o ranking é por volume de aperitivo.</li>'+
-    '<li><b>Níveis com ranking e premiação:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
-    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem premiação ("contabilizado do supervisor para cima").</li>'+
+    '<li><b>Níveis com ranking:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
+    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem status ("contabilizado do supervisor para cima").</li>'+
     '<li><b>Diretoria e GP:</b> total de todas as gerências, numa linha "Total Band", sem página própria.</li>'+
     '<li><b>Dezembro não tem trava</b> (decisão de 06/11/2026; prevalece sobre o carimbo do slide 2).</li></ul>' },
   { id:'gatilho', nome:'Gatilho (Skyy)', html:
@@ -162,27 +163,19 @@ const REGRAS_TXT = [
     '<li><b>GC:</b> todas as rotas da gerência.</li>'+
     '<li><b>Total Band:</b> total da empresa.</li>'+
     '<li><b>Canal do SV:</b> mesma regra do Desafio Q4 — o escolhido pelo admin ou, sem escolha, o da maioria das rotas da mesa.</li>'+
-    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): soma somente as rotas com meta de cobertura. '+P('leitura adotada: o realizado e o online também só dessas rotas; a confirmar (pendência 11)')+'</li></ul>' },
+    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): a meta soma só as rotas com meta de cobertura; o realizado e o online somam todas as rotas, como a API publica.</li></ul>' },
   { id:'posicao', nome:'Posição e desempate', html:
     '<h2>Posição, status e desempate</h2><ul>'+
-    '<li>Todas as linhas recebem posição. Quem não bate o gatilho aparece com a posição em cinza e fica fora da premiação.</li>'+
-    '<li><b>Desempate:</b> ordem alfabética do código da supervisão ou da gerência. '+P('em ordem alfabética simples, SV.g2.10 vem antes de SV.g2.2')+'</li></ul>' },
-  { id:'premiacao', nome:'Premiação', html:
-    '<h2>Premiação (por posição; sem valores)</h2><table><thead><tr><th>Prêmio</th><th>Quem ganha</th></tr></thead><tbody>'+
-    '<tr><td>Viagem internacional (Aruba), com acompanhante</td><td>Diretoria, 1 GP, GC do 1º ao 4º</td></tr>'+
-    '<tr><td>Viagem nacional (Fernando de Noronha), com acompanhante</td><td>GC 5º e 6º</td></tr>'+
-    '<tr><td>Cruzeiro Santos → Rio de Janeiro</td><td>Supervisor Mista do 1º ao 8º; Supervisor Segmentada 1º e 2º</td></tr>'+
-    '<tr><td>Premiação Plus (ar-condicionado)</td><td>Supervisor Mista do 9º ao 12º; Supervisor Segmentada 3º</td></tr>'+
-    '</tbody></table><p>Diretoria e GP são premiados, mas não têm apuração própria: o painel mostra só a linha "Total Band".</p>' },
+    '<li>Todas as linhas recebem posição (Pos.). Quem não bate o gatilho aparece com a posição em cinza; a coluna Oficial numera só quem bateu o gatilho.</li>'+
+    '<li><b>Status:</b> "✓ Bateu!" = gatilho batido e posição oficial dentro das posições premiadas do ranking; senão "-".</li>'+
+    '<li><b>Desempate</b> (confirmado em 08/11/2026): ordem alfabética do código da supervisão ou da gerência, texto simples (SV.G2.10 vem antes de SV.G2.2).</li></ul>' },
   { id:'pendencias', nome:'Pendências', html:
-    '<h2>Pendências (situação em 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
-    '<tr><td>9</td><td>Publicar Aperitivo e Skyy como agrupadores extras</td><td><span class="okk">Resolvida</span> publicados na API</td><td>—</td></tr>'+
+    '<h2>Pendências em aberto (regras v1.3, 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
     '<tr><td>10</td><td>Incluir a cobertura no fechamento do mês (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho</td><td><span class="pend">Em aberto</span> prazo 01/12/2026</td><td>Matheus</td></tr>'+
-    '<tr><td>11</td><td>% de cobertura de SV e GC</td><td><span class="okk">Respondida</span> somente rotas com meta. '+P('confirmar se o realizado e o online também entram só dessas rotas')+'</td><td>Karen</td></tr>'+
-    '<tr><td>12</td><td>Meta dia de cobertura: a meta restante desconta só o Real ou o Real + Online?</td><td><span class="okk">Resolvida</span> só o Real (até ontem); meta dia travada</td><td>—</td></tr>'+
     '<tr><td>13</td><td>Repositório público, com nomes de clientes e pessoas nos dados</td><td><span class="pend">Confirmado</span> alta prioridade</td><td>Karen / TI</td></tr>'+
-    '<tr><td>14</td><td>Dias úteis restantes da meta dia de cobertura: contam hoje?</td><td><span class="pend">Novo</span> conferir na etapa do motor</td><td>Claude Code</td></tr>'+
-    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Novo</span> conferir a partir de 09/11/2026</td><td>Karen</td></tr>'+
+    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Conferir</span> a partir de 09/11/2026</td><td>Karen</td></tr>'+
+    '<tr><td>21</td><td>Mockup sem as colunas novas do Ranking GC e da Supervisão</td><td><span class="pend">Em aberto</span></td><td>Karen</td></tr>'+
+    '<tr><td>9, 11, 12, 14, 16 a 20</td><td>Demais pendências</td><td><span class="okk">Resolvidas</span> (docs/regras.md, seção 10)</td><td>—</td></tr>'+
     '</tbody></table>' },
 ];
 

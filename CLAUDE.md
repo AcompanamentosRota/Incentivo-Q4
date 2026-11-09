@@ -16,8 +16,12 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: gatilho de cobertura de Skyy e ranking por volume de aperitivo (agrupadores extras `Aperitivo` e `Skyy`
-  da API). É independente do Desafio Q4 (nada importado de lá). **Etapa 1 (09/11/2026): esqueleto, sem cálculo**;
-  as regras entram nas etapas seguintes, só em `painel-campari/src/motor.js`.
+  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.3 (08/11/2026). **Etapa 2: dados e motor do
+  ranking de volume de Aperitivo** (% do mês, trava 130% out/nov, soma, ordem e posição; `carregarRanking` no adaptador),
+  ainda sem números na tela; gatilho e status na Etapa 3, tela na Etapa 4. Toda regra só em `painel-campari/src/motor.js`.
+  O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
+  foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
+  Q4, rode o script e o build do Campari.
 - **Quem usa:** o Back Office e a equipe comercial (gerências, supervisores e consultores); o painel é feito
   para tela de PC e para print. Donos do repositório: Matheus (API e back-end) e Karen (painel).
 - Os dados se atualizam sozinhos: um workflow roda o gerador a cada 15 min em dias úteis e comita em `api/`.
@@ -40,7 +44,8 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo; etapa 1: só `versaoRegras`), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem e posição), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `montarDados`, `carregarRanking`; canal copiado do Q4), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
 | `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
 | `frontend/campari-club.html` | painel Campari Club pronto | **gerado** por `painel-campari/scripts/build.py` |
@@ -58,7 +63,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 19 testes (3 do motor, 16 do adaptador)
+# testes do painel Campari Club — 60 testes (17 do motor, 43 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -72,7 +77,7 @@ cd backend && python scripts/diagnosticar_real.py --datasphere   # + consulta di
 # regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
 python painel-q4/scripts/build.py
 
-# regera frontend/campari-club.html a partir de painel-campari/src
+# regera frontend/campari-club.html a partir de painel-campari/src e painel-campari/data
 python painel-campari/scripts/build.py
 
 # site local, montado como no Pages (frontend/ na raiz, api/ em /api)
@@ -299,7 +304,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 19 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 60 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
