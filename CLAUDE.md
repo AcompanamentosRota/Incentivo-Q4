@@ -16,12 +16,15 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: gatilho de cobertura de Skyy e ranking por volume de aperitivo (agrupadores extras `Aperitivo` e `Skyy`
-  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.6 (09/11/2026). **Etapa 4: a tela**, nas
+  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.7 (09/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
-  ajustou só a apresentação das duas tabelas de ranking, e a **Etapa 4C** (seção 4) trocou o Ranking GC para a
-  gerência comercial agrupada (12 linhas) e pôs o bloco Aperitivo no laranja do SAC. A tela **não calcula nada**: lê o que o
+  ajustou só a apresentação das duas tabelas de ranking, a **Etapa 4C** (seção 4) trocou o Ranking GC para a
+  gerência comercial agrupada (12 linhas) e pôs o bloco Aperitivo no laranja do SAC, e a **Etapa 4F** (regras v1.7,
+  seção 7) fez os ajustes de tabela: centralização, coluna Dez só em dezembro, rótulos "% Acum." e "% Médio",
+  quadradinho no % do mês vigente do Aperitivo, números do Aperitivo na fonte da tabela, linha do total só com
+  "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. A tela **não calcula nada**: lê o que o
   motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -68,7 +71,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 170 testes (55 do motor, 115 do adaptador)
+# testes do painel Campari Club — 184 testes (61 do motor, 123 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -194,7 +197,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.6 de 09/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.7 de 09/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
   cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -236,15 +239,20 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   (decisão da Karen, 09/11/2026): `neutraliza` e `virtual` ficam fora da lista mas continuam somando no SV, então a
   linha "Total da mesa" pode ser maior que a soma das linhas visíveis — a tela conta quantas ficaram fora
   (`rotasDaMesa` + `textoDasOcultas`). **Total Band** (`resumo.json` → `empresa`) tem os
-  números e o acumulado de cobertura, mas não tem posição oficial nem status (Diretoria e GP não têm apuração própria).
+  números e o acumulado de cobertura, mas não tem posição oficial nem status (a empresa não tem apuração própria).
+  Na tela a linha mostra só **"Total Band"** (o "· Diretoria e GP" saiu na etapa 4F).
 - **A tela (Etapa 4, mockup de 08/11/2026):** cinco abas — Ranking GC · Supervisão (uma tela só, Mista ⇄ Segmentada) ·
   Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
-  `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm as **20 colunas
-  da v1.4** (21 em dezembro, com o "% Nov"), cabem em 1.754 px **sem rolagem horizontal**, com corpo de 14 px,
+  `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **19 colunas**
+  em outubro e novembro e **21 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F), cabem em 1.754 px **sem rolagem
+  horizontal**, com corpo de 14 px,
   cabeçalho de 13 px e linhas de 3 px de respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
   isso as 16 gerências e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; a Supervisão
   Mista, com 30 linhas, continua rolando. O seletor "Mês de referência" vale no Ranking GC **e** na
-  Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`).
+  Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`). O **mês
+  vigente** é outra coisa: é o mês de referência da API (`mesesDoSeletor(...).referencia`), e é ele — nunca a escolha
+  do seletor — que decide as colunas que só existem em dezembro e em qual coluna fica o quadradinho do Aperitivo.
+  O conteúdo de todas as tabelas é **centralizado**, inclusive a coluna de identificação (etapa 4F).
   **Nenhum número de regra é digitado na tela** (gatilho, trava e posições premiadas saem de `motor.REGRAS`) e
   **nenhum prêmio aparece em lugar nenhum** — há testes varrendo o template e o HTML gerado.
 - **Ajustes visuais das tabelas de ranking (Etapa 4B, v1.6, seções 5 e 7; decisão de 09/11/2026):** só apresentação,
@@ -272,11 +280,25 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `rgb(46,44,57)` na tela, branco 13,7:1 e Dif. negativa 8,1:1. Nesse tom o corpo quase não tem cor — o laranja do
   bloco vive no título e nos cabeçalhos. **Skyy** — `--sk-tit` é o azul escuro `#061C4D`, também nos cabeçalhos das
   colunas (`hd-sk`), com texto claro `--sk-tit-fg` (14,1:1); o corpo segue em `rgba(29,123,255,.20)`.
-  **Mês travado mostra só o limite (etapa 4F):** o % real do mês, que aparecia em laranja ao lado (`.tv`), saiu da
-  tela por decisão da Karen; o motor continua devolvendo `pct` e `travado` e o `.tv` e o `--laranja` saíram do CSS.
-  ⚠️ A seção 7 do documento de regras ainda descreve aquele número: corrigir numa v1.7, em PR próprio.
+  **Mês travado mostra só o limite** (decisão da Karen de 09/11/2026, no PR da etapa 4D, onde o item foi chamado de
+  "etapa 4F"): o % real do mês, que aparecia em laranja ao lado (`.tv`), saiu da tela; o motor continua devolvendo
+  `pct` e `travado` e o `.tv` e o `--laranja` saíram do CSS. A v1.7 do documento de regras já não descreve aquele
+  número.
   **Comentário de CSS mal fechado apaga a cor em silêncio** (aconteceu em 09/11/2026 com o bloco Skyy): há um teste
   que varre o CSS do template e do HTML gerado atrás de comentário sem par e de chave desbalanceada.
+- **Ajustes de tabela (etapa 4F, v1.7, seção 7; decisão de 09/11/2026):** só apresentação e rótulos — nenhum número
+  muda. Conteúdo **centralizado** em todas as tabelas das quatro abas, inclusive a coluna de identificação (a regra
+  `text-align:left` do `.l` saiu; a classe ficou só como marca da coluna). A coluna **Dez** do Aperitivo só existe
+  quando o mês vigente é dezembro (`mesesAp`, de `R.meses`), com `colspan` e `<colgroup>` acompanhando. Rótulos:
+  "Soma" → **"% Acum."** no Aperitivo e "% Acum." → **"% Médio"** no Skyy (só texto de tela: os campos `soma` e
+  `acumulado` do motor não mudam, e o gatilho continua sendo a média simples de novembro e dezembro). Os números do
+  Aperitivo saem da condensada grande (`.n` / `.n.g`, que saiu do CSS) e ficam na fonte da tabela. **Quadradinho do
+  % de Aperitivo** só na coluna do mês vigente, pela função pura `corDoPercentualAperitivo(valor, mes)` do motor —
+  regra **diferente** da de cobertura: o limite é o da **trava do mês** e, no mês sem trava, o
+  `REGRAS.corAperitivoSemTrava` (⚠️ pendência 25, sinalizada em Regras > Dados e alertas); o "% Acum." e as colunas dos
+  outros meses não têm quadradinho. O Consultor e o Detalhe do mês passam a usar as mesmas cores e os mesmos
+  quadradinhos das tabelas de ranking, pelas classes que já existiam (nenhum CSS novo). A **paginação** de Supervisão
+  e Consultor, que está na mesma seção 7 da v1.7, **ainda não foi feita**.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -404,7 +426,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 170 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 184 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

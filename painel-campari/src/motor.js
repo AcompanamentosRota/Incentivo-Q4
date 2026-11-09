@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.6 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.7 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -13,6 +13,10 @@
  * Etapa 4C: a soma da gerência comercial agrupada do Ranking GC (`somarGrupo`, regras v1.6, seção 4 e pendência
  * 24). O agrupamento em si (quais gerências formam cada linha) é configuração do adaptador; a REGRA que mora aqui
  * é a de somar as medidas e só depois calcular — o % é o da soma, nunca a média dos % das gerências.
+ * Etapa 4F: a cor do quadradinho do % do mês de Aperitivo (`corDoPercentualAperitivo`, regras v1.7, seção 7;
+ * decisão da Karen de 09/11/2026). Exibição outra vez, e regra outra vez — e é regra DIFERENTE da do % de
+ * cobertura: o verde começa no limite da TRAVA do mês e, no mês sem trava, em `REGRAS.corAperitivoSemTrava`,
+ * nunca no mínimo do gatilho, que é de cobertura.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -23,10 +27,15 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.6',
+    versao: '1.7',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
+    // Limite do quadradinho VERDE do % do mês de Aperitivo no mês SEM trava (dezembro), em pontos percentuais
+    // (regras v1.7, seção 7; ⚠️ pendência 25, a confirmar com a Karen). Nos meses com trava o limite é a própria
+    // trava, por isso ele não se repete aqui. É outro número que o mínimo do gatilho, ainda que hoje coincidam:
+    // um é volume de Aperitivo, o outro é cobertura de Skyy.
+    corAperitivoSemTrava: 100,
     // Gatilho de cobertura de Skyy (regras, seção 2): média simples dos % de novembro e dezembro, mínimo 100%.
     // Outubro nunca entra. Em novembro o gatilho é parcial (só novembro).
     gatilho: { meses: [11, 12], minimo: 100 },
@@ -311,6 +320,27 @@
   }
 
   /**
+   * Cor do quadradinho do % do MÊS de Aperitivo (regras v1.7, seção 7; decisão da Karen de 09/11/2026). Vale só
+   * para a coluna do mês vigente das tabelas de ranking e para o % do Consultor e do Detalhe do mês: a tela
+   * pergunta a cor e nunca compara nada.
+   *   - 'verde'    -> o valor BRUTO chega ao limite do mês: a trava (`REGRAS.trava[mes]`) nos meses travados e
+   *                   `REGRAS.corAperitivoSemTrava` no mês sem trava (dezembro) — ⚠️ pendência 25;
+   *   - 'vermelho' -> o valor bruto está abaixo desse limite;
+   *   - null       -> sem valor ("—"): a tela não desenha quadradinho nenhum.
+   * A comparação é no valor BRUTO, nunca no truncado da tela: 129,99999% aparece como "129,9%" e fica VERMELHO.
+   * Mês fora da vigência: erro, como em `aplicarTrava` (nunca adivinhar o limite de um mês que não existe).
+   * O % ACUMULADO de Aperitivo (a soma do ranking) não tem quadradinho: esta função não serve a ele.
+   */
+  function corDoPercentualAperitivo(valor, mes, cfg) {
+    const regras = cfg || REGRAS;
+    if (!Object.prototype.hasOwnProperty.call(regras.trava, mes)) throw new Error(`mês ${mes} fora da vigência do Campari Club`);
+    if (!numero(valor)) return null;
+    const trava = regras.trava[mes];
+    const limite = trava === null || trava === undefined ? regras.corAperitivoSemTrava : trava;
+    return valor >= limite ? 'verde' : 'vermelho';
+  }
+
+  /**
    * "Hoje" colorido (regras, seção 7; pendência 17, confirmada em 08/11/2026): Online > 0 E Online ≥ Meta dia.
    * Meta dia 0 com Online > 0 colore; meta dia 0 com Online 0 não colore; meta dia null (API em período de
    * fechamento, ou cobertura sem meta) não colore. Serve para volume (`meta_dia` da API) e para cobertura
@@ -326,5 +356,5 @@
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
-           hojeAtingiu };
+           corDoPercentualAperitivo, hojeAtingiu };
 });

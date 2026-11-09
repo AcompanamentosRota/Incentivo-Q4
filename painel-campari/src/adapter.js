@@ -738,12 +738,16 @@ const rotuloDoMes = (mes, ano, estado) =>
   maiusc1(NOMES_MES[mes] || '?') + '/' + String(ano).slice(-2) + (estado === 'previa' ? ' (prévia)' : '');
 
 /**
- * Opções do seletor "Mês de referência" (premissa P4) e o mês padrão.
- * Devolve { meses: [{ mes, anomes, rotulo, fonte, estado, aberto, habilitado, motivo }], padrao }.
+ * Opções do seletor "Mês de referência" (premissa P4), o mês padrão e o mês vigente.
+ * Devolve { meses: [{ mes, anomes, rotulo, fonte, estado, aberto, habilitado, motivo }], padrao, referencia }.
  *   - `habilitado` = o mês tem fonte de volume ('api' ou 'fechado'); mês futuro ou indisponível fica DESABILITADO;
  *   - `aberto` = mês de referência fora do período de fechamento da API (é o único com M. Dia e Online);
  *   - `padrao` = o mês de referência do index.json, quando habilitado; senão o último habilitado; nenhum: null.
- * O seletor troca só Meta, Real, Dif e o % do mês: Out, Nov, Dez, Soma, % Nov e % Acumulado não dependem dele.
+ *   - `referencia` = o mês VIGENTE: o mês da vigência que o index.json publica como referência, mesmo sem fonte
+ *     de volume e mesmo no período de fechamento da API; referência fora da vigência: null. É ele, e não a
+ *     escolha do seletor, que decide as colunas que só existem em dezembro e em qual coluna de mês fica o
+ *     quadradinho do % de Aperitivo (regras v1.7, seção 7).
+ * O seletor troca só Meta, Real, Dif e o % do mês: Out, Nov, Dez, % Acum., % Nov e % Médio não dependem dele.
  */
 function mesesDoSeletor(dados, cfg) {
   cfg = cfg || CONFIG;
@@ -757,8 +761,10 @@ function mesesDoSeletor(dados, cfg) {
   });
   const ref = String(dados && dados.mesReferencia ? dados.mesReferencia.anomes : '');
   const doRef = meses.find((m) => m.anomes === ref && m.habilitado);
+  const naVigencia = meses.find((m) => m.anomes === ref);
   const hab = meses.filter((m) => m.habilitado);
-  return { meses, padrao: doRef ? doRef.mes : hab.length ? hab[hab.length - 1].mes : null };
+  return { meses, padrao: doRef ? doRef.mes : hab.length ? hab[hab.length - 1].mes : null,
+           referencia: naVigencia ? naVigencia.mes : null };
 }
 
 /** Mês sem nenhuma medida: a tela mostra "—" em tudo, nunca zero. */
@@ -844,7 +850,7 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.6.
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.7.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -881,7 +887,13 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.6, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.7, seção 7).');
+  // ⚠️ pendência 25 das regras v1.7: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
+  // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
+  // ainda confirma. O número sai do motor, nunca escrito aqui.
+  add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
+      'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
+      ' (regras v1.7, pendência 25). Nos meses travados o limite é o da trava.');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
