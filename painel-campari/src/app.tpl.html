@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campari Club 2026 · Painel de acompanhamento</title>
+<style>
+/* Etapa 1: esqueleto, sem cálculo. Sem logo nem fonte embutida: Inter, com reserva na fonte do sistema. */
+:root{
+  --red:#c8102e; --red2:#e8304a; --gold:#ffc84a; --green:#22b14c; --greend:#0d5a24;
+  --panel:rgba(16,12,14,.9); --line:rgba(255,255,255,.12); --muted:#b9bcc4; --ink:#ffffff;
+  --ff:Inter,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;color:var(--ink);overflow:hidden;font-family:var(--ff);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;transform:scale(var(--s,1));overflow:hidden;background:#070506}
+.bg{position:absolute;inset:0;background:
+  radial-gradient(1100px 700px at 6% 4%,rgba(200,16,46,.36),transparent 62%),
+  radial-gradient(1100px 700px at 96% 8%,rgba(200,16,46,.18),transparent 62%),
+  radial-gradient(1400px 500px at 50% 112%,rgba(200,16,46,.20),transparent 70%),#070506}
+
+/* cabeçalho compacto: letreiro em texto e dados numa faixa; abas logo abaixo (top 102) */
+.hd{position:absolute;left:0;right:0;top:14px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.ttl{font-size:56px;line-height:62px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.ttl span{color:var(--red2)}
+.sub{font-size:17px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.info{position:absolute;right:60px;top:14px;text-align:right;line-height:1.1;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:baseline;justify-items:end}
+.info small{display:block;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.info b{display:block;font-size:24px;font-weight:600;margin-bottom:3px}
+
+.nav{position:absolute;left:60px;right:60px;top:102px;height:40px;display:flex;align-items:center;gap:18px}
+.seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{padding:4px 15px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted);min-height:32px}
+.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(200,16,46,.5)}
+.seg button:not([aria-selected="true"]):hover{color:#fff}
+
+/* faixas de aviso: vermelha (API ilegível ou simulada) e amarela (produtos não publicados) */
+.faixa{position:absolute;left:60px;right:60px;top:150px;display:none;padding:8px 18px;border-radius:12px;font-size:18px;font-weight:600;border:1px solid}
+.faixa.on{display:block}
+.faixa.err{background:#4a0d17;border-color:var(--red2);color:#ffd0d8}
+.faixa.warn{background:#3a2a00;border-color:#a47500;color:#ffe29a}
+#stage.comfaixa .view{top:200px}
+
+.view{position:absolute;left:60px;right:60px;top:150px;bottom:48px;display:none;flex-direction:column}
+.view.on{display:flex}
+.panel{flex:1;min-height:0;background:var(--panel);border:1.5px solid rgba(200,16,46,.55);border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.5),0 0 40px rgba(200,16,46,.14);display:flex;flex-direction:column;overflow:hidden}
+.obra{margin:auto;max-width:1100px;text-align:center;padding:48px 60px}
+.obra b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}
+.obra p{font-size:22px;font-weight:500;line-height:1.45;color:#dfe2e8}
+.obra .aviso{margin-top:18px;color:#ffe29a}
+
+/* regras */
+.rg{flex:1;min-height:0;display:flex}
+.rg nav{width:300px;flex:none;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
+.rg nav button{text-align:left;padding:12px 18px;border-radius:12px;font-size:21px;font-weight:600;color:var(--muted);min-height:48px}
+.rg nav button[aria-selected="true"]{background:rgba(200,16,46,.9);color:#fff}
+.rg nav button:not([aria-selected="true"]):hover{background:rgba(255,255,255,.07);color:#fff}
+.rg .bd{flex:1;min-width:0;overflow:auto;padding:26px 36px 34px;font-size:21px;line-height:1.6;color:#e9ebef}
+.rg h2{font-weight:700;font-size:32px;letter-spacing:-.02em;line-height:1.2;margin-bottom:10px}
+.rg p,.rg li{max-width:1240px;color:#dfe2e8}
+.rg p{margin:12px 0}
+.rg ul{margin:8px 0 8px 26px}
+.rg li{margin:6px 0}
+.rg table{border-collapse:collapse;width:100%;max-width:1400px;margin:10px 0 4px}
+.rg th{text-align:left;font-size:17px;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:2px solid rgba(255,255,255,.2)}
+.rg td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.1);vertical-align:top;font-size:19px;line-height:1.45}
+.rg code{font-size:.9em;background:rgba(255,255,255,.08);border-radius:5px;padding:0 5px}
+.pend{display:inline-block;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
+.okk{display:inline-block;background:var(--greend);color:#c4ffd3;border:1px solid var(--green);border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
+
+.foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:15px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.foot #rod{flex:none;text-align:right}
+.foot .sim{color:#fff;background:var(--red);border-radius:6px;padding:1px 10px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg"></div>
+  <header class="hd"><div class="ttl">Campari <span>Club</span></div><div class="sub">Outubro · Novembro · Dezembro 2026</div></header>
+  <div class="info" id="info"></div>
+
+  <nav class="nav" aria-label="Abas do painel">
+    <div class="seg" role="tablist" id="abas"></div>
+  </nav>
+
+  <div class="faixa" id="faixa" role="alert"></div>
+
+  <section class="view" id="v-obra" aria-label="Aba em construção">
+    <div class="panel"><div class="obra">
+      <b id="obra-tt"></b>
+      <p>Esta aba está em construção. Ranking de volume, gatilho de cobertura, colunas, meta dia, Total Band e premiação
+        entram nas próximas etapas. Nenhum número é calculado nesta versão.</p>
+      <p class="aviso" id="obra-aviso"></p>
+    </div></div>
+  </section>
+
+  <section class="view" id="v-regras" aria-label="Regras do incentivo">
+    <div class="panel"><div class="rg">
+      <nav id="rgnav" role="tablist" aria-label="Tópicos das regras" aria-orientation="vertical"></nav>
+      <div class="bd" id="rgbd" tabindex="0"></div>
+    </div></div>
+  </section>
+
+  <div class="foot"><span id="rodtx">Etapa 1: painel sem cálculo. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
+</div>
+
+<script>/*__MOTOR__*/</script>
+<script>/*__ADAPTER__*/</script>
+<script>
+(async function(){
+'use strict';
+const M = window.MotorCampari;
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* palco ajustado à janela (mesmo fit() do Desafio Q4) */
+function fit(){ const s=Math.min(innerWidth/1920, innerHeight/720), sg=$('stage'); sg.style.setProperty('--s', s); sg.style.width=(innerWidth/s)+'px'; sg.style.height=(innerHeight/s)+'px'; }
+fit();
+addEventListener('resize', fit);
+
+const ABAS = [
+  { id:'gc',  nome:'Gerente Comercial' },
+  { id:'svm', nome:'Supervisão Mista' },
+  { id:'svs', nome:'Supervisão Segmentada' },
+  { id:'rt',  nome:'Consultor' },
+  { id:'regras', nome:'Regras' },
+];
+
+/* Regras: resumo das seções 1 a 6 e pendências da seção 10 de docs/regras.md (só texto, nenhuma conta) */
+const P = (t)=>'<span class="pend">⚠️ '+t+'</span>';
+const REGRAS_TXT = [
+  { id:'visao', nome:'Visão geral', html:
+    '<h2>Visão geral</h2><ul>'+
+    '<li><b>Vigência:</b> outubro, novembro e dezembro de 2026.</li>'+
+    '<li><b>Mecânica:</b> um gatilho de cobertura de Skyy habilita o participante; o ranking é por volume de aperitivo.</li>'+
+    '<li><b>Níveis com ranking e premiação:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
+    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem premiação ("contabilizado do supervisor para cima").</li>'+
+    '<li><b>Diretoria e GP:</b> total de todas as gerências, numa linha "Total Band", sem página própria.</li>'+
+    '<li><b>Dezembro não tem trava</b> (decisão de 06/11/2026; prevalece sobre o carimbo do slide 2).</li></ul>' },
+  { id:'gatilho', nome:'Gatilho (Skyy)', html:
+    '<h2>Gatilho: cobertura de Skyy</h2><ul>'+
+    '<li>Medida: cobertura do agrupador <b>Skyy</b> (bloco <code>cobertura</code> do produto extra na API).</li>'+
+    '<li>O cliente conta <b>uma vez no mês</b>, na primeira venda de qualquer SKU; nova compra no mês não conta de novo.</li>'+
+    '<li><b>% do mês</b> = (realizado + online de hoje) ÷ meta, sem arredondar.</li>'+
+    '<li><b>Gatilho</b> = média simples dos % de <b>novembro e dezembro</b>, mínimo 100%. Outubro não entra. Em novembro o gatilho aparece como parcial (só novembro).</li>'+
+    '<li>Online de cobertura: só clientes ainda não cobertos no mês, com pedido válido hoje.</li></ul>' },
+  { id:'ranking', nome:'Ranking (Aperitivo)', html:
+    '<h2>Ranking: volume de aperitivo</h2><ul>'+
+    '<li>Medida: volume do agrupador <b>Aperitivo</b> (produto extra na API, com meta de volume).</li>'+
+    '<li><b>% do mês</b> = (Real + Online) ÷ Meta, bruto.</li>'+
+    '<li><b>Trava:</b> o % do mês é limitado a 130% em outubro e novembro. Dezembro sem trava.</li>'+
+    '<li><b>Pontuação</b> = soma dos % mensais (out + nov + dez), já com a trava.</li>'+
+    '<li>Ranking separado por nível: GC (único), SV Mista e SV Segmentada.</li>'+
+    '<li>Ranking parcial: Real + Online no mês aberto; meses fechados, só o realizado.</li>'+
+    '<li>Outubro vem do fechamento de outubro (chave do faturamento); novembro e dezembro, pela chave da meta. '+P('a soma mistura os dois critérios')+'</li></ul>' },
+  { id:'soma', nome:'Quem soma o quê', html:
+    '<h2>Quem soma o quê</h2><ul>'+
+    '<li><b>Rota:</b> os próprios números.</li>'+
+    '<li><b>SV:</b> todas as rotas da mesa, inclusive as sem canal, no volume e na cobertura.</li>'+
+    '<li><b>GC:</b> todas as rotas da gerência.</li>'+
+    '<li><b>Total Band:</b> total da empresa.</li>'+
+    '<li><b>Canal do SV:</b> mesma regra do Desafio Q4 — o escolhido pelo admin ou, sem escolha, o da maioria das rotas da mesa.</li>'+
+    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): soma somente as rotas com meta de cobertura. '+P('leitura adotada: o realizado e o online também só dessas rotas; a confirmar (pendência 11)')+'</li></ul>' },
+  { id:'posicao', nome:'Posição e desempate', html:
+    '<h2>Posição, status e desempate</h2><ul>'+
+    '<li>Todas as linhas recebem posição. Quem não bate o gatilho aparece com a posição em cinza e fica fora da premiação.</li>'+
+    '<li><b>Desempate:</b> ordem alfabética do código da supervisão ou da gerência. '+P('em ordem alfabética simples, SV.g2.10 vem antes de SV.g2.2')+'</li></ul>' },
+  { id:'premiacao', nome:'Premiação', html:
+    '<h2>Premiação (por posição; sem valores)</h2><table><thead><tr><th>Prêmio</th><th>Quem ganha</th></tr></thead><tbody>'+
+    '<tr><td>Viagem internacional (Aruba), com acompanhante</td><td>Diretoria, 1 GP, GC do 1º ao 4º</td></tr>'+
+    '<tr><td>Viagem nacional (Fernando de Noronha), com acompanhante</td><td>GC 5º e 6º</td></tr>'+
+    '<tr><td>Cruzeiro Santos → Rio de Janeiro</td><td>Supervisor Mista do 1º ao 8º; Supervisor Segmentada 1º e 2º</td></tr>'+
+    '<tr><td>Premiação Plus (ar-condicionado)</td><td>Supervisor Mista do 9º ao 12º; Supervisor Segmentada 3º</td></tr>'+
+    '</tbody></table><p>Diretoria e GP são premiados, mas não têm apuração própria: o painel mostra só a linha "Total Band".</p>' },
+  { id:'pendencias', nome:'Pendências', html:
+    '<h2>Pendências (situação em 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
+    '<tr><td>9</td><td>Publicar Aperitivo e Skyy como agrupadores extras</td><td><span class="okk">Resolvida</span> publicados na API</td><td>—</td></tr>'+
+    '<tr><td>10</td><td>Incluir a cobertura no fechamento do mês (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho</td><td><span class="pend">Em aberto</span> prazo 01/12/2026</td><td>Matheus</td></tr>'+
+    '<tr><td>11</td><td>% de cobertura de SV e GC</td><td><span class="okk">Respondida</span> somente rotas com meta. '+P('confirmar se o realizado e o online também entram só dessas rotas')+'</td><td>Karen</td></tr>'+
+    '<tr><td>12</td><td>Meta dia de cobertura: a meta restante desconta só o Real ou o Real + Online?</td><td><span class="okk">Resolvida</span> só o Real (até ontem); meta dia travada</td><td>—</td></tr>'+
+    '<tr><td>13</td><td>Repositório público, com nomes de clientes e pessoas nos dados</td><td><span class="pend">Confirmado</span> alta prioridade</td><td>Karen / TI</td></tr>'+
+    '<tr><td>14</td><td>Dias úteis restantes da meta dia de cobertura: contam hoje?</td><td><span class="pend">Novo</span> conferir na etapa do motor</td><td>Claude Code</td></tr>'+
+    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Novo</span> conferir a partir de 09/11/2026</td><td>Karen</td></tr>'+
+    '</tbody></table>' },
+];
+
+const st = { aba:'gc', sec:'visao' };
+const D = await carregarDados(CONFIG.api);
+
+/* avisos: API ilegível ou simulada (vermelho); produtos do Campari não achados (amarelo). Nada é inventado. */
+const SEM_PRODUTOS = D.ok && !D.produtos.ok;
+const avisoProdutos = SEM_PRODUTOS ? 'Produtos do Campari ainda não publicados ('+D.produtos.motivos.join('; ')+'). Nada é calculado.' : '';
+const fx = $('faixa');
+if(!D.ok){ fx.className='faixa on err'; fx.textContent='API indisponível ('+D.erro+'): sem dados. Nada é calculado.'; }
+else if(D.simulado){ fx.className='faixa on err'; fx.textContent='ATENÇÃO: a API está com DADOS SIMULADOS (fictícios). Não use estes números.'; }
+else if(SEM_PRODUTOS){ fx.className='faixa on warn'; fx.textContent=avisoProdutos; }
+$('stage').classList.toggle('comfaixa', fx.classList.contains('on'));
+
+/* cabeçalho e rodapé: origem dos dados */
+const quando = (s)=> s ? String(s).replace(/^(\d{4})-(\d\d)-(\d\d)T?(\d\d:\d\d)?.*$/, (m,a,b,c,h)=>c+'/'+b+'/'+a+(h?' · '+h:'')) : '—';
+const mesRef = D.mesReferencia && D.mesReferencia.rotulo ? D.mesReferencia.rotulo : '—';
+$('info').innerHTML = '<small>Dados de</small><b>'+esc(quando(D.atualizadoEm))+'</b><small>Mês de referência</small><b>'+esc(mesRef)+'</b>';
+$('rodver').textContent = M.versaoRegras;
+$('rod').innerHTML = (D.simulado ? '<span class="sim">DADOS SIMULADOS</span> · ' : '') +
+  (D.ok ? 'Dados de '+esc(quando(D.atualizadoEm))+' · mês de referência '+esc(mesRef)+' · fonte: API (./api/v1/index.json)'
+        : 'Sem dados: '+esc(D.erro));
+
+function render(){
+  $('abas').innerHTML = ABAS.map(a=>'<button role="tab" data-aba="'+a.id+'" aria-selected="'+(a.id===st.aba)+'">'+esc(a.nome)+'</button>').join('');
+  const regras = st.aba==='regras';
+  $('v-regras').classList.toggle('on', regras);
+  $('v-obra').classList.toggle('on', !regras);
+  if(regras){
+    $('rgnav').innerHTML = REGRAS_TXT.map(s=>'<button role="tab" data-sec="'+s.id+'" aria-selected="'+(s.id===st.sec)+'">'+esc(s.nome)+'</button>').join('');
+    $('rgbd').innerHTML = REGRAS_TXT.find(s=>s.id===st.sec).html;
+  } else {
+    $('obra-tt').textContent = ABAS.find(a=>a.id===st.aba).nome+': em construção';
+    $('obra-aviso').textContent = !D.ok ? 'API indisponível: sem dados.' : avisoProdutos;
+  }
+}
+$('abas').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-aba]'); if(b){ st.aba=b.dataset.aba; render(); } });
+$('rgnav').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-sec]'); if(b){ st.sec=b.dataset.sec; render(); } });
+render();
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 # CLAUDE.md — guia do repositório
 
 Instruções para qualquer sessão do Claude Code neste projeto. Leia também `README.md`, `API.md`,
-`painel-q4/README.md` e, para as regras do incentivo, `painel-q4/docs/Desafio-Q4_Contexto-Regras.md`.
+`painel-q4/README.md` e, para as regras do incentivo, `painel-q4/docs/Desafio-Q4_Contexto-Regras.md`. Para o painel
+Campari Club: `painel-campari/README.md` e `painel-campari/docs/regras.md`.
 
 ## 1. O que é este projeto
 
@@ -13,6 +14,10 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   online de hoje) em cada produto. Contrato em `API.md`.
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
+- O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
+  out–dez/2026: gatilho de cobertura de Skyy e ranking por volume de aperitivo (agrupadores extras `Aperitivo` e `Skyy`
+  da API). É independente do Desafio Q4 (nada importado de lá). **Etapa 1 (09/11/2026): esqueleto, sem cálculo**;
+  as regras entram nas etapas seguintes, só em `painel-campari/src/motor.js`.
 - **Quem usa:** o Back Office e a equipe comercial (gerências, supervisores e consultores); o painel é feito
   para tela de PC e para print. Donos do repositório: Matheus (API e back-end) e Karen (painel).
 - Os dados se atualizam sozinhos: um workflow roda o gerador a cada 15 min em dias úteis e comita em `api/`.
@@ -35,6 +40,10 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
+| `painel-campari/src/` | `motor.js` (cálculo; etapa 1: só `versaoRegras`), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
+| `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
+| `frontend/campari-club.html` | painel Campari Club pronto | **gerado** por `painel-campari/scripts/build.py` |
 | `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores, flash de vendas fechado) | só por **PR** do botão da Administração |
 | `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
 
@@ -49,6 +58,9 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
+# testes do painel Campari Club — 19 testes (3 do motor, 16 do adaptador)
+node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
+
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
@@ -60,8 +72,11 @@ cd backend && python scripts/diagnosticar_real.py --datasphere   # + consulta di
 # regera frontend/desafio-q4.html a partir de painel-q4/src e painel-q4/data
 python painel-q4/scripts/build.py
 
+# regera frontend/campari-club.html a partir de painel-campari/src
+python painel-campari/scripts/build.py
+
 # site local, montado como no Pages (frontend/ na raiz, api/ em /api)
-cd backend && python scripts/servir.py            # http://localhost:8000/desafio-q4.html
+cd backend && python scripts/servir.py            # http://localhost:8000/desafio-q4.html (e /campari-club.html)
 cd backend && python scripts/servir.py --porta 8011
 ```
 
@@ -100,8 +115,9 @@ Detalhes que o `--help` não deixa óbvios:
 
 1. `git fetch origin` e `git status`. Árvore suja? Pare e pergunte antes de qualquer coisa.
 2. Branch a partir de `origin/main`.
-3. Edite `painel-q4/src/` ou `painel-q4/data/`.
-4. Rode `python painel-q4/scripts/build.py` e **comite o `frontend/desafio-q4.html` gerado junto**.
+3. Edite `painel-q4/src/` ou `painel-q4/data/` (ou `painel-campari/src/`).
+4. Rode `python painel-q4/scripts/build.py` e **comite o `frontend/desafio-q4.html` gerado junto** (Campari Club:
+   `python painel-campari/scripts/build.py` e `frontend/campari-club.html`).
    O build é determinístico: sem mudança na fonte, o HTML sai idêntico ao commitado.
 5. Rode os dois conjuntos de testes.
 6. Abra o PR **em rascunho**; marque pronto só com os testes passando e a branch atualizada com a main.
@@ -280,8 +296,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 ## 8. Checklist antes do PR
 
 1. `git fetch origin` e branch atualizada com a `main`.
-2. `python painel-q4/scripts/build.py` rodado, e `git diff --stat` mostra só a mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando.
+2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
+   mudança esperada.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 19 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
