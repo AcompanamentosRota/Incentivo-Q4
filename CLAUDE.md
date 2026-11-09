@@ -16,10 +16,11 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: gatilho de cobertura de Skyy e ranking por volume de aperitivo (agrupadores extras `Aperitivo` e `Skyy`
-  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.3 (08/11/2026). **Etapa 3: gatilho de
-  cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura**, em cima da Etapa 2 (% do mês de
-  volume, trava 130% out/nov, soma, ordem e posição; `carregarRanking` no adaptador), **ainda sem números na tela** —
-  a tela é a Etapa 4. Toda regra só em `painel-campari/src/motor.js`.
+  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.4 (09/11/2026). **Etapa 4: a tela**, nas
+  cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
+  cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
+  Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A tela **não calcula nada**: lê o que o
+  motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
   Q4, rode o script e o build do Campari.
@@ -45,7 +46,8 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem, posição, gatilho de cobertura, posição oficial, status e meta dia de cobertura), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `tabelaDaLinha`, `montarDados`, `carregarRanking`; canal copiado do Q4), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem, posição, gatilho de cobertura, posição oficial, status, meta dia de cobertura e exibição da meta dia de volume), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
 | `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
@@ -64,7 +66,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 98 testes (38 do motor, 60 do adaptador)
+# testes do painel Campari Club — 130 testes (45 do motor, 85 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -79,6 +81,7 @@ cd backend && python scripts/diagnosticar_real.py --datasphere   # + consulta di
 python painel-q4/scripts/build.py
 
 # regera frontend/campari-club.html a partir de painel-campari/src e painel-campari/data
+# (embute a fonte Barlow Condensed 800 e o campari-fundo.jpg; sem a imagem, cai para o azul sólido e avisa)
 python painel-campari/scripts/build.py
 
 # site local, montado como no Pages (frontend/ na raiz, api/ em /api)
@@ -189,7 +192,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.3 de 08/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.4 de 09/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
   cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -216,11 +219,28 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
   `calendario.dias_uteis_restantes`, com o Real até ontem; **travada** (não desconta o Online, não muda durante o dia).
   Real ≥ Meta dá 0; 0 dias restantes dá a diferença total; exibida como **inteiro arredondado para cima** (cliente não
-  se divide), com tolerância de 1e-9. A meta dia de **volume** vem pronta da API e não se recalcula.
+  se divide), com tolerância de 1e-9. A meta dia de **volume** vem pronta da API e **não se recalcula**.
+- **Exibição da meta dia (v1.4, 09/11/2026; pendência 15 resolvida):** a meta dia de **volume** mostra **0** quando o
+  Real passou da Meta e **0** quando a API publica valor negativo (ela publica: em 09/11/2026 havia 7 blocos
+  negativos, iguais aos do SAC); não numérica (API em fechamento) vira "—". Isso é **exibição**, e mesmo assim mora no
+  motor (`metaDiaVolume`), nunca na tela; o adaptador guarda o valor de origem em `metaDia` e o exibido em
+  `metaDiaExib`, e o "Hoje" colorido compara com o **exibido**. A comparação usa só o Real (sem o Online) — premissa
+  em aberto (pendência 22), sinalizada em Regras > Dados e alertas.
 - **"Hoje" colorido:** Online > 0 **e** Online ≥ Meta dia (`hojeAtingiu` no motor; pendência 17, confirmada em
   08/11/2026). Meta dia 0 com Online > 0 colore; meta dia nula (API em fechamento) não colore.
-- **Consultor (rota)** aparece sem ranking, sem gatilho e sem status; **Total Band** (`resumo.json` → `empresa`) tem os
+- **Consultor (rota)** aparece sem ranking, sem gatilho e sem status, e a aba lista **só as rotas `tipo: "normal"`**
+  (decisão da Karen, 09/11/2026): `neutraliza` e `virtual` ficam fora da lista mas continuam somando no SV, então a
+  linha "Total da mesa" pode ser maior que a soma das linhas visíveis — a tela conta quantas ficaram fora
+  (`rotasDaMesa` + `textoDasOcultas`). **Total Band** (`resumo.json` → `empresa`) tem os
   números e o acumulado de cobertura, mas não tem posição oficial nem status (Diretoria e GP não têm apuração própria).
+- **A tela (Etapa 4, mockup de 08/11/2026):** cinco abas — Ranking GC · Supervisão (uma tela só, Mista ⇄ Segmentada) ·
+  Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
+  `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm as **20 colunas
+  da v1.4** (21 em dezembro, com o "% Nov"), cabem em 1.754 px **sem rolagem horizontal**, com corpo de 15 px e
+  cabeçalho de 13 px — nenhum texto abaixo de 13 px no palco. O seletor "Mês de referência" vale no Ranking GC **e** na
+  Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`).
+  **Nenhum número de regra é digitado na tela** (gatilho, trava e posições premiadas saem de `motor.REGRAS`) e
+  **nenhum prêmio aparece em lugar nenhum** — há testes varrendo o template e o HTML gerado.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -267,6 +287,12 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Dados de clientes e de pessoas** estão nos JSONs da API (nomes e códigos de clientes, nomes de vendedores
   e supervisores). Não os copie para fora do repositório, para issues, PRs ou capturas de tela.
 - Use fixtures sintéticas, com nomes fictícios, em todo teste novo.
+- **Fonte e fundo do Campari:** o `painel-campari/src/assets/fonts.json` tem **só Barlow Condensed 800** (~28 KB);
+  onde o mockup pedia os pesos 600 e 700, o painel usa o 800. O fundo é `src/assets/campari-fundo.jpg`, embutido em
+  base64 pelo build (`center top / 1920px auto no-repeat` sobre `#02306B`): a arte traz logo, letreiro e faixa de
+  meses nos primeiros ~148 px, e **nada é desenhado por cima deles**. Sem o arquivo, o build cai para o azul sólido e
+  avisa — o painel continua funcionando. A imagem de 09/11/2026 veio em 1568 × 777 e é ampliada para 1920 (pendência
+  23). Trocar a arte: grave o `.jpg` novo, rode o build e comite **imagem e HTML gerado** juntos.
 - **Fontes:** o painel usa Inter (`--ff`) em todas as telas, sem baixar nada. Só entram no HTML as fontes da lista `manter`
   do `painel-q4/scripts/build.py` (base64 de `painel-q4/src/assets/fonts.json`): Anton 400 e Barlow 800 itálico do letreiro
   e Barlow Condensed 800 dos números da aba Confrontos (`--cf-num`). Nunca carregue fonte de site externo; fonte nova entra
@@ -342,7 +368,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 98 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 130 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

@@ -754,3 +754,249 @@ test('carregarRanking: lê também o resumo.json (Total Band) e segue sem ele qu
   assert.ok(semResumo.avisos.some((a) => /resumo\.json indisponível/.test(a)));
   assert.equal(cobDe(semResumo.totalBand, 11).situacao, 'indisponivel');
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+ * Etapa 4 — formatação, recortes da tela e o que a tela NÃO pode conter
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const Motor = require('../src/motor.js');
+
+test('fmtVolume: volume com 1 casa, padrão pt-BR; ausência de medida vira "—", nunca zero', () => {
+  assert.equal(A.fmtVolume(1234.56), '1.234,6');
+  assert.equal(A.fmtVolume(31896.44), '31.896,4');
+  assert.equal(A.fmtVolume(0), '0,0');
+  assert.equal(A.fmtVolume(-209), '-209,0');
+  assert.equal(A.fmtVolume(-0.04), '0,0');      // não existe "-0,0" na tela
+  for (const v of [null, undefined, NaN, Infinity, '10']) assert.equal(A.fmtVolume(v), A.TRACO, String(v));
+  assert.equal(A.TRACO, '—');
+});
+
+test('fmtCobertura: clientes sem casa decimal, padrão pt-BR', () => {
+  assert.equal(A.fmtCobertura(1738), '1.738');
+  assert.equal(A.fmtCobertura(570), '570');
+  assert.equal(A.fmtCobertura(0), '0');
+  assert.equal(A.fmtCobertura(-104), '-104');
+  assert.equal(A.fmtCobertura(-0.2), '0');
+  for (const v of [null, undefined, NaN]) assert.equal(A.fmtCobertura(v), A.TRACO, String(v));
+});
+
+test('fmtPct: % TRUNCADO em 1 casa — 99,96 nunca vira 100,0', () => {
+  assert.equal(A.fmtPct(99.96), '99,9%');
+  assert.equal(A.fmtPct(99.99999), '99,9%');
+  assert.equal(A.fmtPct(100), '100,0%');
+  assert.equal(A.fmtPct(0), '0,0%');
+  assert.equal(A.fmtPct(156.52), '156,5%');
+  for (const v of [null, undefined, NaN]) assert.equal(A.fmtPct(v), A.TRACO, String(v));
+});
+
+test('fmtPct trunca igual ao motor: o % da coluna bate com o X do motivo "cobertura em X%"', () => {
+  for (const v of [22.3881, 59.0551, 99.96, 99.99999, 100, 0]) {
+    const motivo = Motor.statusLinha({ gatilho: { valor: v, batido: false, indisponivel: false, motivo: null } }, 'gc').motivo;
+    assert.equal(motivo, 'cobertura em ' + A.fmtPct(v).replace('%', '') + '%: precisa de 100%', String(v));
+  }
+});
+
+test('fmtDataHora e rotuloDiaUtil: cabeçalho do painel', () => {
+  assert.equal(A.fmtDataHora('2026-11-09T10:00:34'), '09/11/2026 · 10:00');
+  assert.equal(A.fmtDataHora('2026-11-09'), '09/11/2026');
+  for (const v of [null, undefined, '', 'ontem']) assert.equal(A.fmtDataHora(v), A.TRACO, String(v));
+  assert.equal(A.rotuloDiaUtil({ dia_util_hoje: 5, dias_uteis_mes: 19 }), 'dia útil 5/19');
+  assert.equal(A.rotuloDiaUtil({ dias_uteis_mes: 19 }), null);
+  assert.equal(A.rotuloDiaUtil(null), null);
+});
+
+test('rotuloDoMes: "Novembro/26"; mês fechado em prévia leva a marca', () => {
+  assert.equal(A.rotuloDoMes(11, 2026, 'aberto'), 'Novembro/26');
+  assert.equal(A.rotuloDoMes(10, 2026, 'previa'), 'Outubro/26 (prévia)');
+  assert.equal(A.rotuloDoMes(10, 2026, 'oficial'), 'Outubro/26');
+  assert.equal(A.rotuloDoMes(12, 2026, null), 'Dezembro/26');
+});
+
+test('mesesDoSeletor (P4): padrão no mês de referência; mês sem dado desabilitado', () => {
+  const d = montar3();
+  const s = A.mesesDoSeletor(d);
+  assert.equal(s.padrao, 11);
+  assert.deepEqual(s.meses.map((m) => [m.mes, m.habilitado, m.aberto]), [[10, true, false], [11, true, true], [12, false, false]]);
+  assert.deepEqual(s.meses.map((m) => m.rotulo), ['Outubro/26 (prévia)', 'Novembro/26', 'Dezembro/26']);
+});
+
+test('mesesDoSeletor (P4): mês de referência em fechamento não é "aberto" (sem M. Dia nem Online)', () => {
+  const d = montar3({ index: indexDe('202611', true, ['202610', '202611']),
+                      fechados: { 202610: OUT, 202611: fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 90] }]],
+                        { empresa: { aperitivos: [100, 90] }, gerencias: { XA: { aperitivos: [100, 90] } } }) } });
+  const s = A.mesesDoSeletor(d);
+  assert.deepEqual(s.meses.map((m) => [m.mes, m.habilitado, m.aberto]), [[10, true, false], [11, true, false], [12, false, false]]);
+  assert.equal(s.padrao, 11);
+});
+
+test('mesesDoSeletor: mês indisponível fica desabilitado e o padrão cai no último habilitado', () => {
+  const d = montar3({ index: indexDe('202611', false, []), fechados: {} }); // outubro sem o fechado
+  const s = A.mesesDoSeletor(d);
+  assert.deepEqual(s.meses.map((m) => m.habilitado), [false, true, false]);
+  assert.equal(s.padrao, 11);
+});
+
+test('valoresDoMes: lê a tabela da linha; mês ausente devolve tudo null, nunca zero', () => {
+  const xa = achar(montar3().gc, 'XA');
+  const nov = A.valoresDoMes(xa.tabela, 'aperitivo', 11);
+  assert.deepEqual([nov.meta, nov.real, nov.online, nov.metaDiaExib], [1000, 500, 20, 7.5]);
+  const vazio = A.valoresDoMes(xa.tabela, 'aperitivo', 7);
+  assert.deepEqual([vazio.meta, vazio.real, vazio.pct, vazio.metaDiaExib, vazio.hojeOk], [null, null, null, null, false]);
+  assert.deepEqual([A.valoresDoMes(null, 'skyy', 11).meta, A.valoresDoMes({}, 'skyy', 11).real], [null, null]);
+});
+
+test('metaDiaExib (v1.4): o volume passa pela regra de exibição e a cobertura repete a conta do motor', () => {
+  const batida = JSON.parse(JSON.stringify(XA3));
+  // GC: Real acima da Meta com meta dia positiva -> exibe 0;  SV.XA.1: meta dia negativa -> exibe 0
+  Object.assign(batida.produtos.aperitivos, { meta: 100, realizado: 150, online_hoje: 5, meta_dia: 7.5 });
+  Object.assign(batida.supervisoes[0].produtos.aperitivos, { meta: 100, realizado: 50, online_hoje: 0, meta_dia: -3 });
+  const d = montar3({ gerencias: [batida, XB3] });
+  const gcNov = A.valoresDoMes(achar(d.gc, 'XA').tabela, 'aperitivo', 11);
+  assert.deepEqual([gcNov.metaDia, gcNov.metaDiaExib], [7.5, 0]); // a origem fica guardada, a tela mostra 0
+  assert.equal(gcNov.hojeOk, true);                               // Online 5 ≥ meta dia exibida 0
+  const svNov = A.valoresDoMes(achar(d.svMista.concat(d.svSegmentada, d.fora), 'SV.XA.1').tabela, 'aperitivo', 11);
+  assert.deepEqual([svNov.metaDia, svNov.metaDiaExib], [-3, 0]);
+  assert.equal(svNov.hojeOk, false);                              // Online 0 nunca colore
+  const cobNov = A.valoresDoMes(achar(d.gc, 'XA').tabela, 'skyy', 11);
+  assert.equal(cobNov.metaDiaExib, cobNov.metaDia);               // cobertura: o motor já entrega o valor de exibição
+});
+
+test('rotas: o adaptador entrega o `tipo` da API (a aba Consultor filtra por ele)', () => {
+  const d = montar3();
+  assert.equal(achar(d.rotas, 'X11').tipo, 'normal');
+  assert.ok(d.rotas.every((r) => 'tipo' in r));
+});
+
+test('rotasDaMesa: só as rotas tipo "normal"; o que fica fora é contado, nunca sumido', () => {
+  const g = JSON.parse(JSON.stringify(XA3));
+  g.rotas[1].tipo = 'neutraliza';   // X12
+  g.rotas[2].tipo = 'virtual';      // X13
+  const d = montar3({ gerencias: [g, XB3] });
+  const m = A.rotasDaMesa(d, 'SV.XA.1');
+  assert.deepEqual(m.rotas.map((r) => r.codigo), ['X11']);
+  assert.deepEqual(m.ocultas, { neutraliza: 1, virtual: 1 });
+  assert.equal(m.total.codigo, 'SV.XA.1');  // "Total da mesa" = a linha do SV (todas as rotas, como a API soma)
+  assert.deepEqual(A.TIPOS_CONSULTOR, ['normal']);
+  // mesa inexistente: lista vazia, sem erro
+  assert.deepEqual(A.rotasDaMesa(d, 'SV.ZZ.9'), { rotas: [], ocultas: {}, total: null });
+});
+
+test('rotasDaMesa: rota que só existe num mês fechado não tem tipo e entra em "sem tipo"', () => {
+  const d = montar3();
+  const m = A.rotasDaMesa(d, 'SV.XB.1');
+  assert.ok(m.rotas.every((r) => r.tipo === 'normal'));
+  const semTipo = d.rotas.filter((r) => r.sv === 'SV.XB.1' && !r.tipo).length;
+  assert.equal(m.ocultas['sem tipo'] || 0, semTipo);
+});
+
+test('textoDasOcultas: conta e nomeia o que ficou fora da lista; nada oculto dá texto vazio', () => {
+  assert.equal(A.textoDasOcultas({}), '');
+  assert.equal(A.textoDasOcultas(null), '');
+  assert.equal(A.textoDasOcultas({ neutraliza: 1 }), '1 rota da mesa fora da lista (1 neutraliza)');
+  assert.equal(A.textoDasOcultas({ virtual: 2, neutraliza: 1 }),
+               '3 rotas da mesa fora da lista (1 neutraliza, 2 virtual)');
+});
+
+test('filtrosDoPainel: só códigos de gerência e de SV; nenhum nome de pessoa', () => {
+  const d = montar3();
+  const f = A.filtrosDoPainel(d);
+  assert.deepEqual(f.gerencias, ['XA', 'XB']);
+  assert.ok(f.svs.length >= 3);
+  assert.ok(f.svs.every((s) => /^SV\./.test(s.codigo)));
+  assert.ok(f.svs.some((s) => s.rotulo === 'SV.XA.1 · Mista'));
+  assert.ok(f.svs.some((s) => /· sem canal$/.test(s.rotulo)));  // SV fora do ranking também aparece no filtro
+  const texto = JSON.stringify(f);
+  assert.doesNotMatch(texto, /Fictícia/);   // nome da gerência não vai para o filtro
+});
+
+test('linhasDoDetalhe: gerências na visão GC e todas as supervisões na visão SV, com filtro de gerência', () => {
+  const d = montar3();
+  assert.deepEqual(A.linhasDoDetalhe(d, 'gc').map((l) => l.codigo), ['XA', 'XB']);
+  const svs = A.linhasDoDetalhe(d, 'sv');
+  assert.equal(svs.length, d.svMista.length + d.svSegmentada.length + d.fora.length);
+  assert.deepEqual(svs.map((l) => l.codigo), svs.map((l) => l.codigo).slice().sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })));
+  assert.ok(A.linhasDoDetalhe(d, 'sv', 'XB').every((l) => l.gc === 'XB'));
+});
+
+test('alertasDaTela: pendência 10 (cobertura do mês fechado) e a premissa da meta dia aparecem; as resolvidas não', () => {
+  const al = A.alertasDaTela(montar3());
+  const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  assert.match(texto, /Cobertura de outubro indisponível/);
+  assert.match(texto, /pendência 10/);
+  assert.match(texto, /Meta dia de volume: premissa a confirmar/);
+  assert.match(texto, /Outubro em prévia/);
+  assert.match(texto, /Dezembro ainda não começou/);
+  // pendências resolvidas não podem voltar à tela
+  for (const resolvida of [/pendência 9\b/, /pendência 11/, /pendência 12/, /pendência 14/, /pendência 16/,
+                           /pendência 17/, /pendência 18/, /pendência 19/, /pendência 20/]) {
+    assert.doesNotMatch(texto, resolvida, String(resolvida));
+  }
+  assert.ok(al.every((a) => ['erro', 'aviso', 'nota'].includes(a.tipo)));
+});
+
+test('alertasDaTela: API fora dá um só alerta de erro e para por aí', () => {
+  const al = A.alertasDaTela({ ok: false, erro: 'API indisponível (timeout)' });
+  assert.equal(al.length, 1);
+  assert.equal(al[0].tipo, 'erro');
+  assert.match(al[0].texto, /timeout/);
+});
+
+test('alertasDaTela: dados simulados e produtos não publicados viram erro', () => {
+  const d = montar3();
+  const simulado = A.alertasDaTela(Object.assign({}, d, { simulado: true }));
+  assert.equal(simulado[0].tipo, 'erro');
+  assert.match(simulado[0].titulo, /simulados/i);
+  const semProd = A.alertasDaTela(Object.assign({}, d, { produtos: { ok: false, motivos: ['agrupador "Skyy" não publicado na API'] } }));
+  assert.ok(semProd.some((a) => a.tipo === 'erro' && /Skyy/.test(a.texto)));
+});
+
+/* ─── a TELA: o que o template e o HTML gerado não podem conter ──────────────────────────────────────────── */
+
+const TPL = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.tpl.html'), 'utf8');
+const SEM_CSS = TPL.replace(/<style>[\s\S]*?<\/style>/g, '');
+const GERADO = path.join(__dirname, '..', '..', 'frontend', 'campari-club.html');
+
+test('tela: nenhum número de regra digitado — gatilho, trava e posições premiadas vêm do motor (P6)', () => {
+  assert.doesNotMatch(SEM_CSS, /\b130\b/);                       // a trava nunca é escrita
+  assert.doesNotMatch(SEM_CSS, /precisa de 100|mínimo de 100|média de 100/);
+  assert.doesNotMatch(SEM_CSS, /GC: ?6|Mista: ?12|Segmentada: ?3/);
+  // e vêm mesmo das regras do motor
+  assert.match(SEM_CSS, /R\.premiadas/);
+  assert.match(SEM_CSS, /R\.gatilho\.minimo/);
+  assert.match(SEM_CSS, /R\.trava\[/);
+  assert.match(SEM_CSS, /R\.gatilho\.meses/);
+});
+
+test('tela: nenhum prêmio, nome de pessoa ou cliente no template (P3)', () => {
+  for (const proibido of [/aruba/i, /noronha/i, /cruzeiro/i, /ar-condicionado/i, /premiação plus/i, /viagem/i]) {
+    assert.doesNotMatch(TPL, proibido, String(proibido));
+  }
+  assert.doesNotMatch(TPL, /\bvendedor\b/i);
+  // a tela nunca lê o campo `nome` da API (gerência, supervisão, rota ou cliente): só os códigos.
+  // `a.nome` das abas e NOME_NIVEL são rótulos fixos da própria tela, não dados vindos da API.
+  assert.doesNotMatch(TPL, /\b(gerencia|ger|supervisao|sv|rota|cliente)\.nome\b/);
+});
+
+test('tela: nenhuma fonte nem link de site externo (P1)', () => {
+  assert.doesNotMatch(TPL, /https?:\/\//);
+  assert.doesNotMatch(TPL, /googleapis|gstatic|cdn\./i);
+  assert.match(TPL, /\/\*__FONTS__\*\//);  // a fonte entra embutida pelo build
+  assert.match(TPL, /\/\*__FUNDO__\*\//);  // e o fundo também
+});
+
+test('tela: o HTML gerado está no repositório, sem prêmio e sem link externo', () => {
+  assert.ok(fs.existsSync(GERADO), 'rode python painel-campari/scripts/build.py e comite o HTML gerado');
+  const html = fs.readFileSync(GERADO, 'utf8');
+  for (const proibido of [/aruba/i, /noronha/i, /cruzeiro/i, /ar-condicionado/i, /premiação plus/i]) {
+    assert.doesNotMatch(html, proibido, String(proibido));
+  }
+  assert.doesNotMatch(html, /https?:\/\//);
+  assert.match(html, /@font-face\{font-family:Barlow Condensed/);
+  assert.match(html, /data:image\/jpeg;base64,|background:#02306B/); // fundo embutido, ou o azul sólido de reserva
+});
+
+test('tela: as cinco abas do mockup, nessa ordem', () => {
+  const abas = /const ABAS = \[([\s\S]*?)\];/.exec(SEM_CSS)[1];
+  assert.deepEqual(Array.from(abas.matchAll(/nome:'([^']+)'/g), (m) => m[1]),
+                   ['Ranking GC', 'Supervisão', 'Consultor', 'Detalhe do mês', 'Regras']);
+});

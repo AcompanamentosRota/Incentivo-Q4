@@ -1,11 +1,13 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.3 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.4 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
  * Etapa 2: ranking de volume de Aperitivo (% do mês, trava, soma, ordem e posição).
  * Etapa 3: gatilho de cobertura de Skyy, posição oficial, status "Bateu!", meta dia de cobertura, diferença e
  * "hoje atingiu a meta dia". A tela (Etapa 4) só lê o resultado: nenhuma comparação nem texto de motivo fora daqui.
+ * Etapa 4: a regra de EXIBIÇÃO da meta dia de volume (`metaDiaVolume`, regras v1.4, decisão de 09/11/2026). Mesmo
+ * sendo só exibição, é regra: fica aqui, não na tela.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -16,7 +18,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.3',
+    versao: '1.4',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -246,10 +248,29 @@
   }
 
   /**
+   * Meta dia de VOLUME, só na EXIBIÇÃO (regras v1.4, seção 7; decisão de 09/11/2026; pendência 15 resolvida).
+   * A `meta_dia` de volume vem PRONTA da API e nunca é recalculada: esta função só decide o que a tela mostra.
+   *   - Real > Meta (meta do mês já batida): 0;
+   *   - `meta_dia` negativa (a API publica negativos nas rotas com a meta batida, iguais aos do SAC): 0;
+   *   - `meta_dia` não numérica (API em período de fechamento): null, que a tela mostra como "—".
+   * A comparação usa só o Real (até ontem), SEM o Online — premissa a confirmar das regras v1.4, seção 7:
+   * o painel sinaliza isso em Regras > Dados e alertas e não decide por conta própria.
+   * A meta dia de COBERTURA não passa por aqui: `metaDiaCobertura` já devolve 0 com a meta batida e um inteiro
+   * para cima (valor entre 0 e 1 vira 1), que é o que a v1.4 pede para ela.
+   */
+  function metaDiaVolume(metaDia, real, meta) {
+    if (!numero(metaDia)) return null;
+    if (numero(real) && numero(meta) && real > meta) return 0;
+    if (metaDia < 0) return 0;
+    return metaDia;
+  }
+
+  /**
    * "Hoje" colorido (regras, seção 7; pendência 17, confirmada em 08/11/2026): Online > 0 E Online ≥ Meta dia.
    * Meta dia 0 com Online > 0 colore; meta dia 0 com Online 0 não colore; meta dia null (API em período de
    * fechamento, ou cobertura sem meta) não colore. Serve para volume (`meta_dia` da API) e para cobertura
-   * (`metaDiaCobertura`): a tela só lê o resultado, não compara nada.
+   * (`metaDiaCobertura`): a tela só lê o resultado, não compara nada. A meta dia que entra aqui é a EXIBIDA
+   * (`metaDiaVolume` no volume), para a cor do "Hoje" concordar com o número que está na coluna ao lado.
    */
   function hojeAtingiu(online, metaDia) {
     if (!numero(online) || online <= 0) return false;
@@ -259,5 +280,5 @@
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
-           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, hojeAtingiu };
+           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, hojeAtingiu };
 });
