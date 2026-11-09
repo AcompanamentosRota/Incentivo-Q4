@@ -2,7 +2,8 @@
  * Adaptador do painel Campari Club: API -> motor.
  * Fonte: a API publicada no mesmo site (./api/v1/). Lê o index.json, localiza os dois produtos do incentivo
  * (agrupadores extras "Aperitivo" e "Skyy"), carrega cada mês da vigência pela fonte certa (API no mês aberto,
- * fechado/AAAAMM.json nos meses encerrados), aplica o canal do SV e entrega os números ao motor.
+ * fechado/AAAAMM.json nos meses encerrados; a cobertura segue outra regra de fonte), aplica o canal do SV e
+ * entrega os números ao motor, que devolve %, trava, soma, ordem, gatilho, posição oficial e status.
  * Não calcula regra: %, trava, soma, ordem e posição são do motor (src/motor.js). Nunca inventa valor: o que falta
  * vira motivo ou aviso.
  */
@@ -83,6 +84,8 @@ const BaseCanaisAqui = () => (typeof BASE_CANAIS_CAMPARI !== 'undefined' ? BASE_
 
 const NOMES_MES = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const anomesDe = (ano, mes) => String(ano) + String(mes).padStart(2, '0');
+/** Código da linha da empresa (Diretoria e GP; regras, seção 4): o rótulo do mockup, sem nome de pessoa. */
+const TOTAL_BAND = 'Total Band';
 
 /* ─── Canal das rotas e do SV: CÓPIA de painel-q4/src/adapter.js (premissa P3; nada é importado de lá) ───────────
  * titulo, svNome, SEGMENTOS, ehObjeto, textoOk, validarCanalRota e mapaCanal: cópias literais.
@@ -201,9 +204,56 @@ function fontesDosMeses(index, cfg) {
   });
 }
 
+/**
+ * Fonte da COBERTURA de cada mês (premissa P1) — diferente da do volume, de propósito:
+ *   - mês = ref, aberto OU em período de fechamento da API: os blocos `cobertura` da própria API ('api'), porque
+ *     a cobertura do mês de referência continua publicada lá mesmo quando o volume já vem do fechado/;
+ *     `fechamento` marca a janela em que a API devolve `online_hoje` null e não há meta dia;
+ *   - mês anterior a ref: 'fechado' (o arquivo do mês), que hoje NÃO traz cobertura (pendência 10 das regras);
+ *   - mês posterior a ref: 'futuro'.
+ * Devolve [{ mes, anomes, fonte: 'api' | 'fechado' | 'futuro', arquivo, motivo, fechamento }].
+ */
+function fontesDaCobertura(index, cfg) {
+  cfg = cfg || CONFIG;
+  const ref = String(index.mes_referencia.anomes), fech = index.mes_referencia.fechamento === true;
+  const lista = Array.isArray(index.fechados) ? index.fechados : [];
+  return cfg.meses.map((mes) => {
+    const anomes = anomesDe(cfg.ano, mes);
+    if (anomes > ref) return { mes, anomes, fonte: 'futuro', arquivo: null, motivo: null, fechamento: false };
+    if (anomes === ref) return { mes, anomes, fonte: 'api', arquivo: null, motivo: null, fechamento: fech };
+    const item = lista.find((x) => x && x.anomes === anomes);
+    return { mes, anomes, fonte: 'fechado', fechamento: false, motivo: null,
+             arquivo: item && typeof item.arquivo === 'string' ? item.arquivo : null };
+  });
+}
+
+/**
+ * Cobertura de um mês fechado -> { meta, real } por nível, ou null quando o arquivo não traz cobertura.
+ *
+ * PORTA ÚNICA da pendência 10 das regras: o `fechado/AAAAMM.json` de hoje tem `campos_produto: ["meta",
+ * "realizado"]` e NENHUM campo de cobertura; o formato do campo novo ainda não existe — o Matheus vai incluí-lo
+ * até 01/12/2026. Até lá esta função devolve null para qualquer arquivo, e o mês de cobertura fica
+ * "indisponível" (sem gatilho, sem posição oficial, com aviso). Nada é adivinhado: quando o campo existir, é
+ * só aqui que ele entra, e só aqui que os testes precisam mudar.
+ * Em dezembro isso significa gatilho indisponível para todos, porque novembro já será mês fechado.
+ */
+// Os três parâmetros já são os definitivos (arquivo do mês, anomes e id do produto): só o corpo muda na pendência 10.
+function coberturaDoFechado(fechado, anomes, pid) {
+  return null;
+}
+
 const VAZIO = () => ({ meta: null, real: null, online: null, metaDia: null });
 /** Bloco de produto da API (mês aberto) -> valores do mês. Produto ausente no bloco: tudo null. */
 const doBlocoApi = (b) => (b ? { meta: b.meta, real: b.realizado, online: b.online_hoje, metaDia: b.meta_dia } : VAZIO());
+/**
+ * Bloco `cobertura` de um produto da API -> { meta, real, online } (premissa P2: os números como a API publica,
+ * sem recalcular soma de rotas). Produto ausente, ou produto sem o bloco `cobertura` (modelo sem as colunas):
+ * null, que vira mês "indisponível" — diferente de `cobertura.meta` null, que é "sem meta de cobertura".
+ */
+const doBlocoCobertura = (b) => {
+  const c = b && ehObjeto(b.cobertura) ? b.cobertura : null;
+  return c ? { meta: c.meta, real: c.realizado, online: c.online_hoje } : null;
+};
 /** Par [meta, realizado] do fechado -> valores do mês (sem online nem meta dia no fechamento: online 0). */
 const doPar = (par, iMeta, iReal) => (Array.isArray(par) ? { meta: par[iMeta], real: par[iReal], online: 0, metaDia: null } : VAZIO());
 const ehEventual = (rota) => /-EV$/.test(String(rota)); // rota oculta com o Real das rotas EV* (M.rota_eventuais)
@@ -211,7 +261,8 @@ const somaOuNull = (vs) => { const c = vs.filter((v) => typeof v === 'number'); 
 
 /**
  * Lê um fechado/AAAAMM.json para o produto `pid`: { ok, motivo, estado, simulado, gc: {GC: valores} | null,
- * sv: {SV: valores}, gcDoSv: {SV: GC}, rotas: [{rota, gc, sv, valores}] }. GC vem de totais.gerencias (sem eles: GC indisponível,
+ * empresa: valores | null, sv: {SV: valores}, gcDoSv: {SV: GC}, rotas: [{rota, gc, sv, valores}] }.
+ * GC vem de totais.gerencias e o Total Band de totais.empresa (sem os totais: nível indisponível no mês,
  * nunca soma rotas); SV é a soma das linhas de `rotas` pelo campo supervisão (todas as rotas da mesa, premissa P2).
  */
 function lerFechado(f, anomes, pid) {
@@ -236,19 +287,65 @@ function lerFechado(f, anomes, pid) {
     sv[id] = { meta: somaOuNull(vs.map((v) => v.meta)), real: somaOuNull(vs.map((v) => v.real)), online: 0, metaDia: null };
   }
   return { ok: true, motivo: temTotais ? null : 'sem totais por gerência', estado: f.fechamento_final === true ? 'oficial' : 'previa',
-           simulado: f.simulado === true, gc, sv, gcDoSv, rotas };
+           simulado: f.simulado === true, gc, empresa: temTotais ? doPar(f.totais.empresa[pid], iMeta, iReal) : null,
+           sv, gcDoSv, rotas };
+}
+
+/**
+ * Estrutura das tabelas de ranking (premissa P7; regras, seção 7) de UMA linha: o que a tela lê sem calcular nada.
+ * Dois blocos, Aperitivo (volume) e Skyy (cobertura), e dentro de cada um `porMes[10|11|12]` com
+ * { meta, real, online, metaDia, dif, pct, hojeOk, fonte, estado, situacao, aberto, motivo }.
+ *   - `online` e `metaDia` só existem no mês ABERTO (mês de referência fora do período de fechamento da API);
+ *     nos outros meses vêm null, e a tela mostra "—" (não é zero, é ausência de medida);
+ *   - Aperitivo traz ainda `pctTravado` e `travado` por mês (as colunas Out | Nov | Dez são os % travados) e,
+ *     no bloco, `soma` (a pontuação do ranking), `incompleta` e `mesesSemPct`;
+ *   - Skyy traz `pctNov`, `pctDez` e `acumulado` (o valor do gatilho; em novembro, parcial), que NÃO mudam com o
+ *     seletor de mês; `acumulado` é null nas linhas sem gatilho (consultor).
+ *   - `hojeOk` é o "Hoje" colorido do motor (Online > 0 e Online ≥ Meta dia), já resolvido por mês e produto.
+ */
+function tabelaDaLinha(vol, cob, extra, motor) {
+  const comum = (m) => {
+    const online = m.aberto ? (m.online === undefined ? null : m.online) : null;
+    const metaDia = m.aberto ? (m.metaDia === undefined ? null : m.metaDia) : null;
+    return { mes: m.mes, anomes: m.anomes, fonte: m.fonte, estado: m.estado || null, situacao: m.situacao,
+             aberto: !!m.aberto, meta: m.meta, real: m.real, online, metaDia,
+             dif: m.dif === undefined ? null : m.dif, pct: m.pct === undefined ? null : m.pct,
+             hojeOk: motor.hojeAtingiu(online, metaDia), motivo: m.motivo || null };
+  };
+  const porMes = (meses, mais) => Object.fromEntries(meses.map((m) => [m.mes, Object.assign(comum(m), mais ? mais(m) : null)]));
+  const doMes = (meses, mes) => meses.find((m) => m.mes === mes) || {};
+  const g = (extra && extra.gatilho) || null;
+  return {
+    aperitivo: Object.assign({ porMes: porMes(vol.meses, (m) => ({ pctTravado: m.pctTravado, travado: m.travado })) },
+                             { soma: vol.soma, incompleta: vol.incompleta, mesesSemPct: vol.mesesSemPct }),
+    skyy: { porMes: porMes(cob), pctNov: doMes(cob, 11).pct === undefined ? null : doMes(cob, 11).pct,
+            pctDez: doMes(cob, 12).pct === undefined ? null : doMes(cob, 12).pct,
+            acumulado: g ? g.valor : null, parcial: g ? g.parcial : false,
+            indisponivel: g ? g.indisponivel : true, motivo: g ? g.motivo : null },
+  };
 }
 
 /**
  * Monta os dados do ranking a partir do que já foi lido (função pura; carregarRanking faz a leitura):
- *   entrada = { index, gerencias: [gerencias/{GC}.json], fechados: {AAAAMM: json | Error}, base, ajustes }
+ *   entrada = { index, gerencias: [gerencias/{GC}.json], resumo: resumo.json, fechados: {AAAAMM: json | Error},
+ *               base, ajustes }
  * Devolve, além de mesReferencia/calendario/simulado/avisos:
- *   meses:        [{ mes, anomes, fonte, estado ('aberto' | 'previa' | 'oficial' | null), motivo }]
+ *   meses:        [{ mes, anomes, fonte, estado ('aberto' | 'previa' | 'oficial' | null), motivo }] — volume
+ *   mesesCobertura: o mesmo para a cobertura de Skyy, que segue outra regra de fonte (fontesDaCobertura)
+ *   mesGatilho:   o mês da vigência que está valendo para o gatilho (10, 11, 12 ou null)
  *   gc, svMista, svSegmentada: linhas ordenadas e numeradas pelo motor (pos 1..n), cada uma com
- *                 { codigo, chave, gc, canal, origemCanal, meses: [por mês: meta, real, online, metaDia, pct,
- *                   pctTravado, travado, fonte, estado, situacao], soma, incompleta, mesesSemPct, pos }
- *   fora:         SVs fora do ranking (empate de canal ou sem canal), com o motivo
- *   rotas:        consultores, só com os próprios números por mês (sem ranking nem soma)
+ *                 { codigo, chave, gc, canal, origemCanal,
+ *                   meses: [volume de Aperitivo, por mês: meta, real, online, metaDia, dif, pct, pctTravado,
+ *                           travado, fonte, estado, situacao, aberto], soma, incompleta, mesesSemPct, pos,
+ *                   cobertura: [cobertura de Skyy, por mês: meta, real, online, metaDia, dif, pct, fonte,
+ *                               estado, situacao, aberto, motivo],
+ *                   gatilho: { valor, batido, parcial, indisponivel, motivo }, oficial, status: { status, motivo },
+ *                   tabela: { aperitivo, skyy } (estrutura da P7, pronta para a tela) }
+ *   fora:         SVs fora do ranking (empate de canal ou sem canal), com o motivo; têm gatilho, mas não têm
+ *                 posição oficial nem status (não disputam ranking)
+ *   rotas:        consultores, só com os próprios números por mês (sem ranking, sem gatilho e sem status)
+ *   totalBand:    linha da empresa (resumo.json -> empresa), com meta dia de volume da API e meta dia de
+ *                 cobertura do motor; sem posição oficial e sem status (Diretoria e GP não têm apuração própria)
  *   canaisSV:     canal de cada SV (pelo código do painel, "Sv. An.1"), com origem e votos
  */
 function montarDados(entrada, cfg, motor) {
@@ -261,10 +358,16 @@ function montarDados(entrada, cfg, motor) {
                   atualizadoEm: index.atualizado_em || null, simulado: index.simulado === true, produtos };
   if (!produtos.ok) {
     return Object.assign({ ok: false, erro: 'Produtos do Campari ainda não publicados (' + produtos.motivos.join('; ') + ')',
-                           avisos: [], meses: [], gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], canaisSV: {} }, comum);
+                           avisos: [], meses: [], mesesCobertura: [], mesGatilho: null, gc: [], svMista: [],
+                           svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {} }, comum);
   }
-  const pid = produtos.ids.aperitivo;
+  const pid = produtos.ids.aperitivo, pidSkyy = produtos.ids.skyy;
   const avisos = ajustes.avisos.slice();
+  // Total Band: só do resumo.json -> empresa.produtos (nunca soma de gerências). Sem o arquivo, o nível fica
+  // indisponível no mês de referência, com aviso.
+  const empresaApi = ehObjeto(entrada.resumo) && ehObjeto(entrada.resumo.empresa) && ehObjeto(entrada.resumo.empresa.produtos)
+    ? entrada.resumo.empresa.produtos : null;
+  if (!empresaApi) avisos.push('resumo.json indisponível ou em formato inesperado: o Total Band do mês de referência fica sem números');
 
   // 1. fonte de cada mês (P1) e leitura dos fechados
   const fontes = fontesDosMeses(index, cfg).map((f) => Object.assign({}, f));
@@ -284,7 +387,7 @@ function montarDados(entrada, cfg, motor) {
   for (const f of fontes) if (f.fonte === 'fechado' && f.motivo) avisos.push(f.motivo);
 
   // 2. valores por nível e mês (anomes -> código -> valores); o que a API publica, sem recalcular
-  const vals = { gc: {}, sv: {}, rota: {} }, info = { gc: {}, sv: {}, rota: {} };
+  const vals = { gc: {}, sv: {}, rota: {}, empresa: {} }, info = { gc: {}, sv: {}, rota: {} };
   const por = (nivel, anomes, cod, v) => { ((vals[nivel][cod] = vals[nivel][cod] || {}))[anomes] = v; };
   const anotar = (nivel, cod, dados) => { info[nivel][cod] = Object.assign(info[nivel][cod] || {}, dados); };
   // estrutura atual (API): todas as gerências, supervisões e rotas aparecem, mesmo sem número em algum mês
@@ -301,8 +404,10 @@ function montarDados(entrada, cfg, motor) {
         for (const s of g.supervisoes || []) por('sv', f.anomes, s.id, doBlocoApi((s.produtos || {})[pid]));
         for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) por('rota', f.anomes, r.id, doBlocoApi((r.produtos || {})[pid]));
       }
+      if (empresaApi) por('empresa', f.anomes, TOTAL_BAND, doBlocoApi(empresaApi[pid]));
     } else if (f.fonte === 'fechado') {
       const l = lidos[f.anomes];
+      if (l.empresa) por('empresa', f.anomes, TOTAL_BAND, l.empresa);
       if (l.gc) for (const [g, v] of Object.entries(l.gc)) { anotar('gc', g, {}); por('gc', f.anomes, g, v); }
       for (const [s, v] of Object.entries(l.sv)) { if (!info.sv[s]) anotar('sv', s, { gc: null }); por('sv', f.anomes, s, v); }
       for (const r of l.rotas) {
@@ -314,15 +419,75 @@ function montarDados(entrada, cfg, motor) {
   // gerência do SV que só existe num fechado: a das rotas dele naquele mês
   for (const f of fontes) if (lidos[f.anomes]) for (const [s, g] of Object.entries(lidos[f.anomes].gcDoSv)) if (info.sv[s] && !info.sv[s].gc) info.sv[s].gc = g;
 
+  // 2b. cobertura de Skyy por nível e mês (premissa P1): o mês de referência pelos blocos `cobertura` da API
+  // (inclusive em período de fechamento) e os meses anteriores pelo fechado, que hoje não traz cobertura.
+  const fontesCob = fontesDaCobertura(index, cfg).map((f) => Object.assign({}, f));
+  const cob = { gc: {}, sv: {}, rota: {}, empresa: {} };
+  const porCob = (nivel, anomes, cod, v) => { ((cob[nivel][cod] = cob[nivel][cod] || {}))[anomes] = v; };
+  for (const f of fontesCob) {
+    if (f.fonte === 'api') {
+      f.estado = f.fechamento ? 'fechamento' : 'aberto';
+      for (const g of gerencias) {
+        porCob('gc', f.anomes, g.gerencia.id, doBlocoCobertura((g.produtos || {})[pidSkyy]));
+        for (const s of g.supervisoes || []) porCob('sv', f.anomes, s.id, doBlocoCobertura((s.produtos || {})[pidSkyy]));
+        for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) porCob('rota', f.anomes, r.id, doBlocoCobertura((r.produtos || {})[pidSkyy]));
+      }
+      if (empresaApi) porCob('empresa', f.anomes, TOTAL_BAND, doBlocoCobertura(empresaApi[pidSkyy]));
+    } else if (f.fonte === 'fechado') {
+      // porta única da pendência 10: hoje sempre null -> mês de cobertura indisponível, nunca um valor assumido
+      if (coberturaDoFechado((entrada.fechados || {})[f.anomes], f.anomes, pidSkyy) === null) {
+        Object.assign(f, { fonte: 'indisponivel',
+          motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura (pendência 10 das regras)` });
+      }
+    }
+  }
+  // aviso só dos meses que contam no gatilho (outubro nunca conta, então o "—" do Skyy de outubro não é alarme)
+  for (const f of fontesCob) {
+    if (f.fonte === 'indisponivel' && motor.REGRAS.gatilho.meses.indexOf(f.mes) >= 0) {
+      avisos.push(`cobertura de ${NOMES_MES[f.mes]} indisponível: ${f.motivo}; o gatilho fica indisponível e ninguém recebe posição oficial`);
+    }
+  }
+
   // 3. meses de uma linha -> motor (situação: dado | indisponivel | futuro)
   const situacao = (f, nivel) => (f.fonte === 'futuro' ? 'futuro' : f.fonte === 'indisponivel' ? 'indisponivel'
-    : nivel === 'gc' && f.fonte === 'fechado' && !lidos[f.anomes].gc ? 'indisponivel' : 'dado');
-  const apurar = (nivel, cod) => motor.apurarMeses(fontes.map((f) => {
-    const s = situacao(f, nivel);
-    const v = s === 'dado' ? ((vals[nivel][cod] || {})[f.anomes] || VAZIO()) : VAZIO();
-    return Object.assign({ mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s }, v,
-                         { metaDia: f.fonte === 'api' && s === 'dado' ? v.metaDia : null });
-  }));
+    : nivel === 'gc' && f.fonte === 'fechado' && !lidos[f.anomes].gc ? 'indisponivel'
+    : nivel === 'empresa' && f.fonte === 'fechado' && !lidos[f.anomes].empresa ? 'indisponivel'
+    : nivel === 'empresa' && f.fonte === 'api' && !empresaApi ? 'indisponivel' : 'dado');
+  const apurar = (nivel, cod) => {
+    const a = motor.apurarMeses(fontes.map((f) => {
+      const s = situacao(f, nivel);
+      const v = s === 'dado' ? ((vals[nivel][cod] || {})[f.anomes] || VAZIO()) : VAZIO();
+      return Object.assign({ mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s,
+                             aberto: f.fonte === 'api' }, v,
+                           { metaDia: f.fonte === 'api' && s === 'dado' ? v.metaDia : null });
+    }));
+    a.meses = a.meses.map((m) => Object.assign(m, { dif: motor.diferenca(m.real, m.online, m.meta) }));
+    return a;
+  };
+
+  // 3b. meses de COBERTURA de uma linha (premissas P2 e P5): % bruto e meta dia do motor; nada recalculado da API.
+  //  - bloco `cobertura` ausente no produto (modelo sem as colunas) ou mês sem fonte: 'indisponivel';
+  //  - `cobertura.meta` null ou ≤ 0: mês com dado, mas % null e motivo "sem meta de cobertura";
+  //  - meta dia só no mês aberto: em período de fechamento não há dia útil a recuperar e o online vem null.
+  const diasRestantes = (index.calendario || {}).dias_uteis_restantes;
+  const apurarCobertura = (nivel, cod) => fontesCob.map((f) => {
+    const bruto = (cob[nivel][cod] || {})[f.anomes];
+    const s = f.fonte === 'futuro' ? 'futuro' : f.fonte !== 'api' || !bruto ? 'indisponivel' : 'dado';
+    const aberto = f.fonte === 'api' && f.fechamento !== true;
+    const v = s === 'dado' ? bruto : { meta: null, real: null, online: null };
+    const pct = s === 'dado' ? motor.percentualCobertura(v.real, v.online, v.meta) : null;
+    const motivo = s === 'futuro' ? null : s === 'indisponivel' ? motor.MOTIVOS.indisponivel
+      : pct === null ? motor.MOTIVOS.semMeta : null;
+    return { mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s, aberto,
+             meta: v.meta === undefined ? null : v.meta, real: v.real === undefined ? null : v.real,
+             online: v.online === undefined ? null : v.online,
+             metaDia: aberto && s === 'dado' ? motor.metaDiaCobertura(v.meta, v.real, diasRestantes) : null,
+             dif: s === 'dado' ? motor.diferenca(v.real, v.online, v.meta) : null, pct, motivo };
+  });
+  // mês da vigência que está valendo para o gatilho: o maior mês de CONFIG.meses já alcançado pela referência
+  // (referência antes de outubro: null, e o gatilho fica indisponível; depois de dezembro: dezembro)
+  const alcancados = cfg.meses.filter((m) => anomesDe(cfg.ano, m) <= String(index.mes_referencia.anomes));
+  const mesGatilho = alcancados.length ? alcancados[alcancados.length - 1] : null;
 
   // 4. canal das rotas e do SV (admin -> maioria das rotas da mesa com canal -> empate fora, com aviso)
   const canalRota = mapaCanal(base, ajustes.canais);
@@ -335,9 +500,18 @@ function montarDados(entrada, cfg, motor) {
     for (const [sv, c] of Object.entries(doMes)) if (!canaisSV[sv]) canaisSV[sv] = c;
   }
 
-  // 5. linhas e ranking (ordem e posição: motor)
-  const linha = (nivel, cod, extra) => Object.assign({ codigo: cod, chave: motor.chaveCodigo(cod) }, extra, apurar(nivel, cod));
-  const gc = motor.montarRanking(Object.keys(info.gc).map((g) => linha('gc', g, { gc: g, canal: null, origemCanal: null })));
+  // 5. linhas e ranking (ordem, posição, gatilho, posição oficial e status: motor)
+  const linha = (nivel, cod, extra) => {
+    const vol = apurar(nivel, cod), cobertura = apurarCobertura(nivel, cod);
+    const l = Object.assign({ codigo: cod, chave: motor.chaveCodigo(cod) }, extra, vol,
+                            { cobertura, gatilho: motor.gatilhoCobertura(cobertura, mesGatilho) });
+    l.tabela = tabelaDaLinha(vol, cobertura, l, motor);
+    return l;
+  };
+  /** Um nível de ranking: ordem e "Pos." (Etapa 2), coluna "Oficial" só de quem bateu o gatilho e status (Etapa 3). */
+  const ranquear = (linhas, nivel) => motor.numerarOficial(motor.montarRanking(linhas))
+    .map((l) => Object.assign(l, { status: motor.statusLinha(l, nivel) }));
+  const gc = ranquear(Object.keys(info.gc).map((g) => linha('gc', g, { gc: g, canal: null, origemCanal: null })), 'gc');
   const svs = { Mista: [], Segmentada: [] }, fora = [];
   for (const s of Object.keys(info.sv)) {
     const c = canaisSV[svNome(s)] || { canal: null, origem: 'sem canal', rotas: { Mista: 0, Segmentada: 0 } };
@@ -350,21 +524,37 @@ function montarDados(entrada, cfg, motor) {
   fora.sort((a, b) => (a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0));
   const empates = fora.filter((l) => l.origemCanal === 'empate').map((l) => l.codigo);
   if (empates.length) avisos.push(`mesa com o mesmo número de rotas Mista e Segmentada (${empates.join(', ')}): escolha o canal do SV na Administração; até lá o SV fica fora do ranking`);
+  // consultor: só os próprios números, sem ranking, sem gatilho e sem status (regras, seção 1). `soma` fica null
+  // na tabela porque a rota não tem pontuação de ranking.
   const rotas = Object.keys(info.rota).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).map((r) => {
-    const a = apurar('rota', r), c = canalRota[r];
-    return { codigo: r, gc: info.rota[r].gc, sv: info.rota[r].sv, canal: (c && c.canal) || null, sub: (c && c.sub) || null, meses: a.meses };
+    const a = apurar('rota', r), c = canalRota[r], cobertura = apurarCobertura('rota', r);
+    const l = { codigo: r, gc: info.rota[r].gc, sv: info.rota[r].sv, canal: (c && c.canal) || null,
+                sub: (c && c.sub) || null, meses: a.meses, cobertura };
+    l.tabela = tabelaDaLinha({ meses: a.meses, soma: null, incompleta: a.incompleta, mesesSemPct: a.mesesSemPct }, cobertura, null, motor);
+    return l;
   });
-  const svMista = motor.montarRanking(svs.Mista), svSegmentada = motor.montarRanking(svs.Segmentada);
-  return Object.assign({ ok: true, erro: null, avisos, meses: fontes.map(({ mes, anomes, fonte, estado, motivo, arquivo }) =>
-    ({ mes, anomes, fonte, estado: estado || null, motivo: motivo || null, arquivo: arquivo || null })),
-    gc, svMista, svSegmentada, fora, rotas, canaisSV,
+  // Total Band (Diretoria e GP): resumo.json -> empresa; meta dia de volume da API e meta dia de cobertura do
+  // motor. Tem gatilho (é o % de cobertura da empresa), mas não tem posição oficial nem status.
+  const totalBand = (() => {
+    const vol = apurar('empresa', TOTAL_BAND), cobertura = apurarCobertura('empresa', TOTAL_BAND);
+    const l = Object.assign({ codigo: TOTAL_BAND, nivel: 'empresa' }, vol,
+                            { cobertura, gatilho: motor.gatilhoCobertura(cobertura, mesGatilho) });
+    l.tabela = tabelaDaLinha(vol, cobertura, l, motor);
+    return l;
+  })();
+  const svMista = ranquear(svs.Mista, 'svMista'), svSegmentada = ranquear(svs.Segmentada, 'svSegmentada');
+  const doMes = ({ mes, anomes, fonte, estado, motivo, arquivo }) =>
+    ({ mes, anomes, fonte, estado: estado || null, motivo: motivo || null, arquivo: arquivo || null });
+  return Object.assign({ ok: true, erro: null, avisos, meses: fontes.map(doMes), mesesCobertura: fontesCob.map(doMes),
+    mesGatilho, gc, svMista, svSegmentada, fora, rotas, totalBand, canaisSV,
     baseCanais: { foto: (base.meta || {}).foto || null, corteSeg: (base.meta || {}).corteSeg || null } }, comum);
 }
 
 /**
- * Lê a API (index.json, gerencias/*.json e os fechados necessários) e o ajustes.json publicado, e monta os dados do
- * ranking (montarDados). Falha no index.json ou numa gerência: ok false, com o motivo em `erro`, sem valor inventado.
- * Fechado que falha: só aquele mês fica indisponível.
+ * Lê a API (index.json, gerencias/*.json, resumo.json e os fechados necessários) e o ajustes.json publicado, e monta
+ * os dados do ranking (montarDados). Falha no index.json ou numa gerência: ok false, com o motivo em `erro`, sem
+ * valor inventado. Fechado que falha: só aquele mês fica indisponível. resumo.json que falha: só o Total Band
+ * fica sem os números do mês de referência, com aviso (o resto do painel continua).
  */
 async function carregarRanking(base, opcoes) {
   opcoes = opcoes || {};
@@ -383,18 +573,22 @@ async function carregarRanking(base, opcoes) {
     if (!ehObjeto(index) || !ehObjeto(index.mes_referencia) || !Array.isArray(index.gerencias)) throw new Error('index.json: formato inesperado');
     gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
   } catch (e) {
-    return { ok: false, erro: `API indisponível (${e.message})`, avisos: [], meses: [], gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], canaisSV: {} };
+    return { ok: false, erro: `API indisponível (${e.message})`, avisos: [], meses: [], mesesCobertura: [],
+             mesGatilho: null, gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {} };
   }
+  let resumo = null;
+  try { resumo = await ler('resumo.json'); } catch (e) { resumo = null; } // só o Total Band depende dele
   const fechados = {};
   for (const f of fontesDosMeses(index, cfg)) {
     if (f.fonte !== 'fechado') continue;
     try { fechados[f.anomes] = await ler(f.arquivo); } catch (e) { fechados[f.anomes] = e; }
   }
   const ajustes = await lerAjustes(fetchFn, cfg);
-  return montarDados({ index, gerencias, fechados, base: opcoes.baseCanais, ajustes }, cfg, opcoes.motor);
+  return montarDados({ index, gerencias, resumo, fechados, base: opcoes.baseCanais, ajustes }, cfg, opcoes.motor);
 }
 
 if (typeof module === 'object' && module.exports) {
-  module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, lerFechado, montarDados, carregarRanking,
-                     lerAjustes, ajustesDeCanal, mapaCanal, canaisDosSVs, validarCanalRota, svNome };
+  module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura, coberturaDoFechado,
+                     lerFechado, tabelaDaLinha, montarDados, carregarRanking, lerAjustes, ajustesDeCanal, mapaCanal,
+                     canaisDosSVs, validarCanalRota, svNome };
 }
