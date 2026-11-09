@@ -10,9 +10,27 @@
 /* Etapa 4: a tela do mockup aprovado em 08/11/2026. Nenhuma regra de cálculo aqui: tudo vem do motor e do
    adaptador. Nenhum número de regra digitado (gatilho, trava e posições premiadas saem de R = motor.REGRAS).
    Nenhuma fonte de site externo: Barlow Condensed 800 é embutida pelo build e o resto é Inter, com reserva na
-   fonte do sistema. */
+   fonte do sistema.
+   Etapa 4B (regras v1.6, seções 5 e 7; decisão de 09/11/2026): nas duas tabelas de ranking o Status mostra só o
+   selo (o motor continua devolvendo o motivo, a tela não escreve mais), as legendas e o aviso de SVs fora do
+   ranking saem da tela (o aviso continua em Regras > Dados e alertas), os blocos ganham cor (Aperitivo laranja,
+   Skyy azul, no padrão do Desafio Q4: título escuro e células em tom bem claro), a Dif. negativa fica vermelha
+   e o % de cobertura ganha o quadradinho verde/vermelho — a cor vem de motor.corDoPercentual, nunca daqui. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC; --laranja:#FFB86B;
+  /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
+     --negv  = o vermelho da diferença negativa do Q4 (#ffb3bd);
+     --ap-*  = bloco Aperitivo (laranja): título no amarelo escuro do Q4 (.pill.bat, #4a3500) e células no
+               tom bem claro do quadro do % do Q4 (.pchip.t3, rgba(255,200,74,.20), um pouco mais apagado porque
+               aqui cobre um bloco inteiro, não um número);
+     --sk-*  = bloco Skyy (azul): título no --blued do Q4 (#0a2a6e) e células no .pchip.t5 (rgba(29,123,255,.30),
+               idem);
+     --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2. */
+  --negv:#FFB3BD;
+  --ap-tit:#4A3500; --ap-cel:rgba(255,200,74,.16);
+  --sk-tit:#0A2A6E; --sk-cel:rgba(29,123,255,.20);
+  --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
+  --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
   --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --cinza:#9AA1AE; --ink:#FFFFFF;
   --chrome:rgba(6,22,44,.88);
   --ff:Inter,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif;
@@ -71,6 +89,13 @@ button{cursor:pointer}
 .tb{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
 .tb th{font-size:13px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;color:var(--muted);text-align:right;padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.18);white-space:nowrap;background:#0B1E3C;position:sticky;z-index:2}
 .tb tr.grp th{top:0;border-bottom:none;text-align:center;font-family:var(--cond);font-weight:800;font-size:18px;letter-spacing:.04em;color:#fff;padding-bottom:0}
+/* Etapa 4B: cor dos dois blocos (Ranking GC e Supervisão). O título leva o tom ESCURO e o corpo das células o tom
+   BEM CLARO da mesma cor, pelo <colgroup> — assim nenhuma célula precisa de classe e o fundo claro fica embaixo
+   do .k, do hover e da linha de total, que são todos semitransparentes. */
+.tb tr.grp th.bl-ap{background:var(--ap-tit)}
+.tb tr.grp th.bl-sk{background:var(--sk-tit)}
+.tb colgroup.cg-ap{background:var(--ap-cel)}
+.tb colgroup.cg-sk{background:var(--sk-cel)}
 .tb tr.grp th small{font-family:var(--ff);font-size:13px;font-weight:600;color:var(--turq2);letter-spacing:.04em}
 .tb tr.hdr th{top:25px}
 .tb th.l,.tb td.l{text-align:left}
@@ -80,10 +105,25 @@ button{cursor:pointer}
 .tb th.k,.tb td.k{background:rgba(255,255,255,.05)}
 .tb tr.tot td{font-weight:700;border-top:2px solid var(--red);border-bottom:none;background:rgba(228,0,43,.07)}
 .tb tr:hover td:not(.k){background:rgba(255,255,255,.03)}
+/* As duas tabelas de ranking: fonte 1 px menor do que as de Consultor e Detalhe (nada abaixo de 13 px) e linhas
+   mais justas (3 px em vez de 5 px em cima e embaixo). É o que faz as 16 gerências e o Total Band caberem sem
+   rolagem no Ranking GC com a janela maximizada (~1920x940): com 5 px sobravam 62 px de rolagem. */
+.tb.rk{font-size:14px}
+.tb.rk td,.tb.rk th{padding-top:3px;padding-bottom:3px}
+.tb.rk tr.grp th{font-size:17px}
+.tb.rk .n{font-size:19px}
+.tb.rk .n.g{font-size:23px}
+.tb.rk .cod{font-size:15px}
 .cod{font-weight:700;font-size:16px}
 .n{font-family:var(--cond);font-weight:800;font-size:20px;line-height:1}
 .n.g{font-size:24px}
-.neg{color:var(--laranja)}
+/* Diferença negativa: vermelha (regras v1.6, seção 7; substitui o laranja). O seletor precisa do `td` para
+   ganhar de `.tb td{color:#fff}`: só com `.neg` a cor não chegava à célula (era o caso do laranja da etapa 4). */
+.tb td.neg{color:var(--negv)}
+/* quadradinho do % de cobertura, como o quadro do % do Desafio Q4; a cor vem de motor.corDoPercentual */
+.pchip{display:inline-block;border-radius:5px;padding:0 6px}
+.pchip.verde{background:var(--pct-ok-bg);color:var(--pct-ok-fg)}
+.pchip.vermelho{background:var(--pct-no-bg);color:var(--pct-no-fg)}
 .hoje{display:inline-block;padding:1px 8px;border-radius:7px}
 .hoje.ok{background:rgba(46,196,182,.22);color:var(--turq2);font-weight:700}
 .tv{display:inline-block;margin-left:3px;font-size:13px;font-weight:700;color:var(--laranja)}
@@ -92,11 +132,6 @@ button{cursor:pointer}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--turq);color:#032B28}
 .pill.no{background:rgba(255,255,255,.08);color:var(--muted)}
-.mot{display:inline;font-size:13px;color:var(--muted);margin-left:8px;white-space:nowrap}
-.legenda{flex:none;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center;font-size:14px;color:var(--muted);padding-top:4px}
-.legenda span.it{display:inline-flex;align-items:center;gap:7px}
-.foraln{flex:none;font-size:14px;line-height:1.35;color:var(--muted);border-top:1px solid var(--line);padding-top:6px}
-.foraln b{color:var(--laranja);font-weight:700}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -150,7 +185,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.4 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.6 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -159,6 +194,10 @@ button{cursor:pointer}
  * "hoje atingiu a meta dia". A tela (Etapa 4) só lê o resultado: nenhuma comparação nem texto de motivo fora daqui.
  * Etapa 4: a regra de EXIBIÇÃO da meta dia de volume (`metaDiaVolume`, regras v1.4, decisão de 09/11/2026). Mesmo
  * sendo só exibição, é regra: fica aqui, não na tela.
+ * Etapa 4B: a cor do quadradinho do % de cobertura (`corDoPercentual`, regras v1.6, seção 7). Também é só
+ * exibição e também é regra: a tela pergunta a cor, nunca compara o número com 100.
+ * NÃO implementado aqui: a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4 e pendência 24) —
+ * decidida em 09/11/2026, fica para o PR do agrupamento. O ranking de GC continua uma linha por gerência da API.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -169,7 +208,7 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.4',
+    versao: '1.6',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -182,8 +221,8 @@ button{cursor:pointer}
     premiadas: { gc: 6, svMista: 12, svSegmentada: 3 },
   };
 
-  // Textos exatos dos motivos mostrados embaixo do status (regras, seção 5). Ficam aqui para a tela e o adaptador
-  // nunca escreverem o texto: motivo novo entra no motor, não no HTML.
+  // Textos exatos dos motivos do status (regras, seção 5). Desde a v1.6 o motivo NÃO aparece na tela (a coluna
+  // Status mostra só o selo), mas continua calculado aqui: motivo novo entra no motor, nunca no HTML.
   const MOTIVOS = {
     premiadas: 'dentro das premiadas',
     indisponivel: 'cobertura indisponível',
@@ -358,9 +397,11 @@ button{cursor:pointer}
    * Status da linha (regras, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
    * "Bateu!" só com o gatilho batido E a posição oficial dentro das posições premiadas do nível
    * (`REGRAS.premiadas`, nunca número fixo em lógica nem em texto). Qualquer outro caso: "-".
-   * O `motivo` é a linha que vai embaixo do status: "dentro das premiadas", "cobertura em X%: precisa de 100%"
-   * (X truncado em 1 casa), "suba N posições" ("suba 1 posição" no singular), "cobertura indisponível" ou
-   * "sem meta de cobertura". A tela acrescenta o "✓" do "✓ Bateu!" e nunca mostra prêmio.
+   * O `motivo` é "dentro das premiadas", "cobertura em X%: precisa de 100%" (X truncado em 1 casa), "suba N
+   * posições" ("suba 1 posição" no singular), "cobertura indisponível" ou "sem meta de cobertura". Desde as regras
+   * v1.6 (decisão de 09/11/2026) ele NÃO vai mais para a tela — a coluna Status mostra só o selo —, e continua
+   * calculado aqui porque é regra e serve a quem consultar o resultado do motor. A tela acrescenta o "✓" do
+   * "✓ Bateu!" e nunca mostra prêmio.
    * nivel: 'gc' | 'svMista' | 'svSegmentada'. Nível sem limite publicado: erro (nunca adivinhar o limite).
    */
   function statusLinha(linha, nivel, cfg) {
@@ -417,6 +458,22 @@ button{cursor:pointer}
   }
 
   /**
+   * Cor do quadradinho do % de cobertura de Skyy ("% do mês" e "% Acumulado" das tabelas de ranking; regras v1.6,
+   * seção 7, decisão de 09/11/2026). É exibição, mas é regra: a tela pergunta a cor e nunca compara nada.
+   *   - 'verde'    -> o valor BRUTO é ≥ ao mínimo do gatilho (`REGRAS.gatilho.minimo`);
+   *   - 'vermelho' -> o valor bruto está abaixo desse mínimo;
+   *   - null       -> sem valor ("—"): a tela não desenha quadradinho nenhum.
+   * A comparação é no valor BRUTO, nunca no truncado da tela: 99,99999% aparece como "99,9%" e fica VERMELHO,
+   * porque não bate o mínimo. O mínimo sai de `REGRAS` (ou do `cfg` de uma mudança futura), nunca fixo aqui.
+   * Só o % de cobertura usa isto: os % mensais de Aperitivo (Out, Nov, Dez, Soma) não têm quadradinho.
+   */
+  function corDoPercentual(valor, cfg) {
+    const regras = cfg || REGRAS;
+    if (!numero(valor)) return null;
+    return valor >= regras.gatilho.minimo ? 'verde' : 'vermelho';
+  }
+
+  /**
    * "Hoje" colorido (regras, seção 7; pendência 17, confirmada em 08/11/2026): Online > 0 E Online ≥ Meta dia.
    * Meta dia 0 com Online > 0 colore; meta dia 0 com Online 0 não colore; meta dia null (API em período de
    * fechamento, ou cobertura sem meta) não colore. Serve para volume (`meta_dia` da API) e para cobertura
@@ -431,7 +488,8 @@ button{cursor:pointer}
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
-           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, hojeAtingiu };
+           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
+           hojeAtingiu };
 });
 </script>
 <script>const BASE_CANAIS_CAMPARI = {
@@ -1394,7 +1452,8 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 20) não aparecem: só o que continua em aberto nas regras v1.4.
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.6.
+ * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
   cfg = cfg || CONFIG; motor = motor || MotorCampariAqui();
@@ -1430,7 +1489,7 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.4, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.6, seção 7).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
@@ -1502,7 +1561,7 @@ $('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)'
 const vol = (v)=>esc(fmtVolume(v));
 const cob = (v)=>esc(fmtCobertura(v));
 const pct = (v)=>esc(fmtPct(v));
-/* Diferença: laranja quando negativa (o sinal vem do número, a cor é só leitura) */
+/* Diferença: vermelha quando negativa (regras v1.6, seção 7; o sinal vem do número, a cor é só leitura) */
 const difCel = (v, f)=>'<td class="'+(typeof v==='number'&&v<0?'neg':'')+'">'+esc(f(v))+'</td>';
 /* "Hoje": destacado só quando motor.hojeAtingiu disse que atingiu (m.hojeOk) */
 const hojeCel = (m, f)=>'<td><span class="hoje'+(m.hojeOk?' ok':'')+'">'+esc(m.aberto?f(m.online):TRACO)+'</span></td>';
@@ -1513,20 +1572,31 @@ const mesCel = (m)=>{
   if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td><span class="n">'+esc(TRACO)+'</span></td>';
   return '<td><span class="n">'+pct(m.pctTravado)+'</span>'+(m.travado?'<span class="tv">'+pct(m.pct)+'</span>':'')+'</td>';
 };
+/* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
+   o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
+   vermelho). Sem valor: sem quadradinho. */
+const pctCobCel = (v, extra)=>{
+  const cor = M.corDoPercentual(v);
+  return '<td'+(extra||'')+'><span class="n'+(cor?' pchip '+cor:'')+'">'+pct(v)+'</span></td>';
+};
+/* Status: só o selo (regras v1.6, seção 5; decisão de 09/11/2026). O motor continua devolvendo o motivo
+   (l.status.motivo) e nada na tela o escreve. */
 const statusCel = (l)=>{
-  if(!l.status) return '<td class="l sep"><span class="pill no">'+esc(TRACO)+'</span>'+(l.motivo?'<span class="mot">'+esc(l.motivo)+'</span>':'')+'</td>';
-  const ok = l.status.status==='Bateu!';
-  return '<td class="l sep"><span class="pill '+(ok?'ok':'no')+'">'+(ok?'✓ ':'')+esc(l.status.status)+'</span>'+
-    (l.status.motivo?'<span class="mot">'+esc(l.status.motivo)+'</span>':'')+'</td>';
+  const ok = !!l.status && l.status.status==='Bateu!';
+  return '<td class="l sep"><span class="pill '+(ok?'ok':'no')+'">'+(ok?'✓ ':'')+esc(l.status?l.status.status:TRACO)+'</span></td>';
 };
 
 /* ─── tabela de ranking (Ranking GC e Supervisão; colunas da premissa P5 / regras v1.4, seção 7) ──────── */
 function cabecalhoRanking(rotuloId){
   const apCols = 9, skCols = mostrarPctNov?8:7;
-  return '<thead>'+
+  return '<colgroup><col span="3"></colgroup>'+
+    '<colgroup class="cg-ap"><col span="'+apCols+'"></colgroup>'+
+    '<colgroup class="cg-sk"><col span="'+skCols+'"></colgroup>'+
+    '<colgroup><col></colgroup>'+
+    '<thead>'+
     '<tr class="grp"><th colspan="3"></th>'+
-    '<th colspan="'+apCols+'" class="sep">VOLUME DE APERITIVO <small>· RANKING</small></th>'+
-    '<th colspan="'+skCols+'" class="sep">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
+    '<th colspan="'+apCols+'" class="sep bl-ap">VOLUME DE APERITIVO <small>· RANKING</small></th>'+
+    '<th colspan="'+skCols+'" class="sep bl-sk">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
     '<th class="sep"></th></tr>'+
     '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
     '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th>'+
@@ -1549,24 +1619,18 @@ function linhaRanking(l, opc){
     R.meses.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m))).join('')+
     '<td class="k"><span class="n g">'+(opc.total?esc(TRACO):pct(bAp.soma))+'</span></td>'+
     '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+
-    '<td><span class="n">'+pct(sk.pct)+'</span></td>'+
+    pctCobCel(sk.pct)+
     (mostrarPctNov?'<td><span class="n">'+pct(bSk.pctNov)+'</span></td>':'')+
-    '<td class="k"><span class="n" style="color:'+(l.gatilho&&l.gatilho.batido?'var(--turq2)':'var(--laranja)')+'">'+pct(bSk.acumulado)+'</span></td>'+
+    pctCobCel(bSk.acumulado, ' class="k"')+
     (opc.total?'<td class="l sep" style="font-weight:500;font-size:13px;color:var(--muted)">sem ranking</td>':statusCel(l))+
     '</tr>';
 }
-function legendaRanking(){
-  return '<div class="legenda">'+
-    '<span class="it"><span class="pill ok">✓ Bateu!</span>gatilho batido e dentro das posições premiadas ('+esc(limites)+')</span>'+
-    '<span class="it"><span class="pill no">'+esc(TRACO)+'</span>ainda não</span>'+
-    '<span>Número em <span style="color:var(--laranja);font-weight:700">laranja</span> ao lado de '+esc(NOMES_MES[R.meses[0]].slice(0,3))+'/'+esc(NOMES_MES[R.meses[1]].slice(0,3))+': o % real do mês, antes da trava de '+pct(R.trava[R.meses[0]])+' em '+esc(mesesComTrava)+'</span>'+
-    '<span>Soma de Aperitivo = soma dos % mensais já com a trava · % Acum. de Skyy = média de '+esc(mesesDoGatilho)+', mínimo '+pct(R.gatilho.minimo)+'</span>'+
-    '</div>';
-}
+/* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava, a Soma
+   e o % Acum. ficam explicados na aba Regras, e o rodapé comum continua. */
 function tabelaRanking(linhas, rotuloId, comTotal){
   const corpo = linhas.map((l)=>linhaRanking(l)).join('') +
     (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
-  return '<div class="rolar"><table class="tb">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
+  return '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
 }
 
 /* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
@@ -1636,21 +1700,19 @@ function viewGC(){
   return '<div class="panel"><div class="ph"><h2>Ranking das gerências</h2>'+
     '<div class="nota">'+D.gc.length+' gerências · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
-    tabelaRanking(D.gc,'Gerência',true)+legendaRanking()+'</div>';
+    tabelaRanking(D.gc,'Gerência',true)+'</div>';
 }
 function viewSV(){
   if(!D.ok) return semDados();
   const todas = D[NIVEL[st.canal]] || [];
   const linhas = st.ger ? todas.filter((l)=>l.gc===st.ger) : todas;
   const comGatilho = linhas.filter((l)=>l.gatilho&&l.gatilho.batido).length;
-  const foraCanal = (D.fora||[]);
+  /* As supervisões sem canal (ou com empate de canal na mesa) não aparecem mais nesta tela, nem a legenda
+     (regras v1.6, seção 7): o aviso continua calculado no adaptador (D.fora) e sai em Regras > Dados e alertas. */
   return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
     '<div class="nota">'+linhas.length+' supervisores · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
-    legendaRanking()+
-    (foraCanal.length?'<div class="foraln"><b>'+foraCanal.length+' fora do ranking</b> (o SV soma todas as rotas da mesa, mas sem canal não entra em nenhum dos dois rankings): '+
-      foraCanal.map((l)=>esc(l.codigo)).join(', ')+'. Motivo: '+esc(foraCanal[0].motivo)+'</div>':'')+
     '</div>';
 }
 function viewRT(){
@@ -1670,7 +1732,7 @@ function viewDet(){
   const linhas = linhasDoDetalhe(D, st.detVisao, st.ger);
   const rot = st.detVisao==='sv'?'Supervisão':'Gerência';
   return '<div class="panel"><div class="ph"><h2>'+esc(rotuloMesSel(st.detMes))+' por '+esc(rot.toLowerCase())+'</h2>'+
-    '<div class="nota">'+linhas.length+' linhas · "Hoje" em turquesa: atingiu a meta dia · diferença negativa em laranja</div></div>'+
+    '<div class="nota">'+linhas.length+' linhas · "Hoje" em turquesa: atingiu a meta dia · diferença negativa em vermelho</div></div>'+
     (linhas.length?tabelaGrupos(linhas,rot,st.detMes,st.detVisao==='gc'?D.totalBand:null,'Total Band')
       :'<div class="vazio">Nenhuma linha neste filtro.</div>')+
     '</div>';
@@ -1694,7 +1756,11 @@ function viewRegras(){
     '<section><h2>Status</h2>'+
     '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu o gatilho de cobertura e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
     '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: gatilho pendente ou fora das posições premiadas.</div></div>'+
-    '<p>Embaixo do status aparece o motivo, por exemplo "'+esc(M.MOTIVOS.premiadas)+'", "cobertura em X%: precisa de '+pct(R.gatilho.minimo)+'" ou "suba N posições".</p>'+
+    '<p>Nas tabelas de ranking a coluna Status mostra só o selo. Nelas, o <strong>% do mês</strong> e o '+
+    '<strong>% Acum.</strong> de Skyy aparecem num quadradinho <span class="pchip verde">verde</span> quando o % '+
+    'chega ao mínimo do gatilho ('+pct(R.gatilho.minimo)+') e <span class="pchip vermelho">vermelho</span> quando '+
+    'não chega; sem valor, não há quadradinho. A <strong>Dif.</strong> negativa aparece '+
+    '<span style="color:var(--negv);font-weight:700">em vermelho</span>.</p>'+
     '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu o gatilho; a posição em cinza é apenas a ordem na tela.</p>'+
     '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
     '</section>'+

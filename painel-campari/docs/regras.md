@@ -1,7 +1,16 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.4 (09/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.6 (09/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.6 (09/11/2026, tarde):** a Karen enviou o print do SAC com a **gerência comercial agrupada** (12 linhas) e o Ranking GC passa a usar
+esse agrupamento (seção 4 e pendência 24). Valem as premissas ⚠️ da seção 4 até ela confirmar.
+
+**v1.5 (09/11/2026, tarde):** ajustes visuais das tabelas de ranking, decididos pela Karen (seção 7): coluna Status só com o selo
+("✓ Bateu!" ou "-"), sem texto de motivo; legendas e aviso de SVs fora do ranking saem das telas Ranking GC e Supervisão; blocos
+Aperitivo (laranja) e Skyy (azul) com título em tom escuro e corpo em tom claro, no padrão do Q4; Dif vermelha quando < 0; % do mês
+e % Acumulado de Skyy com o quadradinho pintado (verde ≥ 100%, vermelho < 100%); fonte um pouco menor. O Ranking GC passa a usar a
+**gerência comercial agrupada** do SAC (v1.6).
 
 **v1.4 (09/11/2026):** a Karen validou a pendência 15 (meta dia de volume em dia útil: a API publicada traz o valor; confere
 com o SAC, inclusive os negativos das rotas com meta batida) e decidiu a exibição da meta dia (seção 7): **se o Real for maior
@@ -75,6 +84,27 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
 
 ## 4. Quem soma o quê
 
+**Ranking GC por gerência comercial agrupada (decisão de 09/11/2026, print do SAC).** O Ranking GC tem 12 linhas, não 16. Oito
+gerências ficam sozinhas e oito formam quatro pares:
+
+| Linha do ranking | Gerências da API |
+| --- | --- |
+| G1, G2, G3, AP, AT, AN, RV, SL | uma gerência cada (mesmo código) |
+| UR_RI | UR + RI |
+| IT_MO | IT + MO |
+| PA_DI | PA + DI |
+| GU_PO | GU + PO |
+
+O agrupamento fica em configuração (`CONFIG`), nunca fixo na lógica. Gerência que a API publicar e que não estiver no mapa vira
+uma linha própria, com aviso. A linha agrupada **soma** os valores das gerências do grupo e só depois calcula: meta, real e online de
+cada mês, no Aperitivo e na cobertura de Skyy; o **% é o da soma**, nunca a média dos % (regras das seções 2, 3 e 7 valem para a linha
+agrupada: trava, soma, gatilho, posição, status). A posição oficial e o "Bateu!" valem por linha agrupada.
+Premissas ⚠️ (a Karen confirma): (a) o "Bateu!" continua nas **6** primeiras posições oficiais, agora entre 12 linhas (no print do SAC,
+as posições 1 a 6 aparecem destacadas); (b) o M. Dia de volume do grupo é a **soma** dos M. Dia das gerências (a API não publica por
+grupo); o M. Dia de cobertura é calculado sobre a meta e o real somados; (c) Total Band continua como está (empresa, `resumo.json`);
+(d) a Supervisão (filtro de gerência) e o Detalhe do mês continuam com as 16 gerências; (e) desempate pelo código da linha em minúsculas
+(ex.: `ur_ri`).
+
 - **Rota:** os próprios números.
 - **SV:** soma de **todas** as rotas da mesa, inclusive as sem canal, no volume e na cobertura.
 - **GC:** soma de **todas** as rotas da gerência.
@@ -93,8 +123,9 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
   posição em **cinza**. A coluna **Oficial** numera só quem bateu o gatilho.
 - **Status (decisão de 08/11/2026, conceito do Q4):** "✓ Bateu!" = gatilho batido **e** posição oficial dentro das
   posições premiadas do ranking (GC: 6; SV Mista: 12; SV Segmentada: 3). Qualquer outro caso = "-". Embaixo do
-  status, o motivo: "dentro das premiadas", "cobertura em X%: precisa de 100%" ou "suba N posições", com N = posição
-  oficial − limite.
+  status, o motivo ("dentro das premiadas", "cobertura em X%: precisa de 100%" ou "suba N posições", com N = posição
+  oficial − limite) **continua calculado pelo motor, mas não aparece mais na tela** (decisão de 09/11/2026): a coluna Status
+  mostra só o selo, "✓ Bateu!" ou "-".
 - **Os prêmios não aparecem no painel** (decisão de 08/11/2026): nem nomes, nem quadro de premiação. O painel usa
   só a quantidade de posições premiadas para decidir o "Bateu!".
 - **Desempate (confirmado em 08/11/2026):** ordem alfabética do **código** da supervisão ou da gerência (ex.:
@@ -133,14 +164,21 @@ posição e o status:
 | Identificação | Pos. · Oficial · Gerência (ou SV) |
 | Aperitivo (volume) | Meta · Real · M. Dia · Online · Dif · Out · Nov · Dez · Soma (os % mensais com a trava; Soma = pontuação do ranking) |
 | Skyy (cobertura · clientes) | Meta · Real · M. Dia · Online · Dif · % do mês · % Nov (só em dezembro) · % Acumulado (= gatilho; em novembro, parcial) |
-| Resultado | Status (+ motivo) |
+| Resultado | Status (só o selo: "✓ Bateu!" ou "-") |
 
 - **Seletor "Mês de referência"** (Ranking GC; vale também na Supervisão): troca **Meta, Real, Dif e o % do mês** dos
   dois blocos pelo mês escolhido. **Não muda** Out, Nov, Dez, Soma, % Nov e % Acumulado. O padrão é o mês de referência
   da API; mês sem dado fica desabilitado.
 - **M. Dia e Online** só existem no mês aberto; nos demais meses aparecem "—". Skyy de outubro: "—" (o fechado ainda
   não traz cobertura, pendência 10).
-- **Dif** = Real + Online − Meta, no mês escolhido.
+- **Dif** = Real + Online − Meta, no mês escolhido. **Vermelha quando < 0** (decisão de 09/11/2026; substitui o laranja).
+- **Cores dos blocos (Ranking GC e Supervisão; decisão de 09/11/2026):** Aperitivo em laranja e Skyy em azul, no padrão do Q4:
+  título do bloco em tom escuro (mais claro que o laranja e o azul de base) e corpo em tom bem claro.
+- **% do mês e % Acumulado de Skyy** (Ranking GC e Supervisão) com o quadradinho pintado, como o % e os pontos do Q4:
+  verde quando o valor bruto é ≥ 100% e vermelho quando < 100% (a tela trunca, a cor usa o bruto: 99,96% é vermelho).
+  Sem valor ("—"): sem quadradinho.
+- **Sem legendas** no Ranking GC e na Supervisão (decisão de 09/11/2026): saem a legenda do selo, a explicação da trava e da
+  soma e o aviso "N fora do ranking". O rodapé comum continua.
 - **Total Band** é a última linha das tabelas de ranking e do Detalhe do mês (mockup de 08/11/2026), sem coluna lateral
   e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking.
 - **Consultor e Detalhe do mês:** mesmas colunas (Meta, Real, M. Dia, Online, Dif, %) nos dois grupos, **Volume de
@@ -187,6 +225,7 @@ previsão 12/11/2026.
 | 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
 | 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
+| 24 | Ranking GC pela **gerência comercial agrupada** do SAC: quais gerências formam cada grupo? | **Resolvida** em 09/11/2026 (print do SAC, 12 linhas; seção 4). Ficam as premissas (a) a (e) da seção 4 para a Karen confirmar | Karen |
 
 ## 11. Intencionalmente fora deste arquivo
 

@@ -5,21 +5,22 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const M = require('../src/motor.js');
 
-// Etapa 1 testava versaoRegras '1.1' e "só versaoRegras"; a etapa 2 passou para a v1.3. A etapa 4 sobe para a
-// v1.4 (09/11/2026), que resolve a pendência 15 e cria a regra de exibição da meta dia de volume. Os dois testes
-// abaixo substituem os anteriores, com a lista exata do que o motor exporta.
-test('motor carrega no Node e exporta versaoRegras 1.4', () => {
-  assert.equal(M.versaoRegras, '1.4');
-  assert.equal(M.REGRAS.versao, '1.4');
+// Etapa 1 testava versaoRegras '1.1' e "só versaoRegras"; a etapa 2 passou para a v1.3 e a etapa 4 para a v1.4.
+// A etapa 4B sobe para a v1.6 (09/11/2026), dos ajustes visuais das tabelas de ranking (seções 5 e 7). Os dois
+// testes abaixo substituem os anteriores, com a lista exata do que o motor exporta.
+test('motor carrega no Node e exporta versaoRegras 1.6', () => {
+  assert.equal(M.versaoRegras, '1.6');
+  assert.equal(M.REGRAS.versao, '1.6');
 });
 
-// A etapa 4 acrescenta uma única função ao motor, `metaDiaVolume` (regra de exibição da v1.4): a lista exata
-// substitui a da etapa 3. A tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
-test('etapa 4: motor exporta o ranking, o gatilho, o status e as duas metas dia', () => {
+// A etapa 4B acrescenta uma única função ao motor, `corDoPercentual` (cor do quadradinho do % de cobertura, regra
+// de exibição da v1.6): a lista exata substitui a da etapa 4. A tela não pode ganhar função nova por engano, nem
+// levar regra para dentro do HTML.
+test('etapa 4B: motor exporta o ranking, o gatilho, o status, as metas dia e a cor do %', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
-    'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'metaDiaVolume', 'montarRanking',
-    'numerarOficial', 'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes', 'somaRanking',
-    'statusLinha', 'versaoRegras']);
+    'corDoPercentual', 'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'metaDiaVolume',
+    'montarRanking', 'numerarOficial', 'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes',
+    'somaRanking', 'statusLinha', 'versaoRegras']);
 });
 
 test('no navegador o motor fica em window.MotorCampari', () => {
@@ -27,7 +28,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.4');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.6');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -383,4 +384,37 @@ test('hojeAtingiu usa a meta dia EXIBIDA: com a meta dia zerada pela v1.4, qualq
   assert.equal(M.hojeAtingiu(5, exibida), true);
   assert.equal(M.hojeAtingiu(0, exibida), false);       // Online 0 nunca colore
   assert.equal(M.hojeAtingiu(5, M.metaDiaVolume(null, 1, 2)), false); // meta dia ausente não colore
+});
+
+/* ─── Etapa 4B — cor do quadradinho do % de cobertura (regras v1.6, seção 7; decisão de 09/11/2026) ──────── */
+
+test('corDoPercentual: verde a partir do mínimo do gatilho, vermelho abaixo dele, nada sem valor', () => {
+  // os quatro casos pedidos pela etapa: o truncado da tela nunca decide a cor, só o valor BRUTO
+  assert.equal(M.corDoPercentual(99.99999), 'vermelho');   // a tela mostra "99,9%" e o quadradinho fica vermelho
+  assert.equal(M.corDoPercentual(100), 'verde');           // exatamente no mínimo já é verde
+  assert.equal(M.corDoPercentual(100.0000001), 'verde');
+  assert.equal(M.corDoPercentual(null), null);             // sem valor ("—"): a tela não desenha quadradinho
+});
+
+test('corDoPercentual: 0 é vermelho, mas não numérico é "sem quadradinho" (nunca vermelho por engano)', () => {
+  assert.equal(M.corDoPercentual(0), 'vermelho');
+  for (const v of [undefined, NaN, Infinity, '100', '', {}]) {
+    assert.equal(M.corDoPercentual(v), null, String(v));
+  }
+});
+
+test('corDoPercentual lê o mínimo das REGRAS (não um 100 fixo) e aceita outro cfg', () => {
+  assert.equal(M.corDoPercentual(M.REGRAS.gatilho.minimo), 'verde');
+  assert.equal(M.corDoPercentual(M.REGRAS.gatilho.minimo - 1e-9), 'vermelho');
+  const cfg = { gatilho: { meses: [11, 12], minimo: 90 } };
+  assert.equal(M.corDoPercentual(95, cfg), 'verde');       // com outro mínimo, 95 já é verde
+  assert.equal(M.corDoPercentual(89.9, cfg), 'vermelho');
+});
+
+test('corDoPercentual concorda com o gatilho batido: mesma leitura do valor bruto', () => {
+  // o quadradinho do "% Acum." nunca pode ficar verde numa linha que o gatilho diz não batida, e vice-versa
+  for (const alvo of [99.99999, 100, 100.0000001, 120]) {
+    const g = M.gatilhoCobertura([OUT_INDISP, cm(11, 100000, alvo * 1000, 0)], 11);
+    assert.equal(M.corDoPercentual(g.valor), g.batido ? 'verde' : 'vermelho', String(alvo));
+  }
 });

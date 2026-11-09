@@ -752,7 +752,8 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 20) não aparecem: só o que continua em aberto nas regras v1.4.
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.6.
+ * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
   cfg = cfg || CONFIG; motor = motor || MotorCampariAqui();
@@ -788,7 +789,7 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.4, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.6, seção 7).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',

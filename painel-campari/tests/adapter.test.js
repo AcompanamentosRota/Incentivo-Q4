@@ -995,6 +995,68 @@ test('tela: o HTML gerado está no repositório, sem prêmio e sem link externo'
   assert.match(html, /data:image\/jpeg;base64,|background:#02306B/); // fundo embutido, ou o azul sólido de reserva
 });
 
+/* ─── Etapa 4B: os ajustes visuais das duas tabelas de ranking (regras v1.6, seções 5 e 7) ───────────────── */
+
+test('tela 4B: a coluna Status escreve só o selo — nenhum motivo na tela', () => {
+  const cel = /const statusCel = \(l\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
+  assert.doesNotMatch(cel, /motivo/);                    // o motor continua devolvendo; a tela não escreve
+  assert.match(cel, /class="pill/);                      // só o selo
+  // e nenhum texto de motivo digitado em lugar nenhum da tela
+  for (const t of [/dentro das premiadas/, /suba \d+ posi/, /suba N posi/, /cobertura em X/]) {
+    assert.doesNotMatch(SEM_CSS, t, String(t));
+  }
+  assert.doesNotMatch(TPL, /class="mot"/);               // a classe do motivo saiu também do CSS
+});
+
+test('tela 4B: sem legenda e sem o aviso de SVs fora do ranking nas duas tabelas', () => {
+  assert.doesNotMatch(SEM_CSS, /legendaRanking|class="legenda"|class="foraln"/);
+  assert.doesNotMatch(SEM_CSS, /fora do ranking/);
+  assert.doesNotMatch(TPL, /\.legenda\{|\.foraln\{/);    // o CSS delas saiu
+  // o aviso continua CALCULADO no adaptador e aparece em Regras > Dados e alertas
+  const alertas = A.alertasDaTela(Object.assign({}, montar3(), { fora: [{ codigo: 'SV.ZZ.1', motivo: 'sem canal na mesa' }] }));
+  assert.ok(alertas.some((a) => /fora do ranking/.test(a.titulo) && /SV\.ZZ\.1/.test(a.texto)));
+});
+
+test('tela 4B: a cor do quadradinho do % vem do motor, e o CSS tem as duas cores que ele devolve', () => {
+  assert.match(SEM_CSS, /M\.corDoPercentual\(/);           // a tela pergunta, não compara
+  assert.doesNotMatch(SEM_CSS, />=\s*100|>= ?R\.gatilho\.minimo/);
+  // só o % de cobertura de Skyy usa o quadradinho (duas células: "% mês" e "% Acum.")
+  assert.equal((SEM_CSS.match(/pctCobCel\(/g) || []).length, 2); // as duas celulas de % de Skyy, e nenhuma outra
+  for (const cor of [Motor.corDoPercentual(100), Motor.corDoPercentual(0)]) {
+    assert.match(TPL, new RegExp('\\.pchip\\.' + cor + '\\{'), cor);
+  }
+});
+
+test('tela 4B: Dif. negativa em vermelho (o vermelho do Q4), e a trava segue em laranja', () => {
+  assert.match(TPL, /--negv:#FFB3BD/);
+  // o seletor leva o `td`: só `.neg` perde para `.tb td{color:#fff}` e a cor não chega na célula
+  assert.match(TPL, /\.tb td\.neg\{color:var\(--negv\)\}/);
+  assert.doesNotMatch(TPL, /[^ ]\.neg\{color:var\(--laranja\)\}|^\.neg\{/m);
+  assert.match(TPL, /\.tv\{[^}]*color:var\(--laranja\)/);   // o % real antes da trava continua laranja
+  assert.doesNotMatch(SEM_CSS, /diferença negativa em laranja/);
+});
+
+test('tela 4B: os dois blocos têm cor (título escuro, células em tom claro) e a fonte menor', () => {
+  assert.match(SEM_CSS, /class="sep bl-ap"/);
+  assert.match(SEM_CSS, /class="sep bl-sk"/);
+  assert.match(SEM_CSS, /<colgroup class="cg-ap">/);
+  assert.match(SEM_CSS, /<colgroup class="cg-sk">/);
+  assert.match(TPL, /\.tb tr\.grp th\.bl-ap\{background:var\(--ap-tit\)\}/);
+  assert.match(TPL, /\.tb colgroup\.cg-ap\{background:var\(--ap-cel\)\}/);
+  assert.match(TPL, /\.tb tr\.grp th\.bl-sk\{background:var\(--sk-tit\)\}/);
+  assert.match(TPL, /\.tb colgroup\.cg-sk\{background:var\(--sk-cel\)\}/);
+  // só as tabelas de ranking ficam com a fonte menor (Consultor e Detalhe seguem no tamanho da etapa 4)
+  assert.match(SEM_CSS, /<table class="tb rk">/);
+  // linhas mais justas: e o que faz as 16 gerencias + Total Band caberem em ~1920x940 sem rolagem
+  assert.match(TPL, /\.tb\.rk td,\.tb\.rk th\{padding-top:3px;padding-bottom:3px\}/);
+  const corpoRk = /\.tb\.rk\{font-size:(\d+)px\}/.exec(TPL)[1];
+  const corpo = /\.tb\{width:100%;border-collapse:collapse;font-size:(\d+)px/.exec(TPL)[1];
+  assert.equal(Number(corpoRk), Number(corpo) - 1);
+  // e nada no palco abaixo de 13 px
+  const tamanhos = Array.from(TPL.matchAll(/font-size:(\d+)px/g), (m) => Number(m[1]));
+  assert.ok(Math.min.apply(null, tamanhos) >= 13, 'menor fonte: ' + Math.min.apply(null, tamanhos));
+});
+
 test('tela: as cinco abas do mockup, nessa ordem', () => {
   const abas = /const ABAS = \[([\s\S]*?)\];/.exec(SEM_CSS)[1];
   assert.deepEqual(Array.from(abas.matchAll(/nome:'([^']+)'/g), (m) => m[1]),
