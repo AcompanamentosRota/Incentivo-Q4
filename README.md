@@ -15,8 +15,10 @@ Incentivo-Q4/
 ├── frontend/
 │   ├── index.html           página provisória que lê a API
 │   ├── status.html          testa todos os arquivos da API
-│   └── desafio-q4.html      painel Desafio Q4 (gerado por painel-q4/scripts/build.py)
+│   ├── desafio-q4.html      painel Desafio Q4 (gerado por painel-q4/scripts/build.py)
+│   └── campari-club.html    painel Campari Club (gerado por painel-campari/scripts/build.py)
 ├── painel-q4/               fontes do painel Desafio Q4 (motor, adaptador, tela, regras, testes)
+├── painel-campari/          fontes do painel Campari Club (motor, adaptador, tela, regras, testes)
 ├── backend/
 │   ├── odata/               cliente OData (copiado do projeto da TI)
 │   ├── gerador/
@@ -36,7 +38,7 @@ Incentivo-Q4/
 └── .github/workflows/
     ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
     ├── deploy-pages.yml     publica frontend/ + api/ no Pages
-    └── testes.yml           testes do back-end e do painel
+    └── testes.yml           testes do back-end e dos painéis (Desafio Q4 e Campari Club)
 ```
 
 ## Como funciona
@@ -105,6 +107,16 @@ vermelha com o motivo; valor inválido dentro de um arquivo válido é ignorado 
 item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do admin, que guarda só o que difere do
 publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
 
+## Painel Campari Club
+
+`frontend/campari-club.html` é o painel do incentivo Campari Club (out–dez/2026; regras em
+`painel-campari/docs/regras.md`), independente do Desafio Q4. Ele lê a mesma API (`./api/v1/`) e acha os produtos do
+incentivo em `index.json` → `produtos` pelos agrupadores extras `Aperitivo` e `Skyy`. **Etapa 1: esqueleto, sem
+cálculo** (abas em construção e aba Regras); detalhes em `painel-campari/README.md`.
+
+Mudou algo em `painel-campari/src/`: rode `python painel-campari/scripts/build.py` e envie também o
+`frontend/campari-club.html` gerado. Testes: `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js`.
+
 ## Antes de ligar: confirmar os agrupadores
 
 Os nomes dos agrupadores ficam em `backend/gerador/mapeamento.py` → `PRODUTOS`. "Sucos" e "Powerade"
@@ -149,7 +161,7 @@ python scripts/gerar.py --rota 111 --forcar      # uma rota só, em saida/rota_1
 python -m unittest discover -s tests -t . -v     # testes
 ```
 
-Para ver as páginas com a API, abra `http://localhost:8000` (painel em `/desafio-q4.html`) depois de:
+Para ver as páginas com a API, abra `http://localhost:8000` (painéis em `/desafio-q4.html` e `/campari-club.html`) depois de:
 
 ```bash
 python scripts/servir.py      # na pasta backend/: serve frontend/ e api/ como no deploy; botão "Atualizar dados" funciona

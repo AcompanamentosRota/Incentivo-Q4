@@ -1,11 +1,12 @@
-# Testes do back-end (sem rede: Datasphere falso e dados simulados) e do painel Desafio Q4 (motor e adaptador).
+# Testes do back-end (sem rede: Datasphere falso e dados simulados), do painel Desafio Q4 e do painel Campari Club
+# (motor e adaptador de cada um).
 name: Testes do back-end
 
 on:
   push:
-    paths: ["backend/**", "painel-q4/**", ".github/workflows/testes.yml"]
+    paths: ["backend/**", "painel-q4/**", "painel-campari/**", ".github/workflows/testes.yml"]
   pull_request:
-    paths: ["backend/**", "painel-q4/**"]
+    paths: ["backend/**", "painel-q4/**", "painel-campari/**"]
   workflow_dispatch:
 
 permissions:
@@ -35,4 +36,15 @@ jobs:
         with:
           node-version: "20"
       - working-directory: painel-q4
+        run: node --test tests/motor.test.js tests/adapter.test.js
+
+  painel-campari:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: painel-campari
         run: node --test tests/motor.test.js tests/adapter.test.js
