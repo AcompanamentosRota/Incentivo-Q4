@@ -19,14 +19,19 @@
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC; --laranja:#FFB86B;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
      --negv  = o vermelho da diferença negativa do Q4 (#ffb3bd);
-     --ap-*  = bloco Aperitivo (laranja): título no amarelo escuro do Q4 (.pill.bat, #4a3500) e células no
-               tom bem claro do quadro do % do Q4 (.pchip.t3, rgba(255,200,74,.20), um pouco mais apagado porque
-               aqui cobre um bloco inteiro, não um número);
      --sk-*  = bloco Skyy (azul): título no --blued do Q4 (#0a2a6e) e células no .pchip.t5 (rgba(29,123,255,.30),
-               idem);
-     --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2. */
+               um pouco mais apagado porque aqui cobre um bloco inteiro, não um número);
+     --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2.
+     Etapa 4C — o bloco Aperitivo deixa de ser o amarelo escuro do Q4 e passa ao LARANJA do print do SAC
+     (pedido da Karen em 09/11/2026, que viu a 4B num marrom-amarelado):
+     --ap-tit = laranja médio do SAC (#E07B41) no título do bloco e nos cabeçalhos das colunas do Aperitivo;
+     --ap-tit-fg = o texto deles. É ESCURO porque branco sobre #E07B41 dá contraste 2,97:1 (abaixo de 4,5:1) e
+               o marrom bem escuro dá 5,3:1 — a decisão está registrada no PR da etapa 4C;
+     --ap-cel = corpo das células, num laranja queimado (#E07B41 a 58% sobre o painel): os números seguem
+               brancos, com 6,3:1. Tinta clara sobre o azul-marinho do painel vira marrom, então "laranja claro"
+               com o tema escuro só sai assim (escolha da Karen em 09/11/2026). */
   --negv:#FFB3BD;
-  --ap-tit:#4A3500; --ap-cel:rgba(255,200,74,.16);
+  --ap-tit:#E07B41; --ap-tit-fg:#2B1703; --ap-cel:rgba(224,123,65,.58);
   --sk-tit:#0A2A6E; --sk-cel:rgba(29,123,255,.20);
   --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
   --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
@@ -96,6 +101,10 @@ button{cursor:pointer}
 .tb colgroup.cg-ap{background:var(--ap-cel)}
 .tb colgroup.cg-sk{background:var(--sk-cel)}
 .tb tr.grp th small{font-family:var(--ff);font-size:13px;font-weight:600;color:var(--turq2);letter-spacing:.04em}
+/* Etapa 4C: o laranja do Aperitivo vai também aos cabeçalhos das COLUNAS do bloco, e o texto deles é escuro
+   (ver o cálculo de contraste na lista de variáveis). O bloco Skyy fica como estava. */
+.tb tr.hdr th.hd-ap{background:var(--ap-tit)}
+.tb tr.grp th.bl-ap,.tb tr.grp th.bl-ap small,.tb tr.hdr th.hd-ap{color:var(--ap-tit-fg)}
 .tb tr.hdr th{top:25px}
 .tb th.l,.tb td.l{text-align:left}
 .tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;white-space:nowrap;color:#fff}
@@ -276,8 +285,9 @@ function cabecalhoRanking(rotuloId){
     '<th colspan="'+skCols+'" class="sep bl-sk">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
     '<th class="sep"></th></tr>'+
     '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
-    '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th>'+
-    R.meses.map((m)=>'<th>'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="k">Soma</th>'+
+    '<th class="hd-ap sep">Meta</th><th class="hd-ap">Real</th><th class="hd-ap">M. Dia</th>'+
+    '<th class="hd-ap">Online</th><th class="hd-ap">Dif.</th>'+
+    R.meses.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">Soma</th>'+
     '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th><th>% mês</th>'+
     (mostrarPctNov?'<th>% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="k">% Acum.</th>'+
     '<th class="l sep">Status</th></tr></thead>';
@@ -374,8 +384,10 @@ const rotuloMesSel = (mes)=>{ const m = SEL.meses.find((x)=>x.mes===mes); return
 function viewGC(){
   if(!D.ok || !D.gc.length) return semDados();
   const comGatilho = D.gc.filter((l)=>l.gatilho&&l.gatilho.batido).length;
-  return '<div class="panel"><div class="ph"><h2>Ranking das gerências</h2>'+
-    '<div class="nota">'+D.gc.length+' gerências · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+  /* Etapa 4C: as linhas são as da gerência comercial AGRUPADA (D.gc), somadas pelo adaptador e pelo motor; a
+     coluna Gerência mostra o código da própria linha. O Detalhe do mês e os filtros seguem com as da API. */
+  return '<div class="panel"><div class="ph"><h2>Ranking das gerências comerciais</h2>'+
+    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     tabelaRanking(D.gc,'Gerência',true)+'</div>';
 }
@@ -421,7 +433,9 @@ function viewRegras(){
     ['Ranking','volume de Aperitivo. A pontuação é a soma dos % de '+listar(R.meses)+'.'],
     ['Trava','o % do mês vale no máximo '+fmtPct(R.trava[R.meses[0]])+' em '+mesesComTrava+'. '+
       listar(R.meses.filter((m)=>R.trava[m]===null)).replace(/^./,(c)=>c.toUpperCase())+' sem trava.'],
-    ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking.'],
+    ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking. '+
+      'O Ranking GC é por gerência comercial agrupada: algumas gerências da API somam numa linha só (o Detalhe do '+
+      'mês e os filtros seguem com as gerências da API).'],
     ['Posição','todas as linhas numeradas; posição oficial só para quem bate o gatilho. Desempate pela ordem alfabética do código.'],
   ];
   const alertas = alertasDaTela(D);

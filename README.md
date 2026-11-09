@@ -117,13 +117,16 @@ abas do mockup aprovado em 08/11/2026 — Ranking GC · Supervisão (Mista ⇄ S
 Regras —, lendo o gatilho de cobertura de Skyy, o ranking por volume de Aperitivo, a posição oficial e o status que o
 motor e o adaptador já calculavam; detalhes em `painel-campari/README.md`. A **etapa 4B** (regras v1.6) ajustou só a
 apresentação das duas tabelas de ranking: Status só com o selo, sem legendas, blocos coloridos (Aperitivo laranja,
-Skyy azul), Dif. negativa em vermelho, quadradinho verde/vermelho no % de cobertura e fonte 1 px menor. O canal
-Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
+Skyy azul), Dif. negativa em vermelho, quadradinho verde/vermelho no % de cobertura e fonte 1 px menor. A **etapa 4C**
+(regras v1.6, seção 4) trocou o Ranking GC para a **gerência comercial agrupada** do SAC: 12 linhas no lugar das 16
+gerências da API, somando as gerências de cada grupo antes de calcular. A Supervisão, o Consultor e o Detalhe do mês
+seguem com as gerências da API. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em
+`painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 139 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 167 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

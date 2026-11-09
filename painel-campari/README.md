@@ -8,7 +8,7 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e Dir
 Regras: [`docs/regras.md`](docs/regras.md) (v1.6, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4 — a tela, nas cinco abas do mockup
+## Estado: etapa 4C — a tela, com o Ranking GC pela gerência comercial agrupada
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -22,6 +22,12 @@ sinaliza, não decide.
   Consultor · Detalhe do mês · Regras —, mais a formatação e os recortes (funções puras no adaptador) e a subida das
   regras para a **v1.4**, que acrescenta a regra de **exibição da meta dia de volume** (`metaDiaVolume` no motor).
   A tela não calcula nada: lê o que o motor e o adaptador entregam.
+- **Etapa 4B:** ajustes de **apresentação** das duas tabelas de ranking (regras v1.6, seções 5 e 7), descritos no fim
+  deste arquivo.
+- **Etapa 4C (esta):** o **Ranking GC pela gerência comercial agrupada** do SAC (regras v1.6, seção 4 e pendência 24):
+  **12 linhas** no lugar das 16 gerências da API. A linha agrupada **soma** as gerências do grupo e só depois calcula
+  (`somarGrupo` no motor) — o % é o da soma, nunca a média dos %. No mesmo PR, a cor do bloco Aperitivo passou ao
+  **laranja do SAC**. Supervisão, Consultor e Detalhe do mês seguem com as gerências da API.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -39,7 +45,7 @@ sinaliza, não decide.
 
 | Aba | O que mostra |
 | --- | --- |
-| **Ranking GC** | as gerências na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria). Uma linha por gerência da API: o agrupamento da gerência comercial (regras v1.6, seção 4) **ainda não está implementado** |
+| **Ranking GC** | as **12 linhas da gerência comercial agrupada** (etapa 4C) na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria). A coluna Gerência mostra o código da linha; quem agrupa é `CONFIG.gruposGC` |
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão, o aviso de que ranking e premiação são do supervisor para cima, e as rotas da mesa em dois grupos (Volume de Aperitivo · Cobertura de Skyy), com a linha "Total da mesa" |
 | **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos e a linha "Total Band" |
@@ -55,6 +61,7 @@ sinaliza, não decide.
 | `aplicarTrava(pct, mes)` | `{valor, travado}`: min(%, limite); no limite exato não trava |
 | `somaRanking(valores)` | soma dos % travados dos meses com %; nenhum: null |
 | `apurarMeses(meses)` | % bruto, travado e marca de trava por mês, soma e `incompleta` (mês que devia contar sem %) |
+| `somarGrupo(valores, campos)` | **soma da gerência comercial agrupada (v1.6, seção 4)**: soma `meta`, `real`, `online` e `metaDia` das gerências do grupo, para o % sair da **soma** e nunca da média dos %. Campo sem nenhum valor numérico fica null (nunca 0); `campos` permite somar o bloco de cobertura, que não tem meta dia |
 | `ordenarRanking(linhas)` | soma desc (null no fim); empate pelo código em minúsculas, texto simples (`sv.g2.10` < `sv.g2.2`) |
 | `numerarRanking(linhas)` | Pos. 1..n em todas as linhas |
 | `percentualCobertura(real, online, meta)` | % de cobertura do mês, bruto; meta nula ou ≤ 0 dá null (vira "sem meta de cobertura") |
@@ -73,6 +80,15 @@ sinaliza, não decide.
   ou `ref` em período de fechamento → `fechado/AAAAMM.json` (só Real, Online 0; prévia ou oficial); `ref` aberto → API
   (Real + `online_hoje`, e o `meta_dia`); mês posterior → `futuro` (sem dado, não conta). Fechado ausente, ilegível ou
   sem o produto → `indisponivel` (nunca a API de outro mês no lugar), com aviso e linhas `incompleta`.
+- **Ranking GC agrupado** (`gruposDoRankingGC`, etapa 4C): o mapa `CONFIG.gruposGC` liga o código da **linha** do
+  ranking às gerências da API que ela soma (oito linhas de uma gerência; `UR_RI`, `IT_MO`, `PA_DI` e `GU_PO` de duas).
+  Nunca fixo na lógica. Gerência publicada e **fora do mapa** vira linha própria, com aviso; gerência do mapa que a API
+  **não publicou** sai da soma, com aviso; grupo sem nenhuma gerência publicada não entra. A linha soma por mês e por
+  produto (volume de Aperitivo e bloco `cobertura` de Skyy) **antes** de qualquer conta, e só então trava, soma, gatilho,
+  posição, posição oficial e status rodam nela, com as mesmas funções do motor. Mês que falta em alguma gerência do
+  grupo deixa o mês **indisponível** e a linha incompleta — nunca uma soma pela metade. `dados.gc` são as linhas
+  agrupadas (com ranking) e **`dados.gcApi`** as gerências da API (sem ranking), que a aba Detalhe do mês e o filtro de
+  gerência usam.
 - **GC:** mês aberto, `gerencias/{GC}.json` → `produtos`; fechado, `totais.gerencias[GC]` (sem `totais`: GC
   indisponível no mês, nunca soma de rotas). **SV:** mês aberto, `supervisoes[].produtos` da API; fechado, soma das
   linhas de `rotas` pelo campo supervisão (todas as rotas da mesa, inclusive sem canal). Sem recalcular o que a API
@@ -98,9 +114,10 @@ sinaliza, não decide.
   valor da tela (`motor.metaDiaVolume`). `metaDia` guarda o número de origem, e o `hojeOk` usa o exibido.
 - Lê só o `ajustes.json` **publicado** (o Campari não tem Administração nem ajustes do navegador): 404 = sem ajustes;
   ilegível = nenhum ajuste vale, com aviso.
-- Resultado: `meses` e `mesesCobertura` (fonte e estado de cada mês, por produto), `mesGatilho`, `gc`, `svMista`,
-  `svSegmentada` (ordenadas, numeradas, com `oficial` e `status`), `fora` (com gatilho, sem posição oficial nem
-  status), `rotas` (sem gatilho nem status), `totalBand`, `canaisSV`, `avisos`. Cada linha guarda, por mês, o volume em
+- Resultado: `meses` e `mesesCobertura` (fonte e estado de cada mês, por produto), `mesGatilho`, `gc` (as linhas
+  agrupadas do Ranking GC, com `gerencias` e `agrupada`), `gcApi` (uma linha por gerência da API, **sem** ranking),
+  `svMista`, `svSegmentada` (ordenadas, numeradas, com `oficial` e `status`), `fora` (com gatilho, sem posição oficial
+  nem status), `rotas` (sem gatilho nem status), `totalBand`, `canaisSV`, `avisos`. Cada linha guarda, por mês, o volume em
   `meses` (`meta`, `real`, `online`, `metaDia` só no mês aberto, `dif`, `pct`, `pctTravado`, `travado`, `fonte`,
   `estado`, `situacao`, `aberto`), a cobertura em `cobertura` (os mesmos campos, mais `motivo`), e `soma`,
   `incompleta`, `pos`, `gatilho`, `oficial` e `status`.
@@ -125,9 +142,9 @@ Formatar e recortar não é calcular: o % já vem bruto do motor e estas funçõ
 | `rotuloDoMes(mes, ano, estado)` | `Novembro/26`, `Outubro/26 (prévia)` |
 | `mesesDoSeletor(dados)` | as opções e o padrão do seletor de mês (P4): `habilitado`, `aberto`, `rotulo` |
 | `valoresDoMes(tabela, produto, mes)` | os números de um produto num mês; mês ausente devolve tudo null, nunca zero |
-| `filtrosDoPainel(dados)` | gerências e SVs dos filtros, **só códigos** |
+| `filtrosDoPainel(dados)` | gerências e SVs dos filtros, **só códigos**; as gerências são as da API (`gcApi`), não as linhas agrupadas |
 | `rotasDaMesa(dados, sv)` / `textoDasOcultas(ocultas)` | as rotas `normal` da mesa, o que ficou fora (contado por tipo) e a linha do SV que vira "Total da mesa" |
-| `linhasDoDetalhe(dados, visao, gc)` | as linhas da aba Detalhe do mês |
+| `linhasDoDetalhe(dados, visao, gc)` | as linhas da aba Detalhe do mês; a visão de gerência usa `gcApi` (as 16 da API) |
 | `alertasDaTela(dados)` | `[{tipo: 'erro' \| 'aviso' \| 'nota', titulo, texto}]` com o estado real dos dados |
 
 ### Canal duplicado do Desafio Q4 (decisão da Karen)
@@ -147,10 +164,11 @@ futura: extrair essas funções e o dado para uma pasta comum aos dois painéis.
 painel-campari/
 ├── docs/regras.md         fonte de verdade das regras do incentivo
 ├── src/
-│   ├── motor.js           cálculo (UMD: Node e window.MotorCampari): % do mês, trava, soma, ordem, posição,
-│   │                      gatilho de cobertura, posição oficial, status e meta dia de cobertura
-│   ├── adapter.js         CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura,
-│   │                      coberturaDoFechado, lerFechado, tabelaDaLinha, montarDados, carregarRanking
+│   ├── motor.js           cálculo (UMD: Node e window.MotorCampari): % do mês, trava, soma do grupo, soma,
+│   │                      ordem, posição, gatilho de cobertura, posição oficial, status e meta dia de cobertura
+│   ├── adapter.js         CONFIG (com gruposGC), localizarProdutos, carregarDados, fontesDosMeses,
+│   │                      fontesDaCobertura, coberturaDoFechado, lerFechado, gruposDoRankingGC, tabelaDaLinha,
+│   │                      montarDados, carregarRanking
 │   ├── app.tpl.html       tela: cinco abas, palco de 1920 px e fit() (copiado do Q4, não importado)
 │   └── assets/              fonts.json (só Barlow Condensed 800) e campari-fundo.jpg (arte do palco)
 ├── data/data.json         canal de cada rota (foto da base embutida do Q4, 09/11/2026)
@@ -165,7 +183,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 139 testes (49 do motor, 90 do adaptador); precisa de Node 18+
+# testes do painel — 167 testes (55 do motor, 112 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -224,6 +242,29 @@ Supervisão. Nenhuma regra de cálculo mudou e o contrato da API continua igual:
   `motor.corDoPercentual`, nunca de comparação na tela; Aperitivo não tem quadradinho;
 - a fonte das duas tabelas de ranking caiu 1 px (corpo de 14 px, `.tb.rk`); Consultor e Detalhe do mês não mudaram.
 
-**Fora desta etapa:** o **agrupamento da gerência comercial** do Ranking GC (12 linhas em vez de 16; regras v1.6,
-seção 4 e pendência 24, decididos em 09/11/2026) **não está implementado** — fica para o PR do agrupamento, com as
-premissas (a) a (e) da seção 4 para a Karen confirmar.
+## Etapa 4C — Ranking GC pela gerência comercial agrupada (regras v1.6, seção 4; pendência 24)
+
+O print do SAC que a Karen enviou em 09/11/2026 mostra a **gerência comercial agrupada**: 12 linhas, não 16. O Ranking
+GC passa a ser por essa linha; o resto do painel não muda.
+
+- **Quem soma com quem** está em `CONFIG.gruposGC` (adaptador), nunca na lógica: `G1`, `G2`, `G3`, `AP`, `AT`, `AN`,
+  `RV` e `SL` sozinhas; `UR_RI` = UR + RI; `IT_MO` = IT + MO; `PA_DI` = PA + DI; `GU_PO` = GU + PO.
+- **Soma e só depois calcula:** `somarGrupo` (motor) soma meta, real, online e meta dia por mês e por produto, e o % é
+  o da soma. Um teste constrói o caso em que a média dos % (110%) é bem diferente do % da soma (38%).
+- **Meta ausente** numa gerência soma só as que têm valor (nunca conta como 0); **mês que falta** em alguma gerência do
+  grupo deixa o mês indisponível e a linha incompleta.
+- **Fora do mapa:** gerência nova que a API publicar entra como linha própria, com aviso em Regras > Dados e alertas —
+  o ranking nunca esconde uma gerência.
+- **Desempate** pelo código da **linha** em minúsculas (`ur_ri`), com a mesma função do motor.
+- **As 16 gerências da API** continuam em `dados.gcApi`, usadas pelo filtro de gerência e pela aba Detalhe do mês.
+
+Premissas ⚠️ desta etapa, a Karen confirma (seção 4 das regras): (a) o "Bateu!" continua nas **6** primeiras posições
+oficiais, agora entre 12 linhas; (b) a **M. Dia de volume** do grupo é a **soma** das metas dia publicadas (a API não
+publica meta dia por grupo) e a de **cobertura** é calculada sobre a meta e o real somados.
+
+**Cor do bloco Aperitivo (mesmo PR).** Na 4B o título ficou num marrom-amarelado e o corpo quase sem cor. A Karen pediu
+o **laranja do SAC**: `--ap-tit` passou a `#E07B41` (título do bloco **e** cabeçalhos das colunas do Aperitivo) com
+texto escuro `--ap-tit-fg: #2B1703` — branco sobre esse laranja dá 2,97:1, abaixo do mínimo, e o marrom escuro dá
+5,3:1 — e `--ap-cel` passou a `rgba(224,123,65,.58)`, um laranja queimado com os números em branco (6,3:1). Tinta
+clara sobre o azul-marinho do painel vira marrom, então "laranja claro" com o tema escuro só sai assim; a escolha é da
+Karen (09/11/2026). O azul do Skyy não mudou.

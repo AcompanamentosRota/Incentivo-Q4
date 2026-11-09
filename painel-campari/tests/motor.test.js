@@ -13,14 +13,14 @@ test('motor carrega no Node e exporta versaoRegras 1.6', () => {
   assert.equal(M.REGRAS.versao, '1.6');
 });
 
-// A etapa 4B acrescenta uma única função ao motor, `corDoPercentual` (cor do quadradinho do % de cobertura, regra
-// de exibição da v1.6): a lista exata substitui a da etapa 4. A tela não pode ganhar função nova por engano, nem
-// levar regra para dentro do HTML.
-test('etapa 4B: motor exporta o ranking, o gatilho, o status, as metas dia e a cor do %', () => {
+// A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura) e a 4C acrescenta `somarGrupo`
+// (a soma da gerência comercial agrupada do Ranking GC, regras v1.6, seção 4): a lista exata substitui a da 4B.
+// A tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
+test('etapa 4C: motor exporta o ranking, o gatilho, o status, as metas dia, a cor do % e a soma do grupo', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
     'corDoPercentual', 'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'metaDiaVolume',
     'montarRanking', 'numerarOficial', 'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes',
-    'somaRanking', 'statusLinha', 'versaoRegras']);
+    'somaRanking', 'somarGrupo', 'statusLinha', 'versaoRegras']);
 });
 
 test('no navegador o motor fica em window.MotorCampari', () => {
@@ -417,4 +417,56 @@ test('corDoPercentual concorda com o gatilho batido: mesma leitura do valor brut
     const g = M.gatilhoCobertura([OUT_INDISP, cm(11, 100000, alvo * 1000, 0)], 11);
     assert.equal(M.corDoPercentual(g.valor), g.batido ? 'verde' : 'vermelho', String(alvo));
   }
+});
+
+/* ─── Etapa 4C — soma da gerência comercial agrupada (regras v1.6, seção 4; pendência 24) ──────────────────── */
+
+test('somarGrupo: soma meta, real, online e meta dia das gerências do grupo', () => {
+  const r = M.somarGrupo([{ meta: 100, real: 200, online: 5, metaDia: 10 },
+                          { meta: 900, real: 180, online: 0, metaDia: 5 }]);
+  assert.deepEqual(r, { meta: 1000, real: 380, online: 5, metaDia: 15 });
+});
+
+test('somarGrupo: o % é o da SOMA, nunca a média dos % das gerências', () => {
+  const a = { meta: 100, real: 200, online: 0, metaDia: 0 };   // 200%
+  const b = { meta: 900, real: 180, online: 0, metaDia: 0 };   //  20%
+  const g = M.somarGrupo([a, b]);
+  assert.equal(M.percentualMes(g.real, g.online, g.meta), 38); // (200 + 180) ÷ 1000
+  const media = (M.percentualMes(a.real, a.online, a.meta) + M.percentualMes(b.real, b.online, b.meta)) / 2;
+  assert.equal(media, 110);
+  assert.notEqual(M.percentualMes(g.real, g.online, g.meta), media);
+  // e a média dos % já travados de cada gerência também é outro número: (130 + 20) ÷ 2
+  const travados = [a, b].map((x) => M.aplicarTrava(M.percentualMes(x.real, x.online, x.meta), 11).valor);
+  assert.deepEqual(travados, [M.REGRAS.trava[11], 20]);
+  assert.equal((travados[0] + travados[1]) / 2, 75);
+  assert.equal(M.aplicarTrava(38, 11).valor, 38);  // o % da soma não chega na trava: entra como é
+});
+
+test('somarGrupo: campo com algum valor soma só os numéricos; nenhum numérico fica null (nunca 0)', () => {
+  const r = M.somarGrupo([{ meta: 200, real: 100, online: null, metaDia: null },
+                          { meta: null, real: 50, online: null, metaDia: null }]);
+  assert.deepEqual(r, { meta: 200, real: 150, online: null, metaDia: null }); // meta null não zera a do grupo
+  const vazio = M.somarGrupo([{ meta: null, real: null, online: null, metaDia: null }, null, undefined]);
+  assert.deepEqual(vazio, { meta: null, real: null, online: null, metaDia: null });
+  assert.deepEqual(M.somarGrupo([]), { meta: null, real: null, online: null, metaDia: null });
+  assert.deepEqual(M.somarGrupo(null), { meta: null, real: null, online: null, metaDia: null });
+});
+
+test('somarGrupo: valor não numérico não entra na soma (nem NaN, nem texto)', () => {
+  const r = M.somarGrupo([{ meta: 100, real: NaN, online: '5', metaDia: Infinity },
+                          { meta: 100, real: 10, online: 2, metaDia: 1 }]);
+  assert.deepEqual(r, { meta: 200, real: 10, online: 2, metaDia: 1 });
+});
+
+test('somarGrupo: `campos` permite a cobertura, que não tem meta dia própria', () => {
+  const r = M.somarGrupo([{ meta: 200, real: 210, online: 1 }, { meta: 100, real: 50, online: 0 }],
+                         ['meta', 'real', 'online']);
+  assert.deepEqual(r, { meta: 300, real: 260, online: 1 });
+  // a meta dia de cobertura do grupo sai da meta e do real já somados (nunca da soma das metas dia)
+  assert.equal(M.metaDiaCobertura(r.meta, r.real, 10), 4); // (300 − 260) ÷ 10
+});
+
+test('somarGrupo: grupo de uma gerência só devolve os próprios valores (as oito linhas sozinhas do mapa)', () => {
+  const um = { meta: 1234.5, real: 1000, online: 7, metaDia: 2.5 };
+  assert.deepEqual(M.somarGrupo([um]), um);
 });

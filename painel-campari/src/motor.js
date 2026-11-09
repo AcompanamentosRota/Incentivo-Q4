@@ -10,8 +10,9 @@
  * sendo só exibição, é regra: fica aqui, não na tela.
  * Etapa 4B: a cor do quadradinho do % de cobertura (`corDoPercentual`, regras v1.6, seção 7). Também é só
  * exibição e também é regra: a tela pergunta a cor, nunca compara o número com 100.
- * NÃO implementado aqui: a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4 e pendência 24) —
- * decidida em 09/11/2026, fica para o PR do agrupamento. O ranking de GC continua uma linha por gerência da API.
+ * Etapa 4C: a soma da gerência comercial agrupada do Ranking GC (`somarGrupo`, regras v1.6, seção 4 e pendência
+ * 24). O agrupamento em si (quais gerências formam cada linha) é configuração do adaptador; a REGRA que mora aqui
+ * é a de somar as medidas e só depois calcular — o % é o da soma, nunca a média dos % das gerências.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -96,6 +97,28 @@
     });
     const mesesSemPct = out.filter((m) => m.situacao !== 'futuro' && m.pct === null).map((m) => m.mes);
     return { meses: out, soma: somaRanking(out.map((m) => m.pctTravado)), incompleta: mesesSemPct.length > 0, mesesSemPct };
+  }
+
+  /**
+   * Soma das medidas de um grupo de linhas — a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4;
+   * decisão de 09/11/2026, pendência 24). É REGRA, não montagem de dados: a linha agrupada soma meta, real,
+   * online (e a meta dia de volume) das gerências do grupo e só DEPOIS calcula, então o % é o da SOMA e nunca a
+   * média dos % das gerências. Quem são as gerências de cada linha é configuração do adaptador, não daqui.
+   *   - cada campo soma só os valores numéricos: gerência com meta null não zera a meta do grupo;
+   *   - nenhum valor numérico no campo: null, nunca 0 (ausência de medida não é zero);
+   *   - `campos` permite somar o bloco de cobertura, que não tem meta dia (['meta', 'real', 'online']).
+   * A meta dia de volume do grupo é a soma das `meta_dia` publicadas pelas gerências, porque a API não publica
+   * meta dia por grupo — premissa ⚠️ da seção 4 (b), a confirmar. A meta dia de COBERTURA não se soma: ela sai de
+   * `metaDiaCobertura` sobre a meta e o real já somados.
+   */
+  function somarGrupo(valores, campos) {
+    campos = campos || ['meta', 'real', 'online', 'metaDia'];
+    const out = {};
+    for (const campo of campos) {
+      const nums = (valores || []).map((v) => (v ? v[campo] : null)).filter(numero);
+      out[campo] = nums.length ? nums.reduce((a, b) => a + b, 0) : null;
+    }
+    return out;
   }
 
   /** Chave de desempate: o código (id da API) em minúsculas; comparação de texto simples ("sv.g2.10" < "sv.g2.2"). */
@@ -301,7 +324,7 @@
   }
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
-           ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
+           somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            hojeAtingiu };
 });
