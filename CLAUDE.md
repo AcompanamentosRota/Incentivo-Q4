@@ -16,9 +16,10 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: gatilho de cobertura de Skyy e ranking por volume de aperitivo (agrupadores extras `Aperitivo` e `Skyy`
-  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.3 (08/11/2026). **Etapa 2: dados e motor do
-  ranking de volume de Aperitivo** (% do mês, trava 130% out/nov, soma, ordem e posição; `carregarRanking` no adaptador),
-  ainda sem números na tela; gatilho e status na Etapa 3, tela na Etapa 4. Toda regra só em `painel-campari/src/motor.js`.
+  da API). É independente do Desafio Q4 (nada importado de lá). Regras v1.3 (08/11/2026). **Etapa 3: gatilho de
+  cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura**, em cima da Etapa 2 (% do mês de
+  volume, trava 130% out/nov, soma, ordem e posição; `carregarRanking` no adaptador), **ainda sem números na tela** —
+  a tela é a Etapa 4. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
   Q4, rode o script e o build do Campari.
@@ -44,7 +45,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem e posição), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `montarDados`, `carregarRanking`; canal copiado do Q4), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem, posição, gatilho de cobertura, posição oficial, status e meta dia de cobertura), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `tabelaDaLinha`, `montarDados`, `carregarRanking`; canal copiado do Q4), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
 | `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
@@ -63,7 +64,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 60 testes (17 do motor, 43 do adaptador)
+# testes do painel Campari Club — 98 testes (38 do motor, 60 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -188,6 +189,42 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.3 de 08/11/2026)
+
+- **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
+  cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
+- **Gatilho:** cobertura de **Skyy**, média simples dos % de **novembro e dezembro**, mínimo **100%** no valor bruto
+  (99,99999% não bate; a tela trunca, o cálculo não arredonda). Outubro nunca entra. Em novembro o gatilho é
+  **parcial** (só novembro). `REGRAS.gatilho = { meses: [11, 12], minimo: 100 }`.
+- **% de cobertura** = (realizado + online_hoje) ÷ meta, bruto; `online_hoje` null conta 0. Meta de cobertura null ou
+  ≤ 0 dá % **null** (nunca 0 nem 100), com o motivo "sem meta de cobertura". Os blocos `cobertura` de supervisão e
+  gerência da API entram **como estão** (meta só das rotas com meta; realizado e online de todas as rotas) — decisão
+  de 08/11/2026, nunca recalcular a soma.
+- **Fonte da cobertura é diferente da do volume (premissa P1):** o mês de referência vem dos blocos `cobertura` da API
+  **inclusive no período de fechamento** da API, quando o volume já vem do `fechado/`. Mês anterior vem do
+  `fechado/AAAAMM.json`, que **ainda não traz cobertura** (pendência 10 das regras; o Matheus define o campo até
+  01/12/2026): até lá o mês fica "cobertura indisponível", sem gatilho e sem posição oficial, com aviso. A porta única
+  disso é `coberturaDoFechado` no adaptador — nunca adivinhe o nome nem o formato do campo novo. Em dezembro isso vale
+  para novembro, então o gatilho de dezembro depende dessa pendência.
+- **Posições premiadas** (só para decidir o status, nunca para mostrar prêmio): `REGRAS.premiadas = { gc: 6,
+  svMista: 12, svSegmentada: 3 }`, padrão do motor como o `gatilhoPontos` do Q4 — a regra em vigor não depende de
+  arquivo que pode faltar. Nada fixo em lógica nem em texto. **Prêmios não aparecem em lugar nenhum do painel.**
+- **Status:** "Bateu!" só com gatilho batido **e** posição oficial ≤ limite do nível; qualquer outro caso "-". Motivos
+  exatos, só no motor (`MOTIVOS` + `statusLinha`): "dentro das premiadas", "cobertura em X%: precisa de 100%"
+  (X truncado em 1 casa), "suba N posições" ("suba 1 posição" no singular), "cobertura indisponível" e "sem meta de
+  cobertura". Todas as linhas têm "Pos."; a coluna "Oficial" numera só quem bateu o gatilho.
+- **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
+  `calendario.dias_uteis_restantes`, com o Real até ontem; **travada** (não desconta o Online, não muda durante o dia).
+  Real ≥ Meta dá 0; 0 dias restantes dá a diferença total; exibida como **inteiro arredondado para cima** (cliente não
+  se divide), com tolerância de 1e-9. A meta dia de **volume** vem pronta da API e não se recalcula.
+- **"Hoje" colorido:** Online > 0 **e** Online ≥ Meta dia (`hojeAtingiu` no motor; pendência 17, confirmada em
+  08/11/2026). Meta dia 0 com Online > 0 colore; meta dia nula (API em fechamento) não colore.
+- **Consultor (rota)** aparece sem ranking, sem gatilho e sem status; **Total Band** (`resumo.json` → `empresa`) tem os
+  números e o acumulado de cobertura, mas não tem posição oficial nem status (Diretoria e GP não têm apuração própria).
+- **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
+  (`sv.g2.10` antes de `sv.g2.2`).
+- **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
+
 ## 6. Armadilhas
 
 - **A main anda sozinha.** O workflow "Atualizar dados" comita em `api/` a cada 15 min, de segunda a sexta,
@@ -305,7 +342,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 60 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 98 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

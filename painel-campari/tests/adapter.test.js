@@ -443,7 +443,8 @@ test('lerAjustes: 404 = sem ajustes; ilegível = nenhum ajuste vale, com aviso',
   assert.deepEqual([c.situacao, c.canaisSV], ['ok', { 'Sv. Xa.2': 'Mista' }]);
 });
 
-test('carregarRanking: lê index, gerências, fechados necessários e ajustes; monta os níveis', async () => {
+// a etapa 3 acrescenta a leitura do resumo.json (Total Band) à lista de arquivos da API
+test('carregarRanking: lê index, gerências, resumo, fechados necessários e ajustes; monta os níveis', async () => {
   const arquivos = { './api/v1/index.json': indexDe('202611', false, ['202610']), './api/v1/gerencias/XA.json': GER_XA,
                      './api/v1/gerencias/XB.json': GER_XB, './api/v1/fechado/202610.json': OUT };
   const lidos = [];
@@ -453,7 +454,7 @@ test('carregarRanking: lê index, gerências, fechados necessários e ajustes; m
   } });
   assert.equal(d.ok, true);
   assert.deepEqual(lidos.sort(), ['./ajustes.json', './api/v1/fechado/202610.json', './api/v1/gerencias/XA.json',
-                                  './api/v1/gerencias/XB.json', './api/v1/index.json']);
+                                  './api/v1/gerencias/XB.json', './api/v1/index.json', './api/v1/resumo.json']);
   assert.deepEqual(d.gc.map((l) => l.codigo), ['XA', 'XB']);
   assert.equal(d.baseCanais.foto, '2026-11-09');
 });
@@ -481,4 +482,275 @@ test('o adaptador não importa nada do painel-q4', () => {
   const fonte = fs.readFileSync(path.join(__dirname, '..', 'src', 'adapter.js'), 'utf8');
   assert.doesNotMatch(fonte, /require\([^)]*painel-q4/);
   assert.doesNotMatch(fonte, /import[^;]*painel-q4/);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// Etapa 3 — cobertura de Skyy, gatilho, posição oficial, status, meta dia de cobertura e estrutura das tabelas
+// (fixtures sintéticas; os blocos de cobertura são inventados, nenhum número real)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** bloco de produto da API com o bloco `cobertura` (volume fictício + cobertura em clientes) */
+const cbl = (vol, cmeta, creal, conline) => Object.assign({}, vol, { cobertura: { meta: cmeta, realizado: creal, online_hoje: conline, atingimento_pct: 999, diferenca: 0 } });
+/** bloco de produto SEM o bloco cobertura (modelo sem as colunas): o mês fica indisponível, não "sem meta" */
+const semCob = (vol) => Object.assign({}, vol);
+
+// XA3/XB3: as gerências da etapa 2 com o produto skyy acrescentado. Cobertura de novembro (meta, real, online):
+//   XA 200/180/25 = 102,5% (bate)   SV.XA.1 100/95/5 = 100,0% (bate)   SV.XA.2 100/50/0 = 50%
+//   XB 300/150/0 = 50%              SV.XB.1 10/12/0 = 120% (bate)      SV.XB.2 100/99/0 = 99,0%
+//   rotas: X11 50/20/2 = 44%; X12 sem bloco cobertura; X13 sem meta (meta null)
+const comSkyy = (ger, skyyGc, skyySv, skyyRota) => {
+  const g = JSON.parse(JSON.stringify(ger));
+  g.produtos.skyy = skyyGc;
+  g.supervisoes.forEach((s, i) => { if (skyySv[i]) s.produtos.skyy = skyySv[i]; });
+  g.rotas.forEach((r) => { if (skyyRota[r.id]) r.produtos.skyy = skyyRota[r.id]; });
+  return g;
+};
+const XA3 = comSkyy(GER_XA, cbl(bl(60, 30, 3, 2), 200, 180, 25),
+  [cbl(bl(20, 10, 1, 1), 100, 95, 5), cbl(bl(20, 10, 0, 1), 100, 50, 0)],
+  { X11: cbl(bl(10, 5, 1, 0.5), 50, 20, 2), X12: semCob(bl(10, 5, 0, 0.5)), X13: cbl(bl(10, 5, 0, 0.5), null, 7, 0) });
+const XB3 = comSkyy(GER_XB, cbl(bl(50, 20, 0, 2), 300, 150, 0),
+  [cbl(bl(20, 10, 0, 1), 10, 12, 0), cbl(bl(10, 5, 0, 1), 100, 99, 0)], {});
+const RESUMO = { empresa: { produtos: {
+  aperitivos: bl(1800, 900, 20, 12.5),
+  skyy: cbl(bl(110, 50, 3, 4), 400, 380, 10), // 97,5%: não bate
+} } };
+const montar3 = (mais) => A.montarDados(Object.assign({ index: indexDe('202611', false, ['202610']),
+  gerencias: [XA3, XB3], resumo: RESUMO, fechados: { 202610: OUT }, base: BASE, ajustes: SEM_AJ }, mais));
+// o % de cobertura de XA em novembro: (180 + 25) ÷ 200 = 102,5% no papel, 102,49999999999999 em ponto flutuante.
+// O motor não arredonda, então o teste compara com a própria conta (truncar é papel da tela).
+const XA_COB = (205 / 200) * 100;
+const cobDe = (l, m) => l.cobertura.find((x) => x.mes === m);
+
+test('fontesDaCobertura (P1): o mês de referência vem da API mesmo em período de fechamento', () => {
+  const aberto = A.fontesDaCobertura(indexDe('202611', false, ['202610']));
+  assert.deepEqual(aberto.map((f) => [f.mes, f.fonte, f.fechamento]), [[10, 'fechado', false], [11, 'api', false], [12, 'futuro', false]]);
+  // em fechamento o VOLUME vai para o fechado, mas a cobertura continua na API (com online_hoje null)
+  const fech = A.fontesDaCobertura(indexDe('202611', true, ['202610', '202611']));
+  assert.deepEqual(fech.map((f) => [f.mes, f.fonte, f.fechamento]), [[10, 'fechado', false], [11, 'api', true], [12, 'futuro', false]]);
+  assert.deepEqual(A.fontesDosMeses(indexDe('202611', true, ['202610', '202611'])).map((f) => f.fonte), ['fechado', 'fechado', 'futuro']);
+  // dezembro de referência: novembro já é mês fechado
+  const dez = A.fontesDaCobertura(indexDe('202612', false, ['202610', '202611']));
+  assert.deepEqual(dez.map((f) => [f.mes, f.fonte]), [[10, 'fechado'], [11, 'fechado'], [12, 'api']]);
+});
+
+test('coberturaDoFechado: porta única da pendência 10 — devolve null para qualquer arquivo de hoje', () => {
+  assert.equal(A.coberturaDoFechado(OUT, '202610', 'skyy'), null);
+  assert.equal(A.coberturaDoFechado(undefined, '202610', 'skyy'), null);
+  assert.equal(A.coberturaDoFechado(new Error('HTTP 500'), '202610', 'skyy'), null);
+  // o formato do campo novo ainda não existe: nem um arquivo que diga ter cobertura é adivinhado
+  const inventado = Object.assign({}, OUT, { campos_produto: ['meta', 'realizado', 'cobertura'] });
+  assert.equal(A.coberturaDoFechado(inventado, '202610', 'skyy'), null);
+});
+
+test('montarDados: cobertura do mês aberto por nível, como a API publica (sem recalcular soma de rotas)', () => {
+  const d = montar3();
+  assert.deepEqual(d.mesesCobertura.map((m) => [m.mes, m.fonte, m.estado]), [[10, 'indisponivel', null], [11, 'api', 'aberto'], [12, 'futuro', null]]);
+  const nov = cobDe(achar(d.gc, 'XA'), 11);
+  assert.deepEqual([nov.meta, nov.real, nov.online, nov.situacao, nov.aberto], [200, 180, 25, 'dado', true]);
+  assert.equal(nov.pct, XA_COB);      // (180 + 25) / 200, bruto
+  assert.equal(nov.dif, 5);          // 180 + 25 − 200
+  assert.equal(nov.metaDia, 2);      // (200 − 180) / 14 = 1,43 -> 2 (inteiro para cima)
+  const sv = cobDe(achar(d.svMista, 'SV.XA.1'), 11);
+  assert.deepEqual([sv.meta, sv.real, sv.online, sv.pct, sv.metaDia], [100, 95, 5, 100, 1]);
+  const rt = cobDe(achar(d.rotas, 'X11'), 11);
+  assert.deepEqual([rt.meta, rt.real, rt.online, rt.pct, rt.metaDia, rt.dif], [50, 20, 2, 44, 3, -28]);
+});
+
+test('montarDados: Skyy de outubro fica indisponível com motivo "cobertura indisponível" (pendência 10)', () => {
+  const d = montar3();
+  for (const l of [achar(d.gc, 'XA'), achar(d.svMista, 'SV.XA.1'), achar(d.rotas, 'X11'), d.totalBand]) {
+    const out = cobDe(l, 10);
+    assert.deepEqual([out.meta, out.real, out.online, out.metaDia, out.pct, out.dif], [null, null, null, null, null, null]);
+    assert.deepEqual([out.situacao, out.motivo], ['indisponivel', 'cobertura indisponível']);
+  }
+  // outubro não entra no gatilho: nada de aviso por causa dele (o aviso é só dos meses do gatilho)
+  assert.ok(!d.avisos.some((a) => /cobertura de outubro/.test(a)));
+  assert.equal(cobDe(achar(d.gc, 'XA'), 12).situacao, 'futuro');
+  assert.equal(cobDe(achar(d.gc, 'XA'), 12).motivo, null);
+});
+
+test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e deixa o gatilho indisponível', () => {
+  // dezembro de referência: novembro virou mês fechado e o fechado não traz cobertura
+  const DEZ = fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 80] }]],
+    { empresa: { aperitivos: [100, 80] }, gerencias: { XA: { aperitivos: [100, 80] } } });
+  const d = montar3({ index: indexDe('202612', false, ['202610', '202611']), fechados: { 202610: OUT, 202611: DEZ } });
+  assert.equal(d.mesesCobertura[1].fonte, 'indisponivel');
+  assert.ok(d.avisos.some((a) => /cobertura de novembro indisponível/.test(a) && /pendência 10/.test(a)));
+  const xa = achar(d.gc, 'XA');
+  assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.indisponivel, xa.gatilho.motivo],
+    [null, false, true, 'cobertura indisponível']);
+  assert.equal(xa.oficial, null);
+  assert.deepEqual(xa.status, { status: '-', motivo: 'cobertura indisponível' });
+});
+
+test('montarDados: produto sem o bloco cobertura fica indisponível; cobertura.meta null é "sem meta de cobertura"', () => {
+  const d = montar3();
+  const semBloco = cobDe(achar(d.rotas, 'X12'), 11);
+  assert.deepEqual([semBloco.situacao, semBloco.pct, semBloco.motivo], ['indisponivel', null, 'cobertura indisponível']);
+  const semMeta = cobDe(achar(d.rotas, 'X13'), 11);
+  assert.deepEqual([semMeta.situacao, semMeta.meta, semMeta.real, semMeta.pct, semMeta.metaDia, semMeta.motivo],
+    ['dado', null, 7, null, null, 'sem meta de cobertura']);
+});
+
+test('montarDados: gatilho parcial em novembro, posição oficial só de quem bateu e status do motor', () => {
+  const d = montar3();
+  assert.equal(d.mesGatilho, 11);
+  const xa = achar(d.gc, 'XA'), xb = achar(d.gc, 'XB');
+  assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.parcial], [XA_COB, true, true]);
+  assert.deepEqual([xa.pos, xa.oficial], [1, 1]);
+  assert.deepEqual(xa.status, { status: 'Bateu!', motivo: 'dentro das premiadas' });
+  assert.deepEqual([xb.gatilho.valor, xb.gatilho.batido], [50, false]);
+  assert.deepEqual([xb.pos, xb.oficial], [2, null]);
+  assert.deepEqual(xb.status, { status: '-', motivo: 'cobertura em 50,0%: precisa de 100%' });
+  // SV Mista: SV.XA.1 bate com 100,0% exatos; SV.XB.2 fica em 99,0%
+  const sv1 = achar(d.svMista, 'SV.XA.1'), sv2 = achar(d.svMista, 'SV.XB.2');
+  assert.deepEqual([sv1.gatilho.valor, sv1.oficial, sv1.status.status], [100, 1, 'Bateu!']);
+  assert.deepEqual([sv2.gatilho.valor, sv2.oficial], [99, null]);
+  assert.equal(sv2.status.motivo, 'cobertura em 99,0%: precisa de 100%');
+  // SV Segmentada: limite 3, uma linha só
+  const seg = achar(d.svSegmentada, 'SV.XB.1');
+  assert.deepEqual([seg.gatilho.valor, seg.oficial, seg.status.status], [120, 1, 'Bateu!']);
+});
+
+test('montarDados: quem bate o gatilho mas fica fora das premiadas recebe "suba N posições"', () => {
+  // 4 SVs Segmentada, todas batendo o gatilho: o limite do nível é 3
+  const sv = (n, real) => ({ id: `SV.XC.${n}`, rotas: [`XC${n}`], produtos: { aperitivos: bl(100, real, 0, 1), skyy: cbl(bl(10, 5, 0, 0), 10, 20, 0) } });
+  const XC = { gerencia: { id: 'XC', nome: 'Fictícia C' },
+    produtos: { aperitivos: bl(400, 200, 0, 4), skyy: cbl(bl(40, 20, 0, 2), 40, 80, 0) },
+    supervisoes: [sv(1, 90), sv(2, 80), sv(3, 70), sv(4, 60)],
+    rotas: [1, 2, 3, 4].map((n) => rota(`XC${n}`, 'XC', `SV.XC.${n}`, bl(100, 10, 0, 1))) };
+  const base = { meta: {}, rotas: [1, 2, 3, 4].map((n) => ({ gc: 'Xc', sv: `Sv. Xc.${n}`, rota: `XC${n}`, canal: 'Segmentada', sub: 'Mod' })) };
+  const d = A.montarDados({ index: indexDe('202611', false, []), gerencias: [XC], resumo: RESUMO, fechados: {}, base, ajustes: SEM_AJ });
+  assert.deepEqual(d.svSegmentada.map((l) => [l.codigo, l.pos, l.oficial, l.status.status, l.status.motivo]), [
+    ['SV.XC.1', 1, 1, 'Bateu!', 'dentro das premiadas'],
+    ['SV.XC.2', 2, 2, 'Bateu!', 'dentro das premiadas'],
+    ['SV.XC.3', 3, 3, 'Bateu!', 'dentro das premiadas'],
+    ['SV.XC.4', 4, 4, '-', 'suba 1 posição'],
+  ]);
+});
+
+test('montarDados: meta dia de cobertura é travada (não muda com o Online) e usa dias_uteis_restantes', () => {
+  const d = montar3();
+  assert.equal(cobDe(achar(d.gc, 'XA'), 11).metaDia, 2); // (200 − 180) / 14, sem o online de 25
+  const semOnline = montar3({ gerencias: [comSkyy(GER_XA, cbl(bl(60, 30, 3, 2), 200, 180, 0), [], {}), XB3] });
+  assert.equal(cobDe(achar(semOnline.gc, 'XA'), 11).metaDia, 2); // mesma meta dia com online 0
+  // 0 dias úteis restantes (dia não útil): a diferença total
+  const domingo = montar3({ index: Object.assign(indexDe('202611', false, ['202610']), { calendario: { hoje: '2026-11-08', dias_uteis_restantes: 0 } }) });
+  assert.equal(cobDe(achar(domingo.gc, 'XA'), 11).metaDia, 20);
+  // sem calendário no index: null, nunca 0
+  const semCal = montar3({ index: Object.assign(indexDe('202611', false, ['202610']), { calendario: undefined }) });
+  assert.equal(cobDe(achar(semCal.gc, 'XA'), 11).metaDia, null);
+  // meta de cobertura batida: 0
+  const batida = montar3({ gerencias: [comSkyy(GER_XA, cbl(bl(60, 30, 3, 2), 100, 120, 0), [], {}), XB3] });
+  assert.equal(cobDe(achar(batida.gc, 'XA'), 11).metaDia, 0);
+});
+
+test('montarDados: Total Band vem do resumo.json, com meta dia de volume da API e de cobertura do motor', () => {
+  const d = montar3();
+  const t = d.totalBand;
+  assert.equal(t.codigo, 'Total Band');
+  const vol = t.meses.find((m) => m.mes === 11);
+  assert.deepEqual([vol.meta, vol.real, vol.online, vol.metaDia], [1800, 900, 20, 12.5]); // meta dia de volume: da API
+  assert.equal(vol.pct, (920 / 1800) * 100);
+  assert.equal(t.meses.find((m) => m.mes === 10).real, 1700); // outubro: totais.empresa do fechado
+  const cob = cobDe(t, 11);
+  assert.deepEqual([cob.meta, cob.real, cob.online, cob.pct, cob.metaDia], [400, 380, 10, 97.5, 2]);
+  assert.deepEqual([t.gatilho.valor, t.gatilho.batido], [97.5, false]);
+  assert.equal('oficial' in t, false); // Diretoria e GP não têm apuração própria
+  assert.equal('status' in t, false);
+});
+
+test('montarDados: sem resumo.json o Total Band fica sem números do mês de referência, com aviso', () => {
+  const d = montar3({ resumo: null });
+  assert.ok(d.avisos.some((a) => /resumo\.json indisponível/.test(a)));
+  const vol = d.totalBand.meses.find((m) => m.mes === 11);
+  assert.deepEqual([vol.situacao, vol.meta, vol.pct], ['indisponivel', null, null]);
+  assert.equal(cobDe(d.totalBand, 11).situacao, 'indisponivel');
+  assert.equal(d.totalBand.meses.find((m) => m.mes === 10).real, 1700); // outubro continua, é do fechado
+  assert.deepEqual([d.gc.length, d.svMista.length], [2, 2]); // o resto do painel não para
+});
+
+test('montarDados (P7): tabela por produto e por mês, com metaDia e online só no mês aberto', () => {
+  const d = montar3();
+  const t = achar(d.gc, 'XA').tabela;
+  assert.deepEqual(Object.keys(t).sort(), ['aperitivo', 'skyy']);
+  assert.deepEqual(Object.keys(t.aperitivo.porMes), ['10', '11', '12']);
+  const apNov = t.aperitivo.porMes[11];
+  assert.deepEqual([apNov.meta, apNov.real, apNov.online, apNov.metaDia, apNov.dif, apNov.pct], [1000, 500, 20, 7.5, -480, 52]);
+  assert.equal(apNov.hojeOk, true); // online 20 ≥ meta dia 7,5
+  // mês fechado: M. Dia e Online não existem (a tela mostra "—"), mesmo com o online 0 do fechado em `meses`
+  const apOut = t.aperitivo.porMes[10];
+  assert.deepEqual([apOut.meta, apOut.real, apOut.online, apOut.metaDia, apOut.dif], [1000, 1500, null, null, 500]);
+  assert.deepEqual([apOut.pct, apOut.pctTravado, apOut.travado, apOut.aberto, apOut.hojeOk], [150, 130, true, false, false]);
+  assert.equal(t.aperitivo.soma, 182);
+  // dezembro (futuro): tudo null
+  assert.deepEqual([t.aperitivo.porMes[12].meta, t.aperitivo.porMes[12].pct, t.aperitivo.porMes[12].aberto], [null, null, false]);
+  // Skyy: % do mês por mês, % Nov, % Dez e o acumulado (= gatilho, parcial em novembro)
+  const skNov = t.skyy.porMes[11];
+  assert.deepEqual([skNov.meta, skNov.real, skNov.online, skNov.metaDia, skNov.dif, skNov.pct, skNov.hojeOk], [200, 180, 25, 2, 5, XA_COB, true]);
+  assert.deepEqual([t.skyy.porMes[10].pct, t.skyy.porMes[10].motivo], [null, 'cobertura indisponível']);
+  assert.deepEqual([t.skyy.pctNov, t.skyy.pctDez, t.skyy.acumulado], [XA_COB, null, XA_COB]);
+  assert.deepEqual([t.skyy.parcial, t.skyy.indisponivel, t.skyy.motivo], [true, false, null]);
+});
+
+test('montarDados (P7): em dezembro, % Nov e acumulado ficam null enquanto o fechado não trouxer cobertura', () => {
+  const DEZ = fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 80] }]],
+    { empresa: { aperitivos: [100, 80] }, gerencias: { XA: { aperitivos: [100, 80] } } });
+  const d = montar3({ index: indexDe('202612', false, ['202610', '202611']), fechados: { 202610: OUT, 202611: DEZ } });
+  const t = achar(d.gc, 'XA').tabela;
+  assert.equal(d.mesGatilho, 12);
+  assert.deepEqual([t.skyy.pctNov, t.skyy.pctDez, t.skyy.acumulado], [null, XA_COB, null]);
+  assert.deepEqual([t.skyy.indisponivel, t.skyy.motivo], [true, 'cobertura indisponível']);
+  assert.equal(t.skyy.porMes[11].motivo, 'cobertura indisponível');
+  assert.equal(t.skyy.porMes[12].pct, XA_COB); // dezembro é o mês de referência: vem da API
+});
+
+test('montarDados: consultor não tem gatilho, posição oficial nem status; a tabela não tem soma', () => {
+  const d = montar3();
+  const x11 = achar(d.rotas, 'X11');
+  for (const k of ['gatilho', 'oficial', 'status', 'pos', 'soma']) assert.equal(k in x11, false, k);
+  assert.equal(x11.tabela.aperitivo.soma, null);
+  assert.equal(x11.tabela.skyy.acumulado, null);
+  assert.equal(x11.tabela.skyy.porMes[11].pct, 44);
+});
+
+test('montarDados: SV fora do ranking tem gatilho, mas não tem posição oficial nem status', () => {
+  const d = montar3();
+  const f = achar(d.fora, 'SV.XA.2');
+  assert.equal(f.gatilho.valor, 50);
+  for (const k of ['oficial', 'status', 'pos']) assert.equal(k in f, false, k);
+});
+
+test('montarDados: em período de fechamento a cobertura do mês de referência continua vindo da API', () => {
+  const NOV = fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 80] }]],
+    { empresa: { aperitivos: [100, 80] }, gerencias: { XA: { aperitivos: [100, 80] } } }, { fechamento_final: true });
+  // em fechamento a API devolve online_hoje null na cobertura
+  const XA4 = comSkyy(GER_XA, cbl(bl(60, 30, null, null), 200, 190, null), [], {});
+  const d = montar3({ index: indexDe('202611', true, ['202610', '202611']), gerencias: [XA4, XB3],
+                      fechados: { 202610: OUT, 202611: NOV } });
+  const cob = cobDe(achar(d.gc, 'XA'), 11);
+  assert.deepEqual([cob.fonte, cob.estado, cob.aberto, cob.situacao], ['api', 'fechamento', false, 'dado']);
+  assert.deepEqual([cob.meta, cob.real, cob.online], [200, 190, null]);
+  assert.equal(cob.pct, 95);      // online null conta 0
+  assert.equal(cob.metaDia, null); // fora do mês aberto não há meta dia
+  assert.equal(achar(d.gc, 'XA').tabela.skyy.porMes[11].online, null);
+  assert.equal(achar(d.gc, 'XA').gatilho.valor, 95);
+  // o volume do mesmo mês, por contraste, já vem do fechado
+  assert.equal(achar(d.gc, 'XA').meses.find((m) => m.mes === 11).fonte, 'fechado');
+});
+
+test('carregarRanking: lê também o resumo.json (Total Band) e segue sem ele quando falha', async () => {
+  const arquivos = { './api/v1/index.json': indexDe('202611', false, ['202610']), './api/v1/gerencias/XA.json': XA3,
+                     './api/v1/gerencias/XB.json': XB3, './api/v1/fechado/202610.json': OUT, './api/v1/resumo.json': RESUMO };
+  const d = await A.carregarRanking(undefined, { baseCanais: BASE, fetchFn: async (url) =>
+    (url in arquivos ? resposta(200, arquivos[url]) : resposta(404, null)) });
+  assert.equal(d.ok, true);
+  assert.equal(cobDe(d.totalBand, 11).meta, 400);
+  assert.equal(achar(d.gc, 'XA').status.status, 'Bateu!');
+  // resumo.json fora do ar: o painel continua, só o Total Band fica sem o mês de referência
+  const semResumo = await A.carregarRanking(undefined, { baseCanais: BASE, fetchFn: async (url) =>
+    (url.endsWith('resumo.json') ? resposta(500, null) : url in arquivos ? resposta(200, arquivos[url]) : resposta(404, null)) });
+  assert.equal(semResumo.ok, true);
+  assert.ok(semResumo.avisos.some((a) => /resumo\.json indisponível/.test(a)));
+  assert.equal(cobDe(semResumo.totalBand, 11).situacao, 'indisponivel');
 });
