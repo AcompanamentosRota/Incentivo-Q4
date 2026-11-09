@@ -295,7 +295,8 @@ function lerFechado(f, anomes, pid) {
  * Estrutura das tabelas de ranking (premissa P7; regras, seção 7) de UMA linha: o que a tela lê sem calcular nada.
  * Dois blocos, Aperitivo (volume) e Skyy (cobertura), e dentro de cada um `porMes[10|11|12]` com
  * { meta, real, online, metaDia, dif, pct, hojeOk, fonte, estado, situacao, aberto, motivo }.
- *   - `online` e `metaDia` só existem no mês ABERTO (mês de referência fora do período de fechamento da API);
+ *   - `online`, `metaDia` e `metaDiaExib` só existem no mês ABERTO (mês de referência fora do período de
+ *     fechamento da API); `metaDiaExib` é o valor que a TELA mostra (regras v1.4) e `metaDia` o de origem;
  *     nos outros meses vêm null, e a tela mostra "—" (não é zero, é ausência de medida);
  *   - Aperitivo traz ainda `pctTravado` e `travado` por mês (as colunas Out | Nov | Dez são os % travados) e,
  *     no bloco, `soma` (a pontuação do ranking), `incompleta` e `mesesSemPct`;
@@ -307,10 +308,13 @@ function tabelaDaLinha(vol, cob, extra, motor) {
   const comum = (m) => {
     const online = m.aberto ? (m.online === undefined ? null : m.online) : null;
     const metaDia = m.aberto ? (m.metaDia === undefined ? null : m.metaDia) : null;
+    // metaDiaExib = o que a TELA mostra (regras v1.4): no volume passa por motor.metaDiaVolume; na cobertura é o
+    // próprio valor do motor (já 0 com a meta batida e inteiro para cima). `metaDia` guarda a origem.
+    const metaDiaExib = m.aberto ? (m.metaDiaExib === undefined ? null : m.metaDiaExib) : null;
     return { mes: m.mes, anomes: m.anomes, fonte: m.fonte, estado: m.estado || null, situacao: m.situacao,
-             aberto: !!m.aberto, meta: m.meta, real: m.real, online, metaDia,
+             aberto: !!m.aberto, meta: m.meta, real: m.real, online, metaDia, metaDiaExib,
              dif: m.dif === undefined ? null : m.dif, pct: m.pct === undefined ? null : m.pct,
-             hojeOk: motor.hojeAtingiu(online, metaDia), motivo: m.motivo || null };
+             hojeOk: motor.hojeAtingiu(online, metaDiaExib), motivo: m.motivo || null };
   };
   const porMes = (meses, mais) => Object.fromEntries(meses.map((m) => [m.mes, Object.assign(comum(m), mais ? mais(m) : null)]));
   const doMes = (meses, mes) => meses.find((m) => m.mes === mes) || {};
@@ -343,7 +347,9 @@ function tabelaDaLinha(vol, cob, extra, motor) {
  *                   tabela: { aperitivo, skyy } (estrutura da P7, pronta para a tela) }
  *   fora:         SVs fora do ranking (empate de canal ou sem canal), com o motivo; têm gatilho, mas não têm
  *                 posição oficial nem status (não disputam ranking)
- *   rotas:        consultores, só com os próprios números por mês (sem ranking, sem gatilho e sem status)
+ *   rotas:        consultores, só com os próprios números por mês (sem ranking, sem gatilho e sem status);
+ *                 `tipo` é o da API ('normal', 'neutraliza', 'virtual'...) ou null quando a rota só existe num
+ *                 mês fechado, que não publica o tipo — a aba Consultor filtra por ele (rotasDaMesa)
  *   totalBand:    linha da empresa (resumo.json -> empresa), com meta dia de volume da API e meta dia de
  *                 cobertura do motor; sem posição oficial e sem status (Diretoria e GP não têm apuração própria)
  *   canaisSV:     canal de cada SV (pelo código do painel, "Sv. An.1"), com origem e votos
@@ -395,7 +401,7 @@ function montarDados(entrada, cfg, motor) {
     const gid = g.gerencia.id;
     anotar('gc', gid, {});
     for (const s of g.supervisoes || []) anotar('sv', s.id, { gc: gid });
-    for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) anotar('rota', r.id, { gc: gid, sv: r.supervisao });
+    for (const r of g.rotas || []) if (r.tipo !== 'eventual' && !ehEventual(r.id)) anotar('rota', r.id, { gc: gid, sv: r.supervisao, tipo: r.tipo || null });
   }
   for (const f of fontes) {
     if (f.fonte === 'api') {
@@ -461,7 +467,8 @@ function montarDados(entrada, cfg, motor) {
                              aberto: f.fonte === 'api' }, v,
                            { metaDia: f.fonte === 'api' && s === 'dado' ? v.metaDia : null });
     }));
-    a.meses = a.meses.map((m) => Object.assign(m, { dif: motor.diferenca(m.real, m.online, m.meta) }));
+    a.meses = a.meses.map((m) => Object.assign(m, { dif: motor.diferenca(m.real, m.online, m.meta),
+      metaDiaExib: motor.metaDiaVolume(m.metaDia, m.real, m.meta) })); // regra de exibição da v1.4: só no motor
     return a;
   };
 
@@ -478,10 +485,12 @@ function montarDados(entrada, cfg, motor) {
     const pct = s === 'dado' ? motor.percentualCobertura(v.real, v.online, v.meta) : null;
     const motivo = s === 'futuro' ? null : s === 'indisponivel' ? motor.MOTIVOS.indisponivel
       : pct === null ? motor.MOTIVOS.semMeta : null;
+    // a meta dia de cobertura do motor já é a de exibição (0 com a meta batida, inteiro para cima): metaDiaExib
+    // repete o valor para a tela ler o mesmo campo nos dois blocos.
+    const md = aberto && s === 'dado' ? motor.metaDiaCobertura(v.meta, v.real, diasRestantes) : null;
     return { mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s, aberto,
              meta: v.meta === undefined ? null : v.meta, real: v.real === undefined ? null : v.real,
-             online: v.online === undefined ? null : v.online,
-             metaDia: aberto && s === 'dado' ? motor.metaDiaCobertura(v.meta, v.real, diasRestantes) : null,
+             online: v.online === undefined ? null : v.online, metaDia: md, metaDiaExib: md,
              dif: s === 'dado' ? motor.diferenca(v.real, v.online, v.meta) : null, pct, motivo };
   });
   // mês da vigência que está valendo para o gatilho: o maior mês de CONFIG.meses já alcançado pela referência
@@ -528,8 +537,8 @@ function montarDados(entrada, cfg, motor) {
   // na tabela porque a rota não tem pontuação de ranking.
   const rotas = Object.keys(info.rota).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })).map((r) => {
     const a = apurar('rota', r), c = canalRota[r], cobertura = apurarCobertura('rota', r);
-    const l = { codigo: r, gc: info.rota[r].gc, sv: info.rota[r].sv, canal: (c && c.canal) || null,
-                sub: (c && c.sub) || null, meses: a.meses, cobertura };
+    const l = { codigo: r, gc: info.rota[r].gc, sv: info.rota[r].sv, tipo: info.rota[r].tipo || null,
+                canal: (c && c.canal) || null, sub: (c && c.sub) || null, meses: a.meses, cobertura };
     l.tabela = tabelaDaLinha({ meses: a.meses, soma: null, incompleta: a.incompleta, mesesSemPct: a.mesesSemPct }, cobertura, null, motor);
     return l;
   });
@@ -587,8 +596,214 @@ async function carregarRanking(base, opcoes) {
   return montarDados({ index, gerencias, resumo, fechados, base: opcoes.baseCanais, ajustes }, cfg, opcoes.motor);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+ * Etapa 4 — formatação e recortes para a tela (funções PURAS e testadas)
+ *
+ * A tela só lê: nenhuma conta de regra aqui. Formatar e recortar não é calcular — o % já vem bruto do motor e
+ * estas funções apenas o truncam para a exibição; a soma mostrada é a `soma` do motor, nunca a soma dos valores
+ * truncados da tela.
+ * ═════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/** Primeira letra em maiúscula, para nome de mês ("outubro" -> "Outubro"); `titulo` serve a siglas ("AN" -> "An"). */
+const maiusc1 = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
+
+/** Ausência de medida (null): "—". Nunca zero — zero é um número medido. */
+const TRACO = '—';
+const numeroOk = (v) => typeof v === 'number' && Number.isFinite(v);
+
+/** Volume: 1 casa decimal, padrão pt-BR (1234.56 -> "1.234,6"; -0,04 -> "0,0"). Null ou não numérico: "—". */
+function fmtVolume(v) {
+  if (!numeroOk(v)) return TRACO;
+  const r = Math.round(v * 10) / 10 || 0; // o "|| 0" tira o -0 dos valores que arredondam para zero
+  return r.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/** Cobertura: clientes, sem casa decimal, padrão pt-BR (1738 -> "1.738"). Null ou não numérico: "—". */
+function fmtCobertura(v) {
+  if (!numeroOk(v)) return TRACO;
+  return (Math.round(v) || 0).toLocaleString('pt-BR');
+}
+
+/**
+ * % TRUNCADO em 1 casa, com o sinal (a tela nunca arredonda o que a regra trunca): 99.96 -> "99,9%",
+ * 100 -> "100,0%". É a mesma truncagem que o motor usa no motivo "cobertura em X%" (um teste compara as duas).
+ * Null ou não numérico: "—".
+ */
+function fmtPct(v) {
+  if (!numeroOk(v)) return TRACO;
+  return ((Math.floor(v * 10 + 1e-9) / 10) || 0).toFixed(1).replace('.', ',') + '%';
+}
+
+/** "2026-11-09T10:00:34" -> "09/11/2026 · 10:00". Sem hora: só a data. Ilegível ou ausente: "—". */
+function fmtDataHora(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(s === null || s === undefined ? '' : s));
+  if (!m) return TRACO;
+  return m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' · ' + m[4] + ':' + m[5] : '');
+}
+
+/** "dia útil 5/19", do calendário da API; sem os dois números: null (a tela não mostra a parte). */
+function rotuloDiaUtil(cal) {
+  if (!ehObjeto(cal) || !numeroOk(cal.dia_util_hoje) || !numeroOk(cal.dias_uteis_mes)) return null;
+  return 'dia útil ' + cal.dia_util_hoje + '/' + cal.dias_uteis_mes;
+}
+
+/** Rótulo de um mês da vigência: "Novembro/26", e "Outubro/26 (prévia)" enquanto o flash não é marcado. */
+const rotuloDoMes = (mes, ano, estado) =>
+  maiusc1(NOMES_MES[mes] || '?') + '/' + String(ano).slice(-2) + (estado === 'previa' ? ' (prévia)' : '');
+
+/**
+ * Opções do seletor "Mês de referência" (premissa P4) e o mês padrão.
+ * Devolve { meses: [{ mes, anomes, rotulo, fonte, estado, aberto, habilitado, motivo }], padrao }.
+ *   - `habilitado` = o mês tem fonte de volume ('api' ou 'fechado'); mês futuro ou indisponível fica DESABILITADO;
+ *   - `aberto` = mês de referência fora do período de fechamento da API (é o único com M. Dia e Online);
+ *   - `padrao` = o mês de referência do index.json, quando habilitado; senão o último habilitado; nenhum: null.
+ * O seletor troca só Meta, Real, Dif e o % do mês: Out, Nov, Dez, Soma, % Nov e % Acumulado não dependem dele.
+ */
+function mesesDoSeletor(dados, cfg) {
+  cfg = cfg || CONFIG;
+  const doVolume = (dados && dados.meses) || [];
+  const meses = cfg.meses.map((mes) => {
+    const f = doVolume.find((m) => m.mes === mes)
+      || { mes, anomes: anomesDe(cfg.ano, mes), fonte: 'futuro', estado: null, motivo: null };
+    return { mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, aberto: f.fonte === 'api',
+             habilitado: f.fonte === 'api' || f.fonte === 'fechado',
+             rotulo: rotuloDoMes(mes, cfg.ano, f.estado), motivo: f.motivo || null };
+  });
+  const ref = String(dados && dados.mesReferencia ? dados.mesReferencia.anomes : '');
+  const doRef = meses.find((m) => m.anomes === ref && m.habilitado);
+  const hab = meses.filter((m) => m.habilitado);
+  return { meses, padrao: doRef ? doRef.mes : hab.length ? hab[hab.length - 1].mes : null };
+}
+
+/** Mês sem nenhuma medida: a tela mostra "—" em tudo, nunca zero. */
+const SEM_MES = { meta: null, real: null, online: null, metaDia: null, metaDiaExib: null, dif: null, pct: null,
+                  pctTravado: null, travado: false, hojeOk: false, fonte: null, estado: null,
+                  situacao: 'indisponivel', aberto: false, motivo: null };
+
+/** Valores de um produto ('aperitivo' | 'skyy') num mês, da estrutura `tabela` da linha. Sem o mês: SEM_MES. */
+function valoresDoMes(tabela, produto, mes) {
+  const b = tabela && tabela[produto];
+  const m = b && b.porMes ? b.porMes[mes] : null;
+  return m || Object.assign({ mes }, SEM_MES);
+}
+
+/** Todas as linhas de supervisão (os dois canais e as que estão fora do ranking), em ordem de código. */
+const todosOsSVs = (dados) => [].concat((dados && dados.svMista) || [], (dados && dados.svSegmentada) || [],
+                                        (dados && dados.fora) || [])
+  .slice().sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }));
+
+/**
+ * Opções dos filtros das abas (só CÓDIGOS, nunca nome de pessoa — privacidade na tela):
+ * { gerencias: ['AN', ...], svs: [{ codigo, gc, canal, rotulo: "SV.AN.1 · Mista" }] }.
+ */
+function filtrosDoPainel(dados) {
+  const svs = todosOsSVs(dados).map((l) => ({ codigo: l.codigo, gc: l.gc || null, canal: l.canal || null,
+                                              rotulo: l.codigo + ' · ' + (l.canal || 'sem canal') }));
+  const gerencias = Array.from(new Set(((dados && dados.gc) || []).map((l) => l.codigo)
+    .concat(svs.map((s) => s.gc).filter(Boolean)))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return { gerencias, svs };
+}
+
+/** Tipos de rota que a aba Consultor lista (decisão da Karen, 09/11/2026): só as rotas `tipo: "normal"` da API. */
+const TIPOS_CONSULTOR = ['normal'];
+
+/**
+ * Rotas de uma mesa na aba Consultor -> { rotas, ocultas, total }.
+ *   - `rotas`: só os tipos de `tipos` (padrão TIPOS_CONSULTOR);
+ *   - `ocultas`: { <tipo>: quantas } do que ficou fora, inclusive 'sem tipo' (rota que só existe num mês fechado,
+ *     que não publica o tipo) — nada sai da tela em silêncio;
+ *   - `total`: a linha do SV, que a API soma com TODAS as rotas da mesa (regras, seção 4). Por isso o
+ *     "Total da mesa" pode ser MAIOR que a soma das linhas visíveis; a tela avisa quando há rota oculta.
+ */
+function rotasDaMesa(dados, sv, tipos) {
+  tipos = tipos || TIPOS_CONSULTOR;
+  const daMesa = ((dados && dados.rotas) || []).filter((r) => r.sv === sv);
+  const ocultas = {};
+  for (const r of daMesa) if (tipos.indexOf(r.tipo) < 0) {
+    const k = r.tipo || 'sem tipo';
+    ocultas[k] = (ocultas[k] || 0) + 1;
+  }
+  return { rotas: daMesa.filter((r) => tipos.indexOf(r.tipo) >= 0), ocultas,
+           total: todosOsSVs(dados).find((l) => l.codigo === sv) || null };
+}
+
+/** "2 rotas da mesa fora da lista (1 neutraliza, 1 virtual)" ou '' quando nenhuma ficou fora. */
+function textoDasOcultas(ocultas) {
+  const itens = Object.entries(ocultas || {}).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const n = itens.reduce((s, par) => s + par[1], 0);
+  if (!n) return '';
+  return n + ' ' + (n === 1 ? 'rota' : 'rotas') + ' da mesa fora da lista ('
+    + itens.map((par) => par[1] + ' ' + par[0]).join(', ') + ')';
+}
+
+/** Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional. */
+function linhasDoDetalhe(dados, visao, gc) {
+  if (visao === 'sv') {
+    const todas = todosOsSVs(dados);
+    return gc ? todas.filter((l) => l.gc === gc) : todas;
+  }
+  return ((dados && dados.gc) || []).slice().sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR'));
+}
+
+/**
+ * "Dados e alertas" da aba Regras (função pura): o estado REAL dos dados, nunca texto de regra.
+ * Devolve [{ tipo: 'erro' | 'aviso' | 'nota', titulo, texto }]:
+ *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
+ *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
+ *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
+ *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 20) não aparecem: só o que continua em aberto nas regras v1.4.
+ */
+function alertasDaTela(dados, cfg, motor) {
+  cfg = cfg || CONFIG; motor = motor || MotorCampariAqui();
+  const out = [];
+  const add = (tipo, tit, texto) => out.push({ tipo, titulo: tit, texto });
+  if (!dados || !dados.ok) {
+    add('erro', 'API indisponível', ((dados && dados.erro) || 'sem dados') + ': nada é calculado.');
+    return out;
+  }
+  if (dados.simulado) add('erro', 'Dados simulados', 'A API está publicando dados fictícios: não use estes números.');
+  if (dados.produtos && !dados.produtos.ok) {
+    add('erro', 'Produtos do Campari não publicados', dados.produtos.motivos.join('; ') + '. Nada é calculado.');
+  }
+  const doGatilho = motor.REGRAS.gatilho.meses;
+  for (const m of dados.mesesCobertura || []) {
+    if (m.fonte !== 'indisponivel') continue;
+    const conta = doGatilho.indexOf(m.mes) >= 0;
+    add(conta ? 'aviso' : 'nota', 'Cobertura de ' + NOMES_MES[m.mes] + ' indisponível',
+        (m.motivo || 'sem fonte de cobertura') + (conta
+          ? '. Sem ela o gatilho fica indisponível e ninguém recebe posição oficial.'
+          : '. ' + maiusc1(NOMES_MES[m.mes]) + ' não entra no gatilho, então a coluna fica "' + TRACO + '".'));
+  }
+  for (const m of dados.meses || []) {
+    if (m.fonte === 'indisponivel') {
+      add('aviso', maiusc1(NOMES_MES[m.mes]) + ' indisponível',
+          (m.motivo || 'mês sem fonte') + '. A soma das linhas fica incompleta.');
+    } else if (m.estado === 'previa') {
+      add('nota', maiusc1(NOMES_MES[m.mes]) + ' em prévia',
+          'Os números ainda mudam até o Back Office marcar o flash de vendas; o mês segue a chave do faturamento.');
+    } else if (m.fonte === 'futuro') {
+      add('nota', maiusc1(NOMES_MES[m.mes]) + ' ainda não começou',
+          'Mês sem dado: as colunas ficam "' + TRACO + '" e ele não entra na soma.');
+    }
+  }
+  add('aviso', 'Meta dia de volume: premissa a confirmar',
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.4, seção 7).');
+  const fora = (dados.fora || []).map((l) => l.codigo);
+  if (fora.length) {
+    add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
+        fora.join(', ') + ' — sem canal ou com empate de canal na mesa.');
+  }
+  for (const a of dados.avisos || []) add('aviso', 'Aviso da carga', a);
+  return out;
+}
+
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura, coberturaDoFechado,
                      lerFechado, tabelaDaLinha, montarDados, carregarRanking, lerAjustes, ajustesDeCanal, mapaCanal,
-                     canaisDosSVs, validarCanalRota, svNome };
+                     canaisDosSVs, validarCanalRota, svNome,
+                     // Etapa 4 (tela): formatação e recortes, todos puros
+                     TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
+                     rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
+                     linhasDoDetalhe, alertasDaTela };
 }

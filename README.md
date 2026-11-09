@@ -112,12 +112,16 @@ publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descar
 
 `frontend/campari-club.html` é o painel do incentivo Campari Club (out–dez/2026; regras em
 `painel-campari/docs/regras.md`), independente do Desafio Q4. Ele lê a mesma API (`./api/v1/`) e acha os produtos do
-incentivo em `index.json` → `produtos` pelos agrupadores extras `Aperitivo` e `Skyy`. **Etapa 2: dados e motor do
-ranking de volume de Aperitivo**, ainda sem números na tela (abas em construção e aba Regras); detalhes em
-`painel-campari/README.md`. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
+incentivo em `index.json` → `produtos` pelos agrupadores extras `Aperitivo` e `Skyy`. **Etapa 4: a tela**, nas cinco
+abas do mockup aprovado em 08/11/2026 — Ranking GC · Supervisão (Mista ⇄ Segmentada) · Consultor · Detalhe do mês ·
+Regras —, lendo o gatilho de cobertura de Skyy, o ranking por volume de Aperitivo, a posição oficial e o status que o
+motor e o adaptador já calculavam; detalhes em `painel-campari/README.md`. O canal Mista/Segmentada é uma cópia da base
+do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
-`frontend/campari-club.html` gerado. Testes: `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js`.
+`frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
+`painel-campari/src/assets/campari-fundo.jpg`). Testes:
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 130 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

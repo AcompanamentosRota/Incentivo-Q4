@@ -5,20 +5,45 @@ gatilho de **cobertura de Skyy** e ranking por **volume de aperitivo**, nos nív
 e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e Diretoria e GP ficam na linha "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.3, 08/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
+Regras: [`docs/regras.md`](docs/regras.md) (v1.4, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 3 — gatilho de cobertura, status e meta dia de cobertura (sem tela)
+## Estado: etapa 4 — a tela, nas cinco abas do mockup
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
   **em construção**; a aba Regras resume `docs/regras.md` (sem prêmios: decisão de 08/11/2026).
 - **Etapa 2:** `carregarRanking()` no adaptador lê a API e entrega ao motor o ranking de volume de Aperitivo
   de GC, SV Mista e SV Segmentada, mais os consultores (só os próprios números, sem ranking).
-- **Etapa 3 (esta):** gatilho de **cobertura de Skyy**, coluna **Oficial**, **status "Bateu!"**, **meta dia de
+- **Etapa 3:** gatilho de **cobertura de Skyy**, coluna **Oficial**, **status "Bateu!"**, **meta dia de
   cobertura**, diferença, "hoje atingiu a meta dia" e a linha **Total Band** (`resumo.json` → `empresa`), mais a
-  estrutura das tabelas de ranking (dois blocos, Aperitivo e Skyy, por mês) pronta para a tela. Nenhum número aparece
-  na tela ainda: a tela é a **Etapa 4**.
+  estrutura das tabelas de ranking (dois blocos, Aperitivo e Skyy, por mês) pronta para a tela.
+- **Etapa 4 (esta):** a **tela**, nas cinco abas do mockup aprovado em 08/11/2026 — Ranking GC · Supervisão ·
+  Consultor · Detalhe do mês · Regras —, mais a formatação e os recortes (funções puras no adaptador) e a subida das
+  regras para a **v1.4**, que acrescenta a regra de **exibição da meta dia de volume** (`metaDiaVolume` no motor).
+  A tela não calcula nada: lê o que o motor e o adaptador entregam.
+
+### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
+
+| # | Decisão |
+| --- | --- |
+| P1 | **Fonte:** só **Barlow Condensed 800** embutida (`src/assets/fonts.json`, ~28 KB), nos números e nos títulos das tabelas. Onde o mockup usa os pesos 600 e 700, o painel usa o 800. O resto é Inter, com reserva na fonte do sistema. **Nenhuma fonte de site externo** (um teste varre o template atrás de `http`, Google Fonts e CDNs) |
+| P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
+| P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
+| P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); Out, Nov, Dez, Soma, % Nov e % Acumulado não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador |
+| P5 | **Colunas da v1.4** (20 no total, 21 em dezembro com o "% Nov"), não as 18 do mockup. Tudo cabe em 1.754 px no palco de 1920, **sem rolagem horizontal**, com corpo de 15 px e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
+| P6 | **Nenhum número de regra digitado na tela:** gatilho, trava e posições premiadas saem de `motor.REGRAS`. Um teste varre o template (sem o CSS) atrás de `130`, "precisa de 100" e "GC: 6 / Mista: 12 / Segmentada: 3" |
+| — | **Consultor lista só as rotas `tipo: "normal"`** (decisão da Karen, 09/11/2026). As `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV: a linha "Total da mesa" pode ser maior que a soma das linhas, e a tela conta quantas ficaram fora (`rotasDaMesa` + `textoDasOcultas`) |
+
+### As cinco abas
+
+| Aba | O que mostra |
+| --- | --- |
+| **Ranking GC** | as gerências na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês, a legenda e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria) |
+| **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. Embaixo, a lista das supervisões **fora do ranking** (sem canal ou com empate), com o motivo do adaptador |
+| **Consultor** | filtros Gerência e Supervisão, o aviso de que ranking e premiação são do supervisor para cima, e as rotas da mesa em dois grupos (Volume de Aperitivo · Cobertura de Skyy), com a linha "Total da mesa" |
+| **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos e a linha "Total Band" |
+| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 20) não aparecem |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
 
@@ -38,7 +63,8 @@ sinaliza, não decide.
 | `numerarOficial(linhas)` | coluna "Oficial" 1..k, só de quem bateu o gatilho, na ordem do ranking |
 | `statusLinha(linha, nivel, cfg)` | `{status: "Bateu!" \| "-", motivo}`; `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
 | `metaDiaCobertura(meta, real, diasRestantes)` | (Meta − Real) ÷ dias restantes, travada, inteiro para cima (tolerância 1e-9); meta batida 0; 0 dias dá a diferença total |
-| `hojeAtingiu(online, metaDia)` | "Hoje" colorido: Online > 0 **e** Online ≥ Meta dia |
+| `metaDiaVolume(metaDia, real, meta)` | **regra de exibição da meta dia de volume (v1.4)**: Real > Meta → 0; `meta_dia` negativa → 0; não numérica → null ("—"). Nunca recalcula: a `meta_dia` vem pronta da API |
+| `hojeAtingiu(online, metaDia)` | "Hoje" colorido: Online > 0 **e** Online ≥ Meta dia (a meta dia **exibida**, para a cor concordar com a coluna ao lado) |
 
 ### Adaptador (`src/adapter.js`)
 
@@ -67,7 +93,8 @@ sinaliza, não decide.
   e o realizado e o online somam todas as rotas (decisão de 08/11/2026). Produto sem o bloco `cobertura` fica
   "cobertura indisponível"; `cobertura.meta` null ou ≤ 0 fica "sem meta de cobertura" (% null, nunca 0 nem 100).
 - **Meta dia de cobertura** do motor, com `index.json` → `calendario.dias_uteis_restantes`, só no mês aberto. A meta
-  dia de **volume** continua vindo pronta da API.
+  dia de **volume** continua vindo pronta da API; o que o adaptador acrescenta é o campo **`metaDiaExib`**, que é o
+  valor da tela (`motor.metaDiaVolume`). `metaDia` guarda o número de origem, e o `hojeOk` usa o exibido.
 - Lê só o `ajustes.json` **publicado** (o Campari não tem Administração nem ajustes do navegador): 404 = sem ajustes;
   ilegível = nenhum ajuste vale, com aviso.
 - Resultado: `meses` e `mesesCobertura` (fonte e estado de cada mês, por produto), `mesGatilho`, `gc`, `svMista`,
@@ -82,6 +109,25 @@ sinaliza, não decide.
   `tabela.aperitivo` traz ainda `pctTravado`/`travado` por mês (as colunas Out | Nov | Dez) e `soma`;
   `tabela.skyy` traz `pctNov`, `pctDez` e `acumulado` (= o valor do gatilho; em novembro, parcial), que **não** mudam
   com o seletor de mês. No consultor, `soma` e `acumulado` vêm null (rota não tem pontuação nem gatilho).
+
+### Formatação e recortes da tela (Etapa 4, funções puras no adaptador)
+
+Formatar e recortar não é calcular: o % já vem bruto do motor e estas funções só o truncam. A **Soma** mostrada é a
+`soma` do motor, nunca a soma dos valores truncados da tela.
+
+| Função | O que faz |
+| --- | --- |
+| `fmtVolume(v)` | volume com 1 casa, pt-BR (`1.234,6`); null → `—`; nunca `-0,0` |
+| `fmtCobertura(v)` | clientes sem casa, pt-BR (`1.738`); null → `—` |
+| `fmtPct(v)` | % **truncado** em 1 casa (`99,96` → `99,9%`, nunca `100,0%`); null → `—`. Um teste prova que trunca igual ao motor no motivo "cobertura em X%" |
+| `fmtDataHora(s)` / `rotuloDiaUtil(cal)` | `09/11/2026 · 10:00` e `dia útil 5/19`, do cabeçalho |
+| `rotuloDoMes(mes, ano, estado)` | `Novembro/26`, `Outubro/26 (prévia)` |
+| `mesesDoSeletor(dados)` | as opções e o padrão do seletor de mês (P4): `habilitado`, `aberto`, `rotulo` |
+| `valoresDoMes(tabela, produto, mes)` | os números de um produto num mês; mês ausente devolve tudo null, nunca zero |
+| `filtrosDoPainel(dados)` | gerências e SVs dos filtros, **só códigos** |
+| `rotasDaMesa(dados, sv)` / `textoDasOcultas(ocultas)` | as rotas `normal` da mesa, o que ficou fora (contado por tipo) e a linha do SV que vira "Total da mesa" |
+| `linhasDoDetalhe(dados, visao, gc)` | as linhas da aba Detalhe do mês |
+| `alertasDaTela(dados)` | `[{tipo: 'erro' \| 'aviso' \| 'nota', titulo, texto}]` com o estado real dos dados |
 
 ### Canal duplicado do Desafio Q4 (decisão da Karen)
 
@@ -104,9 +150,10 @@ painel-campari/
 │   │                      gatilho de cobertura, posição oficial, status e meta dia de cobertura
 │   ├── adapter.js         CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura,
 │   │                      coberturaDoFechado, lerFechado, tabelaDaLinha, montarDados, carregarRanking
-│   └── app.tpl.html       tela (palco de 1920 px, fit(), cabeçalho compacto, rodapé com a origem dos dados)
+│   ├── app.tpl.html       tela: cinco abas, palco de 1920 px e fit() (copiado do Q4, não importado)
+│   └── assets/              fonts.json (só Barlow Condensed 800) e campari-fundo.jpg (arte do palco)
 ├── data/data.json         canal de cada rota (foto da base embutida do Q4, 09/11/2026)
-├── scripts/build.py       monta frontend/campari-club.html (determinístico; embute data/data.json)
+├── scripts/build.py       monta frontend/campari-club.html (determinístico; embute fonte, fundo e data/data.json)
 ├── scripts/copiar_canais.py  regera data/data.json a partir de painel-q4/data/data.json
 └── tests/                 motor.test.js e adapter.test.js (fixtures sintéticas)
 ```
@@ -117,7 +164,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 98 testes (38 do motor, 60 do adaptador); precisa de Node 18+
+# testes do painel — 130 testes (45 do motor, 85 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -127,7 +174,18 @@ cd backend && python scripts/servir.py
 Não clique em "Atualizar dados" no `servir.py`: ele grava em `api/`.
 
 O deploy (`deploy-pages.yml`) copia `frontend/` inteiro para o site, então `frontend/campari-club.html` é publicado
-sem mudança no workflow. Sem logo nem fonte embutida: o letreiro é texto em Inter (reserva na fonte do sistema).
+sem mudança no workflow.
+
+### Como trocar a arte do fundo
+
+1. Grave a imagem em `painel-campari/src/assets/campari-fundo.jpg` (JPEG, **1920 px de largura**, com logo, letreiro e
+   faixa de meses nos primeiros ~148 px, que é onde a tela não desenha nada).
+2. `python painel-campari/scripts/build.py` e comite **a imagem e o `frontend/campari-club.html` gerado**.
+3. O build avisa o tamanho embutido. Sem o arquivo, o palco sai só com `#02306B` e o build diz isso — o painel
+   continua funcionando.
+
+A imagem entra em base64 no HTML, então ela pesa no arquivo publicado: a de 09/11/2026 tem 73 KB e leva o painel a
+237 KB.
 
 ## O que ainda depende de terceiros
 
@@ -137,8 +195,13 @@ sem mudança no workflow. Sem logo nem fonte embutida: o letreiro é texto em In
   "cobertura indisponível" — ninguém recebe posição oficial nem "Bateu!". O painel avisa (faixa de aviso e a lista
   `avisos`) e **não assume valor**. Quando o formato for definido, o único lugar a mudar é `coberturaDoFechado` no
   adaptador (e os testes dela).
-- **Pendência 15 (Karen): meta dia de volume zerada.** Em 08/11/2026 (domingo) vinha 0,0 nos dois produtos. Conferido
-  em **09/11/2026 (segunda, dia útil, `dias_uteis_restantes` 15)**: o `meta_dia` de volume vem preenchido
-  (ex.: 3.655,0 no Total Band de Aperitivo). O zero de 08/11 era mesmo do dia não útil.
-- **Pendência 21 (Karen): o mockup não mostra as colunas novas** do Ranking GC e da Supervisão. A Etapa 3 só entrega
-  os dados; o ajuste de layout fica para a Etapa 4.
+- **Pendência 22 (Karen): a meta dia de volume compara só o Real, ou Real + Online?** A v1.4 manda mostrar 0 quando
+  o Real passa da Meta, e deixa a premissa em aberto. O painel usa **só o Real** (até ontem) e sinaliza isso em
+  Regras > Dados e alertas. Se a resposta for "Real + Online", o único lugar a mudar é `metaDiaVolume` no motor.
+- **Pendência 23 (Karen): a arte do fundo.** O `campari-fundo.jpg` recebido em 09/11/2026 tem **1568 × 777**, e a
+  tela o amplia para 1920 px de largura. Funciona, mas o logo e o letreiro perdem nitidez: se existir o original em
+  1920 px, basta trocar o arquivo e rodar o build (ver acima).
+
+Resolvidas nesta etapa: **pendência 15** (meta dia de volume zerada era o domingo; em dia útil a API traz o valor,
+com negativos iguais aos do SAC) e **pendência 21** (o mockup foi atualizado; nas tabelas de ranking valem as colunas
+da v1.4, não as do mockup).

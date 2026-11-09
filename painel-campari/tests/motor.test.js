@@ -5,20 +5,21 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const M = require('../src/motor.js');
 
-// Etapa 1 testava versaoRegras '1.1' e "só versaoRegras": a etapa 2 troca as regras para a v1.3 e acrescenta as
-// funções do ranking de volume. Os dois testes abaixo substituem aqueles, com a lista exata do que o motor exporta.
-test('motor carrega no Node e exporta versaoRegras 1.3', () => {
-  assert.equal(M.versaoRegras, '1.3');
-  assert.equal(M.REGRAS.versao, '1.3');
+// Etapa 1 testava versaoRegras '1.1' e "só versaoRegras"; a etapa 2 passou para a v1.3. A etapa 4 sobe para a
+// v1.4 (09/11/2026), que resolve a pendência 15 e cria a regra de exibição da meta dia de volume. Os dois testes
+// abaixo substituem os anteriores, com a lista exata do que o motor exporta.
+test('motor carrega no Node e exporta versaoRegras 1.4', () => {
+  assert.equal(M.versaoRegras, '1.4');
+  assert.equal(M.REGRAS.versao, '1.4');
 });
 
-// A etapa 3 acrescenta o gatilho de cobertura, a posição oficial, o status e a meta dia de cobertura: a lista exata
-// substitui a da etapa 2 (que afirmava "só o ranking de volume"). A tela não pode ganhar função nova por engano.
-test('etapa 3: motor exporta o ranking de volume mais o gatilho, o status e a meta dia', () => {
+// A etapa 4 acrescenta uma única função ao motor, `metaDiaVolume` (regra de exibição da v1.4): a lista exata
+// substitui a da etapa 3. A tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
+test('etapa 4: motor exporta o ranking, o gatilho, o status e as duas metas dia', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
-    'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'montarRanking', 'numerarOficial',
-    'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes', 'somaRanking', 'statusLinha',
-    'versaoRegras']);
+    'diferenca', 'gatilhoCobertura', 'hojeAtingiu', 'metaDiaCobertura', 'metaDiaVolume', 'montarRanking',
+    'numerarOficial', 'numerarRanking', 'ordenarRanking', 'percentualCobertura', 'percentualMes', 'somaRanking',
+    'statusLinha', 'versaoRegras']);
 });
 
 test('no navegador o motor fica em window.MotorCampari', () => {
@@ -26,7 +27,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.3');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.4');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -336,4 +337,50 @@ test('hojeAtingiu: Online > 0 e Online ≥ Meta dia (pendência 17)', () => {
   assert.equal(M.hojeAtingiu(0, null), false);
   assert.equal(M.hojeAtingiu(-2, 0), false);
   assert.equal(M.hojeAtingiu('5', 1), false);
+});
+
+/* ─── Etapa 4 — regra de EXIBIÇÃO da meta dia (regras v1.4, seção 7; decisão de 09/11/2026) ──────────────── */
+
+test('metaDiaVolume: com o Real ainda abaixo da Meta, a meta dia da API passa inteira (nada é recalculado)', () => {
+  assert.equal(M.metaDiaVolume(452.8, 83.1, 7437.9), 452.8);
+  assert.equal(M.metaDiaVolume(0, 10, 100), 0);
+  assert.equal(M.metaDiaVolume(3655, 6327.3, 59977.2), 3655);
+  assert.equal(M.metaDiaVolume(12.5, 100, 100), 12.5); // Real IGUAL à Meta não é "maior": o valor fica
+});
+
+test('metaDiaVolume: Real maior que a Meta mostra 0', () => {
+  assert.equal(M.metaDiaVolume(10, 1370.8, 870.4), 0);
+  assert.equal(M.metaDiaVolume(0.1, 100.01, 100), 0);
+});
+
+test('metaDiaVolume: meta dia negativa mostra 0 (a API publica negativos, como o SAC)', () => {
+  assert.equal(M.metaDiaVolume(-38.4, 1370.8, 870.4), 0);
+  assert.equal(M.metaDiaVolume(-1.2, 9.8, 27.3), 0);   // negativa mesmo com o Real abaixo da Meta
+  assert.equal(M.metaDiaVolume(-0.1, null, null), 0);  // sem Real nem Meta, a negativa ainda vira 0
+});
+
+test('metaDiaVolume: meta dia nula ou não numérica fica null (a tela mostra "—", nunca 0)', () => {
+  for (const v of [null, undefined, NaN, Infinity, -Infinity, '10', {}]) {
+    assert.equal(M.metaDiaVolume(v, 1, 2), null, String(v));
+  }
+});
+
+test('metaDiaVolume: Real ou Meta ausentes não zeram uma meta dia positiva', () => {
+  assert.equal(M.metaDiaVolume(7.5, null, 100), 7.5);
+  assert.equal(M.metaDiaVolume(7.5, 100, null), 7.5);
+  assert.equal(M.metaDiaVolume(7.5, null, null), 7.5);
+});
+
+test('metaDiaCobertura já atende a v1.4: meta batida dá 0 e valor entre 0 e 1 vira 1', () => {
+  assert.equal(M.metaDiaCobertura(100, 100, 5), 0);   // Real = Meta
+  assert.equal(M.metaDiaCobertura(100, 120, 5), 0);   // Real > Meta
+  assert.equal(M.metaDiaCobertura(10, 9.5, 15), 1);   // 0,0333… -> 1 (cliente não se divide)
+  assert.equal(M.metaDiaCobertura(10, 9.5, 1), 1);    // 0,5 -> 1
+});
+
+test('hojeAtingiu usa a meta dia EXIBIDA: com a meta dia zerada pela v1.4, qualquer Online positivo colore', () => {
+  const exibida = M.metaDiaVolume(-38.4, 1370.8, 870.4); // 0
+  assert.equal(M.hojeAtingiu(5, exibida), true);
+  assert.equal(M.hojeAtingiu(0, exibida), false);       // Online 0 nunca colore
+  assert.equal(M.hojeAtingiu(5, M.metaDiaVolume(null, 1, 2)), false); // meta dia ausente não colore
 });

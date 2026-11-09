@@ -5,105 +5,147 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Campari Club 2026 · Painel de acompanhamento</title>
 <style>
-/* Etapa 1: esqueleto, sem cálculo. Sem logo nem fonte embutida: Inter, com reserva na fonte do sistema. */
+/*__FONTS__*/
+/* Etapa 4: a tela do mockup aprovado em 08/11/2026. Nenhuma regra de cálculo aqui: tudo vem do motor e do
+   adaptador. Nenhum número de regra digitado (gatilho, trava e posições premiadas saem de R = motor.REGRAS).
+   Nenhuma fonte de site externo: Barlow Condensed 800 é embutida pelo build e o resto é Inter, com reserva na
+   fonte do sistema. */
 :root{
-  --red:#c8102e; --red2:#e8304a; --gold:#ffc84a; --green:#22b14c; --greend:#0d5a24;
-  --panel:rgba(16,12,14,.9); --line:rgba(255,255,255,.12); --muted:#b9bcc4; --ink:#ffffff;
+  --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC; --laranja:#FFB86B;
+  --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --cinza:#9AA1AE; --ink:#FFFFFF;
+  --chrome:rgba(6,22,44,.88);
   --ff:Inter,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif;
+  --cond:'Barlow Condensed','Arial Narrow',var(--ff);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#000;color:var(--ink);overflow:hidden;font-family:var(--ff);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
-button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:8px}
-#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;transform:scale(var(--s,1));overflow:hidden;background:#070506}
-.bg{position:absolute;inset:0;background:
-  radial-gradient(1100px 700px at 6% 4%,rgba(200,16,46,.36),transparent 62%),
-  radial-gradient(1100px 700px at 96% 8%,rgba(200,16,46,.18),transparent 62%),
-  radial-gradient(1400px 500px at 50% 112%,rgba(200,16,46,.20),transparent 70%),#070506}
+html,body{height:100%;background:#06162C;color:var(--ink);overflow:hidden;font-family:var(--ff);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,select{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:8px}
 
-/* cabeçalho compacto: letreiro em texto e dados numa faixa; abas logo abaixo (top 102) */
-.hd{position:absolute;left:0;right:0;top:14px;display:flex;flex-direction:column;align-items:center;pointer-events:none}
-.ttl{font-size:56px;line-height:62px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.ttl span{color:var(--red2)}
-.sub{font-size:17px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
-.info{position:absolute;right:60px;top:14px;text-align:right;line-height:1.1;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:baseline;justify-items:end}
-.info small{display:block;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
-.info b{display:block;font-size:24px;font-weight:600;margin-bottom:3px}
+/* palco: 1920 de largura e a altura da janela (mesmo fit() do Desafio Q4, copiado, não importado) */
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;transform:scale(var(--s,1));overflow:hidden}
+/* o fundo entra aqui pelo build (premissa P2): a imagem quando existir, senão só o azul sólido */
+.bg{position:absolute;inset:0;/*__FUNDO__*/}
+/* véu escuro só no rodapé: garante contraste do texto cinza sobre a parte clara da arte (pôr do sol / mar),
+   sem cobrir o logo, o letreiro e a faixa de meses, que ficam no alto */
+.bg::after{content:'';position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,rgba(6,22,44,0),rgba(6,22,44,.92))}
+/* A faixa de cima (até ~148px) é da arte do fundo: logo, letreiro e meses. Nada é desenhado por cima dela. */
 
-.nav{position:absolute;left:60px;right:60px;top:102px;height:40px;display:flex;align-items:center;gap:18px}
-.seg{display:flex;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:999px;padding:3px}
-.seg button{padding:4px 15px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted);min-height:32px}
-.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(200,16,46,.5)}
+.info{position:absolute;right:60px;top:12px;text-align:right;line-height:1.1;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:baseline;justify-items:end}
+.info small{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.info b{font-size:24px;font-weight:600;margin-bottom:3px}
+.info .sim{grid-column:1/-1;margin-top:2px;padding:2px 10px;border-radius:6px;background:var(--gold);color:#2A1D00;font-size:13px;font-weight:700;letter-spacing:.06em}
+
+.nav{position:absolute;left:60px;right:60px;top:148px;height:40px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.seg{display:flex;background:var(--chrome);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{display:inline-flex;align-items:center;padding:4px 16px;min-height:32px;border-radius:999px;font-size:16px;font-weight:600;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--red);color:#fff;box-shadow:0 0 18px rgba(228,0,43,.5)}
 .seg button:not([aria-selected="true"]):hover{color:#fff}
+.filtros{display:flex;align-items:center;gap:14px;font-size:16px;font-weight:600;color:var(--muted);background:var(--chrome);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 16px}
+.filtros label{display:flex;align-items:center;gap:8px}
+.sel{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.28);border-radius:9px;height:34px;padding:0 8px;font-size:16px;color:#fff;min-width:130px}
+.sel option{background:#06162C;color:#fff}
+.sel:disabled{opacity:.5}
+.canais{display:flex;background:rgba(255,255,255,.06);border-radius:999px;padding:2px}
+.canais button{display:inline-flex;align-items:center;padding:4px 16px;min-height:32px;border-radius:999px;font-size:16px;font-weight:700;color:var(--muted)}
+.canais button[aria-pressed="true"]{background:var(--red);color:#fff;box-shadow:0 0 14px rgba(228,0,43,.5)}
 
-/* faixas de aviso: vermelha (API ilegível ou simulada) e amarela (produtos não publicados) */
-.faixa{position:absolute;left:60px;right:60px;top:150px;display:none;padding:8px 18px;border-radius:12px;font-size:18px;font-weight:600;border:1px solid}
+.faixa{position:absolute;left:60px;right:60px;top:196px;display:none;padding:8px 18px;border-radius:12px;font-size:17px;font-weight:600;border:1px solid}
 .faixa.on{display:block}
-.faixa.err{background:#4a0d17;border-color:var(--red2);color:#ffd0d8}
-.faixa.warn{background:#3a2a00;border-color:#a47500;color:#ffe29a}
-#stage.comfaixa .view{top:200px}
+.faixa.err{background:#4A0D17;border-color:#E8304A;color:#FFD0D8}
+.faixa.warn{background:#3A2A00;border-color:#A47500;color:#FFE29A}
+#stage.comfaixa .view{top:244px}
 
-.view{position:absolute;left:60px;right:60px;top:150px;bottom:48px;display:none;flex-direction:column}
+.view{position:absolute;left:60px;right:60px;top:198px;bottom:48px;display:none;flex-direction:column;gap:14px}
 .view.on{display:flex}
-.panel{flex:1;min-height:0;background:var(--panel);border:1.5px solid rgba(200,16,46,.55);border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.5),0 0 40px rgba(200,16,46,.14);display:flex;flex-direction:column;overflow:hidden}
-.obra{margin:auto;max-width:1100px;text-align:center;padding:48px 60px}
-.obra b{display:block;font-size:40px;font-weight:700;margin-bottom:14px}
-.obra p{font-size:22px;font-weight:500;line-height:1.45;color:#dfe2e8}
-.obra .aviso{margin-top:18px;color:#ffe29a}
+.panel{flex:1;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 22px;display:flex;flex-direction:column;gap:8px}
+.ph{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex:none}
+.ph h2{margin:0;font-family:var(--cond);font-weight:800;font-size:30px;letter-spacing:.02em;text-transform:uppercase}
+.ph .nota{font-size:15px;color:var(--muted);text-align:right}
+.rolar{flex:1;min-height:0;overflow:auto;overflow-x:hidden}
+.aviso{display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:14px;background:rgba(46,196,182,.14);border:1px solid rgba(46,196,182,.4);font-size:16px;color:#D9FBF7;flex:none}
 
-/* regras */
-.rg{flex:1;min-height:0;display:flex}
-.rg nav{width:300px;flex:none;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:6px}
-.rg nav button{text-align:left;padding:12px 18px;border-radius:12px;font-size:21px;font-weight:600;color:var(--muted);min-height:48px}
-.rg nav button[aria-selected="true"]{background:rgba(200,16,46,.9);color:#fff}
-.rg nav button:not([aria-selected="true"]):hover{background:rgba(255,255,255,.07);color:#fff}
-.rg .bd{flex:1;min-width:0;overflow:auto;padding:26px 36px 34px;font-size:21px;line-height:1.6;color:#e9ebef}
-.rg h2{font-weight:700;font-size:32px;letter-spacing:-.02em;line-height:1.2;margin-bottom:10px}
-.rg p,.rg li{max-width:1240px;color:#dfe2e8}
-.rg p{margin:12px 0}
-.rg ul{margin:8px 0 8px 26px}
-.rg li{margin:6px 0}
-.rg table{border-collapse:collapse;width:100%;max-width:1400px;margin:10px 0 4px}
-.rg th{text-align:left;font-size:17px;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:2px solid rgba(255,255,255,.2)}
-.rg td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.1);vertical-align:top;font-size:19px;line-height:1.45}
-.rg code{font-size:.9em;background:rgba(255,255,255,.08);border-radius:5px;padding:0 5px}
-.pend{display:inline-block;background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
-.okk{display:inline-block;background:var(--greend);color:#c4ffd3;border:1px solid var(--green);border-radius:7px;font-size:15px;font-weight:600;padding:1px 10px;white-space:nowrap}
+/* tabelas */
+.tb{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+.tb th{font-size:13px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;color:var(--muted);text-align:right;padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.18);white-space:nowrap;background:#0B1E3C;position:sticky;z-index:2}
+.tb tr.grp th{top:0;border-bottom:none;text-align:center;font-family:var(--cond);font-weight:800;font-size:18px;letter-spacing:.04em;color:#fff;padding-bottom:0}
+.tb tr.grp th small{font-family:var(--ff);font-size:13px;font-weight:600;color:var(--turq2);letter-spacing:.04em}
+.tb tr.hdr th{top:25px}
+.tb th.l,.tb td.l{text-align:left}
+.tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;white-space:nowrap;color:#fff}
+.tb td.sep,.tb th.sep{border-left:1px solid rgba(255,255,255,.16)}
+.tb.g2 th.l:first-child,.tb.g2 td.l:first-child{width:200px}
+.tb th.k,.tb td.k{background:rgba(255,255,255,.05)}
+.tb tr.tot td{font-weight:700;border-top:2px solid var(--red);border-bottom:none;background:rgba(228,0,43,.07)}
+.tb tr:hover td:not(.k){background:rgba(255,255,255,.03)}
+.cod{font-weight:700;font-size:16px}
+.n{font-family:var(--cond);font-weight:800;font-size:20px;line-height:1}
+.n.g{font-size:24px}
+.neg{color:var(--laranja)}
+.hoje{display:inline-block;padding:1px 8px;border-radius:7px}
+.hoje.ok{background:rgba(46,196,182,.22);color:var(--turq2);font-weight:700}
+.tv{display:inline-block;margin-left:3px;font-size:13px;font-weight:700;color:var(--laranja)}
+.pos{color:#fff}.pos.cinza{color:var(--cinza)}
+.of{color:var(--gold)}
+.pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--turq);color:#032B28}
+.pill.no{background:rgba(255,255,255,.08);color:var(--muted)}
+.mot{display:inline;font-size:13px;color:var(--muted);margin-left:8px;white-space:nowrap}
+.legenda{flex:none;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center;font-size:14px;color:var(--muted);padding-top:4px}
+.legenda span.it{display:inline-flex;align-items:center;gap:7px}
+.foraln{flex:none;font-size:14px;line-height:1.35;color:var(--muted);border-top:1px solid var(--line);padding-top:6px}
+.foraln b{color:var(--laranja);font-weight:700}
 
-.foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:15px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+/* regras: três colunas */
+.rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.rg section{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.rg h2{margin:0;font-family:var(--cond);font-weight:800;font-size:28px;letter-spacing:.02em;text-transform:uppercase}
+.rg .item{display:flex;gap:13px}
+.rg .ic{flex:none;width:42px;height:42px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-family:var(--cond);font-weight:800;font-size:22px}
+.rg .item div{font-size:16px;line-height:1.4}
+.rg .exemplo{margin-top:auto;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.06);font-size:15px;line-height:1.4;color:#D7DBE3}
+.rg .exemplo b{color:var(--gold)}
+.rg .st{display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:14px}
+.rg .st.a{background:rgba(46,196,182,.12);border:1px solid rgba(46,196,182,.45)}
+.rg .st.b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18)}
+.rg .st .pill{min-width:92px;text-align:center;padding:5px 14px;font-size:16px}
+.rg .st div{font-size:16px;line-height:1.4}
+.rg p{font-size:15px;line-height:1.5;color:#D7DBE3}
+.rg .md{width:100%;border-collapse:collapse;font-size:15px}
+.rg .md td{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top;line-height:1.4}
+.rg .md td:first-child{width:112px;font-weight:700;color:var(--turq2)}
+.al{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.al div{padding:9px 13px;border-radius:12px;font-size:14px;line-height:1.4}
+.al .erro{background:rgba(232,48,74,.16);border:1px solid #E8304A;color:#FFD0D8}
+.al .aviso2{background:rgba(255,184,107,.14);border:1px solid rgba(255,184,107,.5);color:#FFE3C2}
+.al .nota{background:rgba(255,255,255,.06);color:#D7DBE3}
+.al b{display:block}
+
+.foot{position:absolute;left:60px;right:60px;bottom:10px;font-size:14px;font-weight:500;line-height:1.25;color:var(--muted);display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
 .foot #rod{flex:none;text-align:right}
-.foot .sim{color:#fff;background:var(--red);border-radius:6px;padding:1px 10px;font-weight:700}
+.vazio{margin:auto;text-align:center;font-size:20px;color:var(--muted);padding:40px}
 </style>
 </head>
 <body>
 <div id="stage">
   <div class="bg"></div>
-  <header class="hd"><div class="ttl">Campari <span>Club</span></div><div class="sub">Outubro · Novembro · Dezembro 2026</div></header>
   <div class="info" id="info"></div>
 
   <nav class="nav" aria-label="Abas do painel">
     <div class="seg" role="tablist" id="abas"></div>
+    <div id="filtros"></div>
   </nav>
 
   <div class="faixa" id="faixa" role="alert"></div>
 
-  <section class="view" id="v-obra" aria-label="Aba em construção">
-    <div class="panel"><div class="obra">
-      <b id="obra-tt"></b>
-      <p>Esta aba está em construção. O ranking de volume, o gatilho de cobertura, a meta dia, o Total Band e o
-        status já são calculados; as colunas, os cartões e o seletor de mês entram na Etapa 4.</p>
-      <p class="aviso" id="obra-aviso"></p>
-    </div></div>
-  </section>
+  <section class="view" id="v-gc" aria-label="Ranking das gerências"></section>
+  <section class="view" id="v-sv" aria-label="Ranking das supervisões"></section>
+  <section class="view" id="v-rt" aria-label="Consultor"></section>
+  <section class="view" id="v-det" aria-label="Detalhe do mês"></section>
+  <section class="view" id="v-regras" aria-label="Regras do incentivo"><div class="rg" id="rgbd"></div></section>
 
-  <section class="view" id="v-regras" aria-label="Regras do incentivo">
-    <div class="panel"><div class="rg">
-      <nav id="rgnav" role="tablist" aria-label="Tópicos das regras" aria-orientation="vertical"></nav>
-      <div class="bd" id="rgbd" tabindex="0"></div>
-    </div></div>
-  </section>
-
-  <div class="foot"><span id="rodtx">Etapa 3: gatilho de cobertura, status e meta dia prontos; telas em construção. Regras do Campari Club v<span id="rodver"></span>.</span><span id="rod"></span></div>
+  <div class="foot"><span id="rodesq"></span><span id="rod"></span></div>
 </div>
 
 <script>/*__MOTOR__*/</script>
@@ -113,108 +155,284 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 (async function(){
 'use strict';
 const M = window.MotorCampari;
+const R = M.REGRAS;  /* premissa P6: gatilho, trava e posições premiadas só daqui, nunca digitados na tela */
 const $ = (id)=>document.getElementById(id);
-const esc = (s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = (s)=>String(s===null||s===undefined?'':s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* palco ajustado à janela (mesmo fit() do Desafio Q4) */
 function fit(){ const s=Math.min(innerWidth/1920, innerHeight/720), sg=$('stage'); sg.style.setProperty('--s', s); sg.style.width=(innerWidth/s)+'px'; sg.style.height=(innerHeight/s)+'px'; }
-fit();
-addEventListener('resize', fit);
+fit(); addEventListener('resize', fit);
 
 const ABAS = [
-  { id:'gc',  nome:'Gerente Comercial' },
-  { id:'svm', nome:'Supervisão Mista' },
-  { id:'svs', nome:'Supervisão Segmentada' },
-  { id:'rt',  nome:'Consultor' },
-  { id:'regras', nome:'Regras' },
+  { id:'gc', nome:'Ranking GC' }, { id:'sv', nome:'Supervisão' }, { id:'rt', nome:'Consultor' },
+  { id:'det', nome:'Detalhe do mês' }, { id:'regras', nome:'Regras' },
 ];
+const NIVEL = { gc:'gc', Mista:'svMista', Segmentada:'svSegmentada' };
+/* rótulo de cada nível de ranking (texto, não regra); o limite vem de R.premiadas */
+const NOME_NIVEL = { gc:'GC', svMista:'SV Mista', svSegmentada:'SV Segmentada' };
 
-/* Regras: resumo das seções 1 a 6 e pendências da seção 10 de docs/regras.md (só texto, nenhuma conta) */
-const P = (t)=>'<span class="pend">⚠️ '+t+'</span>';
-const REGRAS_TXT = [
-  { id:'visao', nome:'Visão geral', html:
-    '<h2>Visão geral</h2><ul>'+
-    '<li><b>Vigência:</b> outubro, novembro e dezembro de 2026.</li>'+
-    '<li><b>Mecânica:</b> um gatilho de cobertura de Skyy habilita o participante; o ranking é por volume de aperitivo.</li>'+
-    '<li><b>Níveis com ranking:</b> Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.</li>'+
-    '<li><b>Consultor (Rota):</b> aparece no painel, sem ranking nem status ("contabilizado do supervisor para cima").</li>'+
-    '<li><b>Diretoria e GP:</b> total de todas as gerências, numa linha "Total Band", sem página própria.</li>'+
-    '<li><b>Dezembro não tem trava</b> (decisão de 06/11/2026; prevalece sobre o carimbo do slide 2).</li></ul>' },
-  { id:'gatilho', nome:'Gatilho (Skyy)', html:
-    '<h2>Gatilho: cobertura de Skyy</h2><ul>'+
-    '<li>Medida: cobertura do agrupador <b>Skyy</b> (bloco <code>cobertura</code> do produto extra na API).</li>'+
-    '<li>O cliente conta <b>uma vez no mês</b>, na primeira venda de qualquer SKU; nova compra no mês não conta de novo.</li>'+
-    '<li><b>% do mês</b> = (realizado + online de hoje) ÷ meta, sem arredondar.</li>'+
-    '<li><b>Gatilho</b> = média simples dos % de <b>novembro e dezembro</b>, mínimo 100%. Outubro não entra. Em novembro o gatilho aparece como parcial (só novembro).</li>'+
-    '<li>Online de cobertura: só clientes ainda não cobertos no mês, com pedido válido hoje.</li></ul>' },
-  { id:'ranking', nome:'Ranking (Aperitivo)', html:
-    '<h2>Ranking: volume de aperitivo</h2><ul>'+
-    '<li>Medida: volume do agrupador <b>Aperitivo</b> (produto extra na API, com meta de volume).</li>'+
-    '<li><b>% do mês</b> = (Real + Online) ÷ Meta, bruto.</li>'+
-    '<li><b>Trava:</b> o % do mês é limitado a 130% em outubro e novembro. Dezembro sem trava.</li>'+
-    '<li><b>Pontuação</b> = soma dos % mensais (out + nov + dez), já com a trava.</li>'+
-    '<li>Ranking separado por nível: GC (único), SV Mista e SV Segmentada.</li>'+
-    '<li>Ranking parcial: Real + Online no mês aberto; meses fechados, só o realizado.</li>'+
-    '<li>Outubro vem do fechamento de outubro (chave do faturamento); novembro e dezembro, pela chave da meta. '+P('a soma mistura os dois critérios')+'</li></ul>' },
-  { id:'soma', nome:'Quem soma o quê', html:
-    '<h2>Quem soma o quê</h2><ul>'+
-    '<li><b>Rota:</b> os próprios números.</li>'+
-    '<li><b>SV:</b> todas as rotas da mesa, inclusive as sem canal, no volume e na cobertura.</li>'+
-    '<li><b>GC:</b> todas as rotas da gerência.</li>'+
-    '<li><b>Total Band:</b> total da empresa.</li>'+
-    '<li><b>Canal do SV:</b> mesma regra do Desafio Q4 — o escolhido pelo admin ou, sem escolha, o da maioria das rotas da mesa.</li>'+
-    '<li><b>Cobertura de SV e GC</b> (decisão de 08/11/2026): a meta soma só as rotas com meta de cobertura; o realizado e o online somam todas as rotas, como a API publica.</li></ul>' },
-  { id:'posicao', nome:'Posição e desempate', html:
-    '<h2>Posição, status e desempate</h2><ul>'+
-    '<li>Todas as linhas recebem posição (Pos.). Quem não bate o gatilho aparece com a posição em cinza; a coluna Oficial numera só quem bateu o gatilho.</li>'+
-    '<li><b>Status:</b> "✓ Bateu!" = gatilho batido e posição oficial dentro das posições premiadas do ranking; senão "-".</li>'+
-    '<li><b>Desempate</b> (confirmado em 08/11/2026): ordem alfabética do código da supervisão ou da gerência, texto simples (SV.G2.10 vem antes de SV.G2.2).</li></ul>' },
-  { id:'pendencias', nome:'Pendências', html:
-    '<h2>Pendências em aberto (regras v1.3, 08/11/2026)</h2><table><thead><tr><th>#</th><th>Pendência</th><th>Situação</th><th>Quem</th></tr></thead><tbody>'+
-    '<tr><td>10</td><td>Incluir a cobertura no fechamento do mês (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho</td><td><span class="pend">Em aberto</span> prazo 01/12/2026</td><td>Matheus</td></tr>'+
-    '<tr><td>13</td><td>Repositório público, com nomes de clientes e pessoas nos dados</td><td><span class="pend">Confirmado</span> alta prioridade</td><td>Karen / TI</td></tr>'+
-    '<tr><td>15</td><td>Meta dia de volume de Aperitivo e Skyy zerada em dia útil?</td><td><span class="pend">Conferir</span> a partir de 09/11/2026</td><td>Karen</td></tr>'+
-    '<tr><td>21</td><td>Mockup sem as colunas novas do Ranking GC e da Supervisão</td><td><span class="pend">Em aberto</span></td><td>Karen</td></tr>'+
-    '<tr><td>9, 11, 12, 14, 16 a 20</td><td>Demais pendências</td><td><span class="okk">Resolvidas</span> (docs/regras.md, seção 10)</td><td>—</td></tr>'+
-    '</tbody></table>' },
-];
+const D = await carregarRanking(CONFIG.api);
+const SEL = mesesDoSeletor(D);
+const FIL = filtrosDoPainel(D);
+const mesAbertoObj = SEL.meses.find((m)=>m.aberto) || null;
+const mesAberto = mesAbertoObj ? mesAbertoObj.mes : null;
+const mostrarPctNov = mesAberto === 12;   /* "% Nov" só quando o mês aberto for dezembro (premissa P4) */
+const st = { aba:'gc', mes:SEL.padrao, canal:'Mista', ger:'', sv:(FIL.svs[0]||{}).codigo||'', detVisao:'gc', detMes:SEL.padrao };
 
-const st = { aba:'gc', sec:'visao' };
-const D = await carregarDados(CONFIG.api);
-
-/* avisos: API ilegível ou simulada (vermelho); produtos do Campari não achados (amarelo). Nada é inventado. */
-const SEM_PRODUTOS = D.ok && !D.produtos.ok;
-const avisoProdutos = SEM_PRODUTOS ? 'Produtos do Campari ainda não publicados ('+D.produtos.motivos.join('; ')+'). Nada é calculado.' : '';
+/* ─── faixa de topo: API fora, dados simulados ou produtos não publicados ─────────────────────────────── */
 const fx = $('faixa');
 if(!D.ok){ fx.className='faixa on err'; fx.textContent='API indisponível ('+D.erro+'): sem dados. Nada é calculado.'; }
 else if(D.simulado){ fx.className='faixa on err'; fx.textContent='ATENÇÃO: a API está com DADOS SIMULADOS (fictícios). Não use estes números.'; }
-else if(SEM_PRODUTOS){ fx.className='faixa on warn'; fx.textContent=avisoProdutos; }
+else if(D.produtos && !D.produtos.ok){ fx.className='faixa on warn'; fx.textContent='Produtos do Campari ainda não publicados ('+D.produtos.motivos.join('; ')+'). Nada é calculado.'; }
 $('stage').classList.toggle('comfaixa', fx.classList.contains('on'));
 
-/* cabeçalho e rodapé: origem dos dados */
-const quando = (s)=> s ? String(s).replace(/^(\d{4})-(\d\d)-(\d\d)T?(\d\d:\d\d)?.*$/, (m,a,b,c,h)=>c+'/'+b+'/'+a+(h?' · '+h:'')) : '—';
-const mesRef = D.mesReferencia && D.mesReferencia.rotulo ? D.mesReferencia.rotulo : '—';
-$('info').innerHTML = '<small>Dados de</small><b>'+esc(quando(D.atualizadoEm))+'</b><small>Mês de referência</small><b>'+esc(mesRef)+'</b>';
-$('rodver').textContent = M.versaoRegras;
-$('rod').innerHTML = (D.simulado ? '<span class="sim">DADOS SIMULADOS</span> · ' : '') +
-  (D.ok ? 'Dados de '+esc(quando(D.atualizadoEm))+' · mês de referência '+esc(mesRef)+' · fonte: API (./api/v1/index.json)'
-        : 'Sem dados: '+esc(D.erro));
+/* ─── cabeçalho e rodapé ──────────────────────────────────────────────────────────────────────────────── */
+const diaUtil = rotuloDiaUtil(D.calendario);
+$('info').innerHTML = '<small>Dados de</small><b>'+esc(fmtDataHora(D.atualizadoEm))+'</b>'+
+  '<small>Mês</small><b>'+esc((D.mesReferencia&&D.mesReferencia.rotulo)||TRACO)+(diaUtil?' · '+esc(diaUtil):'')+'</b>'+
+  (D.simulado?'<span class="sim">DADOS FICTÍCIOS</span>':'');
+const listar = (ns)=>{ const v=ns.map((m)=>NOMES_MES[m]); return v.length<2?v.join(''):v.slice(0,-1).join(', ')+' e '+v[v.length-1]; };
+const mesesComTrava = listar(Object.keys(R.trava).filter((m)=>R.trava[m]!==null).map(Number));
+const mesesDoGatilho = listar(R.gatilho.meses);
+const limites = Object.keys(R.premiadas).map((k)=>NOME_NIVEL[k]+': '+R.premiadas[k]).join(' · ');
+$('rodesq').innerHTML = 'Real: vendido até ontem · Online: venda de hoje · "Hoje" em turquesa: atingiu a meta dia · '+
+  'posição em cinza: gatilho pendente · desempate pela ordem alfabética do código';
+$('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)';
+
+/* ─── pedaços de célula ───────────────────────────────────────────────────────────────────────────────── */
+const vol = (v)=>esc(fmtVolume(v));
+const cob = (v)=>esc(fmtCobertura(v));
+const pct = (v)=>esc(fmtPct(v));
+/* Diferença: laranja quando negativa (o sinal vem do número, a cor é só leitura) */
+const difCel = (v, f)=>'<td class="'+(typeof v==='number'&&v<0?'neg':'')+'">'+esc(f(v))+'</td>';
+/* "Hoje": destacado só quando motor.hojeAtingiu disse que atingiu (m.hojeOk) */
+const hojeCel = (m, f)=>'<td><span class="hoje'+(m.hojeOk?' ok':'')+'">'+esc(m.aberto?f(m.online):TRACO)+'</span></td>';
+/* M. Dia: só existe no mês aberto; o valor é o de EXIBIÇÃO (metaDiaExib, regras v1.4) */
+const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
+/* Out | Nov | Dez: o % travado; travado mostra entre parênteses o % real do mês, antes da trava */
+const mesCel = (m)=>{
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td><span class="n">'+esc(TRACO)+'</span></td>';
+  return '<td><span class="n">'+pct(m.pctTravado)+'</span>'+(m.travado?'<span class="tv">'+pct(m.pct)+'</span>':'')+'</td>';
+};
+const statusCel = (l)=>{
+  if(!l.status) return '<td class="l sep"><span class="pill no">'+esc(TRACO)+'</span>'+(l.motivo?'<span class="mot">'+esc(l.motivo)+'</span>':'')+'</td>';
+  const ok = l.status.status==='Bateu!';
+  return '<td class="l sep"><span class="pill '+(ok?'ok':'no')+'">'+(ok?'✓ ':'')+esc(l.status.status)+'</span>'+
+    (l.status.motivo?'<span class="mot">'+esc(l.status.motivo)+'</span>':'')+'</td>';
+};
+
+/* ─── tabela de ranking (Ranking GC e Supervisão; colunas da premissa P5 / regras v1.4, seção 7) ──────── */
+function cabecalhoRanking(rotuloId){
+  const apCols = 9, skCols = mostrarPctNov?8:7;
+  return '<thead>'+
+    '<tr class="grp"><th colspan="3"></th>'+
+    '<th colspan="'+apCols+'" class="sep">VOLUME DE APERITIVO <small>· RANKING</small></th>'+
+    '<th colspan="'+skCols+'" class="sep">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
+    '<th class="sep"></th></tr>'+
+    '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
+    '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th>'+
+    R.meses.map((m)=>'<th>'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="k">Soma</th>'+
+    '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th><th>% mês</th>'+
+    (mostrarPctNov?'<th>% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="k">% Acum.</th>'+
+    '<th class="l sep">Status</th></tr></thead>';
+}
+function linhaRanking(l, opc){
+  opc = opc || {};
+  const ap = valoresDoMes(l.tabela,'aperitivo',st.mes), sk = valoresDoMes(l.tabela,'skyy',st.mes);
+  const bAp = l.tabela.aperitivo, bSk = l.tabela.skyy;
+  const idCels = opc.total
+    ? '<td class="l" colspan="3">'+esc(l.codigo)+' <span style="font-weight:500;font-size:13px;color:var(--muted)">· Diretoria e GP</span></td>'
+    : '<td class="l"><span class="n pos'+(l.oficial?'':' cinza')+'">'+esc(l.pos)+'º</span></td>'+
+      '<td class="l"><span class="n of">'+(l.oficial?esc(l.oficial)+'º':esc(TRACO))+'</span></td>'+
+      '<td class="l cod">'+esc(l.codigo)+'</td>';
+  return '<tr'+(opc.total?' class="tot"':'')+'>'+idCels+
+    '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
+    R.meses.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m))).join('')+
+    '<td class="k"><span class="n g">'+(opc.total?esc(TRACO):pct(bAp.soma))+'</span></td>'+
+    '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+
+    '<td><span class="n">'+pct(sk.pct)+'</span></td>'+
+    (mostrarPctNov?'<td><span class="n">'+pct(bSk.pctNov)+'</span></td>':'')+
+    '<td class="k"><span class="n" style="color:'+(l.gatilho&&l.gatilho.batido?'var(--turq2)':'var(--laranja)')+'">'+pct(bSk.acumulado)+'</span></td>'+
+    (opc.total?'<td class="l sep" style="font-weight:500;font-size:13px;color:var(--muted)">sem ranking</td>':statusCel(l))+
+    '</tr>';
+}
+function legendaRanking(){
+  return '<div class="legenda">'+
+    '<span class="it"><span class="pill ok">✓ Bateu!</span>gatilho batido e dentro das posições premiadas ('+esc(limites)+')</span>'+
+    '<span class="it"><span class="pill no">'+esc(TRACO)+'</span>ainda não</span>'+
+    '<span>Número em <span style="color:var(--laranja);font-weight:700">laranja</span> ao lado de '+esc(NOMES_MES[R.meses[0]].slice(0,3))+'/'+esc(NOMES_MES[R.meses[1]].slice(0,3))+': o % real do mês, antes da trava de '+pct(R.trava[R.meses[0]])+' em '+esc(mesesComTrava)+'</span>'+
+    '<span>Soma de Aperitivo = soma dos % mensais já com a trava · % Acum. de Skyy = média de '+esc(mesesDoGatilho)+', mínimo '+pct(R.gatilho.minimo)+'</span>'+
+    '</div>';
+}
+function tabelaRanking(linhas, rotuloId, comTotal){
+  const corpo = linhas.map((l)=>linhaRanking(l)).join('') +
+    (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
+  return '<div class="rolar"><table class="tb">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
+}
+
+/* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
+function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal){
+  const cabeca = '<thead><tr class="grp"><th class="l"></th>'+
+    '<th colspan="6" class="sep">VOLUME DE APERITIVO</th>'+
+    '<th colspan="6" class="sep">COBERTURA DE SKYY <small>· CLIENTES</small></th></tr>'+
+    '<tr class="hdr"><th class="l">'+esc(rotuloId)+'</th>'+
+    ['sep','','','','',''].map((c,i)=>'<th'+(i===0?' class="sep"':'')+'>'+['Meta','Real','Meta dia','Hoje','Dif.','%'][i]+'</th>').join('')+
+    ['sep','','','','',''].map((c,i)=>'<th'+(i===0?' class="sep"':'')+'>'+['Meta','Real','Meta dia','Hoje','Dif.','%'][i]+'</th>').join('')+
+    '</tr></thead>';
+  const corpo = (l, total)=>{
+    const ap = valoresDoMes(l.tabela,'aperitivo',mes), sk = valoresDoMes(l.tabela,'skyy',mes);
+    return '<tr'+(total?' class="tot"':'')+'><td class="l cod">'+esc(total?rotuloTotal:l.codigo)+'</td>'+
+      '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+'<td style="font-weight:700">'+pct(ap.pct)+'</td>'+
+      '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+'<td style="font-weight:700">'+pct(sk.pct)+'</td>'+
+      '</tr>';
+  };
+  return '<div class="rolar"><table class="tb g2">'+cabeca+'<tbody>'+linhas.map((l)=>corpo(l,false)).join('')+
+    (totalLinha?corpo(totalLinha,true):'')+'</tbody></table></div>';
+}
+
+/* ─── filtros da linha das abas ───────────────────────────────────────────────────────────────────────── */
+function seletorMes(id, valor){
+  return '<label for="'+id+'">Mês de referência <select id="'+id+'" class="sel">'+
+    SEL.meses.map((m)=>'<option value="'+m.mes+'"'+(m.mes===valor?' selected':'')+(m.habilitado?'':' disabled')+'>'+esc(m.rotulo)+'</option>').join('')+
+    '</select></label>';
+}
+function seletorGer(id, valor, comTodas){
+  return '<label for="'+id+'">Gerência <select id="'+id+'" class="sel">'+(comTodas?'<option value="">Todas</option>':'')+
+    FIL.gerencias.map((g)=>'<option value="'+esc(g)+'"'+(g===valor?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></label>';
+}
+function renderFiltros(){
+  const f = $('filtros');
+  if(st.aba==='gc'){ f.className='filtros'; f.innerHTML = seletorMes('f-mes', st.mes); }
+  else if(st.aba==='sv'){
+    f.className='filtros';
+    f.innerHTML = '<span id="lbl-canal">Canal</span><div class="canais" role="group" aria-labelledby="lbl-canal">'+
+      ['Mista','Segmentada'].map((c)=>'<button type="button" data-canal="'+c+'" aria-pressed="'+(st.canal===c)+'">'+c+'</button>').join('')+
+      '</div>'+seletorGer('f-ger', st.ger, true)+seletorMes('f-mes', st.mes);
+  }
+  else if(st.aba==='rt'){
+    f.className='filtros';
+    const svs = FIL.svs.filter((s)=>!st.ger || s.gc===st.ger);
+    if(svs.length && !svs.some((s)=>s.codigo===st.sv)) st.sv = svs[0].codigo;
+    f.innerHTML = seletorGer('f-ger', st.ger, true)+
+      '<label for="f-sv">Supervisão <select id="f-sv" class="sel" style="min-width:190px">'+
+      svs.map((s)=>'<option value="'+esc(s.codigo)+'"'+(s.codigo===st.sv?' selected':'')+'>'+esc(s.rotulo)+'</option>').join('')+
+      '</select></label>'+seletorMes('f-mes', st.mes);
+  }
+  else if(st.aba==='det'){
+    f.className='filtros';
+    f.innerHTML = '<label for="f-vis">Visão <select id="f-vis" class="sel"><option value="gc"'+(st.detVisao==='gc'?' selected':'')+'>Gerência</option>'+
+      '<option value="sv"'+(st.detVisao==='sv'?' selected':'')+'>Supervisão</option></select></label>'+
+      (st.detVisao==='sv'?seletorGer('f-ger', st.ger, true):'')+seletorMes('f-mesdet', st.detMes);
+  }
+  else { f.className=''; f.innerHTML=''; }
+}
+
+/* ─── abas ────────────────────────────────────────────────────────────────────────────────────────────── */
+const semDados = ()=>'<div class="panel"><div class="vazio">'+(D.ok?'Sem dados para mostrar.':'API indisponível: nada é calculado.')+'</div></div>';
+const rotuloMesSel = (mes)=>{ const m = SEL.meses.find((x)=>x.mes===mes); return m?m.rotulo:TRACO; };
+
+function viewGC(){
+  if(!D.ok || !D.gc.length) return semDados();
+  const comGatilho = D.gc.filter((l)=>l.gatilho&&l.gatilho.batido).length;
+  return '<div class="panel"><div class="ph"><h2>Ranking das gerências</h2>'+
+    '<div class="nota">'+D.gc.length+' gerências · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+    'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
+    tabelaRanking(D.gc,'Gerência',true)+legendaRanking()+'</div>';
+}
+function viewSV(){
+  if(!D.ok) return semDados();
+  const todas = D[NIVEL[st.canal]] || [];
+  const linhas = st.ger ? todas.filter((l)=>l.gc===st.ger) : todas;
+  const comGatilho = linhas.filter((l)=>l.gatilho&&l.gatilho.batido).length;
+  const foraCanal = (D.fora||[]);
+  return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
+    '<div class="nota">'+linhas.length+' supervisores · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+    'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
+    (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
+    legendaRanking()+
+    (foraCanal.length?'<div class="foraln"><b>'+foraCanal.length+' fora do ranking</b> (o SV soma todas as rotas da mesa, mas sem canal não entra em nenhum dos dois rankings): '+
+      foraCanal.map((l)=>esc(l.codigo)).join(', ')+'. Motivo: '+esc(foraCanal[0].motivo)+'</div>':'')+
+    '</div>';
+}
+function viewRT(){
+  if(!D.ok) return semDados();
+  const mesa = rotasDaMesa(D, st.sv);
+  const ocultas = textoDasOcultas(mesa.ocultas);
+  return '<div class="panel"><div class="ph"><h2>Rotas da mesa '+esc(st.sv||TRACO)+' · '+esc(rotuloMesSel(st.mes))+'</h2>'+
+    '<div class="nota">'+mesa.rotas.length+' rotas'+(ocultas?' · '+esc(ocultas):'')+'</div></div>'+
+    '<div class="aviso"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7FE7DC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>'+
+    '<span>Consultor é acompanhamento: ranking e premiação são do supervisor para cima. O "Total da mesa" é o número que a API publica para a supervisão, somando <b>todas</b> as rotas da mesa'+(ocultas?' — inclusive as que não aparecem na lista':'')+'.</span></div>'+
+    (mesa.rotas.length?tabelaGrupos(mesa.rotas,'Rota',st.mes,mesa.total,'Total da mesa '+st.sv)
+      :'<div class="vazio">Nenhuma rota do tipo normal nesta mesa.</div>')+
+    '</div>';
+}
+function viewDet(){
+  if(!D.ok) return semDados();
+  const linhas = linhasDoDetalhe(D, st.detVisao, st.ger);
+  const rot = st.detVisao==='sv'?'Supervisão':'Gerência';
+  return '<div class="panel"><div class="ph"><h2>'+esc(rotuloMesSel(st.detMes))+' por '+esc(rot.toLowerCase())+'</h2>'+
+    '<div class="nota">'+linhas.length+' linhas · "Hoje" em turquesa: atingiu a meta dia · diferença negativa em laranja</div></div>'+
+    (linhas.length?tabelaGrupos(linhas,rot,st.detMes,st.detVisao==='gc'?D.totalBand:null,'Total Band')
+      :'<div class="vazio">Nenhuma linha neste filtro.</div>')+
+    '</div>';
+}
+function viewRegras(){
+  const passos = [
+    ['Gatilho','cobertura de Skyy de no mínimo '+fmtPct(R.gatilho.minimo)+' na média de '+mesesDoGatilho+'. '+
+      NOMES_MES[R.meses[0]].replace(/^./,(c)=>c.toUpperCase())+' não entra. Cada cliente conta uma vez no mês.'],
+    ['Ranking','volume de Aperitivo. A pontuação é a soma dos % de '+listar(R.meses)+'.'],
+    ['Trava','o % do mês vale no máximo '+fmtPct(R.trava[R.meses[0]])+' em '+mesesComTrava+'. '+
+      listar(R.meses.filter((m)=>R.trava[m]===null)).replace(/^./,(c)=>c.toUpperCase())+' sem trava.'],
+    ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking.'],
+    ['Posição','todas as linhas numeradas; posição oficial só para quem bate o gatilho. Desempate pela ordem alfabética do código.'],
+  ];
+  const alertas = alertasDaTela(D);
+  const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
+  return '<section><h2>Como funciona</h2>'+
+    passos.map((p,i)=>'<div class="item"><div class="ic">'+(i+1)+'</div><div><strong>'+esc(p[0])+':</strong> '+esc(p[1])+'</div></div>').join('')+
+    '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula na Soma. Ao lado do mês, em laranja, fica o % real.</div>'+
+    '</section>'+
+    '<section><h2>Status</h2>'+
+    '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu o gatilho de cobertura e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
+    '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: gatilho pendente ou fora das posições premiadas.</div></div>'+
+    '<p>Embaixo do status aparece o motivo, por exemplo "'+esc(M.MOTIVOS.premiadas)+'", "cobertura em X%: precisa de '+pct(R.gatilho.minimo)+'" ou "suba N posições".</p>'+
+    '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu o gatilho; a posição em cinza é apenas a ordem na tela.</p>'+
+    '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
+    '</section>'+
+    '<section><h2>Medidas</h2><table class="md"><tbody>'+
+    '<tr><td>Real</td><td>Vendido até ontem (D-1)</td></tr>'+
+    '<tr><td>Hoje</td><td>Online. Na cobertura, só clientes novos no mês</td></tr>'+
+    '<tr><td>Meta dia</td><td>Volume: pronta na API; a tela mostra 0 quando o Real já passou da Meta. Cobertura: (Meta − Real) ÷ dias úteis restantes, em clientes inteiros para cima</td></tr>'+
+    '<tr><td>Dif. e %</td><td>Real + Hoje − Meta · (Real + Hoje) ÷ Meta, truncado</td></tr>'+
+    '<tr><td>Total Band</td><td>Todas as gerências (Diretoria e GP), sem ranking</td></tr>'+
+    '</tbody></table>'+
+    '<h2 style="margin-top:6px">Dados e alertas</h2><div class="al">'+
+    (alertas.length?alertas.map((a)=>'<div class="'+classe[a.tipo]+'"><b>'+esc(a.titulo)+'</b>'+esc(a.texto)+'</div>').join('')
+      :'<div class="nota">Nada a sinalizar.</div>')+
+    '</div></section>';
+}
 
 function render(){
-  $('abas').innerHTML = ABAS.map(a=>'<button role="tab" data-aba="'+a.id+'" aria-selected="'+(a.id===st.aba)+'">'+esc(a.nome)+'</button>').join('');
-  const regras = st.aba==='regras';
-  $('v-regras').classList.toggle('on', regras);
-  $('v-obra').classList.toggle('on', !regras);
-  if(regras){
-    $('rgnav').innerHTML = REGRAS_TXT.map(s=>'<button role="tab" data-sec="'+s.id+'" aria-selected="'+(s.id===st.sec)+'">'+esc(s.nome)+'</button>').join('');
-    $('rgbd').innerHTML = REGRAS_TXT.find(s=>s.id===st.sec).html;
-  } else {
-    $('obra-tt').textContent = ABAS.find(a=>a.id===st.aba).nome+': em construção';
-    $('obra-aviso').textContent = !D.ok ? 'API indisponível: sem dados.' : avisoProdutos;
-  }
+  $('abas').innerHTML = ABAS.map((a)=>'<button role="tab" data-aba="'+a.id+'" aria-selected="'+(a.id===st.aba)+'">'+esc(a.nome)+'</button>').join('');
+  renderFiltros();
+  ABAS.forEach((a)=>$('v-'+a.id).classList.toggle('on', a.id===st.aba));
+  if(st.aba==='gc') $('v-gc').innerHTML = viewGC();
+  else if(st.aba==='sv') $('v-sv').innerHTML = viewSV();
+  else if(st.aba==='rt') $('v-rt').innerHTML = viewRT();
+  else if(st.aba==='det') $('v-det').innerHTML = viewDet();
+  else if(st.aba==='regras') $('rgbd').innerHTML = viewRegras();
 }
 $('abas').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-aba]'); if(b){ st.aba=b.dataset.aba; render(); } });
-$('rgnav').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-sec]'); if(b){ st.sec=b.dataset.sec; render(); } });
+$('filtros').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-canal]'); if(b){ st.canal=b.dataset.canal; render(); } });
+$('filtros').addEventListener('change', (e)=>{
+  const t=e.target;
+  if(t.id==='f-mes') st.mes = Number(t.value);
+  else if(t.id==='f-mesdet') st.detMes = Number(t.value);
+  else if(t.id==='f-ger') st.ger = t.value;
+  else if(t.id==='f-sv') st.sv = t.value;
+  else if(t.id==='f-vis') st.detVisao = t.value;
+  render();
+});
 render();
 })();
 </script>

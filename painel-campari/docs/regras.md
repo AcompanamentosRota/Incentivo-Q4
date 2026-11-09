@@ -1,14 +1,19 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.3 (08/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.4 (09/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.4 (09/11/2026):** a Karen validou a pendência 15 (meta dia de volume em dia útil: a API publicada traz o valor; confere
+com o SAC, inclusive os negativos das rotas com meta batida) e decidiu a exibição da meta dia (seção 7): **se o Real for maior
+que a Meta, a meta dia é 0; meta dia negativa também mostra 0; cobertura com valor entre 0 e 1 mostra 1**. Vale para volume e cobertura.
+Na mesma data, decidiu que a **aba Consultor lista só as rotas `tipo: "normal"`** da API (seção 1).
 
 **v1.3 (08/11/2026, noite):** a Karen respondeu as pendências 16, 17, 18 e 19 e confirmou o desempate. Resolvidas:
 16 (meta dia de cobertura inteiro para cima), 17 ("Hoje" colorido quando **Online > 0 e Online ≥ Meta dia**),
 18 (seletor "Mês de referência": troca Meta e Real, não troca o acumulado) e 19 (as tabelas de ranking passam a ter
 dois blocos, Aperitivo e Skyy, com Meta, Real, M. Dia, Online, Dif e os %; seção 7). Desempate alfabético
-confirmado (seção 5). A pendência 20 (detalhes do seletor e das colunas) foi confirmada pela Karen no mesmo dia. Entra a
-pendência 21 (o mockup não mostra as colunas novas).
+confirmado (seção 5). A pendência 20 (detalhes do seletor e das colunas) foi confirmada pela Karen no mesmo dia. A pendência 21 (mockup das
+tabelas) foi resolvida com o mockup atualizado; nele, as colunas do Aperitivo seguem a v1.3.
 
 **v1.2 (08/11/2026, noite):** une as duas v1.1. Das decisões da Karen de 08/11/2026: status "Bateu!" / "-" no conceito
 do Q4; **prêmios não aparecem no painel**; Supervisão numa tela só (Mista ⇄ Segmentada) (seções 1, 5 e 6).
@@ -21,7 +26,7 @@ publicados (seção 8). Pendência 9 resolvida; pendência 14 resolvida pelo có
 
 ## Hierarquia das fontes
 
-1. Decisões da Karen (IM), de 06/11/2026 e 08/11/2026: prevalecem sobre tudo e estão incorporadas abaixo.
+1. Decisões da Karen (IM), de 06/11/2026, 08/11/2026 e 09/11/2026: prevalecem sobre tudo e estão incorporadas abaixo.
 2. Mockup da tela aprovado em 08/11/2026 (cinco telas, dados fictícios): é a fonte do visual e dos textos da tela.
 3. `INCENTIVO_CAMPARI_CLUB_FECHAMENTO_DE_2026.pptx` (apresentação oficial).
 4. `Incentivo_Campari_Club_Q4.xlsx` (orientações de formato): só onde a apresentação é omissa.
@@ -36,7 +41,10 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
   aperitivo.
 - **Níveis com ranking:** Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.
 - **Consultor (Rota):** Rota = Consultor. Aparece no painel, mas não tem ranking nem status
-  ("contabilizado do supervisor para cima").
+  ("contabilizado do supervisor para cima"). **A aba Consultor lista só as rotas `tipo: "normal"` da API
+  (decisão de 09/11/2026):** as rotas `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV, que é
+  o que a linha "Total da mesa" mostra — por isso o total pode ser maior que a soma das linhas visíveis, e a tela
+  conta quantas rotas ficaram fora.
 - **Diretoria e GP:** total de todas as gerências, numa linha "Total Band". Sem página própria.
 - **Telas (mockup de 08/11/2026):** Ranking GC · Supervisão (uma tela só, aberta em Mista, com botões
   "Mista | Segmentada" e filtro de gerência) · Consultor · Detalhe do mês · Regras.
@@ -113,8 +121,8 @@ Diretoria e GP são premiados, mas não têm apuração própria: o painel mostr
 | Hoje / Online | Venda de hoje (cobertura: só clientes novos no mês) |
 | Diferença | Real + Online − Meta |
 | % | (Real + Online) ÷ Meta; cálculo sem arredondar, tela truncada |
-| Meta dia — volume | `meta_dia` pronta da API (meta dinâmica). Não recalcular |
-| Meta dia — cobertura | Calculada no painel: **(Meta − Real) ÷ dias úteis restantes**, com o Real até ontem (D-1). É **travada**: não muda com o Online do dia (decisão de 08/11/2026). No último dia útil, a diferença total (Meta − Real); meta batida (Real ≥ Meta) = 0. Dias úteis restantes = `calendario.dias_uteis_restantes` (no código, total − dia_ontem): em dia útil **conta o dia de hoje**; em dia não útil não conta; com 0 restantes, usa a diferença total. Exibição: inteiro arredondado para cima (confirmado em 08/11/2026) |
+| Meta dia — volume | `meta_dia` pronta da API (meta dinâmica); o painel só **ajusta a exibição** (decisão de 09/11/2026): Real > Meta → 0; `meta_dia` negativo → 0; nulo (API em fechamento) → "—". Fora isso, nunca recalcular. A comparação usa só o Real (até ontem), sem o Online (premissa a confirmar) |
+| Meta dia — cobertura | Calculada no painel: **(Meta − Real) ÷ dias úteis restantes**, com o Real até ontem (D-1). É **travada**: não muda com o Online do dia (decisão de 08/11/2026). No último dia útil, a diferença total (Meta − Real); meta batida (Real ≥ Meta) = 0. Dias úteis restantes = `calendario.dias_uteis_restantes` (no código, total − dia_ontem): em dia útil **conta o dia de hoje**; em dia não útil não conta; com 0 restantes, usa a diferença total. Exibição: inteiro arredondado para cima (confirmado em 08/11/2026); Real > Meta → 0; valor entre 0 e 1 → 1 (decisão de 09/11/2026) |
 | Casas decimais | Volume com 1 casa; cobertura sem casa |
 
 **Tabelas de ranking (Ranking GC e Supervisão), decisão de 08/11/2026.** Cada linha traz dois blocos, mais a
@@ -133,32 +141,36 @@ posição e o status:
 - **M. Dia e Online** só existem no mês aberto; nos demais meses aparecem "—". Skyy de outubro: "—" (o fechado ainda
   não traz cobertura, pendência 10).
 - **Dif** = Real + Online − Meta, no mês escolhido.
+- **Total Band** é a última linha das tabelas de ranking e do Detalhe do mês (mockup de 08/11/2026), sem coluna lateral
+  e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking.
 - **Consultor e Detalhe do mês:** mesmas colunas (Meta, Real, M. Dia, Online, Dif, %) nos dois grupos, **Volume de
   Aperitivo** e **Cobertura de Skyy · clientes**.
 - **"Hoje" colorido (confirmado em 08/11/2026):** quando **Online > 0 e Online ≥ Meta dia**. Meta dia 0 com Online > 0
-  colore; meta dia 0 com Online 0 não colore; meta dia nula (API em fechamento) não colore.
+  colore; meta dia 0 com Online 0 não colore; meta dia nula (API em fechamento) não colore. A comparação usa a meta dia
+  **exibida** (a da decisão de 09/11/2026), para a cor concordar com o número da coluna ao lado.
 
-## 8. Dados da API (estado em 08/11/2026, 20:37)
+## 8. Dados da API (estado em 09/11/2026, 10:30)
 
 - `Aperitivo` e `Skyy` **estão publicados** como agrupadores extras (`ajustes.json` → `agrupadores`). Em
   `index.json` viram os produtos `aperitivos` e `skyy`, com `"extra": true`, `agrupadores` `["Aperitivo"]` e
   `["Skyy"]`, o bloco de volume e o bloco `cobertura`. Conferir os ids no `index.json` antes de usar.
 - Novembro: o `cobertura.meta` do Aperitivo é `null` na empresa (sem meta de cobertura; não atrapalha, o gatilho
-  é só de Skyy). O Skyy tem meta de cobertura em 173 das 233 rotas.
-- `fechado/202610.json` está em **prévia** (`fechamento_final: false`) e já traz os dois produtos (248 rotas; meta
-  de Aperitivo em 205 e de Skyy em 202), **sem cobertura**.
-- **Meta dia de volume:** em 08/11/2026 vem 0,0 em todas as rotas dos dois produtos. Explicação da Karen: hoje é
-  domingo (dia não útil). ⚠️ Conferir em dia útil, a partir de 09/11/2026 (pendência 15).
+  é só de Skyy). O Skyy tem meta de cobertura na maior parte das rotas.
+- `fechado/202610.json` está em **prévia** (`fechamento_final: false`) e já traz os dois produtos, **sem cobertura**.
+- **Meta dia de volume:** em 08/11/2026 vinha 0,0 em todas as rotas dos dois produtos, porque era domingo (dia não
+  útil). Em 09/11/2026 (dia útil) a API traz valores; alguns **negativos** nas rotas com meta batida, iguais aos do
+  SAC (pendência 15 resolvida). Na foto de 09/11/2026 às 10:30 havia 7 blocos com meta dia negativa e 20 com Real
+  acima da Meta — os dois casos da regra de exibição da seção 7.
 
 ## 9. Fechamento do mês
 
 Mesma regra do repositório: o mês fechado fica em **prévia** até o Back Office marcar o flash de vendas (por
-volta do dia 12) e só então vira oficial. Nunca selar por data. Outubro: ainda não selado em 08/11/2026,
+volta do dia 12) e só então vira oficial. Nunca selar por data. Outubro: ainda não selado em 09/11/2026,
 previsão 12/11/2026.
 
 ## 10. Pendências ⚠️
 
-| # | Pendência | Situação em 08/11/2026 | Quem |
+| # | Pendência | Situação em 09/11/2026 | Quem |
 | --- | --- | --- | --- |
 | 9 | Publicar `Aperitivo` e `Skyy` como agrupadores extras | **Resolvida** (seção 8) | — |
 | 10 | Incluir a cobertura no `fechado/AAAAMM.json` (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho | Em aberto: o Matheus vai ajustar. Prazo: 01/12/2026 | Matheus |
@@ -166,13 +178,15 @@ previsão 12/11/2026.
 | 12 | Meta dia de cobertura: a "meta restante" desconta só o Real ou o Real + Online? | **Resolvida**: só o **Real**; meta dia travada (seção 7) | — |
 | 13 | Repositório público, com nomes de clientes e pessoas nos JSONs | **Confirmado** em 08/11/2026 (clone anônimo funcionou). Alta prioridade | Karen / TI |
 | 14 | Dias úteis restantes da meta dia de cobertura: contam hoje? | **Resolvida** pelo código (seção 7) | — |
-| 15 | Meta dia de volume de Aperitivo e Skyy zerada em dia útil? | Conferir a partir de 09/11/2026 | Karen |
+| 15 | Meta dia de volume de Aperitivo e Skyy zerada em dia útil? | **Resolvida** em 09/11/2026: a API traz o valor em dia útil e confere com o SAC; negativos são do cálculo do SAC. Exibição: Real > Meta ou negativo → 0 (seção 7) | — |
 | 16 | Meta dia de cobertura exibida como inteiro arredondado para cima (cliente não se divide) | **Resolvida** em 08/11/2026: arredonda para cima (seção 7) | — |
 | 17 | "Hoje" colorido: o que fazer com meta dia 0 | **Resolvida** em 08/11/2026: colore quando Online > 0 e Online ≥ Meta dia (seção 7) | — |
 | 18 | Seletor "Mês de referência" do Ranking GC | **Resolvida** em 08/11/2026: o % acumulado não muda; trocam só Meta e Real (e o que deriva deles). Detalhes na pendência 20 | — |
 | 19 | Coluna "Cob. Skyy" do ranking | **Resolvida** em 08/11/2026: dois blocos com Meta, Real, M. Dia, Online, Dif e %s, para Skyy e Aperitivo (seção 7) | — |
 | 20 | Detalhes do seletor e das colunas: M. Dia e Online "—" fora do mês aberto; Skyy de outubro "—"; o seletor também vale na Supervisão (o mockup só o mostra no Ranking GC); Aperitivo mantém Out, Nov, Dez e Soma; "% Nov" mostra sempre o % de novembro | **Resolvida** em 08/11/2026: a Karen confirmou os cinco pontos (seção 7) | — |
-| 21 | O mockup de 08/11/2026 não mostra as colunas novas do Ranking GC e da Supervisão: a tabela fica bem mais larga e o layout (coluna lateral Total Band e Mecânica) pode precisar de ajuste. Atualizar o mockup dessas duas telas, ou aceitar o ajuste do Claude Code na Etapa 4 | Em aberto | Karen |
+| 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
+| 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
+| 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
 
 ## 11. Intencionalmente fora deste arquivo
 
