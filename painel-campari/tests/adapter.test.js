@@ -952,6 +952,245 @@ test('alertasDaTela: dados simulados e produtos não publicados viram erro', () 
 
 /* ─── a TELA: o que o template e o HTML gerado não podem conter ──────────────────────────────────────────── */
 
+// ===============================================================================================================
+// Etapa 4C - Ranking GC pela gerência comercial agrupada (regras v1.6, seção 4; pendência 24)
+// Fixtures sintéticas: números fictícios em cima dos códigos de linha do mapa de CONFIG.gruposGC.
+// ===============================================================================================================
+
+/** gerência da API sem supervisões nem rotas (o Ranking GC usa só os totais da gerência) */
+const gerC = (id, vol, cob) => ({ gerencia: { id, nome: 'Fictícia ' + id },
+                                  produtos: { aperitivos: vol, skyy: cob }, supervisoes: [], rotas: [] });
+// Os quatro pares do mapa. Volume de novembro (meta, real, online, meta dia) e cobertura de Skyy (meta, real):
+//   UR 100/200 = 200% e RI 900/180 = 20%  -> UR_RI: 1000/380 = 38% (a média dos dois seria 110%)
+//   IT 500/550 = 110% e MO 300/400 = 133% -> IT_MO: 800/950 = 118,75%
+//   PA 200/100 = 50%  e DI sem meta       -> PA_DI: 200/150 = 75% (meta null não zera a meta do grupo)
+//   GU 100/100 = 100% e PO não publicada  -> GU_PO: só GU, com aviso
+const PARES = [
+  gerC('UR', bl(100, 200, 0, 10), cbl(bl(1, 1, 0, 0), 200, 210, 0)),
+  gerC('RI', bl(900, 180, 0, 5), cbl(bl(1, 1, 0, 0), 100, 50, 0)),
+  gerC('IT', bl(500, 500, 50, 4), cbl(bl(1, 1, 0, 0), 100, 120, 0)),
+  gerC('MO', bl(300, 400, 0, 0), cbl(bl(1, 1, 0, 0), 100, 110, 0)),
+  gerC('PA', bl(200, 100, 0, 2), cbl(bl(1, 1, 0, 0), 100, 90, 0)),
+  gerC('DI', bl(null, 50, 0, null), cbl(bl(1, 1, 0, 0), null, 10, 0)),
+  gerC('GU', bl(100, 100, 0, 1), cbl(bl(1, 1, 0, 0), 100, 100, 0)),
+];
+// As oito gerências que ficam sozinhas no mapa: Soma decrescente (100%, 99%, ..., 93%) e cobertura de (100 + i)%,
+// que bate o gatilho em todas - é o que permite ver a 7a, 8a... posição oficial sem "Bateu!".
+const SOZINHAS = ['G1', 'G2', 'G3', 'AP', 'AT', 'AN', 'RV', 'SL'].map((id, i) =>
+  gerC(id, bl(100, 100 - i, 0, 1), cbl(bl(1, 1, 0, 0), 100, 100 + i, 0)));
+const DOZE = PARES.concat(SOZINHAS);
+const montar4c = (mais) => A.montarDados(Object.assign({ index: indexDe('202611', false, []), gerencias: DOZE,
+  resumo: RESUMO, fechados: {}, base: BASE, ajustes: SEM_AJ }, mais));
+const linhaDe = (d, cod) => d.gc.find((l) => l.codigo === cod);
+
+test('4C: CONFIG.gruposGC tem as 12 linhas do SAC - oito sozinhas e quatro pares, sem gerência repetida', () => {
+  const mapa = CONFIG.gruposGC;
+  assert.equal(Object.keys(mapa).length, 12);
+  const sozinhas = Object.entries(mapa).filter(([c, g]) => g.length === 1 && g[0] === c).map(([c]) => c);
+  assert.deepEqual(sozinhas.sort(), ['AN', 'AP', 'AT', 'G1', 'G2', 'G3', 'RV', 'SL']);
+  assert.deepEqual(Object.entries(mapa).filter(([, g]) => g.length > 1).sort(),
+                   [['GU_PO', ['GU', 'PO']], ['IT_MO', ['IT', 'MO']], ['PA_DI', ['PA', 'DI']], ['UR_RI', ['UR', 'RI']]]);
+  const todas = Object.values(mapa).flat();
+  assert.equal(todas.length, 16);                              // as 16 gerências da API de hoje
+  assert.equal(new Set(todas).size, 16);                       // nenhuma em dois grupos
+});
+
+test('4C: gruposDoRankingGC com todas as gerências publicadas monta as 12 linhas, sem aviso', () => {
+  const r = A.gruposDoRankingGC(Object.values(CONFIG.gruposGC).flat());
+  assert.deepEqual(r.avisos, []);
+  assert.equal(r.grupos.length, 12);
+  const urRi = r.grupos.find((g) => g.codigo === 'UR_RI');
+  assert.deepEqual([urRi.gerencias, urRi.faltantes, urRi.agrupada, urRi.foraDoMapa], [['UR', 'RI'], [], true, false]);
+  const g1 = r.grupos.find((g) => g.codigo === 'G1');
+  assert.deepEqual([g1.gerencias, g1.agrupada], [['G1'], false]);
+});
+
+test('4C: gerência publicada fora do mapa entra como linha própria, com aviso', () => {
+  const r = A.gruposDoRankingGC(['G1', 'ZZ', 'YY']);
+  assert.deepEqual(r.grupos.map((g) => g.codigo), ['G1', 'YY', 'ZZ']); // as de fora, em ordem, no fim
+  const zz = r.grupos.find((g) => g.codigo === 'ZZ');
+  assert.deepEqual([zz.gerencias, zz.foraDoMapa], [['ZZ'], true]);
+  assert.equal(r.avisos.filter((a) => /não está no agrupamento/.test(a)).length, 2);
+  assert.ok(r.avisos.some((a) => /ZZ/.test(a) && /linha própria/.test(a)));
+});
+
+test('4C: gerência do mapa que a API não publicou sai da soma, com aviso; grupo vazio não entra', () => {
+  const r = A.gruposDoRankingGC(['UR', 'G2']);
+  const urRi = r.grupos.find((g) => g.codigo === 'UR_RI');
+  assert.deepEqual([urRi.gerencias, urRi.faltantes, urRi.agrupada], [['UR'], ['RI'], false]);
+  assert.ok(r.avisos.some((a) => /UR_RI/.test(a) && /soma só UR/.test(a) && /não publicou RI/.test(a)));
+  // os grupos sem nenhuma gerência publicada ficam fora do ranking, nunca como linha de zeros
+  assert.deepEqual(r.grupos.map((g) => g.codigo).sort(), ['G2', 'UR_RI']);
+  assert.ok(r.avisos.some((a) => /IT_MO/.test(a) && /não entra/.test(a)));
+});
+
+test('4C: o Ranking GC tem 12 linhas e a aba Detalhe segue com as gerências da API', () => {
+  const d = montar4c();
+  assert.equal(d.gc.length, 12);
+  assert.deepEqual(d.gc.map((l) => l.codigo).sort(),
+                   ['AN', 'AP', 'AT', 'G1', 'G2', 'G3', 'GU_PO', 'IT_MO', 'PA_DI', 'RV', 'SL', 'UR_RI']);
+  assert.deepEqual(d.gcApi.map((l) => l.codigo),
+                   DOZE.map((g) => g.gerencia.id).sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  assert.equal(d.gcApi.length, 15);                              // as gerências publicadas, uma linha cada
+  // o Detalhe do mês e o filtro de gerência continuam com as da API (premissa (d) da seção 4)
+  assert.deepEqual(A.linhasDoDetalhe(d, 'gc').map((l) => l.codigo), d.gcApi.map((l) => l.codigo));
+  assert.deepEqual(A.filtrosDoPainel(d).gerencias, d.gcApi.map((l) => l.codigo));
+  assert.ok(!A.filtrosDoPainel(d).gerencias.includes('UR_RI'));
+});
+
+test('4C: gcApi não tem ranking (nem Pos., nem Oficial, nem Status): só o Ranking GC apura', () => {
+  const d = montar4c();
+  for (const l of d.gcApi) {
+    assert.equal(l.pos, undefined);
+    assert.equal(l.oficial, undefined);
+    assert.equal(l.status, undefined);
+  }
+  for (const l of d.gc) assert.equal(typeof l.pos, 'number');
+});
+
+test('4C: a linha agrupada soma meta, real, online e meta dia - igual à soma independente das gerências', () => {
+  const d = montar4c();
+  for (const [codigo, membros] of Object.entries({ UR_RI: ['UR', 'RI'], IT_MO: ['IT', 'MO'] })) {
+    const nov = mesDe(linhaDe(d, codigo), 11);
+    const blocos = membros.map((g) => DOZE.find((x) => x.gerencia.id === g).produtos.aperitivos);
+    const soma = (campo) => blocos.reduce((s, b) => s + b[campo], 0);
+    assert.deepEqual([nov.meta, nov.real, nov.online, nov.metaDia],
+                     [soma('meta'), soma('realizado'), soma('online_hoje'), soma('meta_dia')], codigo);
+  }
+  assert.deepEqual([mesDe(linhaDe(d, 'UR_RI'), 11).meta, mesDe(linhaDe(d, 'UR_RI'), 11).real], [1000, 380]);
+  assert.equal(mesDe(linhaDe(d, 'UR_RI'), 11).metaDia, 15);      // 10 + 5, as metas dia publicadas (premissa (b))
+  assert.equal(mesDe(linhaDe(d, 'IT_MO'), 11).online, 50);
+});
+
+test('4C: o % da linha agrupada é o da SOMA, nunca a média dos % das gerências', () => {
+  const d = montar4c();
+  const nov = mesDe(linhaDe(d, 'UR_RI'), 11);
+  assert.equal(nov.pct, 38);                                     // (200 + 180) / 1000
+  assert.equal(nov.pctTravado, 38);
+  assert.equal(nov.travado, false);
+  // os % das duas gerências, pela própria API: 200% e 20%; a média (110%) não aparece em lugar nenhum
+  const pcts = ['UR', 'RI'].map((g) => mesDe(d.gcApi.find((l) => l.codigo === g), 11).pct);
+  assert.deepEqual(pcts, [200, 20]);
+  assert.notEqual(nov.pct, (pcts[0] + pcts[1]) / 2);
+  // e a trava é aplicada DEPOIS da soma: UR sozinha travaria em 130, a linha agrupada entra com 38
+  assert.equal(mesDe(d.gcApi.find((l) => l.codigo === 'UR'), 11).pctTravado, Motor.REGRAS.trava[11]);
+  assert.equal(linhaDe(d, 'UR_RI').soma, 38);
+  assert.equal(mesDe(linhaDe(d, 'IT_MO'), 11).pct, 118.75);
+});
+
+test('4C: meta null numa gerência do grupo soma só as que têm valor (nunca conta como 0)', () => {
+  const d = montar4c();
+  const nov = mesDe(linhaDe(d, 'PA_DI'), 11);
+  assert.deepEqual([nov.meta, nov.real], [200, 150]);            // a meta de DI é null: só a de PA entra
+  assert.equal(nov.pct, 75);
+  assert.equal(nov.metaDia, 2);                                  // PA 2 + DI null
+});
+
+test('4C: a cobertura de Skyy da linha agrupada soma os blocos da API e o % é o da soma', () => {
+  const d = montar4c();
+  const cob = cobDe(linhaDe(d, 'UR_RI'), 11);
+  assert.deepEqual([cob.meta, cob.real, cob.online], [300, 260, 0]);
+  assert.equal(cob.pct, (260 / 300) * 100);                      // 86,66...%: não bate o gatilho
+  const pcts = ['UR', 'RI'].map((g) => cobDe(d.gcApi.find((l) => l.codigo === g), 11).pct);
+  assert.deepEqual(pcts, [105, 50]);
+  assert.notEqual(cob.pct, (pcts[0] + pcts[1]) / 2);             // a média seria 77,5%
+  assert.equal(linhaDe(d, 'UR_RI').gatilho.batido, false);
+  // meta de cobertura null numa gerência: a meta do grupo é só a de quem tem, e o realizado é de todas
+  const paDi = cobDe(linhaDe(d, 'PA_DI'), 11);
+  assert.deepEqual([paDi.meta, paDi.real], [100, 100]);
+  assert.equal(linhaDe(d, 'PA_DI').gatilho.batido, true);
+});
+
+test('4C: meta dia de cobertura do grupo sai da meta e do real somados', () => {
+  const d = montar4c();                                          // dias úteis restantes: 14 (indexDe)
+  assert.equal(cobDe(linhaDe(d, 'UR_RI'), 11).metaDia, 3);       // (300 - 260) / 14 = 2,85... -> 3 clientes
+  assert.equal(cobDe(linhaDe(d, 'PA_DI'), 11).metaDia, 0);       // real = meta: 0
+});
+
+test('4C: ordem, Pos. 1..12, posição oficial e "Bateu!" só até a 6a oficial', () => {
+  const d = montar4c();
+  assert.deepEqual(d.gc.map((l) => [l.pos, l.codigo]),
+    [[1, 'IT_MO'], [2, 'G1'], [3, 'GU_PO'], [4, 'G2'], [5, 'G3'], [6, 'AP'], [7, 'AT'], [8, 'AN'], [9, 'RV'],
+     [10, 'SL'], [11, 'PA_DI'], [12, 'UR_RI']]);
+  // UR_RI é a única sem o gatilho: as outras 11 recebem posição oficial, em sequência
+  assert.deepEqual(d.gc.map((l) => l.oficial), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, null]);
+  const bateu = d.gc.filter((l) => l.status.status === 'Bateu!').map((l) => l.codigo);
+  assert.deepEqual(bateu, ['IT_MO', 'G1', 'GU_PO', 'G2', 'G3', 'AP']);
+  assert.equal(bateu.length, Motor.REGRAS.premiadas.gc);         // o limite vem do motor, não deste teste
+  assert.equal(d.gc.find((l) => l.oficial === 7).status.motivo, 'suba 1 posição');
+});
+
+test('4C: desempate entre linhas com a mesma Soma pelo código da linha em minúsculas ("g1" antes de "gu_po")', () => {
+  const d = montar4c();
+  const g1 = linhaDe(d, 'G1'), guPo = linhaDe(d, 'GU_PO');
+  assert.equal(g1.soma, guPo.soma);                              // as duas em 100%
+  assert.equal(g1.chave, 'g1');
+  assert.equal(guPo.chave, 'gu_po');
+  assert.ok(g1.pos < guPo.pos);
+});
+
+test('4C: mês fechado soma os totais.gerencias do fechado (nunca as rotas)', () => {
+  const OUT4C = fechadoDe('202610', [
+    ['U11', 'UR', 'SV.UR.1', { aperitivos: [10, 10] }], ['R11', 'RI', 'SV.RI.1', { aperitivos: [10, 10] }],
+  ], { empresa: { aperitivos: [1000, 600] },
+       gerencias: { UR: { aperitivos: [400, 500] }, RI: { aperitivos: [600, 100] } } });
+  const d = montar4c({ index: indexDe('202611', false, ['202610']), fechados: { 202610: OUT4C } });
+  const out = mesDe(linhaDe(d, 'UR_RI'), 10);
+  assert.deepEqual([out.meta, out.real, out.online], [1000, 600, 0]); // 400+600 e 500+100, dos totais
+  assert.equal(out.pct, 60);                                         // a soma das rotas daria outro número
+  assert.equal(out.metaDia, null);                                   // mês fechado não tem meta dia
+  assert.equal(linhaDe(d, 'UR_RI').soma, 98);                        // 60 (out) + 38 (nov)
+  assert.equal(linhaDe(d, 'UR_RI').incompleta, false);
+});
+
+test('4C: mês que falta numa gerência do grupo deixa o mês indisponível e a linha incompleta', () => {
+  // o fechado traz os totais de UR e não os de RI: o grupo não soma pela metade
+  const SO_UR = fechadoDe('202610', [['U11', 'UR', 'SV.UR.1', { aperitivos: [10, 10] }]],
+    { empresa: { aperitivos: [100, 100] }, gerencias: { UR: { aperitivos: [400, 500] } } });
+  const d = montar4c({ index: indexDe('202611', false, ['202610']), fechados: { 202610: SO_UR } });
+  const out = mesDe(linhaDe(d, 'UR_RI'), 10);
+  assert.equal(out.situacao, 'indisponivel');
+  assert.deepEqual([out.meta, out.real, out.pct, out.pctTravado], [null, null, null, null]);
+  assert.equal(linhaDe(d, 'UR_RI').incompleta, true);
+  assert.deepEqual(linhaDe(d, 'UR_RI').mesesSemPct, [10]);
+  assert.equal(linhaDe(d, 'UR_RI').soma, 38);                        // só novembro entra na Soma
+  // a gerência que tem o mês continua com os números dela na aba Detalhe
+  assert.equal(mesDe(d.gcApi.find((l) => l.codigo === 'UR'), 10).real, 500);
+  assert.equal(mesDe(linhaDe(d, 'IT_MO'), 10).situacao, 'indisponivel');
+});
+
+test('4C: gerência nova (fora do mapa) aparece no Ranking GC com os próprios números e um aviso', () => {
+  const d = montar4c({ gerencias: DOZE.concat([gerC('ZZ', bl(100, 500, 0, 1), cbl(bl(1, 1, 0, 0), 10, 50, 0))]) });
+  assert.equal(d.gc.length, 13);
+  const zz = linhaDe(d, 'ZZ');
+  assert.equal(zz.pos, 1);                                           // 130% travado: a maior Soma
+  assert.equal(mesDe(zz, 11).pctTravado, Motor.REGRAS.trava[11]);
+  assert.deepEqual(zz.gerencias, ['ZZ']);
+  assert.ok(d.avisos.some((a) => /ZZ/.test(a) && /não está no agrupamento/.test(a)));
+  // e o aviso chega em Regras > Dados e alertas, nunca em silêncio
+  assert.ok(A.alertasDaTela(d).some((x) => /ZZ/.test(x.texto) && x.tipo === 'aviso'));
+});
+
+test('4C: a linha agrupada guarda as gerências que soma (a tela mostra só o código da linha)', () => {
+  const d = montar4c();
+  assert.deepEqual(linhaDe(d, 'UR_RI').gerencias, ['UR', 'RI']);
+  assert.equal(linhaDe(d, 'UR_RI').agrupada, true);
+  assert.deepEqual(linhaDe(d, 'GU_PO').gerencias, ['GU']);           // PO não publicada
+  assert.equal(linhaDe(d, 'G1').agrupada, false);
+  assert.ok(d.avisos.some((a) => /GU_PO/.test(a) && /não publicou PO/.test(a)));
+});
+
+test('4C: a estrutura da tabela da linha agrupada é a mesma das outras (a tela não sabe que é grupo)', () => {
+  const d = montar4c();
+  const t = linhaDe(d, 'UR_RI').tabela;
+  assert.deepEqual(Object.keys(t).sort(), ['aperitivo', 'skyy']);
+  assert.deepEqual(Object.keys(t.aperitivo.porMes).map(Number), [10, 11, 12]);
+  assert.equal(A.valoresDoMes(t, 'aperitivo', 11).meta, 1000);
+  assert.equal(A.valoresDoMes(t, 'skyy', 11).meta, 300);
+  assert.equal(t.aperitivo.soma, 38);
+  assert.equal(t.skyy.acumulado, linhaDe(d, 'UR_RI').gatilho.valor);
+});
+
 const TPL = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.tpl.html'), 'utf8');
 const SEM_CSS = TPL.replace(/<style>[\s\S]*?<\/style>/g, '');
 const GERADO = path.join(__dirname, '..', '..', 'frontend', 'campari-club.html');
@@ -1061,4 +1300,42 @@ test('tela: as cinco abas do mockup, nessa ordem', () => {
   const abas = /const ABAS = \[([\s\S]*?)\];/.exec(SEM_CSS)[1];
   assert.deepEqual(Array.from(abas.matchAll(/nome:'([^']+)'/g), (m) => m[1]),
                    ['Ranking GC', 'Supervisão', 'Consultor', 'Detalhe do mês', 'Regras']);
+});
+
+/* --- Etapa 4C: o laranja do Aperitivo e o Ranking GC agrupado na tela --------------------------------------- */
+
+test('tela 4C: o bloco Aperitivo em laranja (título e cabeçalhos das colunas), com texto escuro', () => {
+  assert.match(TPL, /--ap-tit:#E07B41/);                     // o laranja médio do print do SAC
+  assert.match(TPL, /--ap-tit-fg:#2B1703/);                  // texto escuro: branco sobre o laranja dá 2,97:1
+  assert.match(TPL, /--ap-cel:rgba\(224,123,65,\.58\)/);     // corpo das células, no mesmo laranja
+  assert.doesNotMatch(TPL, /#4A3500|rgba\(255,200,74,\.16\)/); // o marrom-amarelado da 4B saiu
+  // o laranja vai também aos cabeçalhos das colunas do bloco, e o texto deles é escuro
+  assert.match(TPL, /\.tb tr\.hdr th\.hd-ap\{background:var\(--ap-tit\)\}/);
+  assert.match(TPL, /th\.bl-ap,\.tb tr\.grp th\.bl-ap small,\.tb tr\.hdr th\.hd-ap\{color:var\(--ap-tit-fg\)\}/);
+  // as nove colunas do Aperitivo (Meta, Real, M. Dia, Online, Dif. + os três meses + Soma) levam a classe
+  assert.equal((SEM_CSS.match(/hd-ap/g) || []).length, 7);   // 5 fixas + o map dos meses + a Soma
+  assert.match(SEM_CSS, /R\.meses\.map\(\(m\)=>'<th class="hd-ap">'/);
+});
+
+test('tela 4C: o azul do bloco Skyy fica como estava (só o Aperitivo mudou)', () => {
+  assert.match(TPL, /--sk-tit:#0A2A6E; --sk-cel:rgba\(29,123,255,\.20\)/);
+  assert.match(TPL, /\.tb tr\.grp th\.bl-sk\{background:var\(--sk-tit\)\}/);
+  assert.match(TPL, /\.tb colgroup\.cg-sk\{background:var\(--sk-cel\)\}/);
+  assert.doesNotMatch(TPL, /hd-sk/);                         // o cabeçalho do Skyy não ganhou cor
+});
+
+test('tela 4C: o Ranking GC lê as linhas agrupadas e o Detalhe do mês as gerências da API', () => {
+  const gc = /function viewGC\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(gc, /tabelaRanking\(D\.gc,'Gerência',true\)/);  // as linhas agrupadas, prontas do adaptador
+  assert.match(gc, /gerência comercial agrupada/);
+  const det = /function viewDet\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(det, /linhasDoDetalhe\(D, st\.detVisao, st\.ger\)/); // que devolve as da API (gcApi)
+  assert.doesNotMatch(det, /D\.gc\b/);
+  // nenhum código de gerência nem o mapa do agrupamento digitado na tela: tudo vem do adaptador
+  assert.doesNotMatch(SEM_CSS, /gruposGC|UR_RI|IT_MO|PA_DI|GU_PO/);
+});
+
+test('tela 4C: nada na tela calcula a soma do grupo (a regra fica no motor)', () => {
+  assert.doesNotMatch(SEM_CSS, /somarGrupo/);
+  assert.doesNotMatch(SEM_CSS, /\.gerencias\.reduce|agrupada\s*\?/);
 });

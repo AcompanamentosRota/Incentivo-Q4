@@ -20,7 +20,8 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
-  ajustou só a apresentação das duas tabelas de ranking. A tela **não calcula nada**: lê o que o
+  ajustou só a apresentação das duas tabelas de ranking, e a **Etapa 4C** (seção 4) trocou o Ranking GC para a
+  gerência comercial agrupada (12 linhas) e pôs o bloco Aperitivo no laranja do SAC. A tela **não calcula nada**: lê o que o
   motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -47,7 +48,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma, ordem, posição, gatilho de cobertura, posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG`, `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -67,7 +68,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 139 testes (49 do motor, 90 do adaptador)
+# testes do painel Campari Club — 167 testes (55 do motor, 112 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -255,9 +256,19 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `corDoPercentual` do motor (verde com o valor **bruto** ≥ `REGRAS.gatilho.minimo`; `null` sem valor não desenha
   nada) — Aperitivo não tem quadradinho; fonte das duas tabelas 1 px menor (`.tb.rk`, corpo de 14 px), nada abaixo de
   13 px. Os valores de cor são **copiados** do `painel-q4/src/app.tpl.html` (o Campari não importa nada do Q4).
-- **Gerência comercial agrupada do Ranking GC (v1.6, seção 4 e pendência 24): ainda NÃO implementada.** A decisão de
-  09/11/2026 põe 12 linhas no lugar das 16 gerências da API, somando os pares antes de calcular. O painel continua uma
-  linha por gerência da API; o agrupamento fica para um PR próprio, com as premissas (a) a (e) da seção 4 a confirmar.
+- **Gerência comercial agrupada do Ranking GC (v1.6, seção 4 e pendência 24; etapa 4C):** o Ranking GC tem **12
+  linhas** no lugar das 16 gerências da API. Quem soma com quem está em `CONFIG.gruposGC` do adaptador (`G1`, `G2`,
+  `G3`, `AP`, `AT`, `AN`, `RV` e `SL` sozinhas; `UR_RI`, `IT_MO`, `PA_DI` e `GU_PO` com duas), nunca fixo na lógica:
+  gerência publicada fora do mapa vira linha própria, com aviso. A linha **soma** meta, real, online e meta dia das
+  gerências do grupo (`motor.somarGrupo`) e só depois calcula — o % é o da soma, **nunca a média dos %** —, e trava,
+  soma do ranking, gatilho, posição, posição oficial e status são as mesmas funções do motor. Mês que falta em alguma
+  gerência do grupo deixa o mês indisponível e a linha incompleta. **`dados.gc` são as linhas agrupadas (com ranking) e
+  `dados.gcApi` as 16 gerências da API (sem ranking)**, usadas pelo filtro de gerência e pelo Detalhe do mês, que não
+  mudaram. Premissas ⚠️ a confirmar com a Karen: "Bateu!" nas 6 primeiras entre 12 linhas, e a M. Dia de volume do
+  grupo como soma das metas dia publicadas.
+- **Cor do bloco Aperitivo (etapa 4C):** `--ap-tit` é o laranja do SAC (`#E07B41`), no título do bloco e nos
+  cabeçalhos das colunas, com texto escuro (`--ap-tit-fg`, porque branco sobre esse laranja dá 2,97:1), e `--ap-cel`
+  é o laranja queimado `rgba(224,123,65,.58)`, com os números em branco. O azul do Skyy não mudou.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -385,7 +396,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 139 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 167 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

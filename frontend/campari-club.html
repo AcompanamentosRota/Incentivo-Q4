@@ -20,14 +20,19 @@
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC; --laranja:#FFB86B;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
      --negv  = o vermelho da diferença negativa do Q4 (#ffb3bd);
-     --ap-*  = bloco Aperitivo (laranja): título no amarelo escuro do Q4 (.pill.bat, #4a3500) e células no
-               tom bem claro do quadro do % do Q4 (.pchip.t3, rgba(255,200,74,.20), um pouco mais apagado porque
-               aqui cobre um bloco inteiro, não um número);
      --sk-*  = bloco Skyy (azul): título no --blued do Q4 (#0a2a6e) e células no .pchip.t5 (rgba(29,123,255,.30),
-               idem);
-     --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2. */
+               um pouco mais apagado porque aqui cobre um bloco inteiro, não um número);
+     --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2.
+     Etapa 4C — o bloco Aperitivo deixa de ser o amarelo escuro do Q4 e passa ao LARANJA do print do SAC
+     (pedido da Karen em 09/11/2026, que viu a 4B num marrom-amarelado):
+     --ap-tit = laranja médio do SAC (#E07B41) no título do bloco e nos cabeçalhos das colunas do Aperitivo;
+     --ap-tit-fg = o texto deles. É ESCURO porque branco sobre #E07B41 dá contraste 2,97:1 (abaixo de 4,5:1) e
+               o marrom bem escuro dá 5,3:1 — a decisão está registrada no PR da etapa 4C;
+     --ap-cel = corpo das células, num laranja queimado (#E07B41 a 58% sobre o painel): os números seguem
+               brancos, com 6,3:1. Tinta clara sobre o azul-marinho do painel vira marrom, então "laranja claro"
+               com o tema escuro só sai assim (escolha da Karen em 09/11/2026). */
   --negv:#FFB3BD;
-  --ap-tit:#4A3500; --ap-cel:rgba(255,200,74,.16);
+  --ap-tit:#E07B41; --ap-tit-fg:#2B1703; --ap-cel:rgba(224,123,65,.58);
   --sk-tit:#0A2A6E; --sk-cel:rgba(29,123,255,.20);
   --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
   --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
@@ -97,6 +102,10 @@ button{cursor:pointer}
 .tb colgroup.cg-ap{background:var(--ap-cel)}
 .tb colgroup.cg-sk{background:var(--sk-cel)}
 .tb tr.grp th small{font-family:var(--ff);font-size:13px;font-weight:600;color:var(--turq2);letter-spacing:.04em}
+/* Etapa 4C: o laranja do Aperitivo vai também aos cabeçalhos das COLUNAS do bloco, e o texto deles é escuro
+   (ver o cálculo de contraste na lista de variáveis). O bloco Skyy fica como estava. */
+.tb tr.hdr th.hd-ap{background:var(--ap-tit)}
+.tb tr.grp th.bl-ap,.tb tr.grp th.bl-ap small,.tb tr.hdr th.hd-ap{color:var(--ap-tit-fg)}
 .tb tr.hdr th{top:25px}
 .tb th.l,.tb td.l{text-align:left}
 .tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;white-space:nowrap;color:#fff}
@@ -196,8 +205,9 @@ button{cursor:pointer}
  * sendo só exibição, é regra: fica aqui, não na tela.
  * Etapa 4B: a cor do quadradinho do % de cobertura (`corDoPercentual`, regras v1.6, seção 7). Também é só
  * exibição e também é regra: a tela pergunta a cor, nunca compara o número com 100.
- * NÃO implementado aqui: a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4 e pendência 24) —
- * decidida em 09/11/2026, fica para o PR do agrupamento. O ranking de GC continua uma linha por gerência da API.
+ * Etapa 4C: a soma da gerência comercial agrupada do Ranking GC (`somarGrupo`, regras v1.6, seção 4 e pendência
+ * 24). O agrupamento em si (quais gerências formam cada linha) é configuração do adaptador; a REGRA que mora aqui
+ * é a de somar as medidas e só depois calcular — o % é o da soma, nunca a média dos % das gerências.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -282,6 +292,28 @@ button{cursor:pointer}
     });
     const mesesSemPct = out.filter((m) => m.situacao !== 'futuro' && m.pct === null).map((m) => m.mes);
     return { meses: out, soma: somaRanking(out.map((m) => m.pctTravado)), incompleta: mesesSemPct.length > 0, mesesSemPct };
+  }
+
+  /**
+   * Soma das medidas de um grupo de linhas — a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4;
+   * decisão de 09/11/2026, pendência 24). É REGRA, não montagem de dados: a linha agrupada soma meta, real,
+   * online (e a meta dia de volume) das gerências do grupo e só DEPOIS calcula, então o % é o da SOMA e nunca a
+   * média dos % das gerências. Quem são as gerências de cada linha é configuração do adaptador, não daqui.
+   *   - cada campo soma só os valores numéricos: gerência com meta null não zera a meta do grupo;
+   *   - nenhum valor numérico no campo: null, nunca 0 (ausência de medida não é zero);
+   *   - `campos` permite somar o bloco de cobertura, que não tem meta dia (['meta', 'real', 'online']).
+   * A meta dia de volume do grupo é a soma das `meta_dia` publicadas pelas gerências, porque a API não publica
+   * meta dia por grupo — premissa ⚠️ da seção 4 (b), a confirmar. A meta dia de COBERTURA não se soma: ela sai de
+   * `metaDiaCobertura` sobre a meta e o real já somados.
+   */
+  function somarGrupo(valores, campos) {
+    campos = campos || ['meta', 'real', 'online', 'metaDia'];
+    const out = {};
+    for (const campo of campos) {
+      const nums = (valores || []).map((v) => (v ? v[campo] : null)).filter(numero);
+      out[campo] = nums.length ? nums.reduce((a, b) => a + b, 0) : null;
+    }
+    return out;
   }
 
   /** Chave de desempate: o código (id da API) em minúsculas; comparação de texto simples ("sv.g2.10" < "sv.g2.2"). */
@@ -487,7 +519,7 @@ button{cursor:pointer}
   }
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
-           ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
+           somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            hojeAtingiu };
 });
@@ -715,6 +747,15 @@ const CONFIG = {
   // Papel no incentivo -> nome EXATO do agrupador do modelo SAP (maiúsculas e acentos contam).
   // O id do produto na API não é fixo: é achado em index.json -> produtos pelo campo `agrupadores`.
   agrupadores: { aperitivo: 'Aperitivo', skyy: 'Skyy' },
+  // Ranking GC pela GERÊNCIA COMERCIAL AGRUPADA do SAC (regras v1.6, seção 4; decisão de 09/11/2026, pendência
+  // 24): código da LINHA do ranking -> gerências da API que ela soma. Oito linhas têm uma gerência só e quatro
+  // somam duas, dando 12 linhas no lugar das 16 gerências da API. Fica em configuração, nunca na lógica:
+  // gerência publicada e fora deste mapa entra como linha própria, com aviso, e gerência do mapa que a API não
+  // publicou simplesmente não entra na soma, também com aviso.
+  gruposGC: {
+    G1: ['G1'], G2: ['G2'], G3: ['G3'], AP: ['AP'], AT: ['AT'], AN: ['AN'], RV: ['RV'], SL: ['SL'],
+    UR_RI: ['UR', 'RI'], IT_MO: ['IT', 'MO'], PA_DI: ['PA', 'DI'], GU_PO: ['GU', 'PO'],
+  },
 };
 
 /*
@@ -992,6 +1033,43 @@ function lerFechado(f, anomes, pid) {
 }
 
 /**
+ * Linhas do Ranking GC pela gerência comercial agrupada (regras v1.6, seção 4; decisão de 09/11/2026).
+ * `codigos` = as gerências que a API publicou (index.json -> gerencias, mais as que só aparecem num mês fechado).
+ * O mapa é `cfg.gruposGC`: código da linha -> gerências que ela soma. Nada é fixo aqui.
+ * Devolve { grupos: [{ codigo, gerencias, faltantes, agrupada, foraDoMapa }], avisos: [...] }:
+ *   - gerência do mapa que a API não publicou: fica em `faltantes`, o grupo sai só com as que existem, com aviso;
+ *   - grupo sem nenhuma gerência publicada: não entra no ranking, com aviso (nunca uma linha de zeros);
+ *   - gerência publicada e fora do mapa: linha própria (`foraDoMapa`), com aviso — o ranking nunca esconde uma
+ *     gerência que a API passou a publicar.
+ * A ordem não importa: o motor ordena pela Soma e desempata pelo código da linha em minúsculas ("ur_ri").
+ */
+function gruposDoRankingGC(codigos, cfg) {
+  cfg = cfg || CONFIG;
+  const mapa = ehObjeto(cfg.gruposGC) ? cfg.gruposGC : {};
+  const publicadas = Array.isArray(codigos) ? codigos.slice() : [];
+  const grupos = [], avisos = [], usadas = {};
+  for (const [codigo, membros] of Object.entries(mapa)) {
+    const lista = Array.isArray(membros) ? membros : [];
+    const gerencias = lista.filter((g) => publicadas.indexOf(g) >= 0);
+    const faltantes = lista.filter((g) => publicadas.indexOf(g) < 0);
+    for (const g of gerencias) usadas[g] = true;
+    if (!gerencias.length) {
+      avisos.push(`a linha ${codigo} do Ranking GC não entra: a API não publicou ${lista.join(' nem ') || 'nenhuma gerência'}`);
+      continue;
+    }
+    if (faltantes.length) {
+      avisos.push(`a linha ${codigo} do Ranking GC soma só ${gerencias.join(' + ')}: a API não publicou ${faltantes.join(', ')}`);
+    }
+    grupos.push({ codigo, gerencias, faltantes, agrupada: gerencias.length > 1, foraDoMapa: false });
+  }
+  for (const g of publicadas.filter((x) => !usadas[x]).sort()) {
+    avisos.push(`a gerência ${g} não está no agrupamento do Ranking GC (regras v1.6, seção 4): entra como linha própria`);
+    grupos.push({ codigo: g, gerencias: [g], faltantes: [], agrupada: false, foraDoMapa: true });
+  }
+  return { grupos, avisos };
+}
+
+/**
  * Estrutura das tabelas de ranking (premissa P7; regras, seção 7) de UMA linha: o que a tela lê sem calcular nada.
  * Dois blocos, Aperitivo (volume) e Skyy (cobertura), e dentro de cada um `porMes[10|11|12]` com
  * { meta, real, online, metaDia, dif, pct, hojeOk, fonte, estado, situacao, aberto, motivo }.
@@ -1037,6 +1115,11 @@ function tabelaDaLinha(vol, cob, extra, motor) {
  *   meses:        [{ mes, anomes, fonte, estado ('aberto' | 'previa' | 'oficial' | null), motivo }] — volume
  *   mesesCobertura: o mesmo para a cobertura de Skyy, que segue outra regra de fonte (fontesDaCobertura)
  *   mesGatilho:   o mês da vigência que está valendo para o gatilho (10, 11, 12 ou null)
+ *   gc:           as linhas do RANKING GC, pela gerência comercial agrupada (regras v1.6, seção 4; 12 linhas no
+ *                 lugar das 16 gerências da API), já somadas, ordenadas e numeradas; `codigo` é o da LINHA
+ *                 ("UR_RI"), e `gerencias` lista as gerências da API que ela soma
+ *   gcApi:        uma linha por gerência da API, SEM ranking (sem pos, sem posição oficial e sem status): é o que
+ *                 a aba Detalhe do mês e o filtro de gerência usam, que seguem com as 16 (premissa (d) da seção 4)
  *   gc, svMista, svSegmentada: linhas ordenadas e numeradas pelo motor (pos 1..n), cada uma com
  *                 { codigo, chave, gc, canal, origemCanal,
  *                   meses: [volume de Aperitivo, por mês: meta, real, online, metaDia, dif, pct, pctTravado,
@@ -1064,7 +1147,7 @@ function montarDados(entrada, cfg, motor) {
                   atualizadoEm: index.atualizado_em || null, simulado: index.simulado === true, produtos };
   if (!produtos.ok) {
     return Object.assign({ ok: false, erro: 'Produtos do Campari ainda não publicados (' + produtos.motivos.join('; ') + ')',
-                           avisos: [], meses: [], mesesCobertura: [], mesGatilho: null, gc: [], svMista: [],
+                           avisos: [], meses: [], mesesCobertura: [], mesGatilho: null, gc: [], gcApi: [], svMista: [],
                            svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {} }, comum);
   }
   const pid = produtos.ids.aperitivo, pidSkyy = produtos.ids.skyy;
@@ -1092,8 +1175,9 @@ function montarDados(entrada, cfg, motor) {
   for (const f of fontes) if (f.fonte === 'indisponivel') avisos.push(`${NOMES_MES[f.mes]} indisponível: ${f.motivo}; a soma das linhas fica incompleta`);
   for (const f of fontes) if (f.fonte === 'fechado' && f.motivo) avisos.push(f.motivo);
 
-  // 2. valores por nível e mês (anomes -> código -> valores); o que a API publica, sem recalcular
-  const vals = { gc: {}, sv: {}, rota: {}, empresa: {} }, info = { gc: {}, sv: {}, rota: {} };
+  // 2. valores por nível e mês (anomes -> código -> valores); o que a API publica, sem recalcular.
+  // O nível `grupo` é o do Ranking GC agrupado (passo 2c): ele não vem da API, é a soma das gerências do grupo.
+  const vals = { gc: {}, grupo: {}, sv: {}, rota: {}, empresa: {} }, info = { gc: {}, sv: {}, rota: {} };
   const por = (nivel, anomes, cod, v) => { ((vals[nivel][cod] = vals[nivel][cod] || {}))[anomes] = v; };
   const anotar = (nivel, cod, dados) => { info[nivel][cod] = Object.assign(info[nivel][cod] || {}, dados); };
   // estrutura atual (API): todas as gerências, supervisões e rotas aparecem, mesmo sem número em algum mês
@@ -1128,7 +1212,7 @@ function montarDados(entrada, cfg, motor) {
   // 2b. cobertura de Skyy por nível e mês (premissa P1): o mês de referência pelos blocos `cobertura` da API
   // (inclusive em período de fechamento) e os meses anteriores pelo fechado, que hoje não traz cobertura.
   const fontesCob = fontesDaCobertura(index, cfg).map((f) => Object.assign({}, f));
-  const cob = { gc: {}, sv: {}, rota: {}, empresa: {} };
+  const cob = { gc: {}, grupo: {}, sv: {}, rota: {}, empresa: {} };
   const porCob = (nivel, anomes, cod, v) => { ((cob[nivel][cod] = cob[nivel][cod] || {}))[anomes] = v; };
   for (const f of fontesCob) {
     if (f.fonte === 'api') {
@@ -1154,14 +1238,40 @@ function montarDados(entrada, cfg, motor) {
     }
   }
 
+  // 2c. Ranking GC pela GERÊNCIA COMERCIAL AGRUPADA (regras v1.6, seção 4; decisão de 09/11/2026, pendência 24):
+  // a linha do ranking soma, por mês e por produto, as gerências do grupo ANTES de qualquer conta — o % é o da
+  // soma, nunca a média dos % das gerências. A soma é do motor (`somarGrupo`); aqui só se decide quem soma com
+  // quem (CONFIG.gruposGC, por `gruposDoRankingGC`) e o que fazer quando falta o mês de uma das gerências:
+  // o mês do grupo fica indisponível e a linha, incompleta — nunca uma soma parcial passando por total.
+  const agrupamento = gruposDoRankingGC(Object.keys(info.gc), cfg);
+  for (const a of agrupamento.avisos) avisos.push(a);
+  const semMesNoGrupo = {}; // código da linha -> { anomes: true } dos meses que faltam em alguma gerência do grupo
+  for (const grupo of agrupamento.grupos) {
+    const falta = {};
+    for (const f of fontes) {
+      const doMes = grupo.gerencias.map((g) => (vals.gc[g] || {})[f.anomes]);
+      if (doMes.some((v) => v === undefined)) falta[f.anomes] = true;
+      por('grupo', f.anomes, grupo.codigo, motor.somarGrupo(doMes));
+    }
+    semMesNoGrupo[grupo.codigo] = falta;
+    for (const f of fontesCob) {
+      const doMes = grupo.gerencias.map((g) => (cob.gc[g] || {})[f.anomes]);
+      // bloco `cobertura` ausente em alguma gerência do grupo: o mês do grupo fica sem cobertura (nunca soma
+      // parcial), e `apurarCobertura` o trata como indisponível, igual a uma gerência sem o bloco
+      porCob('grupo', f.anomes, grupo.codigo,
+             doMes.some((v) => !v) ? null : motor.somarGrupo(doMes, ['meta', 'real', 'online']));
+    }
+  }
+
   // 3. meses de uma linha -> motor (situação: dado | indisponivel | futuro)
-  const situacao = (f, nivel) => (f.fonte === 'futuro' ? 'futuro' : f.fonte === 'indisponivel' ? 'indisponivel'
+  const situacao = (f, nivel, cod) => (f.fonte === 'futuro' ? 'futuro' : f.fonte === 'indisponivel' ? 'indisponivel'
+    : nivel === 'grupo' ? ((semMesNoGrupo[cod] || {})[f.anomes] ? 'indisponivel' : 'dado')
     : nivel === 'gc' && f.fonte === 'fechado' && !lidos[f.anomes].gc ? 'indisponivel'
     : nivel === 'empresa' && f.fonte === 'fechado' && !lidos[f.anomes].empresa ? 'indisponivel'
     : nivel === 'empresa' && f.fonte === 'api' && !empresaApi ? 'indisponivel' : 'dado');
   const apurar = (nivel, cod) => {
     const a = motor.apurarMeses(fontes.map((f) => {
-      const s = situacao(f, nivel);
+      const s = situacao(f, nivel, cod);
       const v = s === 'dado' ? ((vals[nivel][cod] || {})[f.anomes] || VAZIO()) : VAZIO();
       return Object.assign({ mes: f.mes, anomes: f.anomes, fonte: f.fonte, estado: f.estado || null, situacao: s,
                              aberto: f.fonte === 'api' }, v,
@@ -1220,7 +1330,14 @@ function montarDados(entrada, cfg, motor) {
   /** Um nível de ranking: ordem e "Pos." (Etapa 2), coluna "Oficial" só de quem bateu o gatilho e status (Etapa 3). */
   const ranquear = (linhas, nivel) => motor.numerarOficial(motor.montarRanking(linhas))
     .map((l) => Object.assign(l, { status: motor.statusLinha(l, nivel) }));
-  const gc = ranquear(Object.keys(info.gc).map((g) => linha('gc', g, { gc: g, canal: null, origemCanal: null })), 'gc');
+  // Ranking GC: uma linha por GRUPO (gerência comercial agrupada), somada no passo 2c. `codigo` é o da linha
+  // ("UR_RI"), que é o que a coluna Gerência mostra e também a chave de desempate ("ur_ri", no motor).
+  const gc = ranquear(agrupamento.grupos.map((grupo) => linha('grupo', grupo.codigo,
+    { gc: grupo.codigo, gerencias: grupo.gerencias, agrupada: grupo.agrupada, canal: null, origemCanal: null })), 'gc');
+  // As 16 gerências da API, sem ranking: a aba Detalhe do mês e o filtro de gerência continuam com elas
+  // (premissa (d) da seção 4). Sem pos, sem posição oficial e sem status, para ninguém confundir com o ranking.
+  const gcApi = Object.keys(info.gc).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    .map((g) => linha('gc', g, { gc: g, canal: null, origemCanal: null }));
   const svs = { Mista: [], Segmentada: [] }, fora = [];
   for (const s of Object.keys(info.sv)) {
     const c = canaisSV[svNome(s)] || { canal: null, origem: 'sem canal', rotas: { Mista: 0, Segmentada: 0 } };
@@ -1255,7 +1372,7 @@ function montarDados(entrada, cfg, motor) {
   const doMes = ({ mes, anomes, fonte, estado, motivo, arquivo }) =>
     ({ mes, anomes, fonte, estado: estado || null, motivo: motivo || null, arquivo: arquivo || null });
   return Object.assign({ ok: true, erro: null, avisos, meses: fontes.map(doMes), mesesCobertura: fontesCob.map(doMes),
-    mesGatilho, gc, svMista, svSegmentada, fora, rotas, totalBand, canaisSV,
+    mesGatilho, gc, gcApi, svMista, svSegmentada, fora, rotas, totalBand, canaisSV,
     baseCanais: { foto: (base.meta || {}).foto || null, corteSeg: (base.meta || {}).corteSeg || null } }, comum);
 }
 
@@ -1283,7 +1400,8 @@ async function carregarRanking(base, opcoes) {
     gerencias = await Promise.all(index.gerencias.map((g) => ler(g.arquivo)));
   } catch (e) {
     return { ok: false, erro: `API indisponível (${e.message})`, avisos: [], meses: [], mesesCobertura: [],
-             mesGatilho: null, gc: [], svMista: [], svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {} };
+             mesGatilho: null, gc: [], gcApi: [], svMista: [], svSegmentada: [], fora: [], rotas: [], totalBand: null,
+             canaisSV: {} };
   }
   let resumo = null;
   try { resumo = await ler('resumo.json'); } catch (e) { resumo = null; } // só o Total Band depende dele
@@ -1395,11 +1513,13 @@ const todosOsSVs = (dados) => [].concat((dados && dados.svMista) || [], (dados &
 /**
  * Opções dos filtros das abas (só CÓDIGOS, nunca nome de pessoa — privacidade na tela):
  * { gerencias: ['AN', ...], svs: [{ codigo, gc, canal, rotulo: "SV.AN.1 · Mista" }] }.
+ * As gerências são as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o filtro recorta supervisões e
+ * rotas, que pertencem a uma gerência da API (premissa (d) da seção 4 das regras v1.6).
  */
 function filtrosDoPainel(dados) {
   const svs = todosOsSVs(dados).map((l) => ({ codigo: l.codigo, gc: l.gc || null, canal: l.canal || null,
                                               rotulo: l.codigo + ' · ' + (l.canal || 'sem canal') }));
-  const gerencias = Array.from(new Set(((dados && dados.gc) || []).map((l) => l.codigo)
+  const gerencias = Array.from(new Set(((dados && dados.gcApi) || []).map((l) => l.codigo)
     .concat(svs.map((s) => s.gc).filter(Boolean)))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   return { gerencias, svs };
 }
@@ -1436,13 +1556,17 @@ function textoDasOcultas(ocultas) {
     + itens.map((par) => par[1] + ' ' + par[0]).join(', ') + ')';
 }
 
-/** Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional. */
+/**
+ * Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional.
+ * A visão de gerência usa as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o Detalhe do mês continua
+ * com as 16 (premissa (d) da seção 4 das regras v1.6).
+ */
 function linhasDoDetalhe(dados, visao, gc) {
   if (visao === 'sv') {
     const todas = todosOsSVs(dados);
     return gc ? todas.filter((l) => l.gc === gc) : todas;
   }
-  return ((dados && dados.gc) || []).slice().sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR'));
+  return ((dados && dados.gcApi) || []).slice().sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR'));
 }
 
 /**
@@ -1501,7 +1625,8 @@ function alertasDaTela(dados, cfg, motor) {
 
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura, coberturaDoFechado,
-                     lerFechado, tabelaDaLinha, montarDados, carregarRanking, lerAjustes, ajustesDeCanal, mapaCanal,
+                     lerFechado, gruposDoRankingGC, tabelaDaLinha, montarDados, carregarRanking, lerAjustes,
+                     ajustesDeCanal, mapaCanal,
                      canaisDosSVs, validarCanalRota, svNome,
                      // Etapa 4 (tela): formatação e recortes, todos puros
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
@@ -1599,8 +1724,9 @@ function cabecalhoRanking(rotuloId){
     '<th colspan="'+skCols+'" class="sep bl-sk">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
     '<th class="sep"></th></tr>'+
     '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
-    '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th>'+
-    R.meses.map((m)=>'<th>'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="k">Soma</th>'+
+    '<th class="hd-ap sep">Meta</th><th class="hd-ap">Real</th><th class="hd-ap">M. Dia</th>'+
+    '<th class="hd-ap">Online</th><th class="hd-ap">Dif.</th>'+
+    R.meses.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">Soma</th>'+
     '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th><th>% mês</th>'+
     (mostrarPctNov?'<th>% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="k">% Acum.</th>'+
     '<th class="l sep">Status</th></tr></thead>';
@@ -1697,8 +1823,10 @@ const rotuloMesSel = (mes)=>{ const m = SEL.meses.find((x)=>x.mes===mes); return
 function viewGC(){
   if(!D.ok || !D.gc.length) return semDados();
   const comGatilho = D.gc.filter((l)=>l.gatilho&&l.gatilho.batido).length;
-  return '<div class="panel"><div class="ph"><h2>Ranking das gerências</h2>'+
-    '<div class="nota">'+D.gc.length+' gerências · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
+  /* Etapa 4C: as linhas são as da gerência comercial AGRUPADA (D.gc), somadas pelo adaptador e pelo motor; a
+     coluna Gerência mostra o código da própria linha. O Detalhe do mês e os filtros seguem com as da API. */
+  return '<div class="panel"><div class="ph"><h2>Ranking das gerências comerciais</h2>'+
+    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comGatilho+' com gatilho batido · ordem pela Soma de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     tabelaRanking(D.gc,'Gerência',true)+'</div>';
 }
@@ -1744,7 +1872,9 @@ function viewRegras(){
     ['Ranking','volume de Aperitivo. A pontuação é a soma dos % de '+listar(R.meses)+'.'],
     ['Trava','o % do mês vale no máximo '+fmtPct(R.trava[R.meses[0]])+' em '+mesesComTrava+'. '+
       listar(R.meses.filter((m)=>R.trava[m]===null)).replace(/^./,(c)=>c.toUpperCase())+' sem trava.'],
-    ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking.'],
+    ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking. '+
+      'O Ranking GC é por gerência comercial agrupada: algumas gerências da API somam numa linha só (o Detalhe do '+
+      'mês e os filtros seguem com as gerências da API).'],
     ['Posição','todas as linhas numeradas; posição oficial só para quem bate o gatilho. Desempate pela ordem alfabética do código.'],
   ];
   const alertas = alertasDaTela(D);
