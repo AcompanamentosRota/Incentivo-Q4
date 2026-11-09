@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.4 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.6 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -8,6 +8,10 @@
  * "hoje atingiu a meta dia". A tela (Etapa 4) só lê o resultado: nenhuma comparação nem texto de motivo fora daqui.
  * Etapa 4: a regra de EXIBIÇÃO da meta dia de volume (`metaDiaVolume`, regras v1.4, decisão de 09/11/2026). Mesmo
  * sendo só exibição, é regra: fica aqui, não na tela.
+ * Etapa 4B: a cor do quadradinho do % de cobertura (`corDoPercentual`, regras v1.6, seção 7). Também é só
+ * exibição e também é regra: a tela pergunta a cor, nunca compara o número com 100.
+ * NÃO implementado aqui: a gerência comercial agrupada do Ranking GC (regras v1.6, seção 4 e pendência 24) —
+ * decidida em 09/11/2026, fica para o PR do agrupamento. O ranking de GC continua uma linha por gerência da API.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -18,7 +22,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.4',
+    versao: '1.6',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -31,8 +35,8 @@
     premiadas: { gc: 6, svMista: 12, svSegmentada: 3 },
   };
 
-  // Textos exatos dos motivos mostrados embaixo do status (regras, seção 5). Ficam aqui para a tela e o adaptador
-  // nunca escreverem o texto: motivo novo entra no motor, não no HTML.
+  // Textos exatos dos motivos do status (regras, seção 5). Desde a v1.6 o motivo NÃO aparece na tela (a coluna
+  // Status mostra só o selo), mas continua calculado aqui: motivo novo entra no motor, nunca no HTML.
   const MOTIVOS = {
     premiadas: 'dentro das premiadas',
     indisponivel: 'cobertura indisponível',
@@ -207,9 +211,11 @@
    * Status da linha (regras, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
    * "Bateu!" só com o gatilho batido E a posição oficial dentro das posições premiadas do nível
    * (`REGRAS.premiadas`, nunca número fixo em lógica nem em texto). Qualquer outro caso: "-".
-   * O `motivo` é a linha que vai embaixo do status: "dentro das premiadas", "cobertura em X%: precisa de 100%"
-   * (X truncado em 1 casa), "suba N posições" ("suba 1 posição" no singular), "cobertura indisponível" ou
-   * "sem meta de cobertura". A tela acrescenta o "✓" do "✓ Bateu!" e nunca mostra prêmio.
+   * O `motivo` é "dentro das premiadas", "cobertura em X%: precisa de 100%" (X truncado em 1 casa), "suba N
+   * posições" ("suba 1 posição" no singular), "cobertura indisponível" ou "sem meta de cobertura". Desde as regras
+   * v1.6 (decisão de 09/11/2026) ele NÃO vai mais para a tela — a coluna Status mostra só o selo —, e continua
+   * calculado aqui porque é regra e serve a quem consultar o resultado do motor. A tela acrescenta o "✓" do
+   * "✓ Bateu!" e nunca mostra prêmio.
    * nivel: 'gc' | 'svMista' | 'svSegmentada'. Nível sem limite publicado: erro (nunca adivinhar o limite).
    */
   function statusLinha(linha, nivel, cfg) {
@@ -266,6 +272,22 @@
   }
 
   /**
+   * Cor do quadradinho do % de cobertura de Skyy ("% do mês" e "% Acumulado" das tabelas de ranking; regras v1.6,
+   * seção 7, decisão de 09/11/2026). É exibição, mas é regra: a tela pergunta a cor e nunca compara nada.
+   *   - 'verde'    -> o valor BRUTO é ≥ ao mínimo do gatilho (`REGRAS.gatilho.minimo`);
+   *   - 'vermelho' -> o valor bruto está abaixo desse mínimo;
+   *   - null       -> sem valor ("—"): a tela não desenha quadradinho nenhum.
+   * A comparação é no valor BRUTO, nunca no truncado da tela: 99,99999% aparece como "99,9%" e fica VERMELHO,
+   * porque não bate o mínimo. O mínimo sai de `REGRAS` (ou do `cfg` de uma mudança futura), nunca fixo aqui.
+   * Só o % de cobertura usa isto: os % mensais de Aperitivo (Out, Nov, Dez, Soma) não têm quadradinho.
+   */
+  function corDoPercentual(valor, cfg) {
+    const regras = cfg || REGRAS;
+    if (!numero(valor)) return null;
+    return valor >= regras.gatilho.minimo ? 'verde' : 'vermelho';
+  }
+
+  /**
    * "Hoje" colorido (regras, seção 7; pendência 17, confirmada em 08/11/2026): Online > 0 E Online ≥ Meta dia.
    * Meta dia 0 com Online > 0 colore; meta dia 0 com Online 0 não colore; meta dia null (API em período de
    * fechamento, ou cobertura sem meta) não colore. Serve para volume (`meta_dia` da API) e para cobertura
@@ -280,5 +302,6 @@
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
-           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, hojeAtingiu };
+           gatilhoCobertura, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
+           hojeAtingiu };
 });

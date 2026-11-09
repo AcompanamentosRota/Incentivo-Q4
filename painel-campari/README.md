@@ -5,7 +5,7 @@ gatilho de **cobertura de Skyy** e ranking por **volume de aperitivo**, nos nív
 e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e Diretoria e GP ficam na linha "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.4, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
+Regras: [`docs/regras.md`](docs/regras.md) (v1.6, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
 ## Estado: etapa 4 — a tela, nas cinco abas do mockup
@@ -31,7 +31,7 @@ sinaliza, não decide.
 | P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
 | P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
 | P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); Out, Nov, Dez, Soma, % Nov e % Acumulado não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador |
-| P5 | **Colunas da v1.4** (20 no total, 21 em dezembro com o "% Nov"), não as 18 do mockup. Tudo cabe em 1.754 px no palco de 1920, **sem rolagem horizontal**, com corpo de 15 px e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
+| P5 | **Colunas da v1.4** (20 no total, 21 em dezembro com o "% Nov"), não as 18 do mockup. Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). A rolagem **vertical** dentro do painel continua, como em qualquer lista longa |
 | P6 | **Nenhum número de regra digitado na tela:** gatilho, trava e posições premiadas saem de `motor.REGRAS`. Um teste varre o template (sem o CSS) atrás de `130`, "precisa de 100" e "GC: 6 / Mista: 12 / Segmentada: 3" |
 | — | **Consultor lista só as rotas `tipo: "normal"`** (decisão da Karen, 09/11/2026). As `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV: a linha "Total da mesa" pode ser maior que a soma das linhas, e a tela conta quantas ficaram fora (`rotasDaMesa` + `textoDasOcultas`) |
 
@@ -39,8 +39,8 @@ sinaliza, não decide.
 
 | Aba | O que mostra |
 | --- | --- |
-| **Ranking GC** | as gerências na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês, a legenda e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria) |
-| **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. Embaixo, a lista das supervisões **fora do ranking** (sem canal ou com empate), com o motivo do adaptador |
+| **Ranking GC** | as gerências na ordem da Soma de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem Soma e sem status: Diretoria e GP não têm apuração própria). Uma linha por gerência da API: o agrupamento da gerência comercial (regras v1.6, seção 4) **ainda não está implementado** |
+| **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão, o aviso de que ranking e premiação são do supervisor para cima, e as rotas da mesa em dois grupos (Volume de Aperitivo · Cobertura de Skyy), com a linha "Total da mesa" |
 | **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos e a linha "Total Band" |
 | **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 20) não aparecem |
@@ -50,7 +50,7 @@ sinaliza, não decide.
 | Função | O que faz |
 | --- | --- |
 | `REGRAS` | `versao`, `trava: {10: 130, 11: 130, 12: null}` (dezembro sem trava), `gatilho: {meses: [11, 12], minimo: 100}` e `premiadas: {gc: 6, svMista: 12, svSegmentada: 3}` |
-| `MOTIVOS` | os textos exatos do motivo do status: `premiadas`, `indisponivel`, `semMeta` (a tela não escreve motivo) |
+| `MOTIVOS` | os textos exatos do motivo do status: `premiadas`, `indisponivel`, `semMeta`. Desde a v1.6 o motivo **não aparece na tela** (a coluna Status mostra só o selo) e continua calculado no motor |
 | `percentualMes(real, online, meta)` | (Real + Online) ÷ Meta × 100, bruto; null com meta nula ou ≤ 0; online ausente = 0 |
 | `aplicarTrava(pct, mes)` | `{valor, travado}`: min(%, limite); no limite exato não trava |
 | `somaRanking(valores)` | soma dos % travados dos meses com %; nenhum: null |
@@ -64,6 +64,7 @@ sinaliza, não decide.
 | `statusLinha(linha, nivel, cfg)` | `{status: "Bateu!" \| "-", motivo}`; `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
 | `metaDiaCobertura(meta, real, diasRestantes)` | (Meta − Real) ÷ dias restantes, travada, inteiro para cima (tolerância 1e-9); meta batida 0; 0 dias dá a diferença total |
 | `metaDiaVolume(metaDia, real, meta)` | **regra de exibição da meta dia de volume (v1.4)**: Real > Meta → 0; `meta_dia` negativa → 0; não numérica → null ("—"). Nunca recalcula: a `meta_dia` vem pronta da API |
+| `corDoPercentual(valor, cfg)` | **cor do quadradinho do % de cobertura (v1.6)**: `'verde'` com o valor **bruto** ≥ `REGRAS.gatilho.minimo`, `'vermelho'` abaixo dele, `null` sem valor (a tela não desenha quadradinho). O truncado da tela nunca decide a cor: 99,99999% mostra "99,9%" e fica vermelho |
 | `hojeAtingiu(online, metaDia)` | "Hoje" colorido: Online > 0 **e** Online ≥ Meta dia (a meta dia **exibida**, para a cor concordar com a coluna ao lado) |
 
 ### Adaptador (`src/adapter.js`)
@@ -164,7 +165,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 130 testes (45 do motor, 85 do adaptador); precisa de Node 18+
+# testes do painel — 139 testes (49 do motor, 90 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -205,3 +206,24 @@ A imagem entra em base64 no HTML, então ela pesa no arquivo publicado: a de 09/
 Resolvidas nesta etapa: **pendência 15** (meta dia de volume zerada era o domingo; em dia útil a API traz o valor,
 com negativos iguais aos do SAC) e **pendência 21** (o mockup foi atualizado; nas tabelas de ranking valem as colunas
 da v1.4, não as do mockup).
+
+## Etapa 4B — ajustes visuais das tabelas de ranking (regras v1.6, seções 5 e 7)
+
+Depois de ver a tela publicada, a Karen pediu em 09/11/2026 só ajustes de **apresentação** no Ranking GC e na
+Supervisão. Nenhuma regra de cálculo mudou e o contrato da API continua igual:
+
+- a coluna **Status** mostra só o selo ("✓ Bateu!" ou "-"); o motivo continua no motor e saiu da tela;
+- saíram a **legenda** inteira e o aviso "N fora do ranking" das duas telas (o aviso segue em Regras > Dados e
+  alertas, de `alertasDaTela`);
+- os dois blocos ganharam cor no padrão do Desafio Q4 — **Aperitivo** laranja e **Skyy** azul, título em tom escuro
+  (`--ap-tit`, `--sk-tit`) e células em tom bem claro, pelo `<colgroup>` (`--ap-cel`, `--sk-cel`), para o `.k`, o
+  hover e a linha de total continuarem por cima;
+- a **Dif.** negativa ficou **vermelha** (`--negv`, o vermelho do Q4), nas quatro abas que mostram Dif.; o laranja
+  segue só no `.tv`, o % real antes da trava;
+- o **% do mês** e o **% Acum.** de Skyy ganharam o quadradinho verde/vermelho — a cor vem de
+  `motor.corDoPercentual`, nunca de comparação na tela; Aperitivo não tem quadradinho;
+- a fonte das duas tabelas de ranking caiu 1 px (corpo de 14 px, `.tb.rk`); Consultor e Detalhe do mês não mudaram.
+
+**Fora desta etapa:** o **agrupamento da gerência comercial** do Ranking GC (12 linhas em vez de 16; regras v1.6,
+seção 4 e pendência 24, decididos em 09/11/2026) **não está implementado** — fica para o PR do agrupamento, com as
+premissas (a) a (e) da seção 4 para a Karen confirmar.
