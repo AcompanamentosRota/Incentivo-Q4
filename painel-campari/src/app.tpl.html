@@ -16,10 +16,10 @@
    Skyy azul, no padrão do Desafio Q4: título escuro e células em tom bem claro), a Dif. negativa fica vermelha
    e o % de cobertura ganha o quadradinho verde/vermelho — a cor vem de motor.corDoPercentual, nunca daqui. */
 :root{
-  --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC; --laranja:#FFB86B;
+  --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
      --negv  = o vermelho da diferença negativa do Q4 (#ffb3bd);
-     --sk-*  = bloco Skyy (azul): título no --blued do Q4 (#0a2a6e) e células no .pchip.t5 (rgba(29,123,255,.30),
+     --sk-*  = bloco Skyy (azul): título no --blued do Q4 (#0a2a6e, escurecido na 4E) e células no .pchip.t5 (rgba(29,123,255,.30),
                um pouco mais apagado porque aqui cobre um bloco inteiro, não um número);
      --pct-* = o quadradinho do % (.pchip do Q4): verde do --green/.pill.tot, vermelho do .pchip.t2.
      Etapa 4C — o bloco Aperitivo deixa de ser o amarelo escuro do Q4 e passa ao LARANJA do print do SAC
@@ -27,12 +27,21 @@
      --ap-tit = laranja médio do SAC (#E07B41) no título do bloco e nos cabeçalhos das colunas do Aperitivo;
      --ap-tit-fg = o texto deles. É ESCURO porque branco sobre #E07B41 dá contraste 2,97:1 (abaixo de 4,5:1) e
                o marrom bem escuro dá 5,3:1 — a decisão está registrada no PR da etapa 4C;
-     --ap-cel = corpo das células, num laranja queimado (#E07B41 a 58% sobre o painel): os números seguem
-               brancos, com 6,3:1. Tinta clara sobre o azul-marinho do painel vira marrom, então "laranja claro"
-               com o tema escuro só sai assim (escolha da Karen em 09/11/2026). */
+     Etapa 4D — só o CORPO do bloco Aperitivo clareia (pedido da Karen em 09/11/2026, vendo a 4C na tela): a 58%
+     o laranja ficava forte e deixava a Dif. negativa (e o % laranja que havia então) em ~3,8:1, abaixo de 4,5:1. Título
+     e cabeçalhos das colunas (--ap-tit/--ap-tit-fg) e o bloco Skyy inteiro não mudaram.
+     --ap-cel = #E07B41 a 18% sobre o painel: o tom que a Karen escolheu em 09/11/2026, comparando os cinco
+               candidatos na tela. Medido no print do Ranking GC em 1920x940, o corpo sai rgb(46,44,57), contra
+               rgb(133,82,61) da 4C, e os textos sobem a branco 13,7:1 e Dif. negativa 8,1:1 — os dois
+               bem acima de 4,5:1, sem trocar nenhuma cor de texto. Nesse tom o corpo quase não tem cor (sobre o
+               azul-marinho do painel a tinta laranja rende um cinza morno): o laranja do bloco fica por conta do
+               título e dos cabeçalhos das colunas. */
   --negv:#FFB3BD;
-  --ap-tit:#E07B41; --ap-tit-fg:#2B1703; --ap-cel:rgba(224,123,65,.58);
-  --sk-tit:#0A2A6E; --sk-cel:rgba(29,123,255,.20);
+  --ap-tit:#E07B41; --ap-tit-fg:#2B1703; --ap-cel:rgba(224,123,65,.18);
+  /* Etapa 4E — o bloco Skyy ganha o mesmo tratamento do Aperitivo (pedido da Karen em 09/11/2026): o azul do
+     título fica mais escuro (--sk-tit, do #0A2A6E para #061C4D) e vale também para os cabeçalhos das COLUNAS do
+     bloco; o texto deles é claro (--sk-tit-fg, 14:1 sobre o azul novo). */
+  --sk-tit:#061C4D; --sk-tit-fg:#E8EEFB; --sk-cel:rgba(29,123,255,.20);
   --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
   --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
   --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --cinza:#9AA1AE; --ink:#FFFFFF;
@@ -105,6 +114,9 @@ button{cursor:pointer}
    (ver o cálculo de contraste na lista de variáveis). O bloco Skyy fica como estava. */
 .tb tr.hdr th.hd-ap{background:var(--ap-tit)}
 .tb tr.grp th.bl-ap,.tb tr.grp th.bl-ap small,.tb tr.hdr th.hd-ap{color:var(--ap-tit-fg)}
+/* Etapa 4E: o mesmo no bloco Skyy — o azul escuro do título vai aos cabeçalhos das colunas, com texto claro. */
+.tb tr.hdr th.hd-sk{background:var(--sk-tit)}
+.tb tr.grp th.bl-sk,.tb tr.hdr th.hd-sk{color:var(--sk-tit-fg)}
 .tb tr.hdr th{top:25px}
 .tb th.l,.tb td.l{text-align:left}
 .tb td{padding:5px 5px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right;white-space:nowrap;color:#fff}
@@ -134,7 +146,6 @@ button{cursor:pointer}
 .pchip.vermelho{background:var(--pct-no-bg);color:var(--pct-no-fg)}
 .hoje{display:inline-block;padding:1px 8px;border-radius:7px}
 .hoje.ok{background:rgba(46,196,182,.22);color:var(--turq2);font-weight:700}
-.tv{display:inline-block;margin-left:3px;font-size:13px;font-weight:700;color:var(--laranja)}
 .pos{color:#fff}.pos.cinza{color:var(--cinza)}
 .of{color:var(--gold)}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
@@ -253,10 +264,12 @@ const difCel = (v, f)=>'<td class="'+(typeof v==='number'&&v<0?'neg':'')+'">'+es
 const hojeCel = (m, f)=>'<td><span class="hoje'+(m.hojeOk?' ok':'')+'">'+esc(m.aberto?f(m.online):TRACO)+'</span></td>';
 /* M. Dia: só existe no mês aberto; o valor é o de EXIBIÇÃO (metaDiaExib, regras v1.4) */
 const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
-/* Out | Nov | Dez: o % travado; travado mostra entre parênteses o % real do mês, antes da trava */
+/* Out | Nov | Dez: SÓ o % travado. Mês acima do limite mostra o limite e nada mais — o % real do mês, que até a
+   etapa 4D aparecia em laranja ao lado (classe .tv), saiu a pedido da Karen em 09/11/2026. O motor continua
+   devolvendo `pct` e `travado`: é só a tela que deixou de escrever. */
 const mesCel = (m)=>{
   if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td><span class="n">'+esc(TRACO)+'</span></td>';
-  return '<td><span class="n">'+pct(m.pctTravado)+'</span>'+(m.travado?'<span class="tv">'+pct(m.pct)+'</span>':'')+'</td>';
+  return '<td><span class="n">'+pct(m.pctTravado)+'</span></td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -288,8 +301,9 @@ function cabecalhoRanking(rotuloId){
     '<th class="hd-ap sep">Meta</th><th class="hd-ap">Real</th><th class="hd-ap">M. Dia</th>'+
     '<th class="hd-ap">Online</th><th class="hd-ap">Dif.</th>'+
     R.meses.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">Soma</th>'+
-    '<th class="sep">Meta</th><th>Real</th><th>M. Dia</th><th>Online</th><th>Dif.</th><th>% mês</th>'+
-    (mostrarPctNov?'<th>% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="k">% Acum.</th>'+
+    '<th class="hd-sk sep">Meta</th><th class="hd-sk">Real</th><th class="hd-sk">M. Dia</th>'+
+    '<th class="hd-sk">Online</th><th class="hd-sk">Dif.</th><th class="hd-sk">% mês</th>'+
+    (mostrarPctNov?'<th class="hd-sk">% '+esc(NOMES_MES[11].slice(0,3))+'</th>':'')+'<th class="hd-sk k">% Acum.</th>'+
     '<th class="l sep">Status</th></tr></thead>';
 }
 function linhaRanking(l, opc){
@@ -442,7 +456,7 @@ function viewRegras(){
   const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
   return '<section><h2>Como funciona</h2>'+
     passos.map((p,i)=>'<div class="item"><div class="ic">'+(i+1)+'</div><div><strong>'+esc(p[0])+':</strong> '+esc(p[1])+'</div></div>').join('')+
-    '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula na Soma. Ao lado do mês, em laranja, fica o % real.</div>'+
+    '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula na Soma: a coluna do mês mostra o limite, e só.</div>'+
     '</section>'+
     '<section><h2>Status</h2>'+
     '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu o gatilho de cobertura e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+

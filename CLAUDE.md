@@ -68,7 +68,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 167 testes (55 do motor, 112 do adaptador)
+# testes do painel Campari Club — 170 testes (55 do motor, 115 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -266,9 +266,17 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   `dados.gcApi` as 16 gerências da API (sem ranking)**, usadas pelo filtro de gerência e pelo Detalhe do mês, que não
   mudaram. Premissas ⚠️ a confirmar com a Karen: "Bateu!" nas 6 primeiras entre 12 linhas, e a M. Dia de volume do
   grupo como soma das metas dia publicadas.
-- **Cor do bloco Aperitivo (etapa 4C):** `--ap-tit` é o laranja do SAC (`#E07B41`), no título do bloco e nos
-  cabeçalhos das colunas, com texto escuro (`--ap-tit-fg`, porque branco sobre esse laranja dá 2,97:1), e `--ap-cel`
-  é o laranja queimado `rgba(224,123,65,.58)`, com os números em branco. O azul do Skyy não mudou.
+- **Cor dos dois blocos (etapas 4C a 4F, 09/11/2026):** **Aperitivo** — `--ap-tit` é o laranja do SAC (`#E07B41`),
+  no título do bloco e nos cabeçalhos das colunas, com texto escuro (`--ap-tit-fg`, porque branco sobre esse laranja
+  dá 2,97:1); o **corpo** é `--ap-cel`, o mesmo laranja **a 18%** (escolha da Karen entre cinco tons medidos):
+  `rgb(46,44,57)` na tela, branco 13,7:1 e Dif. negativa 8,1:1. Nesse tom o corpo quase não tem cor — o laranja do
+  bloco vive no título e nos cabeçalhos. **Skyy** — `--sk-tit` é o azul escuro `#061C4D`, também nos cabeçalhos das
+  colunas (`hd-sk`), com texto claro `--sk-tit-fg` (14,1:1); o corpo segue em `rgba(29,123,255,.20)`.
+  **Mês travado mostra só o limite (etapa 4F):** o % real do mês, que aparecia em laranja ao lado (`.tv`), saiu da
+  tela por decisão da Karen; o motor continua devolvendo `pct` e `travado` e o `.tv` e o `--laranja` saíram do CSS.
+  ⚠️ A seção 7 do documento de regras ainda descreve aquele número: corrigir numa v1.7, em PR próprio.
+  **Comentário de CSS mal fechado apaga a cor em silêncio** (aconteceu em 09/11/2026 com o bloco Skyy): há um teste
+  que varre o CSS do template e do HTML gerado atrás de comentário sem par e de chave desbalanceada.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -396,7 +404,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 167 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 170 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

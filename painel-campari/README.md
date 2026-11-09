@@ -183,7 +183,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 167 testes (55 do motor, 112 do adaptador); precisa de Node 18+
+# testes do painel — 170 testes (55 do motor, 115 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -236,8 +236,7 @@ Supervisão. Nenhuma regra de cálculo mudou e o contrato da API continua igual:
 - os dois blocos ganharam cor no padrão do Desafio Q4 — **Aperitivo** laranja e **Skyy** azul, título em tom escuro
   (`--ap-tit`, `--sk-tit`) e células em tom bem claro, pelo `<colgroup>` (`--ap-cel`, `--sk-cel`), para o `.k`, o
   hover e a linha de total continuarem por cima;
-- a **Dif.** negativa ficou **vermelha** (`--negv`, o vermelho do Q4), nas quatro abas que mostram Dif.; o laranja
-  segue só no `.tv`, o % real antes da trava;
+- a **Dif.** negativa ficou **vermelha** (`--negv`, o vermelho do Q4), nas quatro abas que mostram Dif.;
 - o **% do mês** e o **% Acum.** de Skyy ganharam o quadradinho verde/vermelho — a cor vem de
   `motor.corDoPercentual`, nunca de comparação na tela; Aperitivo não tem quadradinho;
 - a fonte das duas tabelas de ranking caiu 1 px (corpo de 14 px, `.tb.rk`); Consultor e Detalhe do mês não mudaram.
@@ -265,6 +264,30 @@ publica meta dia por grupo) e a de **cobertura** é calculada sobre a meta e o r
 **Cor do bloco Aperitivo (mesmo PR).** Na 4B o título ficou num marrom-amarelado e o corpo quase sem cor. A Karen pediu
 o **laranja do SAC**: `--ap-tit` passou a `#E07B41` (título do bloco **e** cabeçalhos das colunas do Aperitivo) com
 texto escuro `--ap-tit-fg: #2B1703` — branco sobre esse laranja dá 2,97:1, abaixo do mínimo, e o marrom escuro dá
-5,3:1 — e `--ap-cel` passou a `rgba(224,123,65,.58)`, um laranja queimado com os números em branco (6,3:1). Tinta
-clara sobre o azul-marinho do painel vira marrom, então "laranja claro" com o tema escuro só sai assim; a escolha é da
-Karen (09/11/2026). O azul do Skyy não mudou.
+5,3:1 — e `--ap-cel` passou a `rgba(224,123,65,.58)`, um laranja queimado com os números em branco (6,3:1).
+O azul do Skyy não mudou.
+
+**Etapa 4D — o corpo do bloco Aperitivo clareia (09/11/2026).** Na tela, o corpo a 58% ficou forte e deixou dois
+textos no limite: o % laranja que então aparecia ao lado do mês travado e a **Dif. negativa** mediam ~3,8:1, abaixo
+de 4,5:1. `--ap-cel` passou a **`rgba(224,123,65,.18)`** — o **mesmo** laranja, bem mais claro; a escolha é da Karen,
+comparando cinco tons na tela. Medido no print do Ranking GC em 1920×940, o corpo sai `rgb(46,44,57)` (contra
+`rgb(133,82,61)` da 4C) e os textos sobem a **13,7:1** (branco) e **8,1:1** (`--negv`): nenhuma cor de texto precisou
+mudar. Nesse tom o corpo quase não tem cor — tinta laranja sobre o azul-marinho do painel rende um cinza morno —, e o
+laranja do bloco fica por conta do título e dos cabeçalhos das colunas.
+
+**Etapa 4E — o bloco Skyy ganha o mesmo tratamento (09/11/2026).** `--sk-tit` passou de `#0A2A6E` para **`#061C4D`**
+e vale agora também para os **cabeçalhos das colunas** do bloco (`hd-sk`), como no Aperitivo, com texto claro
+`--sk-tit-fg: #E8EEFB`. Medido: título `rgb(6,28,77)`, texto claro **14,1:1** e o "· GATILHO ≥ 100,0%" em turquesa
+**11,2:1**; nos cabeçalhos, **11,6:1**. O **corpo** do Skyy ficou como estava (`rgba(29,123,255,.20)`,
+`rgb(12,46,95)`, branco 13,4:1), escolha da Karen entre 12%, 20%, 30% e 40%.
+
+**Etapa 4F — mês travado mostra só o limite (09/11/2026, decisão da Karen).** As colunas Out | Nov | Dez mostravam
+`130,0%` e, ao lado, o % real do mês em laranja (classe `.tv`). Esse número saiu: a célula mostra só o limite. O
+**motor não mudou** — continua devolvendo `pct` e `travado` —, só a tela deixou de escrever; o CSS do `.tv` e a
+variável `--laranja`, que só ele usava, saíram junto, e o texto da aba Regras deixou de prometer o número ao lado.
+⚠️ **Pendência:** a seção 7 do documento de regras ainda descreve o % real ao lado; a correção é de uma v1.7, em PR
+próprio.
+
+**CSS com guarda (09/11/2026).** Um comentário mal fechado dentro do `:root` apagou o fundo do bloco Skyy inteiro sem
+erro no console e sem quebrar teste nenhum. Há agora um teste que varre o CSS do template **e** do HTML gerado atrás
+de comentário sem par e de chave desbalanceada.
