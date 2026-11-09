@@ -1266,12 +1266,11 @@ test('tela 4B: a cor do quadradinho do % vem do motor, e o CSS tem as duas cores
   }
 });
 
-test('tela 4B: Dif. negativa em vermelho (o vermelho do Q4), e a trava segue em laranja', () => {
+test('tela 4B: Dif. negativa em vermelho (o vermelho do Q4)', () => {
   assert.match(TPL, /--negv:#FFB3BD/);
   // o seletor leva o `td`: só `.neg` perde para `.tb td{color:#fff}` e a cor não chega na célula
   assert.match(TPL, /\.tb td\.neg\{color:var\(--negv\)\}/);
   assert.doesNotMatch(TPL, /[^ ]\.neg\{color:var\(--laranja\)\}|^\.neg\{/m);
-  assert.match(TPL, /\.tv\{[^}]*color:var\(--laranja\)/);   // o % real antes da trava continua laranja
   assert.doesNotMatch(SEM_CSS, /diferença negativa em laranja/);
 });
 
@@ -1307,7 +1306,7 @@ test('tela: as cinco abas do mockup, nessa ordem', () => {
 test('tela 4C: o bloco Aperitivo em laranja (título e cabeçalhos das colunas), com texto escuro', () => {
   assert.match(TPL, /--ap-tit:#E07B41/);                     // o laranja médio do print do SAC
   assert.match(TPL, /--ap-tit-fg:#2B1703/);                  // texto escuro: branco sobre o laranja dá 2,97:1
-  assert.match(TPL, /--ap-cel:rgba\(224,123,65,\.58\)/);     // corpo das células, no mesmo laranja
+  assert.match(TPL, /--ap-cel:rgba\(224,123,65,\./);         // corpo das células, no mesmo laranja (tom na 4D)
   assert.doesNotMatch(TPL, /#4A3500|rgba\(255,200,74,\.16\)/); // o marrom-amarelado da 4B saiu
   // o laranja vai também aos cabeçalhos das colunas do bloco, e o texto deles é escuro
   assert.match(TPL, /\.tb tr\.hdr th\.hd-ap\{background:var\(--ap-tit\)\}/);
@@ -1317,11 +1316,75 @@ test('tela 4C: o bloco Aperitivo em laranja (título e cabeçalhos das colunas),
   assert.match(SEM_CSS, /R\.meses\.map\(\(m\)=>'<th class="hd-ap">'/);
 });
 
-test('tela 4C: o azul do bloco Skyy fica como estava (só o Aperitivo mudou)', () => {
-  assert.match(TPL, /--sk-tit:#0A2A6E; --sk-cel:rgba\(29,123,255,\.20\)/);
+// Guarda de CSS: comentário mal fechado não quebra teste nenhum e não aparece no console — só some com a cor na
+// tela. Foi o que aconteceu em 09/11/2026: um fechamento de comentário sem abertura, dentro do :root, derrubou o
+// fundo do bloco Skyy. Vale para o template e para o HTML gerado.
+function comentariosFechados(css) {
+  let i = 0;
+  for (;;) {
+    const abre = css.indexOf('/*', i), fecha = css.indexOf('*/', i);
+    if (abre < 0 && fecha < 0) return 'ok';
+    if (fecha >= 0 && (abre < 0 || fecha < abre)) return `*/ sem abertura perto de: ${css.slice(Math.max(0, fecha - 60), fecha + 2)}`;
+    const fim = css.indexOf('*/', abre + 2);
+    if (fim < 0) return `/* sem fechamento perto de: ${css.slice(abre, abre + 60)}`;
+    i = fim + 2;
+  }
+}
+
+test('tela: os comentários do CSS abrem e fecham (um `*/` solto apaga a cor sem avisar)', () => {
+  const css = (s) => /<style>([\s\S]*?)<\/style>/.exec(s)[1];
+  assert.equal(comentariosFechados(css(TPL)), 'ok');
+  assert.equal(comentariosFechados(css(fs.readFileSync(GERADO, 'utf8'))), 'ok');
+  // e as chaves do CSS fecham na mesma conta
+  const chaves = (s) => (s.match(/\{/g) || []).length - (s.match(/\}/g) || []).length;
+  assert.equal(chaves(css(TPL).replace(/\/\*[\s\S]*?\*\//g, '')), 0);
+});
+
+/* --- Etapa 4F: a coluna do mês travado mostra só o limite ---------------------------------------------------- */
+
+test('tela 4F: mês travado mostra só o limite, sem o % real ao lado (decisão da Karen, 09/11/2026)', () => {
+  const cel = /const mesCel = \(m\)=>\{[\s\S]*?\};/.exec(SEM_CSS)[0];
+  assert.match(cel, /pct\(m\.pctTravado\)/);
+  assert.doesNotMatch(cel, /m\.travado/);          // a tela não escreve mais o % de antes da trava
+  assert.doesNotMatch(cel, /m\.pct[^T]/);
+  // e o CSS do número pequeno saiu junto com o laranja que só ele usava
+  assert.doesNotMatch(TPL, /\.tv\{/);
+  assert.doesNotMatch(TPL, /var\(--laranja\)/);
+  // o texto da aba Regras não promete mais o número ao lado
+  assert.doesNotMatch(SEM_CSS, /em laranja, fica o % real/);
+  assert.match(SEM_CSS, /a coluna do mês mostra o limite, e só/);
+  // o motor continua devolvendo pct e travado: só a tela deixou de escrever
+  const motor = fs.readFileSync(path.join(__dirname, '..', 'src', 'motor.js'), 'utf8');
+  assert.match(motor, /pctTravado/);
+  assert.match(motor, /travado: t\.travado/);
+});
+
+/* --- Etapa 4D: o corpo do bloco Aperitivo clareia (só CSS, nenhum número muda) ------------------------------ */
+
+test('tela 4D: o corpo do Aperitivo fica claro e os textos de dentro dele continuam legíveis', () => {
+  // o corpo é o MESMO laranja, só mais claro: o laranja queimado da 4C (58%) saiu
+  assert.match(TPL, /--ap-cel:rgba\(224,123,65,\.18\)/);
+  assert.doesNotMatch(TPL, /rgba\(224,123,65,\.58\)/);
+  // título e cabeçalhos das colunas não mudaram (só o corpo)
+  assert.match(TPL, /--ap-tit:#E07B41; --ap-tit-fg:#2B1703/);
+  // e nenhuma cor de texto precisou mudar: sobre o corpo novo o branco mede 13,7:1 e a Dif. negativa 8,1:1
+  assert.match(TPL, /--negv:#FFB3BD/);
+  assert.match(TPL, /\.tb td\.neg\{color:var\(--negv\)\}/);
+  // o "Hoje" em turquesa e os quadradinhos do % do Skyy ficam como estavam
+  assert.match(TPL, /\.hoje\.ok\{background:rgba\(46,196,182,\.22\);color:var\(--turq2\);font-weight:700\}/);
+  assert.match(TPL, /--pct-ok-bg:rgba\(34,177,76,\.28\); --pct-ok-fg:#C4FFD3;/);
+  assert.match(TPL, /--pct-no-bg:rgba\(194,40,64,\.28\); --pct-no-fg:#FFC2CC;/);
+});
+
+test('tela 4E: o bloco Skyy ganha o mesmo tratamento — título e cabeçalhos das colunas no azul escuro', () => {
+  assert.match(TPL, /--sk-tit:#061C4D; --sk-tit-fg:#E8EEFB; --sk-cel:rgba\(29,123,255,\.20\)/);
   assert.match(TPL, /\.tb tr\.grp th\.bl-sk\{background:var\(--sk-tit\)\}/);
+  assert.match(TPL, /\.tb tr\.hdr th\.hd-sk\{background:var\(--sk-tit\)\}/);
+  assert.match(TPL, /\.tb tr\.grp th\.bl-sk,\.tb tr\.hdr th\.hd-sk\{color:var\(--sk-tit-fg\)\}/);
   assert.match(TPL, /\.tb colgroup\.cg-sk\{background:var\(--sk-cel\)\}/);
-  assert.doesNotMatch(TPL, /hd-sk/);                         // o cabeçalho do Skyy não ganhou cor
+  assert.doesNotMatch(TPL, /--sk-tit:#0A2A6E/i);             // o azul mais claro da 4B/4C saiu
+  // as colunas do Skyy (Meta, Real, M. Dia, Online, Dif., % do mês, o % Nov de dezembro e o % Acum.)
+  assert.equal((SEM_CSS.match(/hd-sk/g) || []).length, 8);
 });
 
 test('tela 4C: o Ranking GC lê as linhas agrupadas e o Detalhe do mês as gerências da API', () => {

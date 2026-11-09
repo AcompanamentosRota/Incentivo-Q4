@@ -126,7 +126,7 @@ seguem com as gerências da API. O canal Mista/Segmentada é uma cópia da base 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 167 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 170 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 
