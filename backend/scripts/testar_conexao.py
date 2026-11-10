@@ -54,7 +54,8 @@ def main() -> int:
 
         passo = "encontrar os modelos"
         cons = Consulta(cfg)
-        modelos = {cfg.objeto: M.ColMeta, M.OBJ_BASE_CLIENTE: M.ColBase, M.OBJ_CALENDARIO: M.ColCalendario}
+        modelos = {cfg.objeto: M.ColMeta, M.OBJ_BASE_CLIENTE: M.ColBase, M.OBJ_CALENDARIO: M.ColCalendario,
+                   M.OBJ_MISSOES: M.ColMissao}
         faltam = []
         for nome, classe in modelos.items():
             existentes = set(cons.colunas(nome))

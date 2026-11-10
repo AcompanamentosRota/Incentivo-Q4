@@ -179,6 +179,7 @@ def main() -> int:
     # consulta de um mês já encerrado, para regravar o snapshot de um mês em prévia (--rota e --replay não regravam)
     montar_mes = None
     assinatura, incremental = None, False
+    cons = None
     try:
         if args.simulado:
             from gerador import simulado
@@ -210,11 +211,22 @@ def main() -> int:
         return 1
     if args.rota or args.replay or incremental:
         montar_mes = None
+    # Missões Guiadas: consulta à parte, em toda rodada (também na incremental). Falhou: a rodada segue sem elas.
+    missoes = None
+    if cons is not None:
+        try:
+            missoes = fontes.carregar_missoes(cons, args.rota)
+        except Exception as erro:  # noqa: BLE001
+            log.warning("Aviso: Missões Guiadas não consultadas (%s); fica o missoes.json anterior.", erro)
 
     arquivos = api.montar(dados)
     if "v1/agrupadores.json" not in arquivos and not args.rota:   # lista de sugestões sem atualizar: mantém a anterior
         if (lista := saida.ler(destino / "v1/agrupadores.json")) is not None:
             arquivos["v1/agrupadores.json"] = lista
+    if missoes is not None:
+        arquivos["v1/missoes.json"] = api.montar_missoes(missoes)
+    elif not args.rota and (lista := saida.ler(destino / "v1/missoes.json")) is not None:   # sem consulta: mantém a anterior
+        arquivos["v1/missoes.json"] = lista
     anterior = (None, None) if args.rota else (saida.ler(destino / "v1/resumo.json"), saida.ler(destino / "v1/index.json"))
     erros, avisos = validacao.validar(arquivos, *anterior)
     for a in avisos + dados.avisos:

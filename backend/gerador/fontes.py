@@ -546,6 +546,35 @@ def _cobertura(meta: dict | None, cob: dict | None, hoje: dict | None, rotas: se
             else {r: v for r, v in hoje.items() if r in rotas}}
 
 
+# ------------------------------------------------------------------ Missões Guiadas
+def carregar_missoes(cons: Consulta, rota: str | None = None) -> list[dict] | None:
+    """Realizado de cada missão (AM_FAT_BND_GM_PROGRESSO_TAREFA), no total e por rota; sem filtro de data.
+
+    Uma consulta só, com missão x rota no groupby (o modelo soma tarefas e clientes). Devolve
+    [{"codigo", "nome", "realizado", "rotas": {rota: realizado}}] em ordem de código, ou None quando o modelo ou uma
+    coluna não existe (a API segue sem as missões). Linhas sem rota contam só no total da missão.
+    """
+    C = M.ColMissao
+    try:
+        sel = _colunas(cons, M.OBJ_MISSOES, [C.CODIGO, C.NOME, C.ROTA, C.REALIZADO])
+    except Exception as erro:   # noqa: BLE001 - modelo fora do ar ou sem a coluna: segue sem as missões
+        log.warning("Missões Guiadas indisponíveis: %s", erro)
+        return None
+    missoes: dict[str, dict] = {}
+    for l in cons.linhas(M.OBJ_MISSOES, sel, eq(C.ROTA, rota) if rota else None):
+        codigo = limpar(l.get(C.CODIGO))
+        if not codigo:
+            continue
+        m = missoes.setdefault(codigo, {"codigo": codigo, "nome": limpar(l.get(C.NOME)), "realizado": 0.0, "rotas": {}})
+        valor = numero(l.get(C.REALIZADO))
+        m["realizado"] += valor
+        r = _rota(l.get(C.ROTA))
+        if not _vazio(r):
+            _somar(m["rotas"], r, valor)
+    log.info("Missões Guiadas: %d missões", len(missoes))
+    return [missoes[c] for c in sorted(missoes, key=lambda c: (len(c), c))]
+
+
 # ------------------------------------------------------------------ rodada incremental (gerador/base_dia.py)
 def assinatura_real(cons: Consulta, anomes: str) -> dict[str, float]:
     """Vol Real do mês por agrupador e a cobertura por agrupador e status ("cob|<agrupador>"), numa consulta só e sem

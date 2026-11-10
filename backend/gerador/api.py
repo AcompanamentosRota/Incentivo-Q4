@@ -7,6 +7,7 @@ api.py — Monta os arquivos da API a partir de tipos.Dados (sem rede).
     v1/rotas/<ROTA>.json       a rota e seus clientes, por produto
     v1/busca.json              lista compacta de clientes (pv, nome, rota, gerência) para busca
     v1/agrupadores.json        agrupadores com META_VOLUME no mês (sugestões do painel para agrupadores extras)
+    v1/missoes.json            Missões Guiadas: realizado de cada missão, no total e por rota (montar_missoes)
     v1/fechado/<AAAAMM>.json   meses fechados (gerador/fechado.py, gravados à parte; aqui só a lista em index.json)
 
 Só o index.json traz a data/hora: os demais arquivos só mudam quando o dado muda (commit pequeno).
@@ -181,8 +182,21 @@ def montar(d: Dados) -> dict[str, dict]:
                    modelo.ABAIXO: "Abaixo do ritmo", modelo.SEM_META: "Sem meta"},
         "gerencias": [{"id": g, "nome": M.GC_NOMES.get(g, g), "arquivo": f"gerencias/{g}.json"} for g in gcs],
         "arquivos": {"resumo": "resumo.json", "gerencia": "gerencias/{gerencia}.json", "rota": "rotas/{rota}.json",
-                     "busca": "busca.json", "agrupadores": "agrupadores.json"},
+                     "busca": "busca.json", "agrupadores": "agrupadores.json", "missoes": "missoes.json"},
         "fechados": [],   # preenchido por gerar.py com os arquivos de v1/fechado/ (fechado.listar)
         "avisos": d.avisos,
     }
     return arquivos
+
+
+def _contagem(valor: float) -> int | float:
+    """Realizado de missão é contagem: inteiro quando inteiro, senão 2 casas."""
+    v = round(valor, 2)
+    return int(v) if v == int(v) else v
+
+
+def montar_missoes(missoes: list[dict]) -> dict:
+    """Conteúdo de v1/missoes.json a partir de fontes.carregar_missoes (sem a data/hora: só muda quando o dado muda)."""
+    return {"missoes": [{"codigo": m["codigo"], "nome": m["nome"], "realizado": _contagem(m["realizado"]),
+                         "rotas": {r: _contagem(v) for r, v in sorted(m["rotas"].items(), key=lambda i: _chave_natural(i[0]))}}
+                        for m in missoes]}

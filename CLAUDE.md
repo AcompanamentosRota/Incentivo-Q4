@@ -12,6 +12,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - A API cobre 6 produtos de volume (Sucos, Powerade, Sabores, Retornáveis, Individuais e Refrigerantes) nos
   níveis cliente, rota, supervisão, gerência e empresa, com a **cobertura** (clientes que compraram: meta, realizado e
   online de hoje) em cada produto. Contrato em `API.md`.
+- `missoes.json` traz o realizado das **Missões Guiadas** (modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA`), por missão e por
+  rota, sem filtro de data e sem meta. O modelo tem dados pessoais (CPF, telefone, endereço): só as colunas de
+  `mapeamento.ColMissao` vão no `$select`. Os painéis ainda não leem esse arquivo.
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de

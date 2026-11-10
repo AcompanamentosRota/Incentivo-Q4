@@ -17,6 +17,7 @@ from .texto import normalizar
 OBJ_META = "AM_FAT_BND_ANALISE_META"          # "Análise Metas v2" (vem de DATASPHERE_ASSET)
 OBJ_BASE_CLIENTE = "AM_BND_BASE_CLIENTE"      # "Base Clientes": rota, GC/SV/vendedor
 OBJ_CALENDARIO = "AM_BND_MTR_CALENDARIO_DATA_ATUAL"  # dias úteis do mês
+OBJ_MISSOES = "AM_FAT_BND_GM_PROGRESSO_TAREFA"  # "Análise Progresso Tarefa": Missões Guiadas (missão x tarefa x cliente)
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +145,19 @@ class ColBase:
     NOME_SUPERVISOR = "DS_NOME_SUPERVISOR_ATUAL"
     VENDEDOR = "DS_VENDEDOR_ATUAL"
     QUANTIDADE = "QUANTIDADE"   # medida (o modo analítico exige ao menos uma)
+
+
+class ColMissao:
+    """Colunas do AM_FAT_BND_GM_PROGRESSO_TAREFA usadas pela API — SÓ estas vão no $select.
+
+    O modelo também traz CPF/CNPJ, telefone, e-mail, endereço, limite de crédito e saldo do cliente; a API é
+    pública, então nenhuma dessas colunas pode entrar aqui. O VL_PCT_PROGRESSO é uma média por registro (não é
+    realizado / meta) e não se soma: fica de fora.
+    """
+    CODIGO = "CD_MISSAO_Misso"
+    NOME = "NM_MISSAO_Misso"
+    ROTA = "CD_ROTA_Clien"          # rota atual do cliente (a mesma coluna de ColMeta.ROTA)
+    REALIZADO = "VL_REALIZADO"      # medida: soma entre tarefas, clientes e rotas
 
 
 class ColCalendario:
