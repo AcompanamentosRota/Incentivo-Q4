@@ -1,7 +1,11 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.8 (09/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.9 (09/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.9 (09/11/2026, fim da noite):** o **Detalhe do mês na visão Gerência deixa de ser paginado** (16 linhas e o Total Band cabem numa tela só); a visão
+Supervisão do Detalhe, a Supervisão e o Consultor continuam paginados em 15 linhas (seção 7). Resolve a pendência 27 e abre a 28 (texto "GATILHO ≥ 100,0%"
+no cabeçalho do bloco Aperitivo, que a 4H acrescentou).
 
 **v1.8 (09/11/2026, noite):** o status "✓ Bateu!" passa a exigir **os dois pilares**, decidido pela Karen ao ver um SV com Skyy em 100% e Aperitivo
 zerado em novembro marcado como "Bateu!" (seções 2, 5 e 7). Novo gatilho de **volume de Aperitivo**: média simples dos % de **novembro e dezembro**,
@@ -216,8 +220,9 @@ posição e o status:
   bruto, nunca o truncado (129,99999 é vermelho; 130 é verde).
 - **Fonte do Aperitivo (decisão de 09/11/2026, 16h25):** os números do bloco Aperitivo (Out, Nov, Dez, % Acum.) têm o mesmo tamanho, peso e fonte
   dos números do bloco Skyy; hoje são maiores e em fonte condensada.
-- **Paginação (decisão de 09/11/2026):** Supervisão e Consultor mostram **15 linhas por página**, com botões de navegação (‹ 1 2 ›) no lugar da
-  rolagem; o **Total Band** fica fixo no rodapé de todas as páginas. **Consultor abre com todas as rotas** (filtro de SV em "Todas").
+- **Paginação (decisão de 09/11/2026):** Supervisão, Consultor e a visão **Supervisão** do Detalhe do mês mostram **15 linhas por página**, com botões de
+  navegação (‹ 1 2 ›) no lugar da rolagem. **A visão Gerência do Detalhe do mês não é paginada** (decisão de 09/11/2026, fim da noite): 16 linhas e o Total Band
+  numa tela só; o **Total Band** fica fixo no rodapé de todas as páginas. **Consultor abre com todas as rotas** (filtro de SV em "Todas").
 - **Total Band** é a última linha das tabelas de ranking e do Detalhe do mês (mockup de 08/11/2026), sem coluna lateral
   e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking.
 - **Consultor e Detalhe do mês:** mesmas colunas (Meta, Real, M. Dia, Online, Dif, %) nos dois grupos, **Volume de
@@ -264,6 +269,8 @@ previsão 12/11/2026.
 | 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
 | 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
+| 27 | Detalhe do mês paginado (a 4G paginou também o Detalhe) | **Resolvida** em 09/11/2026 (fim da noite): sem paginação na visão Gerência; a visão Supervisão continua paginada (seção 7) | — |
+| 28 | Cabeçalho do bloco Aperitivo com o texto "GATILHO ≥ 100,0%" (acrescentado pela 4H, sem pedido): a coluna ao lado, "% Acum.", é a pontuação do ranking, e o gatilho de volume (média de nov e dez) não aparece em coluna nenhuma | **Em aberto**: tirar o texto do cabeçalho ou criar uma coluna para o gatilho de volume | Karen |
 | 26 | Status com os dois pilares (v1.8): premissas adotadas | **Em aberto**: (a) em novembro o gatilho de volume é parcial (só novembro); (b) % de volume nulo (meta nula ou ≤ 0) deixa o gatilho indisponível; (c) a tela não ganha coluna nova para o gatilho de volume (o selo e a cor da posição bastam); (d) o texto dos motivos novos (seção 5). A Karen confirma ou ajusta | Karen |
 | 25 | Centralização total (inclui a coluna de identificação) e limite de 100% em dezembro para o quadradinho do Aperitivo | **Em aberto**: valem as premissas da seção 7 até a Karen confirmar. O quadradinho do mês vigente (≥ 130% verde, < 130% vermelho; % Acum. sem quadradinho) foi decidido em 09/11/2026 | Karen |
 | 24 | Ranking GC pela **gerência comercial agrupada** do SAC: quais gerências formam cada grupo? | **Resolvida** em 09/11/2026 (print do SAC, 12 linhas; seção 4). Ficam as premissas (a) a (e) da seção 4 para a Karen confirmar | Karen |
