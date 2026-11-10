@@ -239,8 +239,9 @@ class TestFormatoETotais(Rodadas):
         self.rodar("2026-11-03")
         snap, resumo = self.ler(SNAP), self.ler("v1/resumo.json")
         self.assertEqual(list(snap), ["anomes", "rotulo", "gerado_em", "atualizado_em", "simulado", "fechamento_final",
-                                      "oficial_em", "fonte_selo", "campos", "campos_produto", "totais", "rotas"])
-        self.assertEqual(snap["campos"], ["rota", "gerencia", "supervisao", "produtos"])
+                                      "oficial_em", "fonte_selo", "campos", "campos_produto", "totais",
+                                      "totais_cobertura", "rotas"])
+        self.assertEqual(snap["campos"], ["rota", "gerencia", "supervisao", "produtos", "cobertura"])
         self.assertEqual(snap["campos_produto"], ["meta", "realizado"])
         ids = {k for r in snap["rotas"] for k in r[3]}
         self.assertIn("refrigerantes", ids)
@@ -248,12 +249,17 @@ class TestFormatoETotais(Rodadas):
         rotas_api = {r["id"]: r for g in self.ler("v1/index.json")["gerencias"]
                      for r in self.ler("v1/" + g["arquivo"])["rotas"]}
         self.assertEqual({r[0] for r in snap["rotas"]}, set(rotas_api))
-        for rota, gc, sv, produtos in snap["rotas"]:
+        for rota, gc, sv, produtos, cobertura in snap["rotas"]:
             self.assertEqual((gc, sv), (rotas_api[rota]["gerencia"], rotas_api[rota]["supervisao"]))
             for k, (meta, real) in produtos.items():
                 b = rotas_api[rota]["produtos"][k]
                 self.assertEqual((meta, real), (b["meta"], b["realizado"]))
                 self.assertIsNone(b["online_hoje"])   # fechamento: sem online
+            # cobertura: igual ao volume, com o bloco `cobertura` de cada produto da rota
+            esperado = {k: [b["cobertura"]["meta"], b["cobertura"]["realizado"]]
+                        for k, b in rotas_api[rota]["produtos"].items() if b["cobertura"] is not None
+                        and (b["cobertura"]["meta"] is not None or b["cobertura"]["realizado"] is not None)}
+            self.assertEqual(cobertura, esperado)
         for k, b in resumo["empresa"]["produtos"].items():
             self.assertAlmostEqual(sum(r[3][k][0] for r in snap["rotas"] if k in r[3]), b["meta"], delta=0.05 * 60)
             self.assertAlmostEqual(sum(r[3][k][1] for r in snap["rotas"] if k in r[3]), b["realizado"], delta=0.05 * 60)
@@ -275,6 +281,43 @@ class TestFormatoETotais(Rodadas):
                                                                  for k, b in self.ler("v1/" + g["arquivo"])["produtos"].items()
                                                                  if b["meta"] is not None or b["realizado"] is not None}
                                                        for g in index["gerencias"]})
+
+    def test_totais_de_cobertura_batem_com_a_rodada(self):
+        self.rodar("2026-11-03")
+        snap, resumo, index = self.ler(SNAP), self.ler("v1/resumo.json"), self.ler("v1/index.json")
+        par = lambda ps: {k: [b["cobertura"]["meta"], b["cobertura"]["realizado"]] for k, b in ps.items()  # noqa: E731
+                          if b["cobertura"] is not None}
+        self.assertTrue(snap["totais_cobertura"]["empresa"])   # o simulado tem cobertura
+        self.assertEqual(snap["totais_cobertura"]["empresa"], par(resumo["empresa"]["produtos"]))
+        self.assertEqual(snap["totais_cobertura"]["gerencias"],
+                         {g["id"]: par(self.ler("v1/" + g["arquivo"])["produtos"]) for g in index["gerencias"]})
+        for k, b in resumo["empresa"]["produtos"].items():   # realizado: inteiros, a soma das rotas bate exata
+            self.assertEqual(sum(r[4][k][1] for r in snap["rotas"] if k in r[4]), b["cobertura"]["realizado"])
+
+    def test_rodada_sem_cobertura(self):
+        dados = simulado.gerar(gerar.datetime(2026, 11, 3, 10, 0))
+        dados.cobertura_meta = None   # modelo sem as colunas de cobertura
+        arquivos = api.montar(dados)
+        snap = fechado.montar(arquivos, "2026-11-03T10:00:00")
+        self.assertIsNone(snap["totais_cobertura"])
+        self.assertTrue(all(r[4] is None for r in snap["rotas"]))
+        self.assertEqual(fechado.conferir(snap, arquivos), [])
+
+    def test_conferir_reprova_cobertura_divergente(self):
+        arquivos = api.montar(simulado.gerar(gerar.datetime(2026, 11, 3, 10, 0)))
+        snap = fechado.montar(arquivos, "2026-11-03T10:00:00")
+        snap["rotas"] = snap["rotas"][1:] + [snap["rotas"][0][:4] + [{}]]   # 1ª rota sem a cobertura
+        self.assertTrue(any(e.startswith("cobertura de ") for e in fechado.conferir(snap, arquivos)))
+
+        snap = fechado.montar(arquivos, "2026-11-03T10:00:00")
+        gc = sorted(snap["totais_cobertura"]["gerencias"])[0]
+        produto = sorted(snap["totais_cobertura"]["gerencias"][gc])[0]
+        snap["totais_cobertura"]["gerencias"][gc][produto] = [1.0, 2]
+        self.assertTrue(any(f"cobertura de total da gerência {gc}" in e for e in fechado.conferir(snap, arquivos)))
+
+        snap = fechado.montar(arquivos, "2026-11-03T10:00:00")
+        snap["totais_cobertura"] = None
+        self.assertTrue(any("sem os totais_cobertura" in e for e in fechado.conferir(snap, arquivos)))
 
     def test_conferir_reprova_meta_divergente(self):
         arquivos = api.montar(simulado.gerar(gerar.datetime(2026, 11, 3, 10, 0)))

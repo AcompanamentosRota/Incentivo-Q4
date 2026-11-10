@@ -91,7 +91,8 @@ por produto; por isso a cobertura soma entre rotas, supervisões e gerências, m
 | `online_hoje` | Clientes **ainda não cobertos no mês** com pedido válido hoje (FX_COBERTURA_WF_ONLINE, mesmo filtro de pedidos do `online_hoje` de volume). Não se repetem no `realizado`, então `realizado + online_hoje` é a cobertura com os pedidos de hoje. `null` no fechamento do mês. |
 
 `cobertura` inteiro vem `null` quando o modelo não tem as colunas de cobertura. Os meses fechados
-(`fechado/{AAAAMM}.json`) **não** trazem cobertura.
+(`fechado/{AAAAMM}.json`) guardam a cobertura **igual ao volume**: `[meta, realizado]` por rota (coluna `cobertura`) e
+os totais por gerência e da empresa (`totais_cobertura`). Veja "Meses fechados".
 
 ## O bloco do cliente
 
@@ -159,13 +160,18 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
   "gerado_em": "2026-11-12T09:15:02", "atualizado_em": "2026-11-12T09:14:10",
   "simulado": false, "fechamento_final": true,
   "oficial_em": "2026-11-12T14:30:00", "fonte_selo": "flash",
-  "campos": ["rota", "gerencia", "supervisao", "produtos"],
+  "campos": ["rota", "gerencia", "supervisao", "produtos", "cobertura"],
   "campos_produto": ["meta", "realizado"],
   "totais": {
     "empresa": { "sucos": [260000.0, 238900.4], "refrigerantes": [7065000.0, 7118954.0] },
     "gerencias": { "G1": { "sucos": [20000.0, 18900.4], "refrigerantes": [500000.0, 511895.0] } }
   },
-  "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] }] ]
+  "totais_cobertura": {
+    "empresa": { "sucos": [null, 17354], "skyy": [1891.0, 108] },
+    "gerencias": { "G1": { "sucos": [null, 1520], "skyy": [160.0, 9] } }
+  },
+  "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] },
+                                      { "sucos": [null, 19], "skyy": [10.0, 0] }] ]
 }
 ```
 
@@ -179,6 +185,8 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 | `totais` | Totais da execução, para a aba Estratégicos não precisar somar rotas: `empresa` e `gerencias[GC]`, cada um `{id: [meta, realizado]}`, exatamente como em `resumo.json` → `empresa.produtos` e `gerencias/{GC}.json` → `produtos`. |
 | `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado (até outubro/26). |
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
+| `cobertura` | **Igual a `produtos`, para a cobertura** (desde 11/2026): `{id: [meta, realizado]}` do bloco `cobertura` de cada produto da rota, com os mesmos valores de `gerencias/{GC}.json` → `rotas[].produtos[id].cobertura`. `meta` `null` = sem meta de cobertura; `realizado` é inteiro (clientes). `null` quando a execução não trouxe cobertura. Arquivo gravado antes de 11/2026 não tem a coluna: leia pela posição em `campos`. |
+| `totais_cobertura` | Igual a `totais`, para a cobertura: `empresa` e `gerencias[GC]`, como em `resumo.json` → `empresa.produtos[id].cobertura` e `gerencias/{GC}.json` → `produtos[id].cobertura`. `null` quando a execução não trouxe cobertura; ausente em arquivo gravado antes de 11/2026. |
 
 Não há online, tendência nem meta do dia: no fechamento eles não existem. O % do mês é `realizado / meta`.
 

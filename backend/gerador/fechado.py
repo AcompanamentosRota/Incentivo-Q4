@@ -19,12 +19,19 @@ Quem sela é o Back Office, por um botão da Administração do painel que grava
 Formato (compacto; nomes de produto, gerência e supervisor ficam no index.json e nos arquivos do mês):
   {"anomes": "202610", "rotulo": "Outubro/26", "gerado_em": "...", "atualizado_em": "...", "simulado": false,
    "fechamento_final": true, "oficial_em": "2026-11-12T14:30:00", "fonte_selo": "flash",
-   "campos": ["rota", "gerencia", "supervisao", "produtos"], "campos_produto": ["meta", "realizado"],
+   "campos": ["rota", "gerencia", "supervisao", "produtos", "cobertura"], "campos_produto": ["meta", "realizado"],
    "totais": {"empresa": {"sucos": [1000.0, 850.0]}, "gerencias": {"G1": {"sucos": [100.0, 85.0]}}},
-   "rotas": [["111", "G1", "SV.G1.1", {"sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5]}]]}
+   "totais_cobertura": {"empresa": {"skyy": [1200.0, 980]}, "gerencias": {"G1": {"skyy": [90.0, 75]}}},
+   "rotas": [["111", "G1", "SV.G1.1", {"sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5]},
+              {"sucos": [None, 12], "skyy": [8.0, 6]}]]}
 Produto sem meta e sem realizado fica fora do dicionário (na API ele vem "sem_meta"). Os totais são os mesmos que a
 rodada montou em v1/gerencias/*.json e v1/resumo.json: a aba Estratégicos é por gerência, e somar as rotas do snapshot
 não daria o mesmo número (rota sem canal, arredondamento por rota).
+
+Cobertura (desde 11/2026; pendência 10 do Campari Club): igual ao volume, com o bloco `cobertura` de cada produto da API
+— coluna `cobertura` de cada rota e `totais_cobertura` (empresa e gerências), os dois em [meta, realizado]; meta `None` =
+sem meta de cobertura. Rodada sem cobertura (colunas ausentes no modelo): a coluna vem `None` e `totais_cobertura` também.
+Snapshots gravados antes não têm a coluna nem `totais_cobertura`.
 """
 from __future__ import annotations
 
@@ -34,7 +41,7 @@ from pathlib import Path
 from . import saida
 
 PASTA = "v1/fechado"
-CAMPOS = ["rota", "gerencia", "supervisao", "produtos"]
+CAMPOS = ["rota", "gerencia", "supervisao", "produtos", "cobertura"]
 CAMPOS_PRODUTO = ["meta", "realizado"]
 FONTE_FLASH = "flash"
 _NOME = re.compile(r"^\d{6}\.json$")
@@ -45,34 +52,46 @@ def caminho(anomes: str) -> str:
     return f"{PASTA}/{anomes}.json"
 
 
-def _pares(produtos: dict) -> dict[str, list]:
-    """Bloco de produtos da API -> {produto: [meta, realizado]}, sem os produtos sem meta e sem realizado."""
-    return {k: [b["meta"], b["realizado"]] for k, b in produtos.items()
-            if b["meta"] is not None or b["realizado"] is not None}
+def _pares(produtos: dict, cobertura: bool = False) -> dict[str, list]:
+    """Bloco de produtos da API -> {produto: [meta, realizado]}, sem os produtos sem meta e sem realizado.
+    `cobertura`: os mesmos pares, do bloco `cobertura` de cada produto (produto sem o bloco fica fora)."""
+    blocos = {k: b.get("cobertura") if cobertura else b for k, b in produtos.items()}
+    return {k: [b["meta"], b["realizado"]] for k, b in blocos.items()
+            if b is not None and (b["meta"] is not None or b["realizado"] is not None)}
+
+
+def _tem_cobertura(arquivos: dict[str, dict]) -> bool:
+    """A rodada trouxe cobertura (na API, o bloco `cobertura` vem null em todos os produtos quando ela falta)."""
+    return any(b.get("cobertura") is not None for b in arquivos["v1/resumo.json"]["empresa"]["produtos"].values())
 
 
 def montar(arquivos: dict[str, dict], gerado_em: str) -> dict:
     """Snapshot do mês de referência a partir da API montada (api.montar) da rodada."""
     index = arquivos["v1/index.json"]
-    rotas, gerencias = [], {}
+    cob = _tem_cobertura(arquivos)
+    rotas, gerencias, gerencias_cob = [], {}, {}
     for g in index["gerencias"]:
         arq = arquivos["v1/" + g["arquivo"]]
         gerencias[g["id"]] = _pares(arq["produtos"])
+        gerencias_cob[g["id"]] = _pares(arq["produtos"], cobertura=True)
         for r in arq["rotas"]:
-            rotas.append([r["id"], r["gerencia"], r["supervisao"], _pares(r["produtos"])])
+            rotas.append([r["id"], r["gerencia"], r["supervisao"], _pares(r["produtos"]),
+                          _pares(r["produtos"], cobertura=True) if cob else None])
     ref = index["mes_referencia"]
+    empresa = arquivos["v1/resumo.json"]["empresa"]["produtos"]
     return {"anomes": ref["anomes"], "rotulo": ref["rotulo"], "gerado_em": gerado_em,
             "atualizado_em": index["atualizado_em"], "simulado": index["simulado"], "fechamento_final": False,
             "oficial_em": None, "fonte_selo": None,
             "campos": CAMPOS, "campos_produto": CAMPOS_PRODUTO,
-            "totais": {"empresa": _pares(arquivos["v1/resumo.json"]["empresa"]["produtos"]), "gerencias": gerencias},
+            "totais": {"empresa": _pares(empresa), "gerencias": gerencias},
+            "totais_cobertura": {"empresa": _pares(empresa, cobertura=True), "gerencias": gerencias_cob} if cob else None,
             "rotas": rotas}
 
 
-def _conferir_totais(guardado: dict, da_rodada: dict, onde: str) -> list[str]:
+def _conferir_totais(guardado: dict, da_rodada: dict, onde: str, cobertura: bool = False) -> list[str]:
     """Totais guardados no snapshot contra os da rodada: são os mesmos números, então a diferença tem de ser zero."""
     erros = []
-    esperado = _pares(da_rodada)
+    esperado = _pares(da_rodada, cobertura)
     for k in sorted(set(guardado) | set(esperado)):
         if k not in guardado or k not in esperado:
             erros.append(f"{onde}: produto {k} só está {'no snapshot' if k in guardado else 'na rodada'}")
@@ -84,31 +103,48 @@ def _conferir_totais(guardado: dict, da_rodada: dict, onde: str) -> list[str]:
     return erros
 
 
-def conferir(snapshot: dict, arquivos: dict[str, dict]) -> list[str]:
-    """Meta e realizado de cada produto, somados nas rotas do snapshot, contra o total da empresa da rodada (a
-    tolerância é a do arredondamento de 1 casa de cada rota somada) e, exatos, os totais por gerência e da empresa
-    guardados no snapshot contra os da rodada."""
+def _conferir_parte(snapshot: dict, arquivos: dict[str, dict], cobertura: bool) -> list[str]:
+    """Volume (coluna `produtos` e `totais`) ou cobertura (coluna `cobertura` e `totais_cobertura`): pares de cada
+    produto somados nas rotas contra o total da empresa da rodada e, exatos, os totais guardados contra os da rodada."""
     erros = []
+    col = CAMPOS.index("cobertura" if cobertura else "produtos")
+    rotulo, chave_totais = ("cobertura de ", "totais_cobertura") if cobertura else ("", "totais")
     empresa = arquivos["v1/resumo.json"]["empresa"]["produtos"]
     for k, b in empresa.items():
+        b = b.get("cobertura") if cobertura else b
+        if b is None:
+            continue
         for i, campo in enumerate(CAMPOS_PRODUTO):
-            valores = [r[3][k][i] for r in snapshot["rotas"] if k in r[3] and r[3][k][i] is not None]
+            valores = [r[col][k][i] for r in snapshot["rotas"]
+                       if len(r) > col and r[col] and k in r[col] and r[col][k][i] is not None]
             soma, total = sum(valores), b[campo] or 0.0
             if abs(soma - total) > 0.05 * (len(valores) + 1):
-                erros.append(f"{k}: {campo} do snapshot {soma:.1f} difere do total da rodada {total:.1f}")
-    totais = snapshot.get("totais")
+                erros.append(f"{rotulo}{k}: {campo} do snapshot {soma:.1f} difere do total da rodada {total:.1f}")
+    totais = snapshot.get(chave_totais)
     if not isinstance(totais, dict):
-        return erros + ["snapshot sem os totais por gerência e da empresa"]
-    erros += _conferir_totais(totais.get("empresa") or {}, empresa, "total da empresa")
+        return erros + [f"snapshot sem os {chave_totais} por gerência e da empresa"]
+    erros += _conferir_totais(totais.get("empresa") or {}, empresa, f"{rotulo}total da empresa", cobertura)
     guardadas = totais.get("gerencias") or {}
     for g in arquivos["v1/index.json"]["gerencias"]:
         if g["id"] not in guardadas:
-            erros.append(f"total da gerência {g['id']}: não está no snapshot")
+            erros.append(f"{rotulo}total da gerência {g['id']}: não está no snapshot")
             continue
         erros += _conferir_totais(guardadas[g["id"]], arquivos["v1/" + g["arquivo"]]["produtos"],
-                                  f"total da gerência {g['id']}")
+                                  f"{rotulo}total da gerência {g['id']}", cobertura)
     for gc in sorted(set(guardadas) - {g["id"] for g in arquivos["v1/index.json"]["gerencias"]}):
-        erros.append(f"total da gerência {gc}: está no snapshot e não na rodada")
+        erros.append(f"{rotulo}total da gerência {gc}: está no snapshot e não na rodada")
+    return erros
+
+
+def conferir(snapshot: dict, arquivos: dict[str, dict]) -> list[str]:
+    """Meta e realizado de cada produto, somados nas rotas do snapshot, contra o total da empresa da rodada (a
+    tolerância é a do arredondamento de 1 casa de cada rota somada) e, exatos, os totais por gerência e da empresa
+    guardados no snapshot contra os da rodada. O mesmo para a cobertura, quando a rodada a trouxe."""
+    erros = _conferir_parte(snapshot, arquivos, cobertura=False)
+    if _tem_cobertura(arquivos):
+        erros += _conferir_parte(snapshot, arquivos, cobertura=True)
+    elif snapshot.get("totais_cobertura") is not None:
+        erros.append("snapshot com totais_cobertura, mas a rodada não trouxe cobertura")
     return erros
 
 
