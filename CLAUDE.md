@@ -20,7 +20,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.14 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.15 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -50,6 +50,11 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   `pos`, no lugar de só a oficial com "—") e a **linha inteira fica azul** com "✓ Bateu!"; quem bateu os dois
   pilares fora das premiadas recebe a tag **"Bateu, fora do ranking"**, sem pintar a linha. O cálculo não muda: o
   "Bateu!" segue decidido pela **posição oficial**, e no motor só `statusLinha` ganhou esse terceiro selo.
+  A **Etapa 4O** (regras v1.15, seção 7) fez a arte do fundo **cobrir a largura toda do palco**: o build injetava
+  `center top / 1920px auto` (tamanho fixo) e, desde a altura-base da 4M, o palco pode ficar mais largo que 1920 px
+  lógicos em janela baixa (1536×640 → 2232), deixando uma faixa do azul liso nas laterais; agora é
+  `center top / 100% auto`. Com o palco em 1920 px o fundo sai pixel a pixel igual; nenhum número, cor, coluna ou
+  escala muda.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -96,10 +101,10 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 255 testes (79 do motor, 176 do adaptador)
+# testes do painel Campari Club — 258 testes (79 do motor, 179 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
-# testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 131 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -222,7 +227,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.13 de 10/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.15 de 10/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
   status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -427,8 +432,11 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - Use fixtures sintéticas, com nomes fictícios, em todo teste novo.
 - **Fonte e fundo do Campari:** o `painel-campari/src/assets/fonts.json` tem **só Barlow Condensed 800** (~28 KB);
   onde o mockup pedia os pesos 600 e 700, o painel usa o 800. O fundo é `src/assets/campari-fundo.jpg`, embutido em
-  base64 pelo build (`center top / 1920px auto no-repeat` sobre `#02306B`): a arte traz logo, letreiro e faixa de
-  meses nos primeiros ~148 px, e **nada é desenhado por cima deles**. Sem o arquivo, o build cai para o azul sólido e
+  base64 pelo build (`center top / 100% auto no-repeat` sobre `#02306B`; a largura é a **do palco**, não 1920 px
+  fixos — etapa 4O, porque desde a 4M o palco pode passar de 1920 px lógicos em janela baixa e sobrava azul liso nas
+  laterais): a arte traz logo, letreiro e faixa de meses nos primeiros ~148 px, e **nada é desenhado por cima deles**.
+  No `build.py` a linha do fundo escreve `100%%`, o escape do `%`-formatting do Python; com `100%` o `% a` consome o
+  argumento do base64 e o CSS sai quebrado, sem erro nenhum no build. Sem o arquivo, o build cai para o azul sólido e
   avisa — o painel continua funcionando. A imagem de 09/11/2026 veio em 1568 × 777 e é ampliada para 1920 (pendência
   23). Trocar a arte: grave o `.jpg` novo, rode o build e comite **imagem e HTML gerado** juntos.
 - **Fontes:** o painel usa Inter (`--ff`) em todas as telas, sem baixar nada. Só entram no HTML as fontes da lista `manter`
@@ -506,8 +514,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 255 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 131 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

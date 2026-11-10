@@ -2315,3 +2315,35 @@ test('4N: o selo de cada linha é o do motor, e "Bateu!" nunca passa do limite d
   }
 });
 
+
+/* ─── Etapa 4O: o fundo cobre a largura toda do palco (regras v1.15, seção 7) ───────────────────────────────
+   Desde a etapa 4M o `fit()` pode deixar o palco MAIS LARGO que 1920 px lógicos em janela baixa
+   (1536×640 → 2232 px): o fundo com tamanho fixo em `1920px auto` deixava uma faixa do azul liso
+   (#02306B) nas laterais. O build passa a injetar `100% auto`, que acompanha a largura do palco.
+   Com o palco em 1920 o resultado é idêntico ao de antes. Vale para o build e para o HTML gerado. */
+
+const BUILD_PY = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build.py'), 'utf8');
+
+test('4O: o build injeta o fundo em 100% da largura do palco, não em 1920px fixos', () => {
+  // a linha do fundo do build.py, com o "100%%" do escape do %-formatting do Python
+  assert.match(BUILD_PY, /center top \/ 100%% auto no-repeat,#02306B/);
+  assert.doesNotMatch(BUILD_PY, /center top \/ 1920px auto/);
+  // âncora no topo, sem repetir e com a cor de base preservadas
+  assert.match(BUILD_PY, /background:url\(data:image\/jpeg;base64,%s\) center top \/ 100%% auto no-repeat,#02306B/);
+});
+
+test('4O: o HTML gerado traz o fundo em 100% auto e nenhum resto de 1920px auto', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /center top \/ 100% auto no-repeat,#02306B/);
+  assert.doesNotMatch(html, /1920px auto/);
+  // o palco continua declarado em 1920 px no CSS (a escala é que o alarga) e o véu do rodapé continua lá
+  assert.match(html, /#stage\{position:absolute;left:0;top:0;width:1920px/);
+  assert.match(html, /\.bg::after\{content:''/);
+});
+
+test('4O: só o fundo mudou — a escala do palco segue a da etapa 4M (altura-base 930)', () => {
+  assert.deepEqual(CONFIG.palco, { largura: 1920, alturaBase: 930 });
+  // a tela não escreve número de escala nenhum: a conta é do adaptador
+  assert.doesNotMatch(SEM_CSS, /\b930\b/);
+  assert.match(TPL, /escalaDoPalco\(innerWidth, innerHeight\)/);
+});
