@@ -1,7 +1,11 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.14 (10/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.15 (10/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.15 (10/11/2026, tarde):** **o fundo cobre a largura toda do palco.** Com a altura-base de 930 (v1.13), em janela baixa o palco fica mais largo que 1920 px lógicos (ex.: 1536×640 → 2232) e a arte,
+fixada em `1920px auto`, deixava uma faixa lisa nas laterais (a Karen viu as pontas da faixa vermelha cortadas num notebook ~1367×661). O fundo passa a ocupar **100% da largura do palco**
+(`center top / 100% auto`); com o palco em 1920 nada muda. Só tela (seção 7); nenhum número muda.
 
 **v1.14 (10/11/2026, meio-dia):** conceito do ranking do Desafio Q4 (decisão da Karen): a coluna **RANK numera todas as linhas** pela ordem do ranking (% Acum.) e a **linha inteira fica pintada de azul
 quando tem "✓ Bateu!"** (os dois pilares e dentro das premiadas). **Reverte** a decisão de 10/11 (manhã) de mostrar só a posição oficial. O **cálculo não muda**: o "Bateu!" segue
@@ -243,6 +247,7 @@ posição e o status:
   bruto, nunca o truncado (129,99999 é vermelho; 130 é verde).
 - **Fonte do Aperitivo (decisão de 09/11/2026, 16h25):** os números do bloco Aperitivo (Out, Nov, Dez, % Acum.) têm o mesmo tamanho, peso e fonte
   dos números do bloco Skyy; hoje são maiores e em fonte condensada.
+- **Fundo (decisão de 10/11/2026, tarde):** a arte do fundo ocupa 100% da largura do palco em qualquer janela (`center top / 100% auto`), sem faixa lisa nas laterais; com o palco em 1920 px ela mantém o tamanho de antes.
 - **Sem rolagem interna (decisão de 10/11/2026):** em nenhuma aba (Ranking GC, Supervisão, Consultor, Detalhe do mês) e em nenhuma página a tabela pode rolar por dentro, em janelas a partir de 1280×560 de área útil; a escala do `fit()` usa altura-base **930** para garantir isso.
   A lista "Dados e alertas" da aba Regras é a exceção conhecida: ela é uma lista de tamanho variável e continua podendo rolar por dentro, como antes.
 - **Paginação (decisão de 09/11/2026):** Supervisão, Consultor e a visão **Supervisão** do Detalhe do mês mostram **15 linhas por página**, com botões de

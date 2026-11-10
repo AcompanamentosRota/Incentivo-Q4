@@ -6,11 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.14, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+Regras: [`docs/regras.md`](docs/regras.md) (v1.15, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
 segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
 (seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4N — RANK em todas as linhas e linha azul no "Bateu!" (v1.14)
+## Estado: etapa 4O — o fundo cobre a largura toda do palco (v1.15)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -69,20 +69,26 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   (`{ largura: 1920, alturaBase: 930 }`) e devolve escala e tamanho lógico. Descrita no fim deste arquivo.
   **Só a escala muda:** altura de linha, fonte, cores, colunas, paginação (15 linhas) e layout ficam como estavam,
   e em janela com altura folgada (1920×1080, 1920×940, 1366×768, 1280×720) a escala é a mesma de antes.
-- **Etapa 4N (esta):** o **conceito do ranking do Desafio Q4** nas duas tabelas de ranking (regras v1.14, seções 5
+- **Etapa 4N:** o **conceito do ranking do Desafio Q4** nas duas tabelas de ranking (regras v1.14, seções 5
   e 7). A coluna **"RANK" numera todas as linhas** com a posição do ranking (`l.pos`), e não mais só a oficial com
   "—" para quem não bateu os dois pilares; a **linha inteira fica azul** quando tem "✓ Bateu!"; quem bateu os dois
   pilares e ficou **fora das premiadas** recebe a tag **"Bateu, fora do ranking"**, em cor própria e sem pintar a
   linha. Descrita no fim deste arquivo. **O cálculo não muda:** o "Bateu!" continua decidido pela **posição
   oficial** (`numerarOficial`, só de quem bateu os dois pilares) contra `REGRAS.premiadas`; no motor, só
   `statusLinha` mudou, para devolver esse terceiro selo no lugar de "-".
+- **Etapa 4O (esta):** a arte do fundo passa a **cobrir a largura toda do palco** (regras v1.15, seção 7). O
+  `build.py` injetava `center top / 1920px auto`, um tamanho **fixo**; desde a altura-base da 4M o palco pode ficar
+  **mais largo** que 1920 px lógicos em janela baixa (1367×661 → 1923 px; 1536×640 → 2232 px) e sobrava uma faixa
+  do azul liso `#02306B` nas laterais. Agora é `center top / 100% auto`. Descrita no fim deste arquivo. **Nada mais
+  muda:** com o palco em 1920 px o fundo é pixel a pixel o mesmo, e escala, layout, tabelas, cores e números ficam
+  como estavam.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
 | # | Decisão |
 | --- | --- |
 | P1 | **Fonte:** só **Barlow Condensed 800** embutida (`src/assets/fonts.json`, ~28 KB), nos números e nos títulos das tabelas. Onde o mockup usa os pesos 600 e 700, o painel usa o 800. O resto é Inter, com reserva na fonte do sistema. **Nenhuma fonte de site externo** (um teste varre o template atrás de `http`, Google Fonts e CDNs) |
-| P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
+| P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 100% auto no-repeat` sobre `#02306B` (a largura é a **do palco**, não 1920 px fixos: etapa 4O). A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
 | P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
 | P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); as colunas de mês, o % Acum., o % Nov e o % Médio não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador. O **mês vigente** (`mesesDoSeletor(...).referencia`) é outra coisa: é o mês de referência da **API**, e é ele que decide as colunas que só existem em dezembro e onde fica o quadradinho do Aperitivo |
 | P5 | **Colunas da v1.4** (18 no total em outubro e novembro, 20 em dezembro com a coluna Dez e o "% Nov"; etapa 4F, menos a "Pos." que a 4J tirou). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). Desde a etapa 4G não há mais rolagem **vertical** em nenhuma aba: as listas longas são paginadas de 15 em 15 |
@@ -241,7 +247,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 255 testes (79 do motor, 176 do adaptador); precisa de Node 18+
+# testes do painel — 258 testes (79 do motor, 179 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -256,7 +262,9 @@ sem mudança no workflow.
 ### Como trocar a arte do fundo
 
 1. Grave a imagem em `painel-campari/src/assets/campari-fundo.jpg` (JPEG, **1920 px de largura**, com logo, letreiro e
-   faixa de meses nos primeiros ~148 px, que é onde a tela não desenha nada).
+   faixa de meses nos primeiros ~148 px, que é onde a tela não desenha nada). Desde a etapa 4O a arte é desenhada em
+   **100% da largura do palco**, então em janela baixa (palco mais largo que 1920) ela é ampliada na mesma proporção
+   e o excesso de altura é cortado embaixo, onde o véu do rodapé cobre.
 2. `python painel-campari/scripts/build.py` e comite **a imagem e o `frontend/campari-club.html` gerado**.
 3. O build avisa o tamanho embutido. Sem o arquivo, o palco sai só com `#02306B` e o build diz isso — o painel
    continua funcionando.
@@ -277,8 +285,9 @@ A imagem entra em base64 no HTML, então ela pesa no arquivo publicado: a de 09/
   (regras v1.12) a premissa fica registrada só aqui, no documento de regras e no checklist — **não na tela**. Se a
   resposta for "Real + Online", o único lugar a mudar é `metaDiaVolume` no motor.
 - **Pendência 23 (Karen): a arte do fundo.** O `campari-fundo.jpg` recebido em 09/11/2026 tem **1568 × 777**, e a
-  tela o amplia para 1920 px de largura. Funciona, mas o logo e o letreiro perdem nitidez: se existir o original em
-  1920 px, basta trocar o arquivo e rodar o build (ver acima).
+  tela o amplia para a largura do palco — 1920 px na janela maximizada e até ~2232 px nas janelas baixas, desde a
+  etapa 4O. Funciona, mas o logo e o letreiro perdem nitidez, e quanto mais largo o palco, mais: se existir o
+  original em 1920 px, basta trocar o arquivo e rodar o build (ver acima).
 
 Resolvidas nesta etapa: **pendência 15** (meta dia de volume zerada era o domingo; em dia útil a API traz o valor,
 com negativos iguais aos do SAC) e **pendência 21** (o mockup foi atualizado; nas tabelas de ranking valem as colunas
@@ -704,3 +713,65 @@ a paginação (15 linhas), a escala do palco e as demais abas.
    do Ranking GC**, nos dois cenários (dados reais e simulado): **0 divergências** contra o que a tela mostrou
    (RANK, código, % Acum., selo e a presença da linha azul).
 
+
+## Etapa 4O — o fundo cobre a largura toda do palco (regras v1.15, seção 7)
+
+**O problema (Karen, 10/11/2026, print de um notebook ~1367×661).** Sobrava uma margem **sem a imagem de fundo**
+nas laterais, com as pontas da faixa vermelha do alto cortadas.
+
+**A causa.** O `build.py` injetava o fundo como `center top / 1920px auto no-repeat` sobre `#02306B` — tamanho
+**fixo** em 1920 px lógicos. Desde a etapa 4M o `fit()` usa a altura-base de 930, e em janela mais baixa que ~16:9 a
+escala passa a vir da **altura**: o palco fica **mais largo** que 1920 px lógicos, e a arte não cobre o que sobra.
+Medido no repositório (`#stage` em px lógicos):
+
+| Janela (área útil) | Escala | Palco | Faixa lisa `#02306B` nas laterais, antes (esq / dir) |
+| --- | --- | --- | --- |
+| 1367 × 661 | 0,7108 | **1923** × 930 | 1 px / 0 px (só as pontas da faixa vermelha) |
+| 1536 × 640 | 0,6882 | **2232** × 930 | **107 px / 107 px** |
+| 1366 × 600 | 0,6452 | **2117** × 930 | 63 px / 0 px |
+| 1280 × 560 | 0,6022 | **2126** × 930 | 62 px / 61 px |
+| 1920 × 800 | 0,8602 | **2232** × 930 | **134 px / 134 px** |
+| 1366 × 768 | 0,7115 | 1920 × 1079 | 0 / 0 |
+| 1920 × 940 | 1,0000 | 1920 × 940 | 0 / 0 |
+
+**A mudança.** Uma linha do build: `1920px auto` → `100% auto`. `center top`, `no-repeat` e a cor de base `#02306B`
+continuam. Com o palco em 1920 px o resultado é **idêntico** ao de antes; mais largo, a arte acompanha e o excesso
+de altura é cortado embaixo (a âncora é o topo), onde o véu do rodapé (`.bg::after`) já cobria.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | `fundo = "...center top / 100%% auto no-repeat,#02306B"` — o `100%%` é o escape do `%`-formatting do Python: sem ele, `% a` consumiria o argumento do base64 e o CSS sairia quebrado | `scripts/build.py` |
+| 2 | Docstring do build: a largura é a do palco, não 1920 px fixos | `scripts/build.py` |
+| 3 | Três testes novos: o build injeta `100%% auto` e não tem resto de `1920px auto`; o HTML gerado traz `100% auto`, mantém `#stage{...width:1920px` e o `.bg::after`; e a escala segue a da 4M (`CONFIG.palco`, sem número de escala na tela) | `tests/adapter.test.js` |
+| 4 | Documentação: a v1.15 em `docs/regras.md`, e `README.md`, este arquivo e `CLAUDE.md` | docs |
+
+**O que não mudou:** `fit()`, `escalaDoPalco`, `CONFIG.palco` (altura-base 930), o `#stage{width:1920px}` do CSS, o
+véu do rodapé, a imagem (`campari-fundo.jpg`, a mesma de 09/11/2026), o layout, as tabelas, as cores e **nenhum
+número do incentivo**. O motor não foi tocado (`REGRAS.versao` segue em `1.14`: esta etapa não muda cálculo).
+
+**Conferência (Chrome headless, cópias de `api/v1` e de `ajustes.json` fora do repositório; o PNG decodificado com
+`zlib`+`struct`, sem Pillow).** Em cada janela, a largura **máxima** da faixa de `#02306B` liso encostada em cada
+borda, no terço de cima do print (onde está a arte) — 0 = o fundo cobre de `x = 0` até a largura do palco:
+
+| Janela | Palco | 4N (antes) | 4O (depois) |
+| --- | --- | --- | --- |
+| 1367 × 661 | 1923 | 1 / 0 | **0 / 0** |
+| 1536 × 640 | 2232 | 107 / 107 | **0 / 0** |
+| 1366 × 600 | 2117 | 63 / 0 | **0 / 0** |
+| 1280 × 560 | 2126 | 62 / 61 | **0 / 0** |
+| 1920 × 800 | 2232 | 134 / 134 | **0 / 0** |
+| 1366 × 768 | 1920 | 0 / 0 | **0 / 0** |
+| 1920 × 940 | 1920 | 0 / 0 | **0 / 0** |
+
+Amostrando a cor nas colunas `x = 2` e `x = largura − 3`, nas linhas `y = 100..130` (a altura da faixa vermelha):
+na 4O **nenhum** dos 31 pixels de cada coluna é o azul liso em nenhuma das sete janelas; na 4N eram **31 de 31**
+(azul liso puro) em 1536×640, 1366×600, 1280×560 e 1920×800.
+
+- **4N × 4O em 1920×940 e em 1366×768:** os PNGs saem **idênticos byte a byte** (`cmp`) — o palco tem 1920 px e o
+  fundo não mudou de tamanho.
+- **Tabelas célula a célula:** percorrendo as cinco abas (`.view.on`, com os botões reconsultados a cada troca,
+  porque o `render()` recria `#abas`) em 1536×640, 1920×940 e 1366×768, o despejo de todas as linhas e classes das
+  tabelas sai **idêntico** entre 4N e 4O nas três janelas.
+- **Rolagem interna:** 0 em todas as abas das sete janelas, exceto a lista "Dados e alertas" da aba Regras
+  (`.al`, +14 px em 1536×640 e +64 px em 1920×940) — a exceção conhecida da seção 7 das regras, igual na 4N.
+- **Console:** sem erro e sem aviso em todas as janelas.

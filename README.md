@@ -151,12 +151,17 @@ oficial, com "—" para quem não bateu os dois pilares) e a **linha inteira fic
 bateu os dois pilares e ficou fora das premiadas recebe a tag **"Bateu, fora do ranking"**, em cor própria e sem
 pintar a linha. O **cálculo não muda**: o "Bateu!" continua decidido pela **posição oficial** (só de quem bateu os
 dois pilares), que o motor calcula e a tela não exibe; no motor, só `statusLinha` ganhou esse terceiro selo.
+A **etapa 4O** (regras v1.15, seção 7) fez a arte do fundo **cobrir a largura toda do palco**: o build injetava
+`center top / 1920px auto`, e desde a altura-base da 4M o palco pode ficar mais largo que 1920 px lógicos em
+janela baixa (1536×640 → 2232 px), deixando uma faixa do azul liso `#02306B` nas laterais. Agora é
+`center top / 100% auto`; com o palco em 1920 px (1920×940 e 1366×768) o resultado é idêntico ao de antes.
+Só o fundo muda: escala, layout, tabelas, cores e números ficam como estão.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 255 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 
