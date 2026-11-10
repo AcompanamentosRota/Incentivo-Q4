@@ -30,6 +30,7 @@ quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 | `busca.json` | Todos os clientes em formato compacto, para busca por nome ou código. |
 | `agrupadores.json` | Todos os agrupadores com META_VOLUME no mês (`campos`: `[nome, meta]`), com a grafia exata do Datasphere. É a lista de sugestões da Administração do painel. |
 | `fechado/{AAAAMM}.json` | Um mês já fechado: meta e realizado de cada rota e os totais por gerência e da empresa, por produto, em prévia ou oficial (veja "Meses fechados"). A lista está em `index.json` → `fechados`. |
+| `missoes.json` | Missões Guiadas: código, nome e realizado de cada missão, no total e por rota (veja "Missões Guiadas"). |
 
 **Agrupadores extras.** Além dos 6 produtos fixos, a API inclui os agrupadores que o admin do painel publicou em
 `frontend/ajustes.json` (campo `agrupadores`: `{id, nome, agrupador}`). Eles aparecem em `index.json` → `produtos`
@@ -190,6 +191,25 @@ Não há online, tendência nem meta do dia: no fechamento eles não existem. O 
 ```
 
 `oficial_em` e `fonte_selo` repetem o que está no arquivo do mês: `null` enquanto ele está em prévia.
+
+## Missões Guiadas (`missoes.json`, desde 11/2026)
+
+Vem do modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` do Datasphere e é consultado em toda execução.
+
+```json
+{ "missoes": [ { "codigo": "241", "nome": "Traga De Volta", "realizado": 593,
+                 "rotas": { "111": 6, "112": 0, "...": 0 } } ] }
+```
+
+- `realizado` = soma de `VL_REALIZADO` de todas as tarefas e clientes da missão. É uma **contagem** (inteiro quando
+  inteiro), não volume. O `realizado` da missão é a soma das `rotas`, mais os registros sem rota.
+- `rotas`: rota atual do cliente (`CD_ROTA_Clien`, a mesma do volume) → realizado. Uma rota que aparece com `0`
+  participa da missão sem nada realizado. Uma rota que não aparece não participa.
+- **Sem filtro de data:** traz todas as missões do modelo (ativas, pausadas e finalizadas, de qualquer mês), em ordem
+  de código. Escolher quais missões contam em cada mês fica com quem consome.
+- Ainda não traz meta, percentual nem online da missão.
+- Se a consulta falhar, o arquivo anterior é mantido e o volume segue atualizando. Se o arquivo nunca foi gerado, ele
+  não existe: trate o 404 como "sem dados de missões".
 
 ## Exemplos de estrutura
 
