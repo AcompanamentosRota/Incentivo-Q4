@@ -1513,3 +1513,200 @@ test('tela 4C: nada na tela calcula a soma do grupo (a regra fica no motor)', ()
   assert.doesNotMatch(SEM_CSS, /somarGrupo/);
   assert.doesNotMatch(SEM_CSS, /\.gerencias\.reduce|agrupada\s*\?/);
 });
+
+/* --- Etapa 4G: navegação por páginas (regras v1.7, seção 7) --------------------------------------------------- */
+
+test('CONFIG: o tamanho da página fica em configuração (15 linhas), nunca na tela', () => {
+  assert.equal(CONFIG.linhasPorPagina, 15);
+});
+
+test('fatiar: 0, 1, 15, 16, 30 e 233 linhas — 15 por página', () => {
+  const lista = (n) => Array.from({ length: n }, (_, i) => ({ codigo: 'L' + (i + 1) }));
+  const paginas = (n) => A.fatiar(lista(n), 1).paginas;
+  assert.deepEqual([0, 1, 15, 16, 30, 233].map(paginas), [1, 1, 1, 2, 2, 16]);
+  // lista vazia: uma página sem linhas (nunca 0 páginas), e o "de–até" fica 0–0
+  const zero = A.fatiar([], 1);
+  assert.deepEqual([zero.linhas.length, zero.pagina, zero.paginas, zero.total, zero.uma, zero.inicio, zero.fim],
+                   [0, 1, 1, 0, true, 0, 0]);
+  // 15 linhas: cabe numa página só, então a tela não desenha botão nenhum
+  const quinze = A.fatiar(lista(15), 1);
+  assert.deepEqual([quinze.linhas.length, quinze.paginas, quinze.uma, quinze.inicio, quinze.fim], [15, 1, true, 1, 15]);
+  assert.deepEqual(quinze.linhas.map((l) => l.codigo), lista(15).map((l) => l.codigo));
+  // 16 linhas: 15 + 1, sem linha perdida nem repetida
+  const p1 = A.fatiar(lista(16), 1), p2 = A.fatiar(lista(16), 2);
+  assert.deepEqual([p1.linhas.length, p2.linhas.length, p1.uma], [15, 1, false]);
+  assert.deepEqual(p1.linhas.concat(p2.linhas).map((l) => l.codigo), lista(16).map((l) => l.codigo));
+  assert.deepEqual([p2.inicio, p2.fim], [16, 16]);
+  // 233 rotas (o Consultor de hoje): 16 páginas, a última com 8
+  const ult = A.fatiar(lista(233), 16);
+  assert.deepEqual([ult.linhas.length, ult.inicio, ult.fim, ult.total], [8, 226, 233, 233]);
+  assert.deepEqual(ult.linhas.map((l) => l.codigo).slice(0, 2), ['L226', 'L227']);
+});
+
+test('fatiar: nenhuma linha se perde nem se repete na soma das páginas', () => {
+  const lista = Array.from({ length: 233 }, (_, i) => ({ codigo: 'L' + (i + 1) }));
+  const todas = [];
+  const paginas = A.fatiar(lista, 1).paginas;
+  for (let p = 1; p <= paginas; p++) todas.push(...A.fatiar(lista, p).linhas);
+  assert.deepEqual(todas.map((l) => l.codigo), lista.map((l) => l.codigo));
+  assert.equal(new Set(todas.map((l) => l.codigo)).size, 233);
+});
+
+test('fatiar: página fora do intervalo fica travada no intervalo (nunca tabela vazia)', () => {
+  const lista = Array.from({ length: 30 }, (_, i) => ({ codigo: 'L' + (i + 1) }));
+  assert.equal(A.fatiar(lista, 0).pagina, 1);
+  assert.equal(A.fatiar(lista, -3).pagina, 1);
+  assert.equal(A.fatiar(lista, 99).pagina, 2);                 // cai na última, com linhas
+  assert.equal(A.fatiar(lista, 99).linhas.length, 15);
+  assert.equal(A.fatiar(lista, null).pagina, 1);
+  assert.equal(A.fatiar(lista, 2.7).pagina, 2);                // fração não inventa página
+  // filtro que encurta a lista enquanto a página 2 estava aberta: a fatia volta para a página que existe
+  assert.equal(A.fatiar(lista.slice(0, 10), 2).pagina, 1);
+  assert.equal(A.fatiar(lista.slice(0, 10), 2).linhas.length, 10);
+});
+
+test('fatiar: tamanho do CONFIG por padrão; tamanho inválido não zera a tabela', () => {
+  const lista = Array.from({ length: 20 }, (_, i) => ({ codigo: 'L' + (i + 1) }));
+  assert.equal(A.fatiar(lista, 1).tamanho, CONFIG.linhasPorPagina);
+  assert.equal(A.fatiar(lista, 1, 10).paginas, 2);
+  assert.equal(A.fatiar(lista, 1, 10).linhas.length, 10);
+  for (const ruim of [0, -5, null, undefined, 'x', NaN]) {
+    assert.equal(A.fatiar(lista, 1, ruim).tamanho, CONFIG.linhasPorPagina);
+  }
+  assert.deepEqual(A.fatiar(null, 1).linhas, []);              // sem lista: página vazia, sem erro
+  assert.deepEqual(A.fatiar(undefined, 1).paginas, 1);
+});
+
+test('fatiar: a linha de total fica FORA da conta (15 linhas + Total Band = uma página)', () => {
+  const d = montar3();
+  const linhas = A.linhasDoDetalhe(d, 'gc');
+  const p = A.fatiar(linhas, 1);
+  assert.equal(p.total, linhas.length);                        // o Total Band não é passado para cá
+  assert.ok(d.totalBand);                                      // ele existe e a tela o repete em toda página
+  // 15 linhas de ranking mais a linha de total continuam numa página só
+  const quinze = Array.from({ length: 15 }, (_, i) => ({ codigo: 'SV.XA.' + (i + 1) }));
+  assert.equal(A.fatiar(quinze, 1).uma, true);
+});
+
+test('rotasDoConsultor: com SV é a mesa, como antes, e o total é a linha do SV', () => {
+  const d = montar3();
+  const comSv = A.rotasDoConsultor(d, { sv: 'SV.XA.1' });
+  const mesa = A.rotasDaMesa(d, 'SV.XA.1');
+  assert.deepEqual(comSv.rotas.map((r) => r.codigo), mesa.rotas.map((r) => r.codigo));
+  assert.deepEqual(comSv.ocultas, mesa.ocultas);
+  assert.equal(comSv.total.codigo, 'SV.XA.1');
+  assert.equal(comSv.rotuloTotal, 'Total da mesa SV.XA.1');
+  // o SV manda, mesmo com gerência no filtro
+  assert.deepEqual(A.rotasDoConsultor(d, { sv: 'SV.XA.1', gc: 'XA' }).rotas.map((r) => r.codigo),
+                   comSv.rotas.map((r) => r.codigo));
+});
+
+test('rotasDoConsultor: sem SV lista TODAS as rotas (o Consultor abre assim), com o Total Band', () => {
+  const d = montar3();
+  const todas = A.rotasDoConsultor(d, {});
+  const normais = d.rotas.filter((r) => r.tipo === 'normal');
+  assert.deepEqual(todas.rotas.map((r) => r.codigo), normais.map((r) => r.codigo));  // mesma ordem de d.rotas
+  assert.equal(todas.rotuloTotal, 'Total Band');
+  assert.equal(todas.total, d.totalBand);
+  assert.deepEqual(A.rotasDoConsultor(d, null).rotas.map((r) => r.codigo), normais.map((r) => r.codigo));
+  // o que ficou fora dos tipos é contado, nunca sumido
+  const foraDosTipos = d.rotas.filter((r) => r.tipo !== 'normal').length;
+  assert.equal(Object.values(todas.ocultas).reduce((a, b) => a + b, 0), foraDosTipos);
+});
+
+test('rotasDoConsultor: só a gerência, com a linha da gerência da API como total', () => {
+  const d = montar3();
+  const xa = A.rotasDoConsultor(d, { gc: 'XA' });
+  assert.ok(xa.rotas.length > 0);
+  assert.ok(xa.rotas.every((r) => r.gc === 'XA'));
+  assert.equal(xa.rotuloTotal, 'Total da gerência XA');
+  assert.equal(xa.total.codigo, 'XA');                          // a linha de gcApi: a API soma todas as rotas dela
+  assert.equal(xa.total, achar(d.gcApi, 'XA'));
+  // gerência que não existe: lista vazia e nenhum total inventado
+  const zz = A.rotasDoConsultor(d, { gc: 'ZZ' });
+  assert.deepEqual([zz.rotas.length, zz.total], [0, null]);
+});
+
+test('rotasDoConsultor: respeita o tipo das rotas (só "normal"), como a decisão de 09/11/2026', () => {
+  const g = JSON.parse(JSON.stringify(XA3));
+  g.rotas[1].tipo = 'neutraliza';
+  g.rotas[2].tipo = 'virtual';
+  const d = montar3({ gerencias: [g, XB3] });
+  const todas = A.rotasDoConsultor(d, {});
+  assert.ok(todas.rotas.every((r) => r.tipo === 'normal'));
+  assert.equal(todas.ocultas.neutraliza, 1);
+  assert.equal(todas.ocultas.virtual, 1);
+  // outro conjunto de tipos continua possível (nada fixo na função)
+  assert.ok(A.rotasDoConsultor(d, {}, ['normal', 'virtual']).rotas.some((r) => r.tipo === 'virtual'));
+});
+
+test('tela 4G: a navegação por páginas sai do adaptador; a tela não conta página nenhuma', () => {
+  // a fatia e o tamanho vêm do adaptador e do CONFIG: nenhum 15 nem Math.ceil digitado na tela
+  assert.match(SEM_CSS, /fatiar\(linhas, st\.pag\[chavePag\(\)\]\|\|1, CONFIG\.linhasPorPagina\)/);
+  assert.doesNotMatch(SEM_CSS, /Math\.ceil/);
+  assert.doesNotMatch(SEM_CSS, /linhasPorPagina\s*[:=]\s*\d/);
+  // as duas tabelas mostram uma página e desenham os botões embaixo
+  const rk = /function tabelaRanking\([\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(rk, /fatiaDaTela\(linhas\)/);
+  assert.match(rk, /p\.linhas\.map\(\(l\)=>linhaRanking\(l\)\)/);
+  assert.match(rk, /navPaginas\(p\)/);
+  const g2 = /function tabelaGrupos\([\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(g2, /fatiaDaTela\(linhas\)/);
+  assert.match(g2, /p\.linhas\.map\(\(l\)=>corpo\(l,false\)\)/);
+  assert.match(g2, /navPaginas\(p\)/);
+  // a linha de total continua fora da fatia, depois do corpo da página
+  assert.match(rk, /comTotal && D\.totalBand \? linhaRanking\(D\.totalBand, \{ total:true \}\)/);
+  assert.match(g2, /\(totalLinha\?corpo\(totalLinha,true\):''\)/);
+});
+
+test('tela 4G: os botões de página com os estados e a acessibilidade mínima', () => {
+  const nav = /function navPaginas\(p\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(nav, /if\(p\.uma\) return '';/);                       // uma página só: nenhum botão
+  assert.match(nav, /aria-label="'\+esc\(rot\)\+'"/);
+  assert.match(nav, /'Página '\+n/);
+  assert.match(nav, /'Página anterior'/);
+  assert.match(nav, /'Próxima página'/);
+  assert.match(nav, /aria-current="page"/);
+  assert.match(nav, /p\.pagina<=1/);                                  // a seta de voltar desabilitada na 1ª
+  assert.match(nav, /p\.pagina>=p\.paginas/);                         // a de avançar desabilitada na última
+  assert.match(nav, /<button type="button"/);                         // botão de verdade: Tab/Enter de graça
+  // a página atual fica em destaque vermelho, como no print da Karen
+  assert.match(TPL, /\.pag button\[aria-current="page"\]\{background:var\(--red\)/);
+  assert.match(TPL, /\.pag button:disabled\{opacity/);
+});
+
+test('tela 4G: trocar aba, canal, mês ou filtro volta para a página 1', () => {
+  assert.match(SEM_CSS, /const voltarPagina1 = \(\)=>\{ st\.pag=\{\}; st\.foco=null; \};/);
+  // os três caminhos de troca chamam a volta antes do render
+  assert.match(SEM_CSS, /data-aba\]'\);[\s\S]{0,80}voltarPagina1\(\); render\(\);/);
+  assert.match(SEM_CSS, /data-canal\]'\);[\s\S]{0,80}voltarPagina1\(\); render\(\);/);
+  assert.match(SEM_CSS, /st\.detVisao = t\.value;\n  voltarPagina1\(\);/);
+  // cada tela tem a sua página, e a Supervisão uma por canal
+  assert.match(SEM_CSS, /const chavePag = \(\)=> st\.aba==='sv' \? 'sv:'\+st\.canal/);
+  assert.match(SEM_CSS, /st\.pag\[chavePag\(\)\] = Number\(b\.dataset\.pg\)/);
+  // a página não é lembrada ao recarregar: nada de localStorage no painel
+  assert.doesNotMatch(SEM_CSS, /localStorage|sessionStorage/);
+});
+
+test('tela 4G: o Consultor abre com todas as rotas e o recorte vem do adaptador', () => {
+  assert.match(SEM_CSS, /sv:'',/);                                     // estado inicial: "Todas"
+  const rt = /function viewRT\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(rt, /rotasDoConsultor\(D, \{ sv:st\.sv, gc:st\.ger \}\)/);
+  assert.doesNotMatch(rt, /rotasDaMesa/);
+  assert.match(rt, /mesa\.rotuloTotal/);
+  assert.doesNotMatch(rt, /'Total da mesa '\+st\.sv/);                 // o rótulo é do adaptador
+  // o seletor de supervisão tem a opção "Todas", e trocar a gerência não escolhe um SV sozinho
+  const fil = /else if\(st\.aba==='rt'\)\{[\s\S]*?\n  \}/.exec(SEM_CSS)[0];
+  assert.match(fil, /<option value="">Todas<\/option>/);
+  assert.match(fil, /if\(st\.sv && !svs\.some\(\(s\)=>s\.codigo===st\.sv\)\) st\.sv = '';/);
+  assert.doesNotMatch(fil, /st\.sv = svs\[0\]\.codigo/);
+});
+
+test('tela 4G: o HTML gerado leva a paginação (build rodado)', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /function navPaginas\(p\)/);
+  assert.match(html, /aria-label="Páginas da tabela"/);
+  assert.match(html, /\.pag button\[aria-current="page"\]/);
+  assert.match(html, /linhasPorPagina: 15/);                           // o CONFIG do adaptador embutido
+  assert.doesNotMatch(html, /rotasDaMesa\(D, st\.sv\)/);
+});

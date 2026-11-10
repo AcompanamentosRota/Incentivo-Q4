@@ -21,7 +21,12 @@
    passa a "% Acum." e o "% Acum." do Skyy a "% Médio", os números do Aperitivo deixam a fonte condensada grande
    e ficam do tamanho dos do bloco Skyy, a coluna do mês vigente do Aperitivo ganha quadradinho (cor de
    motor.corDoPercentualAperitivo, que lê o limite da trava do mês) e o Consultor e o Detalhe do mês recebem as
-   mesmas cores e os mesmos quadradinhos das tabelas de ranking. Nenhum número muda. */
+   mesmas cores e os mesmos quadradinhos das tabelas de ranking. Nenhum número muda.
+   Etapa 4G (regras v1.7, seção 7; pedido da Karen em 09/11/2026): navegação por páginas no lugar da rolagem na
+   Supervisão (uma paginação por canal), no Consultor — que passa a abrir com TODAS as rotas — e no Detalhe do
+   mês, que também passa de 15 linhas. O tamanho da página vem de CONFIG.linhasPorPagina e a fatia de
+   adapter.fatiar: a tela não conta páginas. A linha de total fica fora da conta e se repete em toda página. O
+   Ranking GC (12 linhas) cabe numa página só, então continua sem botões. Nenhum número muda. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -137,6 +142,11 @@ button{cursor:pointer}
 /* As duas tabelas de ranking: fonte 1 px menor do que as de Consultor e Detalhe (nada abaixo de 13 px) e linhas
    mais justas (3 px em vez de 5 px em cima e embaixo). É o que faz as 16 gerências e o Total Band caberem sem
    rolagem no Ranking GC com a janela maximizada (~1920x940): com 5 px sobravam 62 px de rolagem. */
+/* Etapa 4G: as linhas da tabela de dois grupos (Consultor e Detalhe do mês) ganham o mesmo respiro justo das de
+   ranking (3 px em vez de 5 px em cima e embaixo). A fonte não muda (15 px, nada abaixo de 13 px): é só o que
+   falta para uma página cheia — 15 linhas, a de total e as duas de cabeçalho — caber SEM ROLAGEM na janela
+   maximizada (~1920x940), inclusive no Consultor, que ainda tem a faixa de aviso acima da tabela. */
+.tb.g2 td,.tb.g2 th{padding-top:3px;padding-bottom:3px}
 .tb.rk{font-size:14px}
 .tb.rk td,.tb.rk th{padding-top:3px;padding-bottom:3px}
 .tb.rk tr.grp th{font-size:17px}
@@ -158,6 +168,15 @@ button{cursor:pointer}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--turq);color:#032B28}
 .pill.no{background:rgba(255,255,255,.08);color:var(--muted)}
+
+/* Etapa 4G: botões de navegação no rodapé da tabela (regras v1.7, seção 7). Só aparecem quando há mais de uma
+   página; a página atual leva o vermelho do painel, como no print que a Karen enviou (‹ [1] 2 ›). */
+.pag{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;padding-top:2px}
+.pag button{min-width:34px;height:30px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.06);font-size:15px;font-weight:700;color:var(--muted)}
+.pag button:hover:not(:disabled){background:rgba(255,255,255,.12);color:#fff}
+.pag button[aria-current="page"]{background:var(--red);color:#fff;border-color:transparent;box-shadow:0 0 14px rgba(228,0,43,.45)}
+.pag button:disabled{opacity:.35;cursor:default}
+.pag .conta{margin-left:12px;font-size:14px;font-weight:500;color:var(--muted)}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -803,6 +822,10 @@ const CONFIG = {
     G1: ['G1'], G2: ['G2'], G3: ['G3'], AP: ['AP'], AT: ['AT'], AN: ['AN'], RV: ['RV'], SL: ['SL'],
     UR_RI: ['UR', 'RI'], IT_MO: ['IT', 'MO'], PA_DI: ['PA', 'DI'], GU_PO: ['GU', 'PO'],
   },
+  // Linhas por página das tabelas paginadas (etapa 4G; regras v1.7, seção 7). Fica em configuração, nunca na
+  // lógica nem na tela: a Supervisão, o Consultor e o Detalhe do mês pedem a fatia a `fatiar`, que lê este
+  // número. A linha de total (Total Band ou Total da mesa) NÃO entra na conta: ela se repete em toda página.
+  linhasPorPagina: 15,
 };
 
 /*
@@ -1610,6 +1633,60 @@ function textoDasOcultas(ocultas) {
 }
 
 /**
+ * Rotas da aba Consultor com o filtro da tela -> { rotas, ocultas, total, rotuloTotal }.
+ * `filtro` = { sv, gc }. Desde a etapa 4G o Consultor ABRE em "Todas" (decisão de 09/11/2026, regras v1.7,
+ * seção 7), então o SV pode vir vazio:
+ *   - com SV: a mesa dele, como antes (`rotasDaMesa`), e o total é a linha do SV ("Total da mesa SV.XX.1");
+ *   - sem SV e com gerência: as rotas daquela gerência, e o total é a linha da gerência da API (`gcApi`), que a
+ *     API soma com TODAS as rotas dela (regras, seção 4);
+ *   - sem nada: todas as rotas, e o total é o Total Band (`resumo.json` -> empresa).
+ * Nenhuma soma é feita aqui: o total é sempre uma linha que a API publica. A ordem das rotas é a de `dados.rotas`
+ * (código, numérica), a mesma de antes. Rotas fora dos tipos listados são contadas em `ocultas`, nunca sumidas.
+ */
+function rotasDoConsultor(dados, filtro, tipos) {
+  filtro = filtro || {};
+  tipos = tipos || TIPOS_CONSULTOR;
+  if (filtro.sv) {
+    const m = rotasDaMesa(dados, filtro.sv, tipos);
+    return { rotas: m.rotas, ocultas: m.ocultas, total: m.total, rotuloTotal: 'Total da mesa ' + filtro.sv };
+  }
+  const daTela = ((dados && dados.rotas) || []).filter((r) => !filtro.gc || r.gc === filtro.gc);
+  const ocultas = {};
+  for (const r of daTela) if (tipos.indexOf(r.tipo) < 0) {
+    const k = r.tipo || 'sem tipo';
+    ocultas[k] = (ocultas[k] || 0) + 1;
+  }
+  const total = filtro.gc
+    ? ((dados && dados.gcApi) || []).find((l) => l.codigo === filtro.gc) || null
+    : (dados && dados.totalBand) || null;
+  return { rotas: daTela.filter((r) => tipos.indexOf(r.tipo) >= 0), ocultas, total,
+           rotuloTotal: filtro.gc ? 'Total da gerência ' + filtro.gc : TOTAL_BAND };
+}
+
+/**
+ * Uma página de linhas (etapa 4G; regras v1.7, seção 7) -> { linhas, pagina, paginas, total, tamanho, inicio,
+ * fim, uma }. Função PURA, e a única conta de paginação do painel: a tela só pede a fatia e desenha os botões.
+ *   - `tamanho` padrão: CONFIG.linhasPorPagina (15). Tamanho inválido (≤ 0, não numérico) cai no padrão;
+ *   - `pagina` fora do intervalo é TRAVADA no intervalo (0 e -3 viram 1; 99 vira a última), nunca devolve vazio
+ *     por página alta: filtro que encurta a lista não pode apagar a tabela;
+ *   - lista vazia: uma página, sem linhas (`paginas` nunca é 0, para o "Página 1 de 1" fazer sentido);
+ *   - `uma` = cabe numa página só, e é por ele que a tela decide NÃO desenhar os botões;
+ *   - `inicio`/`fim` são 1-based, para o texto "16–30 de 233"; lista vazia dá 0 e 0.
+ * A linha de total (Total Band ou Total da mesa) fica FORA desta conta: ela não é passada aqui e a tela a repete
+ * em todas as páginas.
+ */
+function fatiar(linhas, pagina, tamanho) {
+  const todas = Array.isArray(linhas) ? linhas : [];
+  const t = numeroOk(tamanho) && tamanho >= 1 ? Math.floor(tamanho) : CONFIG.linhasPorPagina;
+  const paginas = Math.max(1, Math.ceil(todas.length / t));
+  const p = Math.min(paginas, Math.max(1, numeroOk(pagina) ? Math.floor(pagina) : 1));
+  const de = (p - 1) * t;
+  const fatia = todas.slice(de, de + t);
+  return { linhas: fatia, pagina: p, paginas, total: todas.length, tamanho: t, uma: paginas <= 1,
+           inicio: fatia.length ? de + 1 : 0, fim: de + fatia.length };
+}
+
+/**
  * Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional.
  * A visão de gerência usa as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o Detalhe do mês continua
  * com as 16 (premissa (d) da seção 4 das regras v1.6).
@@ -1690,7 +1767,9 @@ if (typeof module === 'object' && module.exports) {
                      // Etapa 4 (tela): formatação e recortes, todos puros
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
-                     linhasDoDetalhe, alertasDaTela };
+                     linhasDoDetalhe, alertasDaTela,
+                     // Etapa 4G (navegação por páginas), também puras
+                     rotasDoConsultor, fatiar };
 }
 </script>
 <script>
@@ -1724,7 +1803,12 @@ const mesUltimo = R.meses[R.meses.length-1], mesPenultimo = R.meses[R.meses.leng
 const emDezembro = SEL.referencia === mesUltimo;
 const mesesAp = R.meses.filter((m)=>m!==mesUltimo || emDezembro);
 const mostrarPctNov = emDezembro;
-const st = { aba:'gc', mes:SEL.padrao, canal:'Mista', ger:'', sv:(FIL.svs[0]||{}).codigo||'', detVisao:'gc', detMes:SEL.padrao };
+/* `sv:''` = "Todas": o Consultor ABRE com todas as rotas (regras v1.7, seção 7; decisão de 09/11/2026).
+   `pag` guarda a página de cada tela — a Supervisão tem uma por canal — e volta a vazio (página 1) a cada troca
+   de aba, canal, mês ou filtro; nada é lembrado ao recarregar. `foco` é só acessibilidade: devolve o foco ao
+   botão clicado depois do render. */
+const st = { aba:'gc', mes:SEL.padrao, canal:'Mista', ger:'', sv:'', detVisao:'gc', detMes:SEL.padrao,
+             pag:{}, foco:null };
 
 /* ─── faixa de topo: API fora, dados simulados ou produtos não publicados ─────────────────────────────── */
 const fx = $('faixa');
@@ -1745,6 +1829,36 @@ const limites = Object.keys(R.premiadas).map((k)=>NOME_NIVEL[k]+': '+R.premiadas
 $('rodesq').innerHTML = 'Real: vendido até ontem · Online: venda de hoje · "Hoje" em turquesa: atingiu a meta dia · '+
   'posição em cinza: gatilho pendente · desempate pela ordem alfabética do código';
 $('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)';
+
+/* ─── páginas (etapa 4G) ──────────────────────────────────────────────────────────────────────────────── */
+/* Cada tela tem a sua paginação, e a Supervisão uma por canal (regras v1.7, seção 7). A conta é toda do
+   adaptador (`fatiar`): aqui só se escolhe a chave, se pede a fatia e se desenham os botões. */
+const chavePag = ()=> st.aba==='sv' ? 'sv:'+st.canal : st.aba==='det' ? 'det:'+st.detVisao : st.aba;
+const fatiaDaTela = (linhas)=> fatiar(linhas, st.pag[chavePag()]||1, CONFIG.linhasPorPagina);
+const voltarPagina1 = ()=>{ st.pag={}; st.foco=null; };
+/* "‹ 1 2 ›": "‹" desabilitado na 1ª página e "›" na última; uma página só não desenha nada. Acessibilidade:
+   aria-label em todos os botões e aria-current na página atual; são <button>, então Tab/Enter já funcionam. */
+function navPaginas(p){
+  if(p.uma) return '';
+  const bt = (n, rot, txt, dis, atual, foco)=>'<button type="button" data-pg="'+n+'" data-foco="'+foco+'" '+
+    'aria-label="'+esc(rot)+'"'+(atual?' aria-current="page"':'')+(dis?' disabled':'')+'>'+txt+'</button>';
+  let nums = '';
+  for(let n=1;n<=p.paginas;n++) nums += bt(n, 'Página '+n, String(n), false, n===p.pagina, 'n'+n);
+  return '<nav class="pag" aria-label="Páginas da tabela">'+
+    bt(p.pagina-1, 'Página anterior', '‹', p.pagina<=1, false, 'ant')+nums+
+    bt(p.pagina+1, 'Próxima página', '›', p.pagina>=p.paginas, false, 'prox')+
+    '<span class="conta">'+p.inicio+'–'+p.fim+' de '+p.total+' · página '+p.pagina+' de '+p.paginas+'</span></nav>';
+}
+/* Depois do render o botão clicado não existe mais (a tabela é redesenhada): o foco volta ao mesmo controle, ou
+   à página atual quando a seta que foi clicada acabou desabilitada. */
+function devolverFoco(){
+  if(!st.foco) return;
+  const v = $('v-'+st.aba);
+  if(!v) return;
+  let el = v.querySelector('[data-foco="'+st.foco+'"]');
+  if(!el || el.disabled) el = v.querySelector('.pag button[aria-current="page"]');
+  if(el) el.focus();
+}
 
 /* ─── pedaços de célula ───────────────────────────────────────────────────────────────────────────────── */
 const vol = (v)=>esc(fmtVolume(v));
@@ -1829,10 +1943,13 @@ function linhaRanking(l, opc){
 }
 /* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava e os
    dois % acumulados ficam explicados na aba Regras, e o rodapé comum continua. */
+/* Etapa 4G: a tabela mostra uma página de linhas e a linha de total se repete em TODAS elas, fora da conta. */
 function tabelaRanking(linhas, rotuloId, comTotal){
-  const corpo = linhas.map((l)=>linhaRanking(l)).join('') +
+  const p = fatiaDaTela(linhas);
+  const corpo = p.linhas.map((l)=>linhaRanking(l)).join('') +
     (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
-  return '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
+  return '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>'+
+    navPaginas(p);
 }
 
 /* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
@@ -1856,8 +1973,9 @@ function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal){
       '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+pctGrupoCel(sk.pct, M.corDoPercentual(sk.pct))+
       '</tr>';
   };
-  return '<div class="rolar"><table class="tb g2">'+cabeca+'<tbody>'+linhas.map((l)=>corpo(l,false)).join('')+
-    (totalLinha?corpo(totalLinha,true):'')+'</tbody></table></div>';
+  const p = fatiaDaTela(linhas);
+  return '<div class="rolar"><table class="tb g2">'+cabeca+'<tbody>'+p.linhas.map((l)=>corpo(l,false)).join('')+
+    (totalLinha?corpo(totalLinha,true):'')+'</tbody></table></div>'+navPaginas(p);
 }
 
 /* ─── filtros da linha das abas ───────────────────────────────────────────────────────────────────────── */
@@ -1881,10 +1999,12 @@ function renderFiltros(){
   }
   else if(st.aba==='rt'){
     f.className='filtros';
+    /* Etapa 4G: a Supervisão abre em "Todas" e pode ficar assim (regras v1.7, seção 7). Trocar a gerência para
+       uma que não tem o SV escolhido volta o filtro para "Todas", nunca para outro SV sem o usuário pedir. */
     const svs = FIL.svs.filter((s)=>!st.ger || s.gc===st.ger);
-    if(svs.length && !svs.some((s)=>s.codigo===st.sv)) st.sv = svs[0].codigo;
+    if(st.sv && !svs.some((s)=>s.codigo===st.sv)) st.sv = '';
     f.innerHTML = seletorGer('f-ger', st.ger, true)+
-      '<label for="f-sv">Supervisão <select id="f-sv" class="sel" style="min-width:190px">'+
+      '<label for="f-sv">Supervisão <select id="f-sv" class="sel" style="min-width:190px"><option value="">Todas</option>'+
       svs.map((s)=>'<option value="'+esc(s.codigo)+'"'+(s.codigo===st.sv?' selected':'')+'>'+esc(s.rotulo)+'</option>').join('')+
       '</select></label>'+seletorMes('f-mes', st.mes);
   }
@@ -1926,14 +2046,17 @@ function viewSV(){
 }
 function viewRT(){
   if(!D.ok) return semDados();
-  const mesa = rotasDaMesa(D, st.sv);
+  /* Etapa 4G: o recorte e o rótulo do total vêm do adaptador (`rotasDoConsultor`), que trata as três situações
+     do filtro — uma mesa, uma gerência inteira ou todas as rotas. A tela não soma nada. */
+  const mesa = rotasDoConsultor(D, { sv:st.sv, gc:st.ger });
   const ocultas = textoDasOcultas(mesa.ocultas);
-  return '<div class="panel"><div class="ph"><h2>Rotas da mesa '+esc(st.sv||TRACO)+' · '+esc(rotuloMesSel(st.mes))+'</h2>'+
+  const alvo = st.sv ? 'Rotas da mesa '+st.sv : st.ger ? 'Rotas da gerência '+st.ger : 'Todas as rotas';
+  return '<div class="panel"><div class="ph"><h2>'+esc(alvo)+' · '+esc(rotuloMesSel(st.mes))+'</h2>'+
     '<div class="nota">'+mesa.rotas.length+' rotas'+(ocultas?' · '+esc(ocultas):'')+'</div></div>'+
     '<div class="aviso"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7FE7DC" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>'+
-    '<span>Consultor é acompanhamento: ranking e premiação são do supervisor para cima. O "Total da mesa" é o número que a API publica para a supervisão, somando <b>todas</b> as rotas da mesa'+(ocultas?' — inclusive as que não aparecem na lista':'')+'.</span></div>'+
-    (mesa.rotas.length?tabelaGrupos(mesa.rotas,'Rota',st.mes,mesa.total,'Total da mesa '+st.sv)
-      :'<div class="vazio">Nenhuma rota do tipo normal nesta mesa.</div>')+
+    '<span>Consultor é acompanhamento: ranking e premiação são do supervisor para cima. O "'+esc(mesa.rotuloTotal)+'" é o número que a API publica, somando <b>todas</b> as rotas'+(ocultas?' — inclusive as que não aparecem na lista':'')+'.</span></div>'+
+    (mesa.rotas.length?tabelaGrupos(mesa.rotas,'Rota',st.mes,mesa.total,mesa.rotuloTotal)
+      :'<div class="vazio">Nenhuma rota do tipo normal neste filtro.</div>')+
     '</div>';
 }
 function viewDet(){
@@ -2000,9 +2123,10 @@ function render(){
   else if(st.aba==='rt') $('v-rt').innerHTML = viewRT();
   else if(st.aba==='det') $('v-det').innerHTML = viewDet();
   else if(st.aba==='regras') $('rgbd').innerHTML = viewRegras();
+  devolverFoco();
 }
-$('abas').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-aba]'); if(b){ st.aba=b.dataset.aba; render(); } });
-$('filtros').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-canal]'); if(b){ st.canal=b.dataset.canal; render(); } });
+$('abas').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-aba]'); if(b){ st.aba=b.dataset.aba; voltarPagina1(); render(); } });
+$('filtros').addEventListener('click', (e)=>{ const b=e.target.closest('button[data-canal]'); if(b){ st.canal=b.dataset.canal; voltarPagina1(); render(); } });
 $('filtros').addEventListener('change', (e)=>{
   const t=e.target;
   if(t.id==='f-mes') st.mes = Number(t.value);
@@ -2010,8 +2134,17 @@ $('filtros').addEventListener('change', (e)=>{
   else if(t.id==='f-ger') st.ger = t.value;
   else if(t.id==='f-sv') st.sv = t.value;
   else if(t.id==='f-vis') st.detVisao = t.value;
+  voltarPagina1();   /* trocar canal, mês ou filtro volta à página 1 e recalcula o número de páginas */
   render();
 });
+/* Etapa 4G: os botões de página ficam dentro das vistas, que são redesenhadas inteiras — o clique é delegado. */
+['gc','sv','rt','det'].forEach((id)=>$('v-'+id).addEventListener('click', (e)=>{
+  const b = e.target.closest('.pag button[data-pg]');
+  if(!b || b.disabled) return;
+  st.pag[chavePag()] = Number(b.dataset.pg);
+  st.foco = b.dataset.foco;
+  render();
+}));
 render();
 })();
 </script>
