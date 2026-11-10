@@ -591,15 +591,28 @@ function montarDados(entrada, cfg, motor) {
     for (const [sv, c] of Object.entries(doMes)) if (!canaisSV[sv]) canaisSV[sv] = c;
   }
 
-  // 5. linhas e ranking (ordem, posição, gatilho, posição oficial e status: motor)
+  // 5. linhas e ranking (ordem, posição, gatilhos, posição oficial e status: motor)
+  /**
+   * Os três gatilhos de uma linha, todos do motor (regras v1.8, seções 2 e 5):
+   *   - `gatilho`: cobertura de Skyy (é o "% Médio" da tela; não mudou de nome nem de forma);
+   *   - `gatilhoVolume`: volume de Aperitivo, sobre os MESMOS meses que o ranking da linha recebe (`vol.meses`:
+   *     meta, real, online e situação de cada mês; outubro fica fora pela regra do motor). Na linha agrupada do
+   *     Ranking GC os meses já são a soma das gerências do grupo (passo 2c), então o % é o da soma;
+   *   - `gatilhoPilares`: os dois juntos, que decidem a coluna "Oficial" e o "Bateu!".
+   */
+  const gatilhos = (vol, cobertura) => {
+    const gatilho = motor.gatilhoCobertura(cobertura, mesGatilho);
+    const gatilhoVolume = motor.gatilhoVolume(vol.meses, mesGatilho);
+    return { gatilho, gatilhoVolume, gatilhoPilares: motor.gatilhoPilares(gatilho, gatilhoVolume) };
+  };
   const linha = (nivel, cod, extra) => {
     const vol = apurar(nivel, cod), cobertura = apurarCobertura(nivel, cod);
     const l = Object.assign({ codigo: cod, chave: motor.chaveCodigo(cod) }, extra, vol,
-                            { cobertura, gatilho: motor.gatilhoCobertura(cobertura, mesGatilho) });
+                            { cobertura }, gatilhos(vol, cobertura));
     l.tabela = tabelaDaLinha(vol, cobertura, l, motor);
     return l;
   };
-  /** Um nível de ranking: ordem e "Pos." (Etapa 2), coluna "Oficial" só de quem bateu o gatilho e status (Etapa 3). */
+  /** Um nível de ranking: ordem e "Pos." (Etapa 2), coluna "Oficial" só de quem bateu os dois pilares e status (4H). */
   const ranquear = (linhas, nivel) => motor.numerarOficial(motor.montarRanking(linhas))
     .map((l) => Object.assign(l, { status: motor.statusLinha(l, nivel) }));
   // Ranking GC: uma linha por GRUPO (gerência comercial agrupada), somada no passo 2c. `codigo` é o da linha
@@ -632,11 +645,10 @@ function montarDados(entrada, cfg, motor) {
     return l;
   });
   // Total Band (Diretoria e GP): resumo.json -> empresa; meta dia de volume da API e meta dia de cobertura do
-  // motor. Tem gatilho (é o % de cobertura da empresa), mas não tem posição oficial nem status.
+  // motor. Tem os gatilhos (o de cobertura é o % Médio da empresa), mas não tem posição oficial nem status.
   const totalBand = (() => {
     const vol = apurar('empresa', TOTAL_BAND), cobertura = apurarCobertura('empresa', TOTAL_BAND);
-    const l = Object.assign({ codigo: TOTAL_BAND, nivel: 'empresa' }, vol,
-                            { cobertura, gatilho: motor.gatilhoCobertura(cobertura, mesGatilho) });
+    const l = Object.assign({ codigo: TOTAL_BAND, nivel: 'empresa' }, vol, { cobertura }, gatilhos(vol, cobertura));
     l.tabela = tabelaDaLinha(vol, cobertura, l, motor);
     return l;
   })();
@@ -906,9 +918,11 @@ function linhasDoDetalhe(dados, visao, gc) {
  * Devolve [{ tipo: 'erro' | 'aviso' | 'nota', titulo, texto }]:
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
- *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume);
+ *     volume indisponível, SV fora do ranking, premissas a confirmar da meta dia de volume, do quadradinho do
+ *     Aperitivo e do status com os dois pilares);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.7.
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.8
+ * (10, 22, 25 e 26).
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -932,10 +946,13 @@ function alertasDaTela(dados, cfg, motor) {
           ? '. Sem ela o gatilho fica indisponível e ninguém recebe posição oficial.'
           : '. ' + maiusc1(NOMES_MES[m.mes]) + ' não entra no gatilho, então a coluna fica "' + TRACO + '".'));
   }
+  const doGatilhoVolume = motor.REGRAS.gatilhoVolume.meses;
   for (const m of dados.meses || []) {
     if (m.fonte === 'indisponivel') {
+      // mês de volume que conta no gatilho de volume (regras v1.8, seção 2.2): sem ele o gatilho fica indisponível
       add('aviso', maiusc1(NOMES_MES[m.mes]) + ' indisponível',
-          (m.motivo || 'mês sem fonte') + '. A soma das linhas fica incompleta.');
+          (m.motivo || 'mês sem fonte') + '. A soma das linhas fica incompleta' +
+          (doGatilhoVolume.indexOf(m.mes) >= 0 ? ', e o gatilho de volume fica indisponível (ninguém recebe posição oficial).' : '.'));
     } else if (m.estado === 'previa') {
       add('nota', maiusc1(NOMES_MES[m.mes]) + ' em prévia',
           'Os números ainda mudam até o Back Office marcar o flash de vendas; o mês segue a chave do faturamento.');
@@ -945,13 +962,22 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.7, seção 7).');
-  // ⚠️ pendência 25 das regras v1.7: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.8, seção 7).');
+  // ⚠️ pendência 25 das regras v1.8: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
   // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
   // ainda confirma. O número sai do motor, nunca escrito aqui.
   add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
       'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
-      ' (regras v1.7, pendência 25). Nos meses travados o limite é o da trava.');
+      ' (regras v1.8, pendência 25). Nos meses travados o limite é o da trava.');
+  // ⚠️ pendência 26 das regras v1.8 (status com os dois pilares): a tela sinaliza as premissas, não decide. Os
+  // números (mínimo e meses do gatilho de volume) saem do motor, nunca escritos aqui.
+  const gv = motor.REGRAS.gatilhoVolume;
+  add('aviso', 'Status com os dois pilares: premissas a confirmar',
+      'O gatilho de volume de Aperitivo (mínimo ' + fmtPct(gv.minimo) + ' na média de ' +
+      gv.meses.map((m) => NOMES_MES[m]).join(' e ') + ', com a trava do mês) é parcial em ' + NOMES_MES[gv.meses[0]] +
+      ' (só ' + NOMES_MES[gv.meses[0]] + '); meta de ' +
+      'volume nula deixa o gatilho indisponível; e a tela não tem coluna própria para ele: o selo e a cor da posição ' +
+      'mostram o resultado (regras v1.8, pendência 26).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',

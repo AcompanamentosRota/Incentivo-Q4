@@ -123,13 +123,17 @@ gerências da API, somando as gerências de cada grupo antes de calcular. A Supe
 seguem com as gerências da API. A **etapa 4F** (regras v1.7, seção 7) fez os ajustes de tabela pedidos pela Karen,
 também só de apresentação: conteúdo centralizado em todas as tabelas, coluna Dez só em dezembro, "Soma" virou
 "% Acum." e o "% Acum." do Skyy virou "% Médio", quadradinho no % do mês vigente do Aperitivo, números do Aperitivo
-na fonte da tabela, linha do total só com "Total Band" e as mesmas cores no Consultor e no Detalhe do mês. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em
+na fonte da tabela, linha do total só com "Total Band" e as mesmas cores no Consultor e no Detalhe do mês. A
+**etapa 4G** paginou a Supervisão, o Consultor e o Detalhe do mês (15 linhas). A **etapa 4H** (regras v1.8, seções 2, 5
+e 7) faz o status "Bateu!" e a coluna Oficial exigirem os **dois pilares**: o gatilho de cobertura de Skyy **e** o novo
+gatilho de **volume de Aperitivo** (média simples dos % de novembro e dezembro, mínimo 100%, com a trava de 130% em
+novembro); o ranking não muda. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em
 `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 199 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 220 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

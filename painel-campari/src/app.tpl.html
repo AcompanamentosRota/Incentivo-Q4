@@ -25,7 +25,10 @@
    Supervisão (uma paginação por canal), no Consultor — que passa a abrir com TODAS as rotas — e no Detalhe do
    mês, que também passa de 15 linhas. O tamanho da página vem de CONFIG.linhasPorPagina e a fatia de
    adapter.fatiar: a tela não conta páginas. A linha de total fica fora da conta e se repete em toda página. O
-   Ranking GC (12 linhas) cabe numa página só, então continua sem botões. Nenhum número muda. */
+   Ranking GC (12 linhas) cabe numa página só, então continua sem botões. Nenhum número muda.
+   Etapa 4H (regras v1.8, seções 2, 5 e 7; decisão da Karen de 09/11/2026, noite): o "Bateu!", a coluna Oficial e a
+   posição em cinza passam a seguir os DOIS pilares (Skyy e volume de Aperitivo), decididos pelo motor
+   (l.gatilhoPilares, l.oficial, l.status). Sem coluna nova (pendência 26); só os textos e as contagens mudam. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -284,9 +287,12 @@ $('info').innerHTML = '<small>Dados de</small><b>'+esc(fmtDataHora(D.atualizadoE
 const listar = (ns)=>{ const v=ns.map((m)=>NOMES_MES[m]); return v.length<2?v.join(''):v.slice(0,-1).join(', ')+' e '+v[v.length-1]; };
 const mesesComTrava = listar(Object.keys(R.trava).filter((m)=>R.trava[m]!==null).map(Number));
 const mesesDoGatilho = listar(R.gatilho.meses);
+const mesesDoGatilhoVolume = listar(R.gatilhoVolume.meses);
+/* Etapa 4H (regras v1.8): "bateu" = os DOIS pilares, já decididos pelo motor (l.gatilhoPilares). A tela só conta. */
+const bateuPilares = (l)=>!!(l.gatilhoPilares&&l.gatilhoPilares.batido);
 const limites = Object.keys(R.premiadas).map((k)=>NOME_NIVEL[k]+': '+R.premiadas[k]).join(' · ');
 $('rodesq').innerHTML = 'Real: vendido até ontem · Online: venda de hoje · "Hoje" em turquesa: atingiu a meta dia · '+
-  'posição em cinza: gatilho pendente · desempate pela ordem alfabética do código';
+  'posição em cinza: sem os dois pilares · desempate pela ordem alfabética do código';
 $('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)';
 
 /* ─── páginas (etapa 4G) ──────────────────────────────────────────────────────────────────────────────── */
@@ -368,7 +374,7 @@ function cabecalhoRanking(rotuloId){
     '<colgroup><col></colgroup>'+
     '<thead>'+
     '<tr class="grp"><th colspan="3"></th>'+
-    '<th colspan="'+apCols+'" class="sep bl-ap">VOLUME DE APERITIVO <small>· RANKING</small></th>'+
+    '<th colspan="'+apCols+'" class="sep bl-ap">VOLUME DE APERITIVO <small>· RANKING · GATILHO ≥ '+pct(R.gatilhoVolume.minimo)+'</small></th>'+
     '<th colspan="'+skCols+'" class="sep bl-sk">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
     '<th class="sep"></th></tr>'+
     '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
@@ -482,11 +488,11 @@ const rotuloMesSel = (mes)=>{ const m = SEL.meses.find((x)=>x.mes===mes); return
 
 function viewGC(){
   if(!D.ok || !D.gc.length) return semDados();
-  const comGatilho = D.gc.filter((l)=>l.gatilho&&l.gatilho.batido).length;
+  const comPilares = D.gc.filter(bateuPilares).length;
   /* Etapa 4C: as linhas são as da gerência comercial AGRUPADA (D.gc), somadas pelo adaptador e pelo motor; a
      coluna Gerência mostra o código da própria linha. O Detalhe do mês e os filtros seguem com as da API. */
   return '<div class="panel"><div class="ph"><h2>Ranking das gerências comerciais</h2>'+
-    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comGatilho+' com gatilho batido · ordem pelo % Acum. de Aperitivo<br>'+
+    '<div class="nota">'+D.gc.length+' linhas (gerência comercial agrupada) · '+comPilares+' com os dois pilares · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     tabelaRanking(D.gc,'Gerência',true)+'</div>';
 }
@@ -494,11 +500,11 @@ function viewSV(){
   if(!D.ok) return semDados();
   const todas = D[NIVEL[st.canal]] || [];
   const linhas = st.ger ? todas.filter((l)=>l.gc===st.ger) : todas;
-  const comGatilho = linhas.filter((l)=>l.gatilho&&l.gatilho.batido).length;
+  const comPilares = linhas.filter(bateuPilares).length;
   /* As supervisões sem canal (ou com empate de canal na mesa) não aparecem mais nesta tela, nem a legenda
      (regras v1.6, seção 7): o aviso continua calculado no adaptador (D.fora) e sai em Regras > Dados e alertas. */
   return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
-    '<div class="nota">'+linhas.length+' supervisores · '+comGatilho+' com gatilho batido · ordem pelo % Acum. de Aperitivo<br>'+
+    '<div class="nota">'+linhas.length+' supervisores · '+comPilares+' com os dois pilares · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
     (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
     '</div>';
@@ -530,15 +536,18 @@ function viewDet(){
 }
 function viewRegras(){
   const passos = [
-    ['Gatilho','cobertura de Skyy de no mínimo '+fmtPct(R.gatilho.minimo)+' na média de '+mesesDoGatilho+'. '+
-      NOMES_MES[R.meses[0]].replace(/^./,(c)=>c.toUpperCase())+' não entra. Cada cliente conta uma vez no mês.'],
+    ['Dois pilares','o participante precisa bater os dois gatilhos. Cobertura de Skyy: no mínimo '+fmtPct(R.gatilho.minimo)+
+      ' na média de '+mesesDoGatilho+'; cada cliente conta uma vez no mês. Volume de Aperitivo: no mínimo '+
+      fmtPct(R.gatilhoVolume.minimo)+' na média de '+mesesDoGatilhoVolume+', com o % do mês do ranking (já com a trava). '+
+      NOMES_MES[R.meses[0]].replace(/^./,(c)=>c.toUpperCase())+' não entra em nenhum dos dois; em '+
+      NOMES_MES[R.gatilho.meses[0]]+' o gatilho é parcial.'],
     ['Ranking','volume de Aperitivo. A pontuação é a soma dos % de '+listar(R.meses)+'.'],
     ['Trava','o % do mês vale no máximo '+fmtPct(R.trava[R.meses[0]])+' em '+mesesComTrava+'. '+
       listar(R.meses.filter((m)=>R.trava[m]===null)).replace(/^./,(c)=>c.toUpperCase())+' sem trava.'],
     ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking. '+
       'O Ranking GC é por gerência comercial agrupada: algumas gerências da API somam numa linha só (o Detalhe do '+
       'mês e os filtros seguem com as gerências da API).'],
-    ['Posição','todas as linhas numeradas; posição oficial só para quem bate o gatilho. Desempate pela ordem alfabética do código.'],
+    ['Posição','todas as linhas numeradas; posição oficial só para quem bate os dois pilares. Desempate pela ordem alfabética do código.'],
   ];
   const alertas = alertasDaTela(D);
   const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
@@ -547,8 +556,8 @@ function viewRegras(){
     '<div class="exemplo"><b>Trava:</b> um mês acima do limite entra pelo próprio limite, e o excedente não acumula no % Acum.: a coluna do mês mostra o limite, e só.</div>'+
     '</section>'+
     '<section><h2>Status</h2>'+
-    '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu o gatilho de cobertura e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
-    '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: gatilho pendente ou fora das posições premiadas.</div></div>'+
+    '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu os dois pilares (cobertura de Skyy e volume de Aperitivo) e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
+    '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: algum pilar pendente ou fora das posições premiadas.</div></div>'+
     '<p>Nas tabelas de ranking a coluna Status mostra só o selo. Nelas, o <strong>% do mês</strong> e o '+
     '<strong>% Médio</strong> de Skyy aparecem num quadradinho <span class="pchip verde">verde</span> quando o % '+
     'chega ao mínimo do gatilho ('+pct(R.gatilho.minimo)+') e <span class="pchip vermelho">vermelho</span> quando '+
@@ -557,7 +566,7 @@ function viewRegras(){
     'trava, em '+pct(R.corAperitivoSemTrava)+'; o <strong>% Acum.</strong> não tem quadradinho. O Consultor e o '+
     'Detalhe do mês usam as mesmas cores. A <strong>Dif.</strong> negativa aparece '+
     '<span style="color:var(--negv);font-weight:700">em vermelho</span>.</p>'+
-    '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu o gatilho; a posição em cinza é apenas a ordem na tela.</p>'+
+    '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu os dois pilares; a posição em cinza é apenas a ordem na tela.</p>'+
     '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
     '</section>'+
     '<section><h2>Medidas</h2><table class="md"><tbody>'+

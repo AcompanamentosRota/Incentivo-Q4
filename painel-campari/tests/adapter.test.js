@@ -519,6 +519,18 @@ const montar3 = (mais) => A.montarDados(Object.assign({ index: indexDe('202611',
 // o % de cobertura de XA em novembro: (180 + 25) ÷ 200 = 102,5% no papel, 102,49999999999999 em ponto flutuante.
 // O motor não arredonda, então o teste compara com a própria conta (truncar é papel da tela).
 const XA_COB = (205 / 200) * 100;
+// 4H (regras v1.8): o "Bateu!" exige também o gatilho de VOLUME de Aperitivo. Nas fixtures acima o volume de
+// novembro fica abaixo de 100% (XA 52%, SV.XA.1 77,5%, SV.XB.1 90%), então elas servem ao caso "Skyy batido e volume
+// não". XA3V/XB3V são as mesmas gerências com o volume de novembro batido em XA (102%), SV.XA.1 (102,5%) e
+// SV.XB.1 (100% exatos), para os testes que precisam ver o "Bateu!".
+const comAperitivo = (ger, gc, svs) => {
+  const g = JSON.parse(JSON.stringify(ger));
+  if (gc) g.produtos.aperitivos = gc;
+  g.supervisoes.forEach((s, i) => { if (svs[i]) s.produtos.aperitivos = svs[i]; });
+  return g;
+};
+const XA3V = comAperitivo(XA3, bl(1000, 1000, 20, 7.5), [bl(400, 400, 10, 3.2)]);
+const XB3V = comAperitivo(XB3, null, [bl(300, 300, 0, 2)]);
 const cobDe = (l, m) => l.cobertura.find((x) => x.mes === m);
 
 test('fontesDaCobertura (P1): o mês de referência vem da API mesmo em período de fechamento', () => {
@@ -580,7 +592,18 @@ test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e de
   assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.indisponivel, xa.gatilho.motivo],
     [null, false, true, 'cobertura indisponível']);
   assert.equal(xa.oficial, null);
-  assert.deepEqual(xa.status, { status: '-', motivo: 'cobertura indisponível' });
+  // 4H: o status agora junta os dois pilares (regras v1.8). O volume de XA tem valor e não bate (nov 52% e dez 80%
+  // dão 66%), então o motivo do status é o do volume; o gatilho de Skyy continua indisponível (asserção acima).
+  assert.deepEqual(xa.status, { status: '-', motivo: 'volume em 66,0%: precisa de 100%' });
+  assert.equal(xa.gatilhoPilares.batido, false);
+  // com o volume batido nos dois meses, sobra só a cobertura indisponível: o pilar fica indisponível
+  const DEZV = fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 120] }]],
+    { empresa: { aperitivos: [100, 120] }, gerencias: { XA: { aperitivos: [100, 120] } } });
+  const dv = montar3({ index: indexDe('202612', false, ['202610', '202611']), fechados: { 202610: OUT, 202611: DEZV },
+                       gerencias: [XA3V, XB3V] });
+  const xav = achar(dv.gc, 'XA');
+  assert.deepEqual([xav.gatilhoVolume.valor, xav.gatilhoVolume.batido], [(120 + 102) / 2, true]);
+  assert.deepEqual([xav.gatilhoPilares.indisponivel, xav.oficial, xav.status.motivo], [true, null, 'cobertura indisponível']);
 });
 
 test('montarDados: produto sem o bloco cobertura fica indisponível; cobertura.meta null é "sem meta de cobertura"', () => {
@@ -592,32 +615,87 @@ test('montarDados: produto sem o bloco cobertura fica indisponível; cobertura.m
     ['dado', null, 7, null, null, 'sem meta de cobertura']);
 });
 
+// 4H: este teste usa XA3V/XB3V (volume de novembro batido) para continuar medindo o caminho do "Bateu!" pelo
+// adaptador; com as fixtures originais (volume abaixo de 100%) o resultado agora é "-", no teste 4H logo abaixo.
 test('montarDados: gatilho parcial em novembro, posição oficial só de quem bateu e status do motor', () => {
-  const d = montar3();
+  const d = montar3({ gerencias: [XA3V, XB3V] });
   assert.equal(d.mesGatilho, 11);
   const xa = achar(d.gc, 'XA'), xb = achar(d.gc, 'XB');
   assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.parcial], [XA_COB, true, true]);
+  assert.deepEqual([xa.gatilhoVolume.valor, xa.gatilhoVolume.batido, xa.gatilhoVolume.parcial], [102, true, true]);
   assert.deepEqual([xa.pos, xa.oficial], [1, 1]);
   assert.deepEqual(xa.status, { status: 'Bateu!', motivo: 'dentro das premiadas' });
   assert.deepEqual([xb.gatilho.valor, xb.gatilho.batido], [50, false]);
   assert.deepEqual([xb.pos, xb.oficial], [2, null]);
-  assert.deepEqual(xb.status, { status: '-', motivo: 'cobertura em 50,0%: precisa de 100%' });
+  // XB falha nos dois pilares (cobertura 50% e volume 50%)
+  assert.deepEqual(xb.status, { status: '-', motivo: 'cobertura em 50,0% e volume em 50,0%: precisam de 100%' });
   // SV Mista: SV.XA.1 bate com 100,0% exatos; SV.XB.2 fica em 99,0%
   const sv1 = achar(d.svMista, 'SV.XA.1'), sv2 = achar(d.svMista, 'SV.XB.2');
   assert.deepEqual([sv1.gatilho.valor, sv1.oficial, sv1.status.status], [100, 1, 'Bateu!']);
   assert.deepEqual([sv2.gatilho.valor, sv2.oficial], [99, null]);
-  assert.equal(sv2.status.motivo, 'cobertura em 99,0%: precisa de 100%');
+  assert.equal(sv2.status.motivo, 'cobertura em 99,0%: precisa de 100%'); // volume: sem meta (meta 0)
   // SV Segmentada: limite 3, uma linha só
   const seg = achar(d.svSegmentada, 'SV.XB.1');
   assert.deepEqual([seg.gatilho.valor, seg.oficial, seg.status.status], [120, 1, 'Bateu!']);
+  assert.deepEqual([seg.gatilhoVolume.valor, seg.gatilhoVolume.batido], [100, true]); // 100% exatos batem
+});
+
+test('4H montarDados: Skyy batido e volume não -> "-", sem posição oficial (o caso de 09/11/2026)', () => {
+  const d = montar3(); // fixtures originais: volume de novembro abaixo de 100%
+  const xa = achar(d.gc, 'XA');
+  assert.deepEqual([xa.gatilho.batido, xa.gatilhoVolume.valor, xa.gatilhoVolume.batido], [true, 52, false]);
+  assert.deepEqual([xa.pos, xa.oficial], [1, null]);  // Pos. não muda; Oficial some
+  assert.deepEqual(xa.status, { status: '-', motivo: 'volume em 52,0%: precisa de 100%' });
+  assert.deepEqual(xa.gatilhoPilares, { batido: false, indisponivel: false, motivo: 'volume em 52,0%: precisa de 100%' });
+  const sv1 = achar(d.svMista, 'SV.XA.1');
+  assert.deepEqual([sv1.gatilho.batido, sv1.gatilhoVolume.valor, sv1.oficial, sv1.status.status], [true, 77.5, null, '-']);
+  const seg = achar(d.svSegmentada, 'SV.XB.1');
+  assert.deepEqual([seg.gatilho.batido, seg.gatilhoVolume.valor, seg.oficial, seg.status.motivo],
+    [true, 90, null, 'volume em 90,0%: precisa de 100%']);
+  // ninguém tem os dois pilares: nenhuma posição oficial e nenhum "Bateu!" em nível nenhum
+  for (const nivel of ['gc', 'svMista', 'svSegmentada']) {
+    assert.ok(d[nivel].every((l) => l.oficial === null && l.status.status === '-'), nivel);
+  }
+});
+
+test('4H montarDados: o ranking não muda — Pos., soma e % são os mesmos com e sem o gatilho de volume', () => {
+  const d = montar3();
+  const ref = (l) => [l.codigo, l.pos, l.soma, l.meses.map((m) => m.pctTravado)];
+  // a ordem do ranking de SV Mista e de GC continua sendo a da soma (desempate pelo código)
+  assert.deepEqual(d.gc.map((l) => l.pos), d.gc.map((_, i) => i + 1));
+  for (const nivel of ['gc', 'svMista', 'svSegmentada']) {
+    const somas = d[nivel].map((l) => l.soma).filter((v) => v !== null);
+    assert.deepEqual(somas, somas.slice().sort((a, b) => b - a), nivel);
+  }
+  // o gatilho de volume reaproveita o % do ranking: novembro travado da própria linha
+  for (const l of d.svMista.concat(d.gc)) {
+    const nov = l.meses.find((m) => m.mes === 11);
+    assert.equal(l.gatilhoVolume.valor, nov.pctTravado, ref(l).join());
+  }
+});
+
+test('4H montarDados: volume batido e Skyy não -> "-"; meta de volume 0 -> "sem meta de volume"', () => {
+  // SV.XA.2: cobertura 50% (não bate) e volume levado a 110%
+  const xa = comAperitivo(XA3, null, [null, bl(200, 220, 0, 1)]);
+  const d = montar3({ gerencias: [xa, XB3] });
+  const fora = d.fora.find((l) => l.codigo === 'SV.XA.2'); // SV.XA.2 empata no canal: fora do ranking
+  assert.deepEqual([fora.gatilhoVolume.batido, fora.gatilho.batido, fora.gatilhoPilares.batido], [true, false, false]);
+  assert.equal(fora.gatilhoPilares.motivo, 'cobertura em 50,0%: precisa de 100%');
+  assert.equal('oficial' in fora, false);
+  // SV.XB.2 tem meta de volume 0: o gatilho de volume fica indisponível ("sem meta de volume"), nunca 0 nem 100
+  const sv = achar(d.svMista, 'SV.XB.2');
+  assert.deepEqual([sv.gatilhoVolume.valor, sv.gatilhoVolume.indisponivel, sv.gatilhoVolume.motivo], [null, true, 'sem meta de volume']);
+  // a cobertura dele (99%) falha com valor: o motivo do status é o da cobertura, e o pilar não é "indisponível"
+  assert.deepEqual([sv.oficial, sv.status.motivo, sv.gatilhoPilares.indisponivel], [null, 'cobertura em 99,0%: precisa de 100%', false]);
 });
 
 test('montarDados: quem bate o gatilho mas fica fora das premiadas recebe "suba N posições"', () => {
-  // 4 SVs Segmentada, todas batendo o gatilho: o limite do nível é 3
+  // 4 SVs Segmentada, todas batendo o gatilho: o limite do nível é 3. 4H: o volume de novembro sai de 90/80/70/60%
+  // para 125/120/115/110% (todos batem o gatilho de volume e ficam abaixo da trava, a ordem é a mesma).
   const sv = (n, real) => ({ id: `SV.XC.${n}`, rotas: [`XC${n}`], produtos: { aperitivos: bl(100, real, 0, 1), skyy: cbl(bl(10, 5, 0, 0), 10, 20, 0) } });
   const XC = { gerencia: { id: 'XC', nome: 'Fictícia C' },
     produtos: { aperitivos: bl(400, 200, 0, 4), skyy: cbl(bl(40, 20, 0, 2), 40, 80, 0) },
-    supervisoes: [sv(1, 90), sv(2, 80), sv(3, 70), sv(4, 60)],
+    supervisoes: [sv(1, 125), sv(2, 120), sv(3, 115), sv(4, 110)],
     rotas: [1, 2, 3, 4].map((n) => rota(`XC${n}`, 'XC', `SV.XC.${n}`, bl(100, 10, 0, 1))) };
   const base = { meta: {}, rotas: [1, 2, 3, 4].map((n) => ({ gc: 'Xc', sv: `Sv. Xc.${n}`, rota: `XC${n}`, canal: 'Segmentada', sub: 'Mod' })) };
   const d = A.montarDados({ index: indexDe('202611', false, []), gerencias: [XC], resumo: RESUMO, fechados: {}, base, ajustes: SEM_AJ });
@@ -740,8 +818,9 @@ test('montarDados: em período de fechamento a cobertura do mês de referência 
 });
 
 test('carregarRanking: lê também o resumo.json (Total Band) e segue sem ele quando falha', async () => {
-  const arquivos = { './api/v1/index.json': indexDe('202611', false, ['202610']), './api/v1/gerencias/XA.json': XA3,
-                     './api/v1/gerencias/XB.json': XB3, './api/v1/fechado/202610.json': OUT, './api/v1/resumo.json': RESUMO };
+  // 4H: XA3V/XB3V (volume de novembro batido), para o "Bateu!" de XA continuar provando a carga completa
+  const arquivos = { './api/v1/index.json': indexDe('202611', false, ['202610']), './api/v1/gerencias/XA.json': XA3V,
+                     './api/v1/gerencias/XB.json': XB3V, './api/v1/fechado/202610.json': OUT, './api/v1/resumo.json': RESUMO };
   const d = await A.carregarRanking(undefined, { baseCanais: BASE, fetchFn: async (url) =>
     (url in arquivos ? resposta(200, arquivos[url]) : resposta(404, null)) });
   assert.equal(d.ok, true);
@@ -1134,12 +1213,26 @@ test('4C: ordem, Pos. 1..12, posição oficial e "Bateu!" só até a 6a oficial'
   assert.deepEqual(d.gc.map((l) => [l.pos, l.codigo]),
     [[1, 'IT_MO'], [2, 'G1'], [3, 'GU_PO'], [4, 'G2'], [5, 'G3'], [6, 'AP'], [7, 'AT'], [8, 'AN'], [9, 'RV'],
      [10, 'SL'], [11, 'PA_DI'], [12, 'UR_RI']]);
-  // UR_RI é a única sem o gatilho: as outras 11 recebem posição oficial, em sequência
-  assert.deepEqual(d.gc.map((l) => l.oficial), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, null]);
-  const bateu = d.gc.filter((l) => l.status.status === 'Bateu!').map((l) => l.codigo);
-  assert.deepEqual(bateu, ['IT_MO', 'G1', 'GU_PO', 'G2', 'G3', 'AP']);
+  // 4H (regras v1.8): a posição oficial exige os DOIS pilares. Nesta fixture todas menos UR_RI batem o Skyy, mas só
+  // IT_MO (118,75%), G1 (100%) e GU_PO (100%) batem o volume de novembro: só as três recebem posição oficial
+  // (era 1..11 antes da v1.8), e Pos. e ordem não mudam.
+  assert.deepEqual(d.gc.map((l) => l.oficial), [1, 2, 3, null, null, null, null, null, null, null, null, null]);
+  assert.deepEqual(d.gc.filter((l) => l.status.status === 'Bateu!').map((l) => l.codigo), ['IT_MO', 'G1', 'GU_PO']);
+  assert.equal(linhaDe(d, 'G2').status.motivo, 'volume em 99,0%: precisa de 100%');
+  // o limite de 6 com os dois pilares batidos: as oito sozinhas com volume de 129% a 122% (abaixo da trava, todas
+  // batem); a ordem muda porque a Soma muda, e o "Bateu!" para na 6a posição oficial
+  const SOZ_4H = ['G1', 'G2', 'G3', 'AP', 'AT', 'AN', 'RV', 'SL'].map((id, i) =>
+    gerC(id, bl(100, 129 - i, 0, 1), cbl(bl(1, 1, 0, 0), 100, 100 + i, 0)));
+  const d6 = montar4c({ gerencias: PARES.concat(SOZ_4H) });
+  assert.deepEqual(d6.gc.map((l) => [l.pos, l.codigo, l.oficial]),
+    [[1, 'G1', 1], [2, 'G2', 2], [3, 'G3', 3], [4, 'AP', 4], [5, 'AT', 5], [6, 'AN', 6], [7, 'RV', 7], [8, 'SL', 8],
+     [9, 'IT_MO', 9], [10, 'GU_PO', 10], [11, 'PA_DI', null], [12, 'UR_RI', null]]);
+  const bateu = d6.gc.filter((l) => l.status.status === 'Bateu!').map((l) => l.codigo);
+  assert.deepEqual(bateu, ['G1', 'G2', 'G3', 'AP', 'AT', 'AN']);
   assert.equal(bateu.length, Motor.REGRAS.premiadas.gc);         // o limite vem do motor, não deste teste
-  assert.equal(d.gc.find((l) => l.oficial === 7).status.motivo, 'suba 1 posição');
+  assert.equal(d6.gc.find((l) => l.oficial === 7).status.motivo, 'suba 1 posição');
+  // PA_DI: Skyy batido (meta só de PA, 100; real 90 + 10 de DI = 100%) e volume em 75%: fica sem oficial
+  assert.deepEqual(linhaDe(d6, 'PA_DI').status, { status: '-', motivo: 'volume em 75,0%: precisa de 100%' });
 });
 
 test('4C: desempate entre linhas com a mesma Soma pelo código da linha em minúsculas ("g1" antes de "gu_po")', () => {
@@ -1709,4 +1802,45 @@ test('tela 4G: o HTML gerado leva a paginação (build rodado)', () => {
   assert.match(html, /\.pag button\[aria-current="page"\]/);
   assert.match(html, /linhasPorPagina: 15/);                           // o CONFIG do adaptador embutido
   assert.doesNotMatch(html, /rotasDaMesa\(D, st\.sv\)/);
+});
+
+/* --- Etapa 4H: status com os dois pilares (regras v1.8, seções 2, 5 e 7) -------------------------------------- */
+
+test('4H tela: "Oficial", cinza e contagem seguem os dois pilares do motor; nada de regra digitada', () => {
+  // a tela conta pelo gatilho dos dois pilares do motor, nunca pelo gatilho de Skyy sozinho
+  assert.match(TPL, /const bateuPilares = \(l\)=>!!\(l\.gatilhoPilares&&l\.gatilhoPilares\.batido\)/);
+  assert.doesNotMatch(TPL, /l\.gatilho&&l\.gatilho\.batido/);
+  assert.match(TPL, /com os dois pilares/);
+  assert.doesNotMatch(TPL, /gatilho pendente/);
+  // a cor cinza da posição e o "Of." continuam lendo só o oficial do motor
+  assert.match(TPL, /<span class="n pos'\+\(l\.oficial\?'':' cinza'\)\+'">/);
+  // o mínimo do gatilho de volume vem do motor, nunca digitado
+  assert.match(TPL, /R\.gatilhoVolume\.minimo/);
+  assert.match(TPL, /R\.gatilhoVolume\.meses/);
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /gatilhoVolume: \{ meses: \[11, 12\], minimo: 100 \}/); // o motor embutido é o da v1.8
+  assert.match(html, /versao: '1\.8'/);
+});
+
+test('4H alertasDaTela: a pendência 26 aparece, com os números do motor', () => {
+  const al = A.alertasDaTela(montar3());
+  const p26 = al.find((a) => /dois pilares/.test(a.titulo));
+  assert.ok(p26);
+  assert.equal(p26.tipo, 'aviso');
+  assert.match(p26.texto, /pendência 26/);
+  assert.match(p26.texto, new RegExp(A.fmtPct(Motor.REGRAS.gatilhoVolume.minimo)));
+  // mês de volume do gatilho indisponível: o aviso diz que o gatilho de volume fica indisponível; outubro não
+  const nov = A.alertasDaTela(Object.assign({}, montar3(), { meses: [{ mes: 10, fonte: 'indisponivel', motivo: 'x' },
+                                                                     { mes: 11, fonte: 'indisponivel', motivo: 'y' }] }));
+  assert.match(nov.find((a) => a.titulo === 'Novembro indisponível').texto, /gatilho de volume fica indisponível/);
+  assert.doesNotMatch(nov.find((a) => a.titulo === 'Outubro indisponível').texto, /gatilho de volume/);
+});
+
+test('4H montarDados: Total Band e linhas da API sem ranking têm os gatilhos, mas nunca posição oficial nem status', () => {
+  const d = montar3({ gerencias: [XA3V, XB3V] });
+  for (const k of ['gatilho', 'gatilhoVolume', 'gatilhoPilares']) assert.ok(k in d.totalBand, k);
+  for (const k of ['oficial', 'status']) assert.equal(k in d.totalBand, false, k);
+  const xa = d.gcApi.find((l) => l.codigo === 'XA');
+  assert.equal(xa.gatilhoPilares.batido, true);
+  assert.equal(xa.oficial, undefined);
 });

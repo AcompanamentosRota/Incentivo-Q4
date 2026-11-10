@@ -1,15 +1,15 @@
 # Painel Campari Club 2026
 
 Painel de acompanhamento do incentivo **Campari Club** (outubro a dezembro de 2026, Coca-Cola Bandeirantes):
-gatilho de **cobertura de Skyy** e ranking por **volume de aperitivo**, nos níveis Gerente Comercial, Supervisão Mista
+dois pilares — gatilho de **cobertura de Skyy** e gatilho de **volume de Aperitivo** — e ranking por **volume de aperitivo**, nos níveis Gerente Comercial, Supervisão Mista
 e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o total da empresa fica na linha
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.7, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
+Regras: [`docs/regras.md`](docs/regras.md) (v1.8, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4G — a tela, com as tabelas paginadas da v1.7
+## Estado: etapa 4H — status "Bateu!" com os dois pilares (v1.8)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -33,10 +33,13 @@ sinaliza, não decide.
   centralização, coluna Dez só em dezembro, rótulos "% Acum." e "% Médio", quadradinho no % do mês vigente do
   Aperitivo (`corDoPercentualAperitivo`, a única regra nova), números do Aperitivo na fonte da tabela, linha do
   total só com "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. **Nenhum número muda.**
-- **Etapa 4G (esta):** a **navegação por páginas** da v1.7, seção 7, descrita no fim deste arquivo: **15 linhas por
+- **Etapa 4G:** a **navegação por páginas** da v1.7, seção 7, descrita no fim deste arquivo: **15 linhas por
   página** na Supervisão (uma paginação por canal), no Consultor — que passa a abrir com **todas as rotas** — e no
   Detalhe do mês, com a linha de total fixa no rodapé de todas as páginas e **sem rolagem** dentro da tabela. A conta
   é uma função pura do adaptador (`fatiar`), com o tamanho em `CONFIG.linhasPorPagina`. **Nenhum número muda.**
+- **Etapa 4H (esta):** o **status "Bateu!" e a coluna Oficial exigem os dois pilares** (regras v1.8, seções 2.2, 5 e
+  7), descrito no fim deste arquivo: o novo **gatilho de volume de Aperitivo** (`gatilhoVolume`) e o gatilho dos dois
+  pilares (`gatilhoPilares`), no motor. **O ranking não muda** (% Acum., ordem e Pos.); mudam só Oficial e status.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -58,14 +61,14 @@ sinaliza, não decide.
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão (que **abre em "Todas"** desde a etapa 4G), o aviso de que ranking e premiação são do supervisor para cima, e as rotas em dois grupos (Volume de Aperitivo · Cobertura de Skyy), paginadas de 15 em 15, com a linha de total fixa no rodapé — "Total Band" em "Todas", "Total da gerência XX" com uma gerência escolhida e "Total da mesa SV.XX.N" com um SV |
 | **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos, paginada, e a linha "Total Band" |
-| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**) aparecem |
+| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**; desde a 4H, **26**) aparecem |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
 
 | Função | O que faz |
 | --- | --- |
-| `REGRAS` | `versao`, `trava: {10: 130, 11: 130, 12: null}` (dezembro sem trava), `gatilho: {meses: [11, 12], minimo: 100}` e `premiadas: {gc: 6, svMista: 12, svSegmentada: 3}` |
-| `MOTIVOS` | os textos exatos do motivo do status: `premiadas`, `indisponivel`, `semMeta`. Desde a v1.6 o motivo **não aparece na tela** (a coluna Status mostra só o selo) e continua calculado no motor |
+| `REGRAS` | `versao`, `trava: {10: 130, 11: 130, 12: null}` (dezembro sem trava), `gatilho: {meses: [11, 12], minimo: 100}` (Skyy), `gatilhoVolume: {meses: [11, 12], minimo: 100}` (Aperitivo, v1.8) e `premiadas: {gc: 6, svMista: 12, svSegmentada: 3}` |
+| `MOTIVOS` | os textos exatos do motivo do status: `premiadas`, `indisponivel`, `semMeta`, `volumeIndisponivel`, `semMetaVolume` (os "cobertura em X%" / "volume em X%" saem de `gatilhoPilares`). Desde a v1.6 o motivo **não aparece na tela** (a coluna Status mostra só o selo) e continua calculado no motor |
 | `percentualMes(real, online, meta)` | (Real + Online) ÷ Meta × 100, bruto; null com meta nula ou ≤ 0; online ausente = 0 |
 | `aplicarTrava(pct, mes)` | `{valor, travado}`: min(%, limite); no limite exato não trava |
 | `somaRanking(valores)` | soma dos % travados dos meses com %; nenhum: null |
@@ -76,8 +79,10 @@ sinaliza, não decide.
 | `percentualCobertura(real, online, meta)` | % de cobertura do mês, bruto; meta nula ou ≤ 0 dá null (vira "sem meta de cobertura") |
 | `diferenca(real, online, meta)` | Real + Online − Meta; online ausente = 0; sem real ou sem meta, null |
 | `gatilhoCobertura(meses, mesRef)` | `{valor, batido, parcial, indisponivel, motivo}`: novembro parcial; de dezembro em diante a média simples de nov e dez, e só com os dois; `batido` = valor bruto ≥ 100 |
-| `numerarOficial(linhas)` | coluna "Oficial" 1..k, só de quem bateu o gatilho, na ordem do ranking |
-| `statusLinha(linha, nivel, cfg)` | `{status: "Bateu!" \| "-", motivo}`; `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
+| `gatilhoVolume(meses, mesRef)` | **gatilho de volume de Aperitivo (v1.8, seção 2.2)**: `{valor, batido, parcial, indisponivel, motivo}`, no molde do de cobertura, com o % do mês do **ranking** (`percentualMes` + `aplicarTrava`); novembro parcial; dezembro só com os dois meses; meta nula ou ≤ 0 → indisponível ("sem meta de volume"); outubro nunca entra |
+| `gatilhoPilares(gSkyy, gVolume, cfg)` | **os dois pilares (v1.8, seção 5)**: `{batido, indisponivel, motivo}` — batido só com os dois; indisponível quando falta algum e nenhum falhou com valor; gatilho ausente nunca conta como batido |
+| `numerarOficial(linhas, cfg)` | coluna "Oficial" 1..k, só de quem bateu **os dois pilares**, na ordem do ranking |
+| `statusLinha(linha, nivel, cfg)` | `{status: "Bateu!" \| "-", motivo}`: dois pilares batidos **e** oficial ≤ limite; `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
 | `metaDiaCobertura(meta, real, diasRestantes)` | (Meta − Real) ÷ dias restantes, travada, inteiro para cima (tolerância 1e-9); meta batida 0; 0 dias dá a diferença total |
 | `metaDiaVolume(metaDia, real, meta)` | **regra de exibição da meta dia de volume (v1.4)**: Real > Meta → 0; `meta_dia` negativa → 0; não numérica → null ("—"). Nunca recalcula: a `meta_dia` vem pronta da API |
 | `corDoPercentual(valor, cfg)` | **cor do quadradinho do % de cobertura (v1.6)**: `'verde'` com o valor **bruto** ≥ `REGRAS.gatilho.minimo`, `'vermelho'` abaixo dele, `null` sem valor (a tela não desenha quadradinho). O truncado da tela nunca decide a cor: 99,99999% mostra "99,9%" e fica vermelho |
@@ -130,7 +135,8 @@ sinaliza, não decide.
   nem status), `rotas` (sem gatilho nem status), `totalBand`, `canaisSV`, `avisos`. Cada linha guarda, por mês, o volume em
   `meses` (`meta`, `real`, `online`, `metaDia` só no mês aberto, `dif`, `pct`, `pctTravado`, `travado`, `fonte`,
   `estado`, `situacao`, `aberto`), a cobertura em `cobertura` (os mesmos campos, mais `motivo`), e `soma`,
-  `incompleta`, `pos`, `gatilho`, `oficial` e `status`.
+  `incompleta`, `pos`, `gatilho` (Skyy), `gatilhoVolume` (Aperitivo, 4H), `gatilhoPilares` (os dois, 4H), `oficial` e
+  `status`.
 - **`tabela` (estrutura da P7, regras seção 7):** o que a tela lê sem calcular nada —
   `tabela.aperitivo.porMes[10|11|12]` e `tabela.skyy.porMes[10|11|12]` com `meta`, `real`, `online`, `metaDia`, `dif`,
   `pct` e `hojeOk`; `online` e `metaDia` só existem no **mês aberto** (nos outros, null, e a tela mostra "—").
@@ -177,7 +183,7 @@ painel-campari/
 ├── docs/regras.md         fonte de verdade das regras do incentivo
 ├── src/
 │   ├── motor.js           cálculo (UMD: Node e window.MotorCampari): % do mês, trava, soma do grupo, soma,
-│   │                      ordem, posição, gatilho de cobertura, posição oficial, status e meta dia de cobertura
+│   │                      ordem, posição, gatilhos (cobertura, volume e os dois pilares), posição oficial, status, metas dia
 │   ├── adapter.js         CONFIG (com gruposGC), localizarProdutos, carregarDados, fontesDosMeses,
 │   │                      fontesDaCobertura, coberturaDoFechado, lerFechado, gruposDoRankingGC, tabelaDaLinha,
 │   │                      montarDados, carregarRanking
@@ -195,7 +201,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 199 testes (61 do motor, 138 do adaptador); precisa de Node 18+
+# testes do painel — 220 testes (76 do motor, 144 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -372,3 +378,29 @@ linha de total, porque não tinha nenhuma até aqui — "o Total Band fixo no ro
 a tela já mostra se repete em todas as páginas", não como uma linha nova; (c) no Consultor em "Todas", o total é o
 **Total Band**, e com uma gerência escolhida é a linha daquela gerência da API (`gcApi`), que soma todas as rotas
 dela — nenhuma soma nova é feita no painel.
+
+## Etapa 4H — status "Bateu!" com os dois pilares (regras v1.8, seções 2.2, 5 e 7)
+
+Decisão da Karen em 09/11/2026 (noite), ao ver um SV com Skyy em 100% e Aperitivo de novembro zerado marcado como
+"Bateu!": o status passa a exigir **os dois pilares**. **O ranking não muda** — % Acum., ordem e Pos. saíram idênticos
+aos da 4G na mesma cópia de `api/v1` (foto de 09/11/2026 18:45); mudam só a coluna Oficial, o status e a cor da Pos.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | **Gatilho de volume de Aperitivo:** média simples dos % de novembro e dezembro, mínimo 100% no valor **bruto**, com o % do mês do **ranking** (trava de 130% em novembro; dezembro sem trava); outubro fora; novembro parcial; dezembro só com os dois meses; meta nula ou ≤ 0 → indisponível | `gatilhoVolume` no motor, `REGRAS.gatilhoVolume` |
+| 2 | **Dois pilares:** batido só com Skyy **e** volume; indisponível quando falta algum e nenhum falhou com valor | `gatilhoPilares` no motor |
+| 3 | **Oficial** numera só quem bateu os dois; quem bateu um só fica sem oficial (Pos. em cinza) e quem está atrás sobe | `numerarOficial` |
+| 4 | **Status** "Bateu!" = dois pilares **e** oficial ≤ limite; motivos novos "volume em X%: precisa de 100%", "cobertura em X% e volume em Y%: precisam de 100%", "volume indisponível", "sem meta de volume" (só no motor) | `statusLinha`, `MOTIVOS` |
+| 5 | Cada linha de GC agrupada, SV (Mista, Segmentada e fora do ranking), gerência da API e Total Band ganha `gatilhoVolume` e `gatilhoPilares`, sobre os mesmos meses do ranking da linha (na linha agrupada, a soma das gerências) | `montarDados` no adaptador |
+| 6 | **Tela:** sem coluna nova. A nota das tabelas conta "com os dois pilares", o rodapé diz "posição em cinza: sem os dois pilares", o título do bloco Aperitivo ganhou "GATILHO ≥ 100,0%" (de `R.gatilhoVolume.minimo`), e a aba Regras descreve os dois pilares, o status e a Oficial | `app.tpl.html` |
+| 7 | **Dados e alertas:** aviso da ⚠️ pendência 26 (premissas da v1.8) e, quando novembro ou dezembro de volume faltar, o aviso diz que o gatilho de volume fica indisponível | `alertasDaTela` |
+
+**Contagem na foto de 09/11/2026 18:45** (recálculo independente em Python, igual ao painel): Ranking GC 12 linhas —
+0 com Skyy, 0 com volume, 0 com os dois; SV Mista 29 — 1 com Skyy (SV.IT.2), 1 com volume (SV.G2.1), 0 com os dois;
+SV Segmentada 6 — 1 com Skyy (SV.AT.2), 0 com volume, 0 com os dois. Nenhuma posição oficial e nenhum "Bateu!" (na 4G
+eram 2: SV.IT.2 e SV.AT.2, só com o Skyy).
+
+⚠️ **Pendência 26** (a Karen confirma): (a) em novembro o gatilho de volume é parcial (só novembro); (b) % de volume
+nulo (meta nula ou ≤ 0) deixa o gatilho indisponível; (c) a tela não ganha coluna nova para o gatilho de volume; (d) o
+texto dos motivos novos — inclusive o de dois pilares indisponíveis ao mesmo tempo, que o painel une com " e "
+("cobertura indisponível e volume indisponível").

@@ -1,7 +1,13 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.7 (09/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.8 (09/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.8 (09/11/2026, noite):** o status "✓ Bateu!" passa a exigir **os dois pilares**, decidido pela Karen ao ver um SV com Skyy em 100% e Aperitivo
+zerado em novembro marcado como "Bateu!" (seções 2, 5 e 7). Novo gatilho de **volume de Aperitivo**: média simples dos % de **novembro e dezembro**,
+**mínimo 100%**, no valor **bruto**, com a **trava de 130% em novembro** (dezembro sem trava); outubro não entra. "Bateu!" = gatilho de Skyy **e** gatilho de
+Aperitivo **e** posição oficial dentro das premiadas. A coluna **Oficial** passa a numerar só quem bateu os **dois** pilares. O cálculo do ranking (% Acum.) não muda.
+Abre a pendência 26 (premissas).
 
 **v1.7 (09/11/2026, fim da tarde):** ajustes de tabela e navegação, pedidos pela Karen (seção 7): conteúdo das tabelas centralizado em todas as
 abas; coluna Dez só em dezembro; rótulos novos ("Soma" do Aperitivo vira "% Acum.", "% Acum." de Skyy vira "% Médio", só na tela: o gatilho
@@ -51,8 +57,8 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
 ## 1. Visão geral
 
 - **Vigência:** outubro, novembro e dezembro de 2026.
-- **Mecânica:** um gatilho de cobertura de Skyy habilita o participante, e o ranking é feito por volume de
-  aperitivo.
+- **Mecânica:** dois pilares habilitam o participante (gatilho de cobertura de Skyy **e** gatilho de volume de
+  aperitivo, seção 2), e o ranking é feito por volume de aperitivo.
 - **Níveis com ranking:** Gerente Comercial (GC), Supervisor Mista e Supervisor Segmentada.
 - **Consultor (Rota):** Rota = Consultor. Aparece no painel, mas não tem ranking nem status
   ("contabilizado do supervisor para cima"). **A aba Consultor lista só as rotas `tipo: "normal"` da API
@@ -63,7 +69,9 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
 - **Telas (mockup de 08/11/2026):** Ranking GC · Supervisão (uma tela só, aberta em Mista, com botões
   "Mista | Segmentada" e filtro de gerência) · Consultor · Detalhe do mês · Regras.
 
-## 2. Gatilho — cobertura de Skyy
+## 2. Gatilhos — os dois pilares
+
+### 2.1 Cobertura de Skyy
 
 - Medida: cobertura do agrupador **Skyy** (bloco `cobertura` do produto extra `skyy` na API).
 - **Cobertura:** o cliente conta uma vez no mês, na primeira venda de qualquer SKU. Uma nova compra do
@@ -75,13 +83,26 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
   entra. Em novembro, o gatilho aparece como parcial (só novembro).
 - **Online de cobertura:** só clientes ainda não cobertos no mês com pedido válido hoje.
 
+### 2.2 Volume de Aperitivo (decisão de 09/11/2026, noite)
+
+- Medida: volume do agrupador **Aperitivo** (produto extra `aperitivos`), a mesma da seção 3.
+- **% do mês** = (Real + Online) ÷ Meta, bruto, **com a trava de 130% em novembro** (dezembro sem trava), o mesmo % mensal do ranking.
+- **Gatilho de volume** = média simples dos % de **novembro e dezembro**, **mínimo 100%**, comparado no valor **bruto** (99,99999% não bate; a tela
+  trunca, o cálculo não arredonda). **Outubro não entra.** Em novembro o gatilho é **parcial** (só novembro), como o de Skyy.
+- Exemplo com a trava: novembro 200% (vale 130%) e dezembro 60% dão (130 + 60) ÷ 2 = 95% e **não** batem; novembro 130% e dezembro 70% dão 100% e batem.
+- Em dezembro o gatilho precisa dos dois meses com % válido; faltando um, fica **indisponível** (sem posição oficial, sem "Bateu!"). O volume de
+  novembro vem do `fechado/202611.json`, que já traz volume (a pendência 10 é só da cobertura de Skyy).
+- Meta de volume nula ou ≤ 0: % nulo, gatilho **indisponível** (nunca 0 nem 100).
+- **Os dois gatilhos são independentes:** a linha bate o **pilar** quando bate o mínimo do seu gatilho; "bateu os dois pilares" = os dois batidos.
+
 ## 3. Ranking — volume de aperitivo
 
 - Medida: volume do agrupador **Aperitivo** (produto extra `aperitivos` na API; um único agrupador, com meta de
   volume).
 - **% do mês** = (Real + Online) ÷ Meta, bruto (não usar o `atingimento_pct` inteiro da API).
 - **Trava:** o % do mês é limitado a **130% em outubro e novembro**. **Dezembro sem trava.**
-- **Pontuação do ranking** = soma dos % mensais (out + nov + dez) já com a trava.
+- **Pontuação do ranking** = soma dos % mensais (out + nov + dez) já com a trava. (O gatilho de volume da seção 2.2 é outra conta: média de
+  nov e dez; outubro só pontua o ranking.)
 - Ranking separado por nível: GC (único), SV Mista e SV Segmentada.
 - **Ranking parcial:** usa Real + Online no mês aberto. Meses fechados: só o realizado.
 - **Outubro:** vem do `fechado/202610.json` e segue a chave do faturamento (regra até out/26). Novembro e
@@ -124,11 +145,13 @@ grupo); o M. Dia de cobertura é calculado sobre a meta e o real somados; (c) To
 
 ## 5. Posição, status e desempate
 
-- Todas as linhas recebem posição (coluna **Pos.**, a ordem na tela). Quem não bate o gatilho aparece com a
-  posição em **cinza**. A coluna **Oficial** numera só quem bateu o gatilho.
-- **Status (decisão de 08/11/2026, conceito do Q4):** "✓ Bateu!" = gatilho batido **e** posição oficial dentro das
-  posições premiadas do ranking (GC: 6; SV Mista: 12; SV Segmentada: 3). Qualquer outro caso = "-". Embaixo do
-  status, o motivo ("dentro das premiadas", "cobertura em X%: precisa de 100%" ou "suba N posições", com N = posição
+- Todas as linhas recebem posição (coluna **Pos.**, a ordem na tela). Quem não bate **os dois pilares** aparece com a
+  posição em **cinza**. A coluna **Oficial** numera 1, 2, 3… só quem bateu **os dois pilares** (gatilho de Skyy **e** gatilho de volume de
+  Aperitivo), na ordem do ranking; quem bateu só um fica sem posição oficial e quem está atrás sobe (decisão de 09/11/2026, noite).
+- **Status (decisão de 08/11/2026, conceito do Q4):** "✓ Bateu!" = **gatilho de Skyy batido e gatilho de
+  volume de Aperitivo batido** (os dois pilares, seção 2) **e** posição oficial dentro das posições premiadas do ranking (GC: 6; SV Mista: 12;
+  SV Segmentada: 3). Qualquer outro caso = "-". O motivo ("dentro das premiadas", "cobertura em X%: precisa de 100%", "volume em X%: precisa de 100%",
+  "cobertura em X% e volume em Y%: precisam de 100%" ou "suba N posições", com N = posição
   oficial − limite) **continua calculado pelo motor, mas não aparece mais na tela** (decisão de 09/11/2026): a coluna Status
   mostra só o selo, "✓ Bateu!" ou "-".
 - **Os prêmios não aparecem no painel** (decisão de 08/11/2026): nem nomes, nem quadro de premiação. O painel usa
@@ -169,7 +192,7 @@ posição e o status:
 | Identificação | Pos. · Oficial · Gerência (ou SV) |
 | Aperitivo (volume) | Meta · Real · M. Dia · Online · Dif · Out · Nov · Dez (só em dezembro) · **% Acum.** (os % mensais com a trava somados; era "Soma"; é a pontuação do ranking) |
 | Skyy (cobertura · clientes) | Meta · Real · M. Dia · Online · Dif · % do mês · % Nov (só em dezembro) · **% Médio** (era "% Acum."; = gatilho: média simples de novembro e dezembro; em novembro, parcial) |
-| Resultado | Status (só o selo: "✓ Bateu!" ou "-") |
+| Resultado | Status (só o selo: "✓ Bateu!" ou "-"; exige os dois pilares, seção 5) |
 
 - **Seletor "Mês de referência"** (Ranking GC; vale também na Supervisão): troca **Meta, Real, Dif e o % do mês** dos
   dois blocos pelo mês escolhido. **Não muda** Out, Nov, Dez, Soma, % Nov e % Acumulado. O padrão é o mês de referência
@@ -241,6 +264,7 @@ previsão 12/11/2026.
 | 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
 | 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
+| 26 | Status com os dois pilares (v1.8): premissas adotadas | **Em aberto**: (a) em novembro o gatilho de volume é parcial (só novembro); (b) % de volume nulo (meta nula ou ≤ 0) deixa o gatilho indisponível; (c) a tela não ganha coluna nova para o gatilho de volume (o selo e a cor da posição bastam); (d) o texto dos motivos novos (seção 5). A Karen confirma ou ajusta | Karen |
 | 25 | Centralização total (inclui a coluna de identificação) e limite de 100% em dezembro para o quadradinho do Aperitivo | **Em aberto**: valem as premissas da seção 7 até a Karen confirmar. O quadradinho do mês vigente (≥ 130% verde, < 130% vermelho; % Acum. sem quadradinho) foi decidido em 09/11/2026 | Karen |
 | 24 | Ranking GC pela **gerência comercial agrupada** do SAC: quais gerências formam cada grupo? | **Resolvida** em 09/11/2026 (print do SAC, 12 linhas; seção 4). Ficam as premissas (a) a (e) da seção 4 para a Karen confirmar | Karen |
 
