@@ -9,7 +9,7 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 Regras: [`docs/regras.md`](docs/regras.md) (v1.9, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4I — Detalhe do mês sem paginação na visão Gerência (v1.9)
+## Estado: etapa 4J — só a posição oficial nas tabelas de ranking (v1.10)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -39,10 +39,13 @@ sinaliza, não decide.
   é uma função pura do adaptador (`fatiar`), com o tamanho em `CONFIG.linhasPorPagina`. **Nenhum número muda.**
 - **Etapa 4H:** o **status "Bateu!" e a coluna Oficial exigem os dois pilares** (regras v1.8, seções 2.2, 5 e
   7), descrito no fim deste arquivo: o novo **gatilho de volume de Aperitivo** (`gatilhoVolume`) e o gatilho dos dois
-  pilares (`gatilhoPilares`), no motor. **O ranking não muda** (% Acum., ordem e Pos.); mudam só Oficial e status.
-- **Etapa 4I (esta):** a visão **Gerência** do Detalhe do mês **deixa de ser paginada** (regras v1.9, seção 7;
+  pilares (`gatilhoPilares`), no motor. **O ranking não muda** (% Acum., ordem e posição); mudam só Oficial e status.
+- **Etapa 4I:** a visão **Gerência** do Detalhe do mês **deixa de ser paginada** (regras v1.9, seção 7;
   pendência 27): as 16 gerências e o Total Band numa tela só, sem botões. A paginação fica na Supervisão, no
   Consultor e na visão Supervisão do Detalhe. Descrita no fim deste arquivo. **Nenhum número muda.**
+- **Etapa 4J (esta):** as duas tabelas de ranking passam a ter **só a coluna da posição oficial** (regras v1.10,
+  seções 5 e 7): a coluna "OF." numera quem bateu os dois pilares e mostra "—" para os demais; a coluna "Pos." e a
+  regra de pintá-la em cinza saem da tela. Descrita no fim deste arquivo. **Nenhum número, ordem ou status muda.**
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -52,7 +55,7 @@ sinaliza, não decide.
 | P2 | **Fundo:** `src/assets/campari-fundo.jpg`, embutido em base64 pelo `build.py`, `center top / 1920px auto no-repeat` sobre `#02306B`. A arte traz logo, letreiro e faixa de meses, e **nada é desenhado por cima** (a faixa de abas começa em `top:148px`). Sem o arquivo, o build cai para o azul sólido e avisa. Um véu escuro (`.bg::after`) cobre só os últimos 150 px, para o rodapé ter contraste sobre o pôr do sol da arte |
 | P3 | **Nenhum prêmio e nenhum nome de pessoa ou cliente na tela:** só códigos de rota, SV e gerência. Testado no template e no HTML gerado |
 | P4 | **Seletor "Mês de referência"** no Ranking GC **e** na Supervisão (um estado só): troca Meta, Real, Dif e o % do mês dos dois blocos; M. Dia e Online só no mês aberto (nos outros, "—"); as colunas de mês, o % Acum., o % Nov e o % Médio não mudam. Mês sem dado fica desabilitado. Quem decide o que cada mês tem é `mesesDoSeletor` no adaptador. O **mês vigente** (`mesesDoSeletor(...).referencia`) é outra coisa: é o mês de referência da **API**, e é ele que decide as colunas que só existem em dezembro e onde fica o quadradinho do Aperitivo |
-| P5 | **Colunas da v1.4** (19 no total em outubro e novembro, 21 em dezembro com a coluna Dez e o "% Nov"; etapa 4F). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). Desde a etapa 4G não há mais rolagem **vertical** em nenhuma aba: as listas longas são paginadas de 15 em 15 |
+| P5 | **Colunas da v1.4** (18 no total em outubro e novembro, 20 em dezembro com a coluna Dez e o "% Nov"; etapa 4F, menos a "Pos." que a 4J tirou). Tudo cabe no palco de 1920, **sem rolagem horizontal**, com corpo de 14 px nas duas tabelas de ranking (etapa 4B) e cabeçalho de 13 px (o mínimo da etapa). Desde a etapa 4G não há mais rolagem **vertical** em nenhuma aba: as listas longas são paginadas de 15 em 15 |
 | P6 | **Nenhum número de regra digitado na tela:** gatilho, trava e posições premiadas saem de `motor.REGRAS`. Um teste varre o template (sem o CSS) atrás de `130`, "precisa de 100" e "GC: 6 / Mista: 12 / Segmentada: 3" |
 | — | **Consultor lista só as rotas `tipo: "normal"`** (decisão da Karen, 09/11/2026). As `neutraliza` e `virtual` ficam fora da lista, mas continuam somando no SV: a linha "Total da mesa" pode ser maior que a soma das linhas, e a tela conta quantas ficaram fora (`rotasDaMesa` + `textoDasOcultas`) |
 
@@ -78,7 +81,7 @@ sinaliza, não decide.
 | `apurarMeses(meses)` | % bruto, travado e marca de trava por mês, soma e `incompleta` (mês que devia contar sem %) |
 | `somarGrupo(valores, campos)` | **soma da gerência comercial agrupada (v1.6, seção 4)**: soma `meta`, `real`, `online` e `metaDia` das gerências do grupo, para o % sair da **soma** e nunca da média dos %. Campo sem nenhum valor numérico fica null (nunca 0); `campos` permite somar o bloco de cobertura, que não tem meta dia |
 | `ordenarRanking(linhas)` | soma desc (null no fim); empate pelo código em minúsculas, texto simples (`sv.g2.10` < `sv.g2.2`) |
-| `numerarRanking(linhas)` | Pos. 1..n em todas as linhas |
+| `numerarRanking(linhas)` | posição 1..n em todas as linhas (`pos`): ordena o ranking e entra no motivo do status; desde a v1.10 **não é exibida** |
 | `percentualCobertura(real, online, meta)` | % de cobertura do mês, bruto; meta nula ou ≤ 0 dá null (vira "sem meta de cobertura") |
 | `diferenca(real, online, meta)` | Real + Online − Meta; online ausente = 0; sem real ou sem meta, null |
 | `gatilhoCobertura(meses, mesRef)` | `{valor, batido, parcial, indisponivel, motivo}`: novembro parcial; de dezembro em diante a média simples de nov e dez, e só com os dois; `batido` = valor bruto ≥ 100 |
@@ -205,7 +208,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 227 testes (76 do motor, 151 do adaptador); precisa de Node 18+
+# testes do painel — 232 testes (76 do motor, 156 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -427,4 +430,28 @@ a célula, saíram idênticas às da 4H na mesma cópia de `api/v1` (foto de 09/
 Supervisão em "Todas" 63 (5 páginas) e com uma gerência 2 a 5 (1 página) · Supervisão Mista 29 (2) · Supervisão
 Segmentada 6 (1) · Consultor 218 rotas (15) · Ranking GC 12 + Total Band (1, sem botões). Cabe sem rolagem em
 ~1920×940 e em 1366×768.
+
+## Etapa 4J — só a posição oficial nas tabelas de ranking (regras v1.10, seções 5 e 7)
+
+Decisão da Karen em 10/11/2026: nas tabelas de ranking só a coluna da posição **oficial** deve aparecer, "a que
+conta". **Só apresentação: nenhum número, ordem de linha ou status muda** — na mesma cópia de `api/v1` (foto de
+10/11/2026 08:15), o Ranking GC e as duas Supervisões saíram, célula a célula, idênticos aos da 4I, com a única
+diferença da coluna que saiu e do rótulo "Of." → "OF.".
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | A coluna **"Pos."** sai do cabeçalho e das linhas das duas tabelas de ranking; fica a **"OF."**, com `1º, 2º…` para quem bateu os dois pilares e `—` para os demais | `cabecalhoRanking` e `linhaRanking` em `app.tpl.html` |
+| 2 | A identificação passa de 3 para **2 colunas**: `<colgroup><col span="2">`, `colspan="2"` na linha de grupo e na do Total Band | `cabecalhoRanking` e `linhaRanking` |
+| 3 | A regra de pintar a posição em **cinza** deixa de existir na tela: saem o CSS dela e a variável de cor que só ela usava | `app.tpl.html` (CSS) |
+| 4 | **Rodapé** das abas: "posição em cinza: sem os dois pilares" vira **"OF.: posição oficial, só de quem bateu os dois pilares"** | `$('rodesq')` |
+| 5 | **Aba Regras:** o passo "Posição" e o parágrafo da coluna Oficial passam a descrever a coluna única e a ordem do % Acum. | `viewRegras` |
+| 6 | **Dados e alertas:** aviso da ⚠️ pendência 29 (nome da coluna e texto do rodapé, em aberto) | `alertasDaTela` |
+| 7 | `REGRAS.versao = '1.10'` (só a versão: nenhuma regra de cálculo muda no motor) | `motor.js` |
+
+**O motor não muda.** `numerarRanking` continua dando `pos` a todas as linhas — é ela que ordena o ranking e entra no
+motivo do status —, e `numerarOficial` continua entregando a coluna que a tela mostra. A ordem das linhas vem do
+adaptador, já ordenada pelo % Acum. de Aperitivo: nenhuma tela reordena nada.
+
+⚠️ **Pendência 29 (Karen):** o nome da coluna ("OF.", como hoje, ou "POS.") e o texto do rodapé. Vale a premissa da
+seção 5 das regras, sinalizada em Regras > Dados e alertas.
 

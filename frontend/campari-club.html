@@ -33,7 +33,13 @@
    Etapa 4I (decisão da Karen de 09/11/2026, pendência 27): a visão GERÊNCIA do Detalhe do mês deixa de ser
    paginada — todas as linhas e o Total Band numa tela só, sem botões. A visão Supervisão do Detalhe, a Supervisão
    e o Consultor continuam em páginas. A escolha é do adaptador (paginaDoDetalhe, que chama fatiar). Nenhum número
-   muda. */
+   muda.
+   Etapa 4J (regras v1.10, seções 5 e 7; decisão da Karen de 10/11/2026): as duas tabelas de ranking passam a ter
+   SÓ a coluna da posição oficial ("OF."), a que conta — a outra coluna de posição sai da tela, e com ela a regra
+   de pintá-la em cinza (o CSS dela e a variável de cor saíram). O motor continua calculando as duas posições, e a
+   ORDEM das linhas é a mesma (vem do adaptador, já ordenada pelo % Acum. de Aperitivo): nenhuma célula de dado,
+   ordem ou status muda.
+   O cabeçalho "OF." é a premissa da pendência 29, sinalizada em Regras > Dados e alertas. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -63,7 +69,7 @@
   --sk-tit:#061C4D; --sk-tit-fg:#E8EEFB; --sk-cel:rgba(29,123,255,.20);
   --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
   --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
-  --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --cinza:#9AA1AE; --ink:#FFFFFF;
+  --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --ink:#FFFFFF;
   --chrome:rgba(6,22,44,.88);
   --ff:Inter,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif;
   --cond:'Barlow Condensed','Arial Narrow',var(--ff);
@@ -170,7 +176,8 @@ button{cursor:pointer}
 .pchip.vermelho{background:var(--pct-no-bg);color:var(--pct-no-fg)}
 .hoje{display:inline-block;padding:1px 8px;border-radius:7px}
 .hoje.ok{background:rgba(46,196,182,.22);color:var(--turq2);font-weight:700}
-.pos{color:#fff}.pos.cinza{color:var(--cinza)}
+/* Etapa 4J: só a posição OFICIAL aparece nas tabelas de ranking (regras v1.10, seção 5); o seletor da outra
+   coluna de posição, e o da cor cinza de quem não bateu os dois pilares, saíram da tela junto com ela. */
 .of{color:var(--gold)}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--turq);color:#032B28}
@@ -237,7 +244,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.9 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.10 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -260,6 +267,9 @@ button{cursor:pointer}
  * gatilho de Skyy E o de volume. O ranking (% Acum., ordem e Pos.) não muda.
  * Etapa 4I (regras v1.9, seção 7): só a versão muda aqui. A v1.9 tira a paginação da visão Gerência do Detalhe do
  * mês, que é apresentação (adaptador e tela); nenhuma regra de cálculo muda.
+ * Etapa 4J (regras v1.10, seções 5 e 7): só a versão muda aqui outra vez. A v1.10 tira a coluna "Pos." das duas
+ * tabelas de ranking, que é apresentação (tela): `numerarRanking` continua dando `pos` a todas as linhas — é ela
+ * que ordena o ranking e entra no motivo do status —, e `numerarOficial` continua dando a coluna exibida.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -270,7 +280,7 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.9',
+    versao: '1.10',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -1831,10 +1841,11 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissas a confirmar da meta dia de volume, do quadradinho do
- *     Aperitivo, do status com os dois pilares e do texto do gatilho no cabeçalho do bloco Aperitivo);
+ *     Aperitivo, do status com os dois pilares, do texto do gatilho no cabeçalho do bloco Aperitivo e do nome
+ *     da coluna de posição);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
  * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24 e 27) não aparecem: só o que continua em aberto nas regras
- * v1.9 (10, 22, 25, 26 e 28). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
+ * v1.10 (10, 22, 25, 26, 28 e 29). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -1874,13 +1885,13 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.9, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.10, seção 7).');
   // ⚠️ pendência 25 das regras v1.8: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
   // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
   // ainda confirma. O número sai do motor, nunca escrito aqui.
   add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
       'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
-      ' (regras v1.9, pendência 25). Nos meses travados o limite é o da trava.');
+      ' (regras v1.10, pendência 25). Nos meses travados o limite é o da trava.');
   // ⚠️ pendência 26 das regras v1.8 (status com os dois pilares): a tela sinaliza as premissas, não decide. Os
   // números (mínimo e meses do gatilho de volume) saem do motor, nunca escritos aqui.
   const gv = motor.REGRAS.gatilhoVolume;
@@ -1889,14 +1900,19 @@ function alertasDaTela(dados, cfg, motor) {
       gv.meses.map((m) => NOMES_MES[m]).join(' e ') + ', com a trava do mês) é parcial em ' + NOMES_MES[gv.meses[0]] +
       ' (só ' + NOMES_MES[gv.meses[0]] + '); meta de ' +
       'volume nula deixa o gatilho indisponível; e a tela não tem coluna própria para ele: o selo e a cor da posição ' +
-      'mostram o resultado (regras v1.9, pendência 26).');
-  // ⚠️ pendência 28 das regras v1.9 (aberta na etapa 4I): o texto do gatilho no cabeçalho do bloco Aperitivo
+      'mostram o resultado (regras v1.10, pendência 26).');
+  // ⚠️ pendência 28 das regras v1.10 (aberta na etapa 4I): o texto do gatilho no cabeçalho do bloco Aperitivo
   // fica como está até a Karen decidir entre tirá-lo ou criar uma coluna para o gatilho de volume. A tela sinaliza,
   // não decide; os meses saem do motor.
   add('aviso', 'Cabeçalho do bloco Aperitivo: pendência em aberto',
       'O texto do gatilho no título do bloco Aperitivo fica como está até a decisão: a coluna "% Acum." ao lado é ' +
       'a pontuação do ranking, e o gatilho de volume (média de ' + gv.meses.map((m) => NOMES_MES[m]).join(' e ') +
-      ') não tem coluna própria (regras v1.9, pendência 28).');
+      ') não tem coluna própria (regras v1.10, pendência 28).');
+  // ⚠️ pendência 29 das regras v1.10 (aberta na etapa 4J): com a coluna "Pos." fora da tela, o nome da coluna
+  // que sobrou ("OF.") e o texto do rodapé são premissa. A tela sinaliza, não decide.
+  add('aviso', 'Coluna de posição: nome a confirmar',
+      'As tabelas de ranking mostram só a posição oficial, na coluna "OF."; o nome da coluna e o texto do ' +
+      'rodapé ficam como estão até a decisão (regras v1.10, pendência 29).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
@@ -1979,7 +1995,7 @@ const mesesDoGatilhoVolume = listar(R.gatilhoVolume.meses);
 const bateuPilares = (l)=>!!(l.gatilhoPilares&&l.gatilhoPilares.batido);
 const limites = Object.keys(R.premiadas).map((k)=>NOME_NIVEL[k]+': '+R.premiadas[k]).join(' · ');
 $('rodesq').innerHTML = 'Real: vendido até ontem · Online: venda de hoje · "Hoje" em turquesa: atingiu a meta dia · '+
-  'posição em cinza: sem os dois pilares · desempate pela ordem alfabética do código';
+  'OF.: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código';
 $('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)';
 
 /* ─── páginas (etapa 4G) ──────────────────────────────────────────────────────────────────────────────── */
@@ -2055,16 +2071,17 @@ const statusCel = (l)=>{
 function cabecalhoRanking(rotuloId){
   /* Aperitivo: 5 colunas fixas + as colunas de mês que a tela mostra (etapa 4F, item 2) + o % Acum. */
   const apCols = 6 + mesesAp.length, skCols = mostrarPctNov?8:7;
-  return '<colgroup><col span="3"></colgroup>'+
+  /* Etapa 4J: a identificação tem 2 colunas (OF. e o código), não mais 3 — a "Pos." saiu da tela. */
+  return '<colgroup><col span="2"></colgroup>'+
     '<colgroup class="cg-ap"><col span="'+apCols+'"></colgroup>'+
     '<colgroup class="cg-sk"><col span="'+skCols+'"></colgroup>'+
     '<colgroup><col></colgroup>'+
     '<thead>'+
-    '<tr class="grp"><th colspan="3"></th>'+
+    '<tr class="grp"><th colspan="2"></th>'+
     '<th colspan="'+apCols+'" class="sep bl-ap">VOLUME DE APERITIVO <small>· RANKING · GATILHO ≥ '+pct(R.gatilhoVolume.minimo)+'</small></th>'+
     '<th colspan="'+skCols+'" class="sep bl-sk">COBERTURA DE SKYY <small>· GATILHO ≥ '+pct(R.gatilho.minimo)+'</small></th>'+
     '<th class="sep"></th></tr>'+
-    '<tr class="hdr"><th class="l">Pos.</th><th class="l">Of.</th><th class="l">'+esc(rotuloId)+'</th>'+
+    '<tr class="hdr"><th class="l">OF.</th><th class="l">'+esc(rotuloId)+'</th>'+
     '<th class="hd-ap sep">Meta</th><th class="hd-ap">Real</th><th class="hd-ap">M. Dia</th>'+
     '<th class="hd-ap">Online</th><th class="hd-ap">Dif.</th>'+
     mesesAp.map((m)=>'<th class="hd-ap">'+esc(NOMES_MES[m].slice(0,3))+'</th>').join('')+'<th class="hd-ap k">% Acum.</th>'+
@@ -2077,10 +2094,11 @@ function linhaRanking(l, opc){
   opc = opc || {};
   const ap = valoresDoMes(l.tabela,'aperitivo',st.mes), sk = valoresDoMes(l.tabela,'skyy',st.mes);
   const bAp = l.tabela.aperitivo, bSk = l.tabela.skyy;
+  /* Etapa 4J: só a posição oficial (l.oficial, do motor) — "—" para quem não bateu os dois pilares. A posição
+     do ranking (l.pos) continua calculada pelo motor e não é exibida; a ordem das linhas não depende dela aqui. */
   const idCels = opc.total
-    ? '<td class="l" colspan="3">'+esc(l.codigo)+'</td>'
-    : '<td class="l"><span class="n pos'+(l.oficial?'':' cinza')+'">'+esc(l.pos)+'º</span></td>'+
-      '<td class="l"><span class="n of">'+(l.oficial?esc(l.oficial)+'º':esc(TRACO))+'</span></td>'+
+    ? '<td class="l" colspan="2">'+esc(l.codigo)+'</td>'
+    : '<td class="l"><span class="n of">'+(l.oficial?esc(l.oficial)+'º':esc(TRACO))+'</span></td>'+
       '<td class="l cod">'+esc(l.codigo)+'</td>';
   return '<tr'+(opc.total?' class="tot"':'')+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
@@ -2237,7 +2255,8 @@ function viewRegras(){
     ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking. '+
       'O Ranking GC é por gerência comercial agrupada: algumas gerências da API somam numa linha só (o Detalhe do '+
       'mês e os filtros seguem com as gerências da API).'],
-    ['Posição','todas as linhas numeradas; posição oficial só para quem bate os dois pilares. Desempate pela ordem alfabética do código.'],
+    ['Posição','as tabelas de ranking mostram só a posição oficial, de quem bate os dois pilares; as linhas '+
+      'seguem a ordem do % acumulado de Aperitivo. Desempate pela ordem alfabética do código.'],
   ];
   const alertas = alertasDaTela(D);
   const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
@@ -2256,7 +2275,9 @@ function viewRegras(){
     'trava, em '+pct(R.corAperitivoSemTrava)+'; o <strong>% Acum.</strong> não tem quadradinho. O Consultor e o '+
     'Detalhe do mês usam as mesmas cores. A <strong>Dif.</strong> negativa aparece '+
     '<span style="color:var(--negv);font-weight:700">em vermelho</span>.</p>'+
-    '<p>A coluna <strong style="color:var(--gold)">Oficial</strong> numera só quem bateu os dois pilares; a posição em cinza é apenas a ordem na tela.</p>'+
+    '<p>Nas tabelas de ranking a única coluna de posição é a <strong style="color:var(--gold)">OF.</strong>, a '+
+    'oficial: ela numera só quem bateu os dois pilares, e quem não bateu aparece com "'+esc(TRACO)+'". As linhas '+
+    'continuam na ordem do % Acum. de Aperitivo, que não é numerada na tela.</p>'+
     '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
     '</section>'+
     '<section><h2>Medidas</h2><table class="md"><tbody>'+
