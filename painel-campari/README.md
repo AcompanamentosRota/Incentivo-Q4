@@ -6,10 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.11, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
-sinaliza, não decide.
+Regras: [`docs/regras.md`](docs/regras.md) (v1.12, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
+(seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4K — mínimo de volume no mês vigente e coluna RANK (v1.11)
+## Estado: etapa 4L — sem pendências na aba Regras (v1.12)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -46,13 +47,18 @@ sinaliza, não decide.
 - **Etapa 4J:** as duas tabelas de ranking passam a ter **só a coluna da posição oficial** (regras v1.10,
   seções 5 e 7): ela numera quem bateu os dois pilares e mostra "—" para os demais; a coluna "Pos." e a
   regra de pintá-la em cinza saem da tela. Descrita no fim deste arquivo. **Nenhum número, ordem ou status muda.**
-- **Etapa 4K (esta):** o volume de Aperitivo deixa de ter gatilho por média e passa a ter **mínimo de volume**
+- **Etapa 4K:** o volume de Aperitivo deixa de ter gatilho por média e passa a ter **mínimo de volume**
   (regras v1.11, seções 2.2, 3 e 5): o "Bateu!" exige o **% de Aperitivo do mês vigente ≥ 100%**, no valor bruto,
   **sem média e sem soma** (`minimoVolume` no motor, no lugar do `gatilhoVolume` da 4H). A soma dos % (out + nov +
   dez, o "% Acum.") passa a servir **só para ranquear**, e o **único gatilho** por média é o de cobertura de Skyy.
   Na tela, a coluna da posição oficial vira **"RANK"** (pendência 29) e o cabeçalho do bloco Aperitivo perde o
   "GATILHO ≥ …" (pendência 28). Descrita no fim deste arquivo. **Nenhum número de dado, ordem de linha ou gatilho
   de Skyy muda**; pode mudar quem tem "Bateu!" e quem recebe número em RANK.
+- **Etapa 4L (esta):** a lista **"Dados e alertas"** da aba Regras fica só com alerta de **dado** (regras v1.12,
+  seção 10): saem os dois avisos de premissa a confirmar — a da meta dia de volume (pendência 22) e a do mínimo de
+  volume (pendência 26b) —, e nenhum texto da lista cita "pendência" ou "premissa". As premissas ficam só no
+  documento de regras e no checklist do PR. Descrita no fim deste arquivo. **Nenhum cálculo, número, ordem ou
+  status muda**: as duas regras citadas por elas seguem iguais no motor.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -74,7 +80,7 @@ sinaliza, não decide.
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão (que **abre em "Todas"** desde a etapa 4G), o aviso de que ranking e premiação são do supervisor para cima, e as rotas em dois grupos (Volume de Aperitivo · Cobertura de Skyy), paginadas de 15 em 15, com a linha de total fixa no rodapé — "Total Band" em "Todas", "Total da gerência XX" com uma gerência escolhida e "Total da mesa SV.XX.N" com um SV |
 | **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês e a mesma tabela de dois grupos. Visão **Gerência**: todas as gerências da API e a linha "Total Band" numa tela só, **sem paginação** (etapa 4I); visão **Supervisão** (com filtro de gerência): paginada de 15 em 15, sem linha de total |
-| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24 e 27) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**; desde a 4H, **26**; desde a 4I, **28**) aparecem |
+| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados: API indisponível, dados simulados, produtos não publicados, cobertura ou volume de um mês indisponível, mês em prévia, mês que ainda não começou, supervisão fora do ranking e avisos da carga. **Nenhuma pendência e nenhuma premissa** desde a etapa 4L (regras v1.12): elas ficam no documento de regras (seção 10) e no checklist |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
 
@@ -247,8 +253,9 @@ A imagem entra em base64 no HTML, então ela pesa no arquivo publicado: a de 09/
   `avisos`) e **não assume valor**. Quando o formato for definido, o único lugar a mudar é `coberturaDoFechado` no
   adaptador (e os testes dela).
 - **Pendência 22 (Karen): a meta dia de volume compara só o Real, ou Real + Online?** A v1.4 manda mostrar 0 quando
-  o Real passa da Meta, e deixa a premissa em aberto. O painel usa **só o Real** (até ontem) e sinaliza isso em
-  Regras > Dados e alertas. Se a resposta for "Real + Online", o único lugar a mudar é `metaDiaVolume` no motor.
+  o Real passa da Meta, e deixa a premissa em aberto. O painel usa **só o Real** (até ontem); desde a etapa 4L
+  (regras v1.12) a premissa fica registrada só aqui, no documento de regras e no checklist — **não na tela**. Se a
+  resposta for "Real + Online", o único lugar a mudar é `metaDiaVolume` no motor.
 - **Pendência 23 (Karen): a arte do fundo.** O `campari-fundo.jpg` recebido em 09/11/2026 tem **1568 × 777**, e a
   tela o amplia para 1920 px de largura. Funciona, mas o logo e o letreiro perdem nitidez: se existir o original em
   1920 px, basta trocar o arquivo e rodar o build (ver acima).
@@ -499,10 +506,36 @@ dezembro. Os dois pilares seguem separando casos reais: SV.G2.1 bate o volume (1
 e SV.AT.2 bate o Skyy (100,0%) e não o volume (0,0%) — as duas com "-" e sem RANK.
 
 ⚠️ **Pendência 26b (Karen):** % de volume nulo (meta nula ou ≤ 0) deixa o mínimo **indisponível**, nunca 0% nem 100%.
-Sinalizada em Regras > Dados e alertas. As premissas (a), (c) e (d) da pendência 26 e as pendências 24, 25, 28 e 29
-foram confirmadas ou resolvidas na v1.11.
+Estava sinalizada em Regras > Dados e alertas; desde a etapa 4L (v1.12) ela fica só no documento de regras e no
+checklist. As premissas (a), (c) e (d) da pendência 26 e as pendências 24, 25, 28 e 29 foram confirmadas ou
+resolvidas na v1.11.
 
 ⚠️ **Premissa desta etapa:** "mês vigente" é o mês de referência da API (`mesGatilho` no adaptador: o maior mês da
 vigência já alcançado pela referência). Hoje é novembro, e em dezembro será dezembro. As regras não dizem o que fazer
 se a referência fosse **outubro** — o painel usaria o % de outubro, pelo mesmo caminho —, e o caso não acontece mais
 na vigência de 2026.
+
+## Etapa 4L — sem pendências na aba Regras (regras v1.12, seção 10)
+
+Decisão da Karen em 10/11/2026: **as pendências não aparecem mais no painel**. A lista "Dados e alertas" da aba
+Regras fica só com alerta de **dado**; as premissas a confirmar ficam no documento de regras (seção 10) e no
+checklist do PR. É mudança de **tela**: nenhuma regra de cálculo muda.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | Saem os dois avisos de premissa: **"Meta dia de volume: premissa a confirmar"** (pendência 22) e **"Mínimo de volume: premissa a confirmar"** (pendência 26b), com os comentários que os explicavam | `alertasDaTela` no adaptador |
+| 2 | **Continuam** todos os alertas de dado: API indisponível, dados simulados, produtos do Campari não publicados, cobertura de um mês indisponível, mês de volume indisponível, mês em prévia, mês que ainda não começou, supervisão fora do ranking e avisos da carga | `alertasDaTela` |
+| 3 | Nenhum texto que chega à tela cita "pendência": o motivo do mês de cobertura fechado passa de "`fechado/AAAAMM.json` não traz cobertura (pendência 10 das regras)" para **"`fechado/AAAAMM.json` não traz cobertura"** — só o fato do dado. O aviso da carga que repete esse motivo acompanha | `montarDados` (bloco da cobertura) |
+| 4 | `REGRAS.versao = '1.12'` (só a versão: nenhuma conta muda no motor) e o comentário de `metaDiaVolume` deixa de dizer que a tela sinaliza a premissa | `motor.js` |
+| 5 | Documentação: a v1.12 instalada em `docs/regras.md`, e `README.md`, este arquivo e `CLAUDE.md` dizendo que as pendências ficam só nas regras e no checklist | docs |
+
+**O que não mudou:** nada do cálculo. A meta dia de volume continua comparando só o Real (até ontem) com a Meta
+(`metaDiaVolume`), e a meta de volume nula ou ≤ 0 continua deixando o mínimo **indisponível**, nunca 0% nem 100%
+(`minimoVolume`) — as duas regras seguem cobertas pelos testes do motor. Layout, cores, colunas, paginação, ordem das
+linhas, % Acum., % Médio, RANK e selo são idênticos aos da etapa 4K.
+
+**Conferência.** Os testes do adaptador passam a exigir que a lista de alertas **não** cite "pendência" nem
+"premissa" em nenhum cenário, e que os alertas de dado continuem aparecendo em todos os casos antes cobertos (API
+fora, dados simulados, produtos não publicados, mês de volume sem fonte, cobertura indisponível, mês em prévia, mês
+que ainda não começou, supervisão fora do ranking e aviso da carga). Na tela, a aba Regras mostra a lista sem os dois
+itens e o resto das abas é igual célula a célula à da 4K.

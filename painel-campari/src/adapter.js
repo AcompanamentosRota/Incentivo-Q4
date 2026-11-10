@@ -501,10 +501,11 @@ function montarDados(entrada, cfg, motor) {
       }
       if (empresaApi) porCob('empresa', f.anomes, TOTAL_BAND, doBlocoCobertura(empresaApi[pidSkyy]));
     } else if (f.fonte === 'fechado') {
-      // porta única da pendência 10: hoje sempre null -> mês de cobertura indisponível, nunca um valor assumido
+      // porta única de `coberturaDoFechado`: hoje sempre null -> mês de cobertura indisponível, nunca um valor
+      // assumido. O motivo chega à tela (regras v1.12): diz só o fato do dado, sem citar a pendência das regras.
       if (coberturaDoFechado((entrada.fechados || {})[f.anomes], f.anomes, pidSkyy) === null) {
         Object.assign(f, { fonte: 'indisponivel',
-          motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura (pendência 10 das regras)` });
+          motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura` });
       }
     }
   }
@@ -940,12 +941,13 @@ function linhasDoDetalhe(dados, visao, gc) {
  * "Dados e alertas" da aba Regras (função pura): o estado REAL dos dados, nunca texto de regra.
  * Devolve [{ tipo: 'erro' | 'aviso' | 'nota', titulo, texto }]:
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
- *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
- *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume e a premissa que sobrou
- *     do status com os dois pilares);
+ *   - 'aviso': dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de volume indisponível,
+ *     supervisão fora do ranking, avisos da carga);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24, 25, 27, 28 e 29) não aparecem: só o que continua em aberto
- * nas regras v1.11 (10, 22 e a 26b). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
+ * SÓ ALERTA DE DADO (regras v1.12, seção 10; decisão da Karen de 10/11/2026): as premissas a confirmar saíram
+ * daqui e ficam só no documento de regras e no checklist — nenhum texto desta lista cita "pendência" nem
+ * "premissa", só o fato do dado. As regras em aberto continuam valendo no CÁLCULO (a meta dia de volume compara
+ * só o Real; meta de volume nula deixa o mínimo indisponível): elas apenas não aparecem mais na tela.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -984,14 +986,6 @@ function alertasDaTela(dados, cfg, motor) {
           'Mês sem dado: as colunas ficam "' + TRACO + '" e ele não entra na soma.');
     }
   }
-  add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.11, seção 7).');
-  // ⚠️ pendência 26b das regras v1.11: das premissas do status com os dois pilares sobrou só esta — meta de volume
-  // nula ou ≤ 0 deixa o MÍNIMO de volume indisponível (nunca 0 nem 100). As pendências 25, 28 e 29 foram
-  // resolvidas na v1.11 e saíram daqui. O mínimo sai do motor, nunca escrito aqui.
-  add('aviso', 'Mínimo de volume: premissa a confirmar',
-      'Meta de volume de Aperitivo nula ou zerada deixa o mínimo de ' + fmtPct(motor.REGRAS.minimoVolume.minimo) +
-      ' indisponível (sem posição oficial e sem "Bateu!"), nunca em 0% nem em 100% (regras v1.11, pendência 26b).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',

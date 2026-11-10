@@ -1,7 +1,11 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.11 (10/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.12 (10/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.12 (10/11/2026, manhã):** **as pendências não aparecem mais no painel.** A aba Regras > Dados e alertas deixa de listar as premissas a confirmar (pendências 22 e 26b);
+elas ficam **só nesta seção 10 e no checklist**. A tela mantém apenas alertas de dado (API indisponível, dados simulados, mês sem fonte, mês em prévia, supervisão fora do
+ranking, avisos da carga). Só tela; nenhuma regra de cálculo muda.
 
 **v1.11 (10/11/2026, manhã):** o **volume de Aperitivo deixa de ter "gatilho" por média** e passa a ter um **mínimo de volume**: o "✓ Bateu!" exige o **% de
 Aperitivo do mês vigente ≥ 100%** (bruto), **sem média e sem soma** (decisão da Karen). A **soma** (out + nov + dez, % Acum.) serve **só para ranquear**. O **único
@@ -275,7 +279,7 @@ previsão 12/11/2026.
 | 19 | Coluna "Cob. Skyy" do ranking | **Resolvida** em 08/11/2026: dois blocos com Meta, Real, M. Dia, Online, Dif e %s, para Skyy e Aperitivo (seção 7) | — |
 | 20 | Detalhes do seletor e das colunas: M. Dia e Online "—" fora do mês aberto; Skyy de outubro "—"; o seletor também vale na Supervisão (o mockup só o mostra no Ranking GC); Aperitivo mantém Out, Nov, Dez e Soma; "% Nov" mostra sempre o % de novembro | **Resolvida** em 08/11/2026: a Karen confirmou os cinco pontos (seção 7) | — |
 | 21 | Mockup das tabelas de ranking | **Resolvida** em 08/11/2026: a Karen atualizou o mockup (dois blocos; Total Band como última linha, sem coluna lateral nem quadro Mecânica). No bloco Aperitivo o mockup mostra % do mês e % Acum.; vale a v1.3 (Out · Nov · Dez · Soma) | — |
-| 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e sinaliza em Regras > Dados e alertas | Karen |
+| 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e não sinaliza na tela (v1.12: pendências só aqui e no checklist) | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
 | 27 | Detalhe do mês paginado (a 4G paginou também o Detalhe) | **Resolvida** em 09/11/2026 (fim da noite): sem paginação na visão Gerência; a visão Supervisão continua paginada (seção 7) | — |
 | 28 | Cabeçalho do bloco Aperitivo com o texto "GATILHO ≥ 100,0%" | **Resolvida** em 10/11/2026: o texto sai do cabeçalho; o volume tem mínimo, não gatilho (seção 2.2) | — |

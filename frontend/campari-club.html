@@ -44,7 +44,11 @@
    dos meses passa a servir só para ordenar o ranking. Na tela: o cabeçalho da coluna da posição oficial vira
    "RANK" (pendência 29 resolvida), o título do bloco Aperitivo perde o texto "GATILHO ≥ …" (pendência 28
    resolvida), o rodapé e a aba Regras passam a falar de mínimo de volume. Layout, colunas, ordem das linhas e
-   cores não mudam; quem tem "✓ Bateu!" e quem recebe número em RANK podem mudar, porque a conta do pilar mudou. */
+   cores não mudam; quem tem "✓ Bateu!" e quem recebe número em RANK podem mudar, porque a conta do pilar mudou.
+   Etapa 4L (regras v1.12; decisão da Karen de 10/11/2026): a lista "Dados e alertas" da aba Regras passa a ter só
+   alerta de DADO — as premissas a confirmar saíram dela e ficam no documento de regras (seção 10) e no checklist.
+   A lista continua vindo inteira de adapter.alertasDaTela: nada aqui escolhe nem escreve alerta. Layout, cores,
+   colunas, ordem e números não mudam. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -249,7 +253,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.11 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.12 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -281,6 +285,10 @@ button{cursor:pointer}
  * dos % (out + nov + dez) continua sendo SÓ a pontuação do ranking. O gatilho de cobertura de Skyy não muda, nem a
  * ordem, o desempate, a soma e as posições premiadas: muda só a conta do segundo pilar — e, com ela, quem recebe
  * número na coluna RANK e quem tem "Bateu!".
+ * Etapa 4L (regras v1.12; decisão da Karen de 10/11/2026): só a versão muda aqui. A v1.12 tira as premissas a
+ * confirmar da aba Regras — elas ficam no documento de regras (seção 10) e no checklist —, e isso é tela
+ * (adaptador: `alertasDaTela`). Nenhuma conta muda: a meta dia de volume continua comparando só o Real com a
+ * Meta e a meta de volume nula continua deixando o mínimo indisponível.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -291,7 +299,7 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.11',
+    versao: '1.12',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -634,8 +642,9 @@ button{cursor:pointer}
    *   - Real > Meta (meta do mês já batida): 0;
    *   - `meta_dia` negativa (a API publica negativos nas rotas com a meta batida, iguais aos do SAC): 0;
    *   - `meta_dia` não numérica (API em período de fechamento): null, que a tela mostra como "—".
-   * A comparação usa só o Real (até ontem), SEM o Online — premissa a confirmar das regras v1.4, seção 7:
-   * o painel sinaliza isso em Regras > Dados e alertas e não decide por conta própria.
+   * A comparação usa só o Real (até ontem), SEM o Online — premissa a confirmar das regras v1.4, seção 7
+   * (pendência 22): ela fica registrada SÓ no documento de regras desde a v1.12, não mais na tela, e o motor
+   * segue a regra descrita ali sem decidir por conta própria.
    * A meta dia de COBERTURA não passa por aqui: `metaDiaCobertura` já devolve 0 com a meta batida e um inteiro
    * para cima (valor entre 0 e 1 vira 1), que é o que a v1.4 pede para ela.
    */
@@ -1411,10 +1420,11 @@ function montarDados(entrada, cfg, motor) {
       }
       if (empresaApi) porCob('empresa', f.anomes, TOTAL_BAND, doBlocoCobertura(empresaApi[pidSkyy]));
     } else if (f.fonte === 'fechado') {
-      // porta única da pendência 10: hoje sempre null -> mês de cobertura indisponível, nunca um valor assumido
+      // porta única de `coberturaDoFechado`: hoje sempre null -> mês de cobertura indisponível, nunca um valor
+      // assumido. O motivo chega à tela (regras v1.12): diz só o fato do dado, sem citar a pendência das regras.
       if (coberturaDoFechado((entrada.fechados || {})[f.anomes], f.anomes, pidSkyy) === null) {
         Object.assign(f, { fonte: 'indisponivel',
-          motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura (pendência 10 das regras)` });
+          motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura` });
       }
     }
   }
@@ -1850,12 +1860,13 @@ function linhasDoDetalhe(dados, visao, gc) {
  * "Dados e alertas" da aba Regras (função pura): o estado REAL dos dados, nunca texto de regra.
  * Devolve [{ tipo: 'erro' | 'aviso' | 'nota', titulo, texto }]:
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
- *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
- *     volume indisponível, SV fora do ranking, premissa a confirmar da meta dia de volume e a premissa que sobrou
- *     do status com os dois pilares);
+ *   - 'aviso': dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de volume indisponível,
+ *     supervisão fora do ranking, avisos da carga);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24, 25, 27, 28 e 29) não aparecem: só o que continua em aberto
- * nas regras v1.11 (10, 22 e a 26b). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
+ * SÓ ALERTA DE DADO (regras v1.12, seção 10; decisão da Karen de 10/11/2026): as premissas a confirmar saíram
+ * daqui e ficam só no documento de regras e no checklist — nenhum texto desta lista cita "pendência" nem
+ * "premissa", só o fato do dado. As regras em aberto continuam valendo no CÁLCULO (a meta dia de volume compara
+ * só o Real; meta de volume nula deixa o mínimo indisponível): elas apenas não aparecem mais na tela.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -1894,14 +1905,6 @@ function alertasDaTela(dados, cfg, motor) {
           'Mês sem dado: as colunas ficam "' + TRACO + '" e ele não entra na soma.');
     }
   }
-  add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.11, seção 7).');
-  // ⚠️ pendência 26b das regras v1.11: das premissas do status com os dois pilares sobrou só esta — meta de volume
-  // nula ou ≤ 0 deixa o MÍNIMO de volume indisponível (nunca 0 nem 100). As pendências 25, 28 e 29 foram
-  // resolvidas na v1.11 e saíram daqui. O mínimo sai do motor, nunca escrito aqui.
-  add('aviso', 'Mínimo de volume: premissa a confirmar',
-      'Meta de volume de Aperitivo nula ou zerada deixa o mínimo de ' + fmtPct(motor.REGRAS.minimoVolume.minimo) +
-      ' indisponível (sem posição oficial e sem "Bateu!"), nunca em 0% nem em 100% (regras v1.11, pendência 26b).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',

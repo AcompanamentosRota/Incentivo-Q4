@@ -134,6 +134,10 @@ das linhas (% Acum. de Aperitivo) não muda. A **etapa 4K** (regras v1.11, seç�
 volume por um **mínimo de volume**: o "Bateu!" exige o **% de Aperitivo do mês vigente ≥ 100%** (bruto), sem média e
 sem soma — a soma dos meses (% Acum.) só ordena o ranking —, o único gatilho por média é o de cobertura de Skyy, a
 coluna da posição oficial passa a se chamar **"RANK"** e o cabeçalho do bloco Aperitivo perde o texto "GATILHO ≥ …".
+A **etapa 4L** (regras v1.12) tirou as **pendências da tela**: a lista "Dados e alertas" da aba Regras fica só com
+alerta de dado (API fora, dados simulados, mês sem fonte, mês em prévia, supervisão fora do ranking, avisos da
+carga), e as premissas a confirmar ficam só no documento de regras (seção 10) e no checklist. Nenhum número, ordem
+ou status muda.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o

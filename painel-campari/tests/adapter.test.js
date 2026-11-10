@@ -589,7 +589,9 @@ test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e de
     { empresa: { aperitivos: [100, 80] }, gerencias: { XA: { aperitivos: [100, 80] } } });
   const d = montar3({ index: indexDe('202612', false, ['202610', '202611']), fechados: { 202610: OUT, 202611: DEZ } });
   assert.equal(d.mesesCobertura[1].fonte, 'indisponivel');
-  assert.ok(d.avisos.some((a) => /cobertura de novembro indisponível/.test(a) && /pendência 10/.test(a)));
+  // 4L: o motivo chega à tela, então ele diz só o fato do dado — sem citar a pendência das regras (v1.12)
+  assert.ok(d.avisos.some((a) => /cobertura de novembro indisponível/.test(a) && /não traz cobertura/.test(a)));
+  assert.ok(d.avisos.every((a) => !/pendência|premissa/i.test(a)));
   const xa = achar(d.gc, 'XA');
   assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.indisponivel, xa.gatilho.motivo],
     [null, false, true, 'cobertura indisponível']);
@@ -1020,25 +1022,16 @@ test('linhasDoDetalhe: gerências na visão GC e todas as supervisões na visão
   assert.ok(A.linhasDoDetalhe(d, 'sv', 'XB').every((l) => l.gc === 'XB'));
 });
 
-test('alertasDaTela: pendência 10 (cobertura do mês fechado) e a premissa da meta dia aparecem; as resolvidas não', () => {
+test('alertasDaTela: a cobertura do mês fechado e os estados dos meses aparecem, sem citar pendência', () => {
   const al = A.alertasDaTela(montar3());
   const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
   assert.match(texto, /Cobertura de outubro indisponível/);
-  assert.match(texto, /pendência 10/);
-  assert.match(texto, /Meta dia de volume: premissa a confirmar/);
-  // etapa 4K: a ⚠️ pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que sobrou
-  // do status com os dois pilares, e o número vem do motor
-  assert.match(texto, /Mínimo de volume: premissa a confirmar/);
-  assert.match(texto, new RegExp('pendência 26b'));
-  assert.match(texto, new RegExp(A.fmtPct(Motor.REGRAS.minimoVolume.minimo)));
+  assert.match(texto, /não traz cobertura/);
   assert.match(texto, /Outubro em prévia/);
   assert.match(texto, /Dezembro ainda não começou/);
-  // pendências resolvidas não podem voltar à tela (a 25, a 28 e a 29 entraram nesta lista na v1.11)
-  for (const resolvida of [/pendência 9\b/, /pendência 11/, /pendência 12/, /pendência 14/, /pendência 16/,
-                           /pendência 17/, /pendência 18/, /pendência 19/, /pendência 20/, /pendência 25/,
-                           /pendência 28/, /pendência 29/]) {
-    assert.doesNotMatch(texto, resolvida, String(resolvida));
-  }
+  // 4L (regras v1.12): a lista é só de DADO — nenhuma pendência e nenhuma premissa, resolvida ou em aberto
+  assert.doesNotMatch(texto, /pend[êe]ncia/i);
+  assert.doesNotMatch(texto, /premissa/i);
   assert.ok(al.every((a) => ['erro', 'aviso', 'nota'].includes(a.tipo)));
 });
 
@@ -1915,42 +1908,76 @@ test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada 
   assert.doesNotMatch(html, /gatilhoVolume: \{|R\.gatilhoVolume|motor\.gatilhoVolume|function gatilhoVolume/);
   // a versão aqui acompanha o motor embutido (a 4K sobe para a v1.11)
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.11');
+  assert.equal(Motor.REGRAS.versao, '1.12');
 });
 
-test('4K alertasDaTela: a premissa que sobrou da pendência 26 aparece, com o número do motor', () => {
+// ===============================================================================================================
+// Etapa 4L - sem pendências na aba Regras (regras v1.12, seção 10; decisão da Karen de 10/11/2026)
+// A lista "Dados e alertas" fica só com alerta de DADO: as duas premissas a confirmar (meta dia de volume,
+// pendência 22, e mínimo de volume, pendência 26b) saem da tela e ficam só no documento de regras e no checklist.
+// Nada do CÁLCULO muda: as duas regras seguem iguais no motor (motor.test.js cobre as duas).
+// Fixtures sintéticas: as mesmas de montar3(), com códigos fictícios.
+// ===============================================================================================================
+
+test('4L alertasDaTela: as duas premissas a confirmar saíram da lista', () => {
   const al = A.alertasDaTela(montar3());
-  const p26 = al.find((a) => /Mínimo de volume/.test(a.titulo));
-  assert.ok(p26);
-  assert.equal(p26.tipo, 'aviso');
-  assert.match(p26.texto, /pendência 26b/);
-  assert.match(p26.texto, new RegExp(A.fmtPct(Motor.REGRAS.minimoVolume.minimo)));
-  // nenhum alerta fala mais de média de novembro e dezembro para o volume, nem de "gatilho de volume"
   const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  assert.ok(al.every((a) => !/Meta dia de volume/.test(a.titulo)), 'premissa da meta dia de volume');
+  assert.ok(al.every((a) => !/Mínimo de volume/.test(a.titulo)), 'premissa do mínimo de volume');
+  assert.doesNotMatch(texto, /premissa a confirmar/i);
+  assert.doesNotMatch(texto, /premissa/i);
+  assert.doesNotMatch(texto, /pend[êe]ncia/i);
+  // nenhum alerta fala de "gatilho de volume" (saiu na 4K) nem cita versão antiga das regras
   assert.doesNotMatch(texto, /gatilho de volume/);
-  // mês de volume indisponível: o aviso só fala do mínimo quando o mês é o VIGENTE (aqui, novembro)
-  const d = montar3();
-  assert.equal(d.mesGatilho, 11);
-  const nov = A.alertasDaTela(Object.assign({}, d, { meses: [{ mes: 10, fonte: 'indisponivel', motivo: 'x' },
-                                                             { mes: 11, fonte: 'indisponivel', motivo: 'y' }] }));
-  assert.match(nov.find((a) => a.titulo === 'Novembro indisponível').texto, /mínimo de volume fica indisponível/);
-  assert.doesNotMatch(nov.find((a) => a.titulo === 'Outubro indisponível').texto, /mínimo de volume/);
-});
-
-test('4K alertasDaTela: as pendências 25, 28 e 29, resolvidas na v1.11, saem da tela', () => {
-  const al = A.alertasDaTela(montar3());
-  const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
-  for (const resolvida of [/pendência 25/, /pendência 27/, /pendência 28/, /pendência 29/]) {
-    assert.doesNotMatch(texto, resolvida, String(resolvida));
-  }
-  assert.ok(al.every((a) => !/Quadradinho do % de Aperitivo/.test(a.titulo)));
-  assert.ok(al.every((a) => !/Cabeçalho do bloco Aperitivo/.test(a.titulo)));
-  assert.ok(al.every((a) => !/Coluna de posição/.test(a.titulo)));
-  // os textos citam a versão em vigor
-  for (const antiga of [/regras v1\.8/, /regras v1\.9/, /regras v1\.10/]) {
+  for (const antiga of [/regras v1\.8/, /regras v1\.9/, /regras v1\.10/, /regras v1\.11/]) {
     assert.ok(al.every((a) => !antiga.test(a.texto)), String(antiga));
   }
-  assert.match(texto, /regras v1\.11/);
+  // o adaptador não escreve mais esses textos fora de comentário, e os dois títulos saíram do HTML gerado
+  // (nos comentários do motor a palavra "premissa" continua, contando de onde cada regra veio)
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'adapter.js'), 'utf8');
+  assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ''), /premissa a confirmar/);
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.doesNotMatch(html, /Meta dia de volume: premissa a confirmar/);
+  assert.doesNotMatch(html, /Mínimo de volume: premissa a confirmar/);
+});
+
+test('4L alertasDaTela: os alertas de DADO continuam em todos os cenários antes cobertos', () => {
+  const d = montar3();
+  const juntar = (al) => al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  const limpo = (al) => {   // cada cenário continua sem citar pendência nem premissa
+    const t = juntar(al);
+    assert.doesNotMatch(t, /pend[êe]ncia/i);
+    assert.doesNotMatch(t, /premissa/i);
+    return t;
+  };
+  // API fora: um erro só, e para por aí
+  const fora = A.alertasDaTela({ ok: false, erro: 'API indisponível (timeout)' });
+  assert.equal(fora.length, 1);
+  assert.equal(fora[0].tipo, 'erro');
+  assert.match(limpo(fora), /API indisponível/);
+  // dados simulados e produtos do Campari não publicados
+  assert.match(limpo(A.alertasDaTela(Object.assign({}, d, { simulado: true }))), /Dados simulados/);
+  const semProd = A.alertasDaTela(Object.assign({}, d, {
+    produtos: { ok: false, motivos: ['agrupador "Skyy" não publicado na API'] } }));
+  assert.match(limpo(semProd), /Produtos do Campari não publicados/);
+  // mês de volume sem fonte: o aviso só fala do mínimo quando o mês é o VIGENTE (aqui, novembro)
+  assert.equal(d.mesGatilho, 11);
+  const semMes = A.alertasDaTela(Object.assign({}, d, { meses: [{ mes: 10, fonte: 'indisponivel', motivo: 'x' },
+                                                                { mes: 11, fonte: 'indisponivel', motivo: 'y' }] }));
+  assert.match(limpo(semMes), /Novembro indisponível/);
+  assert.match(semMes.find((a) => a.titulo === 'Novembro indisponível').texto, /mínimo de volume fica indisponível/);
+  assert.doesNotMatch(semMes.find((a) => a.titulo === 'Outubro indisponível').texto, /mínimo de volume/);
+  // cobertura de um mês indisponível, mês em prévia e mês que ainda não começou
+  const base = limpo(A.alertasDaTela(d));
+  assert.match(base, /Cobertura de outubro indisponível/);
+  assert.match(base, /Outubro em prévia/);
+  assert.match(base, /Dezembro ainda não começou/);
+  // supervisão fora do ranking (o aviso vive só aqui desde a v1.6) e avisos da carga
+  const svFora = A.alertasDaTela(Object.assign({}, d, { fora: [{ codigo: 'SV.ZZ.1', motivo: 'sem canal na mesa' }] }));
+  assert.match(limpo(svFora), /1 supervisão fora do ranking/);
+  const carga = A.alertasDaTela(Object.assign({}, d, { avisos: ['resumo.json indisponível ou em formato inesperado'] }));
+  assert.ok(carga.some((a) => a.titulo === 'Aviso da carga' && /resumo\.json/.test(a.texto)));
+  limpo(carga);
 });
 
 test('4K tela: o cabeçalho da coluna de posição é "RANK" e o bloco Aperitivo não fala de gatilho', () => {
@@ -2014,5 +2041,5 @@ test('4K tela: o HTML gerado leva RANK, o Aperitivo sem gatilho e o rodapé novo
   assert.match(html, /VOLUME DE APERITIVO <small>· RANKING<\/small>/);
   assert.doesNotMatch(html, /APERITIVO <small>· RANKING · GATILHO/);
   assert.match(html, /RANK: posição oficial, só de quem bateu os dois pilares/);
-  assert.match(html, /versao: '1\.11'/);
+  assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\.') + "'"));
 });

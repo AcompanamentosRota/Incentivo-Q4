@@ -17,7 +17,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.11 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.12 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -35,7 +35,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   regra de pintá-la em cinza saíram da tela, sem mudar número, ordem nem status. A **Etapa 4K** (regras v1.11,
   seções 2.2, 3 e 5) trocou o gatilho de volume por um **mínimo de volume** — o % de Aperitivo do **mês vigente**
   ≥ 100%, sem média e sem soma, com a soma dos meses servindo só para ranquear —, deu à coluna da posição oficial o
-  cabeçalho **"RANK"** e tirou o "GATILHO ≥ …" do cabeçalho do bloco Aperitivo.
+  cabeçalho **"RANK"** e tirou o "GATILHO ≥ …" do cabeçalho do bloco Aperitivo. A **Etapa 4L** (regras v1.12,
+  seção 10) tirou as **pendências da tela**: a lista "Dados e alertas" da aba Regras ficou só com alerta de dado, e
+  as premissas a confirmar ficam no documento de regras e no checklist do PR; nenhum cálculo mudou.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -208,7 +210,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.11 de 10/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.12 de 10/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
   status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -251,7 +253,14 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   mostra "—" para os demais, a coluna "Pos." saiu das duas tabelas (com a regra de pintá-la em cinza) e as linhas
   continuam ordenadas pelo % Acum. de Aperitivo — o motor segue calculando `pos` em todas elas, que ordena o ranking e
   entra no motivo do status. ⚠️ Pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que
-  sobrou, sinalizada em Regras > Dados e alertas; as pendências 24, 25, 28 e 29 foram resolvidas na v1.11.
+  sobrou; as pendências 24, 25, 28 e 29 foram resolvidas na v1.11.
+- **Pendência não vai para a tela (v1.12, seção 10; etapa 4L, decisão da Karen de 10/11/2026):** a lista
+  "Dados e alertas" da aba Regras (`alertasDaTela`) tem **só alerta de dado** — API indisponível, dados simulados,
+  produtos não publicados, cobertura ou volume de um mês indisponível, mês em prévia, mês que ainda não começou,
+  supervisão fora do ranking e avisos da carga. Nenhum texto dela cita "pendência" nem "premissa" (nem o motivo do
+  mês de cobertura fechado, que diz só "não traz cobertura"), e há teste varrendo a lista. As premissas a confirmar
+  ficam na seção 10 das regras e no checklist do PR; o cálculo delas **não muda** (meta dia de volume só com o Real;
+  meta de volume nula deixa o mínimo indisponível). Alerta novo: só de dado, e sempre em `alertasDaTela`.
 - **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
   `calendario.dias_uteis_restantes`, com o Real até ontem; **travada** (não desconta o Online, não muda durante o dia).
   Real ≥ Meta dá 0; 0 dias restantes dá a diferença total; exibida como **inteiro arredondado para cima** (cliente não
@@ -261,7 +270,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   negativos, iguais aos do SAC); não numérica (API em fechamento) vira "—". Isso é **exibição**, e mesmo assim mora no
   motor (`metaDiaVolume`), nunca na tela; o adaptador guarda o valor de origem em `metaDia` e o exibido em
   `metaDiaExib`, e o "Hoje" colorido compara com o **exibido**. A comparação usa só o Real (sem o Online) — premissa
-  em aberto (pendência 22), sinalizada em Regras > Dados e alertas.
+  em aberto (pendência 22), registrada só no documento de regras e no checklist desde a v1.12.
 - **"Hoje" colorido:** Online > 0 **e** Online ≥ Meta dia (`hojeAtingiu` no motor; pendência 17, confirmada em
   08/11/2026). Meta dia 0 com Online > 0 colore; meta dia nula (API em fechamento) não colore.
 - **Consultor (rota)** aparece sem ranking, sem gatilho e sem status, e a aba lista **só as rotas `tipo: "normal"`**
@@ -325,7 +334,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Aperitivo saem da condensada grande (`.n` / `.n.g`, que saiu do CSS) e ficam na fonte da tabela. **Quadradinho do
   % de Aperitivo** só na coluna do mês vigente, pela função pura `corDoPercentualAperitivo(valor, mes)` do motor —
   regra **diferente** da de cobertura: o limite é o da **trava do mês** e, no mês sem trava, o
-  `REGRAS.corAperitivoSemTrava` (⚠️ pendência 25, sinalizada em Regras > Dados e alertas); o "% Acum." e as colunas dos
+  `REGRAS.corAperitivoSemTrava` (pendência 25, confirmada na v1.11); o "% Acum." e as colunas dos
   outros meses não têm quadradinho. O Consultor e o Detalhe do mês passam a usar as mesmas cores e os mesmos
   quadradinhos das tabelas de ranking, pelas classes que já existiam (nenhum CSS novo).
 - **Navegação por páginas (etapa 4G, v1.7, seção 7; decisão de 09/11/2026):** só apresentação — **15 linhas por
@@ -341,8 +350,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   páginas de 15 (uma paginação por visão: `det:gc` e `det:sv`; trocar a visão volta à página 1). Quem escolhe é a
   função pura `paginaDoDetalhe` do adaptador, que só decide o tamanho e chama `fatiar`; as visões sem paginação ficam
   em `CONFIG.detalheSemPaginacao` (`['gc']`), nunca na tela. A visão Supervisão do Detalhe **não** tem linha de total
-  (como desde a 4G). ⚠️ Pendência 28 (texto "GATILHO ≥ …" no título do bloco Aperitivo, em aberto com a Karen):
-  o texto fica como está e o aviso aparece em Regras > Dados e alertas.
+  (como desde a 4G). A pendência 28 (texto "GATILHO ≥ …" no título do bloco Aperitivo) foi resolvida na v1.11:
+  o texto saiu do cabeçalho na etapa 4K.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.

@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.11 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.12 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -31,6 +31,10 @@
  * dos % (out + nov + dez) continua sendo SÓ a pontuação do ranking. O gatilho de cobertura de Skyy não muda, nem a
  * ordem, o desempate, a soma e as posições premiadas: muda só a conta do segundo pilar — e, com ela, quem recebe
  * número na coluna RANK e quem tem "Bateu!".
+ * Etapa 4L (regras v1.12; decisão da Karen de 10/11/2026): só a versão muda aqui. A v1.12 tira as premissas a
+ * confirmar da aba Regras — elas ficam no documento de regras (seção 10) e no checklist —, e isso é tela
+ * (adaptador: `alertasDaTela`). Nenhuma conta muda: a meta dia de volume continua comparando só o Real com a
+ * Meta e a meta de volume nula continua deixando o mínimo indisponível.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -41,7 +45,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.11',
+    versao: '1.12',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -384,8 +388,9 @@
    *   - Real > Meta (meta do mês já batida): 0;
    *   - `meta_dia` negativa (a API publica negativos nas rotas com a meta batida, iguais aos do SAC): 0;
    *   - `meta_dia` não numérica (API em período de fechamento): null, que a tela mostra como "—".
-   * A comparação usa só o Real (até ontem), SEM o Online — premissa a confirmar das regras v1.4, seção 7:
-   * o painel sinaliza isso em Regras > Dados e alertas e não decide por conta própria.
+   * A comparação usa só o Real (até ontem), SEM o Online — premissa a confirmar das regras v1.4, seção 7
+   * (pendência 22): ela fica registrada SÓ no documento de regras desde a v1.12, não mais na tela, e o motor
+   * segue a regra descrita ali sem decidir por conta própria.
    * A meta dia de COBERTURA não passa por aqui: `metaDiaCobertura` já devolve 0 com a meta batida e um inteiro
    * para cima (valor entre 0 e 1 vira 1), que é o que a v1.4 pede para ela.
    */
