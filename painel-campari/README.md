@@ -6,11 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.12, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+Regras: [`docs/regras.md`](docs/regras.md) (v1.13, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
 segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
 (seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4L — sem pendências na aba Regras (v1.12)
+## Estado: etapa 4M — sem rolagem interna em notebook (v1.13)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -54,7 +54,7 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   Na tela, a coluna da posição oficial vira **"RANK"** (pendência 29) e o cabeçalho do bloco Aperitivo perde o
   "GATILHO ≥ …" (pendência 28). Descrita no fim deste arquivo. **Nenhum número de dado, ordem de linha ou gatilho
   de Skyy muda**; pode mudar quem tem "Bateu!" e quem recebe número em RANK.
-- **Etapa 4L (esta):** duas mudanças de tela (regras v1.12). (a) A lista **"Dados e alertas"** da aba Regras fica
+- **Etapa 4L:** duas mudanças de tela (regras v1.12). (a) A lista **"Dados e alertas"** da aba Regras fica
   só com alerta de **dado** (seção 10): saem os dois avisos de premissa a confirmar — a da meta dia de volume
   (pendência 22) e a do mínimo de volume (pendência 26b) —, e nenhum texto da lista cita "pendência" ou
   "premissa". As premissas ficam só no documento de regras e no checklist do PR. (b) A célula **"% Acum." do
@@ -62,6 +62,13 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   já calculavam e entregavam em `tabela.aperitivo.soma`. Descrita no fim deste arquivo. **Nenhum cálculo novo e
   nenhum número das outras linhas muda**: as regras das premissas seguem iguais no motor, e o Total Band continua
   sem RANK, sem status e fora da ordenação.
+- **Etapa 4M (esta):** **nenhuma aba rola por dentro em notebook** (regras v1.13, seção 7). O `fit()` da tela
+  escalava o palco por `min(largura ÷ 1920, altura ÷ 720)`; em janela mais baixa que ~16:9 (ex.: 1366×600 de área
+  útil) a altura lógica do palco ficava menor do que a aba pede e a área rolável (`.rolar`) rolava ~1 cm. A
+  altura-base passa a ser **930** e a conta sai da tela: `escalaDoPalco` (adaptador, pura) lê `CONFIG.palco`
+  (`{ largura: 1920, alturaBase: 930 }`) e devolve escala e tamanho lógico. Descrita no fim deste arquivo.
+  **Só a escala muda:** altura de linha, fonte, cores, colunas, paginação (15 linhas) e layout ficam como estavam,
+  e em janela com altura folgada (1920×1080, 1920×940, 1366×768, 1280×720) a escala é a mesma de antes.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -210,8 +217,9 @@ painel-campari/
 │   │                      ordem, posição, pilares (gatilho de Skyy, mínimo de volume e os dois), posição oficial, status, metas dia
 │   ├── adapter.js         CONFIG (com gruposGC), localizarProdutos, carregarDados, fontesDosMeses,
 │   │                      fontesDaCobertura, coberturaDoFechado, lerFechado, gruposDoRankingGC, tabelaDaLinha,
-│   │                      montarDados, carregarRanking
-│   ├── app.tpl.html       tela: cinco abas, palco de 1920 px e fit() (copiado do Q4, não importado)
+│   │                      montarDados, carregarRanking, escalaDoPalco (escala do palco)
+│   ├── app.tpl.html       tela: cinco abas e palco de 1920 px; o fit() (copiado do Q4) pede a escala ao
+│   │                      adaptador (escalaDoPalco), com a altura-base em CONFIG.palco
 │   └── assets/              fonts.json (só Barlow Condensed 800) e campari-fundo.jpg (arte do palco)
 ├── data/data.json         canal de cada rota (foto da base embutida do Q4, 09/11/2026)
 ├── scripts/build.py       monta frontend/campari-club.html (determinístico; embute fonte, fundo e data/data.json)
@@ -225,7 +233,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 234 testes (75 do motor, 159 do adaptador); precisa de Node 18+
+# testes do painel — 244 testes (75 do motor, 169 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -561,3 +569,70 @@ uma cópia de `api/v1` fora do repositório):
 
 Soma = **105,420484%**, exibida **105,4%** (truncada em 1 casa), igual ao exemplo da Karen (88,1% + 17,3% = 105,4%)
 e igual ao que o painel desenha na linha Total_Band do Ranking GC e da Supervisão.
+
+
+## Etapa 4M — sem rolagem interna em notebook (regras v1.13, seção 7)
+
+Problema relatado pela Karen em 10/11/2026: no notebook, a página 1 da Supervisão (Mista) **rola ~1 cm por
+dentro**. A causa é a escala do palco, não a tabela: o `fit()` usava `min(innerWidth ÷ 1920, innerHeight ÷ 720)` e
+dava ao `#stage` a altura lógica `innerHeight ÷ escala`. Em janela mais alta que 16:9 manda a largura e sobra
+altura; em janela **mais baixa** que 16:9 (um notebook de 1366×768 com a barra do navegador fica com ~600 de área
+útil) a altura lógica caía para 720 e ficava abaixo do que a aba pede — então a `.rolar` (`overflow:auto`) rolava.
+
+**Altura lógica que cada aba pede** (medida no repositório em 10/11/2026, Chrome headless, escala 1, dados da API
+publicada: altura lógica do palco + o excesso da área rolável):
+
+| Aba | Altura lógica pedida |
+| --- | ---: |
+| Ranking GC | 797 |
+| Supervisão Mista · pág. 1 | 905 (pág. 2: 873) |
+| Supervisão Segmentada | 720 (cabe) |
+| Consultor (todas as páginas de 15 linhas) | **925** |
+| Detalhe do mês · Gerência | 862 |
+| Detalhe do mês · Supervisão | 844 |
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | `CONFIG.palco = { largura: 1920, alturaBase: 930 }` — os dois números do palco em configuração, nunca na tela | `adapter.js` |
+| 2 | `escalaDoPalco(largura, altura, cfg)`, pura: devolve `{ escala, largura, altura }`, com `escala = min(largura ÷ palco.largura, altura ÷ palco.alturaBase)` e o tamanho lógico já dividido. Janela sem medida (0, negativa, não numérica) devolve escala 1 no palco inteiro, sem divisão por zero | `adapter.js` |
+| 3 | O `fit()` passa a ser `const p = escalaDoPalco(innerWidth, innerHeight)` e só aplica `--s`, largura e altura. **Nenhum número solto na tela** | `app.tpl.html` |
+| 4 | `REGRAS.versao = '1.13'` (só a versão: nada muda no motor) | `motor.js` |
+| 5 | Documentação: a v1.13 em `docs/regras.md` (com a pendência 30: confirmar o 930), e `README.md`, este arquivo e `CLAUDE.md` | docs |
+
+**Por que 930 e não 920.** O enunciado da etapa estimava 908 para a aba mais alta (Consultor); a medição no
+repositório deu **925**, então 920 ainda deixaria 5 px de rolagem. Para cima há um teto: a escala em janela com
+altura folgada não pode mudar, e na janela maximizada de 1920×**940** a escala só continua 1 enquanto a altura-base
+é ≤ 940. 930 fica entre os dois (folga de 5 px sobre o Consultor e de 10 px até o teto) — e está registrado como
+⚠️ pendência 30 das regras, para a Karen confirmar.
+
+**O que não mudou:** altura de linha, fonte, cores, colunas, rótulos, paginação (15 linhas por página),
+`CONFIG.detalheSemPaginacao` e a posição das vistas (`top:198px; bottom:48px`). As tabelas das quatro abas saem
+**idênticas célula a célula** às da 4L.
+
+**Conferência (Chrome headless, cópia de `api/v1` e de `ajustes.json` fora do repositório).** Em cada janela,
+percorrendo todas as abas, os dois canais da Supervisão, todas as páginas do Consultor e da Supervisão e as duas
+visões do Detalhe, medindo `scrollHeight − clientHeight` de **todo** elemento rolável — excesso em px, 0 = sem
+rolagem:
+
+| Janela | Ranking GC | Superv. Mista | Superv. Segm. | Consultor | Det. Gerência | Det. Supervisão |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1920×940 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 |
+| 1920×800 | 0 → 0 | **105 → 0** | 0 → 0 | **125 → 0** | **62 → 0** | **44 → 0** |
+| 1536×730 | 0 → 0 | 0 → 0 | 0 → 0 | **12 → 0** | 0 → 0 | 0 → 0 |
+| 1536×640 | 0 → 0 | **105 → 0** | 0 → 0 | **125 → 0** | **62 → 0** | **44 → 0** |
+| 1366×768 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 |
+| 1366×625 | 0 → 0 | **27 → 0** | 0 → 0 | **47 → 0** | 0 → 0 | 0 → 0 |
+| 1366×600 | 0 → 0 | **62 → 0** | 0 → 0 | **82 → 0** | **19 → 0** | 0 → 0 |
+| 1280×720 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 0 |
+| 1280×560 | 0 → 0 | **65 → 0** | 0 → 0 | **85 → 0** | **22 → 0** | **4 → 0** |
+
+(antes → depois; rodapé e paginação visíveis em todas elas, e o console sem erro e sem aviso.)
+
+**A exceção conhecida:** a lista "Dados e alertas" da aba **Regras** (`.al`) é uma lista de tamanho variável e
+continua podendo rolar por dentro — como já rolava antes da 4M, inclusive em 1920×940. Com a altura-base nova ela
+rola **menos** (ex.: 1366×600: 161 px antes, 55 px depois). Está registrado na seção 7 das regras.
+
+**Escala antes e depois**, nas janelas do checklist: 1920×1080 → 1,0 e 1,0; 1920×940 → 1,0 e 1,0;
+1366×768 → 0,7115 e 0,7115; 1280×720 → 0,6667 e 0,6667 (nessas quatro manda a largura, então nada muda).
+Nas janelas baixas a escala diminui, que é o efeito desejado: 1366×600 → 0,7115 antes e **0,6452** depois;
+1280×560 → 0,6667 antes e **0,6022** depois.

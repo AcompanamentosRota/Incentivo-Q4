@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.12 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.13 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -35,6 +35,9 @@
  * confirmar da aba Regras — elas ficam no documento de regras (seção 10) e no checklist —, e isso é tela
  * (adaptador: `alertasDaTela`). Nenhuma conta muda: a meta dia de volume continua comparando só o Real com a
  * Meta e a meta de volume nula continua deixando o mínimo indisponível.
+ * Etapa 4M (regras v1.13, seção 7; problema relatado pela Karen em 10/11/2026): só a versão muda aqui. A v1.13
+ * sobe a altura-base do `fit()` da tela para nenhuma aba rolar por dentro em notebook, e isso é escala de tela
+ * (adaptador: `CONFIG.palco` e `escalaDoPalco`). Nenhum número e nenhuma conta deste motor mudam.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -45,7 +48,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.12',
+    versao: '1.13',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },

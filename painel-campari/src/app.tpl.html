@@ -50,7 +50,13 @@
    (b) A célula "% Acum." do Total Band deixa de ser "—" e mostra a soma dos % mensais da empresa, que o motor já
    calculava e entregava em tabela.aperitivo.soma (a MESMA conta das outras linhas: apurarMeses -> somaRanking,
    com a trava do mês). Nada é somado aqui. O Total Band continua SEM RANK, com "sem ranking" na coluna Status e
-   fora da ordenação. Layout, cores, colunas e os números das outras linhas não mudam. */
+   fora da ordenação. Layout, cores, colunas e os números das outras linhas não mudam.
+   Etapa 4M (regras v1.13, seção 7; problema relatado pela Karen em 10/11/2026): nenhuma aba pode rolar por dentro
+   em notebook. A escala do palco passa a ter uma ALTURA-BASE, que garante uma altura lógica mínima: a conta sai
+   do fit() daqui e vai para `escalaDoPalco` (adaptador, pura), com a largura do palco e a altura-base em
+   CONFIG.palco — nenhum número solto nesta tela. Só a escala muda: altura de linha, fonte, cores, colunas,
+   paginação (15 linhas) e layout ficam exatamente como estavam, e em janela com altura folgada (1920×1080,
+   1920×940, 1366×768, 1280×720) a escala continua a mesma de antes. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -265,8 +271,12 @@ const R = M.REGRAS;  /* premissa P6: gatilho, trava e posições premiadas só d
 const $ = (id)=>document.getElementById(id);
 const esc = (s)=>String(s===null||s===undefined?'':s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-/* palco ajustado à janela (mesmo fit() do Desafio Q4) */
-function fit(){ const s=Math.min(innerWidth/1920, innerHeight/720), sg=$('stage'); sg.style.setProperty('--s', s); sg.style.width=(innerWidth/s)+'px'; sg.style.height=(innerHeight/s)+'px'; }
+/* Palco ajustado à janela (o fit() do Desafio Q4, copiado). A conta é toda do adaptador (`escalaDoPalco`, pura):
+   aqui nenhum número, nem a largura do palco nem a altura-base (CONFIG.palco; etapa 4M, regras v1.13, seção 7).
+   É a altura-base que garante a altura lógica mínima e, com ela, nenhuma aba rolando por dentro em janela mais
+   baixa que 16:9 — o notebook de 10/11/2026. */
+function fit(){ const p=escalaDoPalco(innerWidth, innerHeight), sg=$('stage');
+  sg.style.setProperty('--s', p.escala); sg.style.width=p.largura+'px'; sg.style.height=p.altura+'px'; }
 fit(); addEventListener('resize', fit);
 
 const ABAS = [

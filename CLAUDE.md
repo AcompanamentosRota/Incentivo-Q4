@@ -17,7 +17,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.12 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.13 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -39,7 +39,10 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   seção 10) tirou as **pendências da tela**: a lista "Dados e alertas" da aba Regras ficou só com alerta de dado, e
   as premissas a confirmar ficam no documento de regras e no checklist do PR; na mesma etapa (seção 7) o
   **% Acum. do Total Band** deixou de ser "—" e passou a mostrar a soma dos % mensais da empresa. Nenhum cálculo
-  novo: a soma já vinha do motor.
+  novo: a soma já vinha do motor. A **Etapa 4M** (regras v1.13, seção 7) acertou a **escala da tela** para
+  **nenhuma aba rolar por dentro em notebook**: o `fit()` ganhou uma **altura-base** (930) e a conta saiu da tela
+  para `escalaDoPalco` (adaptador, pura), com os dois números em `CONFIG.palco`; em janela com altura folgada a
+  escala é a mesma de antes. Só escala: nenhum número, cor, coluna ou paginação muda.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -66,7 +69,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`, `escalaDoPalco` (escala do palco, com `CONFIG.palco`); canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -86,7 +89,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 234 testes (75 do motor, 159 do adaptador)
+# testes do painel Campari Club — 244 testes (75 do motor, 169 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -212,7 +215,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.12 de 10/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.13 de 10/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
   status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -287,14 +290,21 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   das gerências (⚠️ premissa da seção 7), e nada somado na tela. Mês sem % deixa a soma **incompleta**, como nas
   linhas. O Total Band continua **sem RANK, sem status e fora da ordenação**.
 - **A tela (Etapa 4, mockup de 08/11/2026):** cinco abas — Ranking GC · Supervisão (uma tela só, Mista ⇄ Segmentada) ·
-  Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
+  Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), que desde a
+  etapa 4M pede a escala ao adaptador (`escalaDoPalco`, pura: `min(largura ÷ 1920, altura ÷ altura-base)`, com
+  `CONFIG.palco = { largura: 1920, alturaBase: 930 }`) — **nenhum número de escala na tela**. Abas em
   `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **18 colunas**
   em outubro e novembro e **20 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F — uma a menos desde a 4J, que tirou
   a "Pos."; a que sobrou tem o cabeçalho "RANK" desde a 4K), cabem **sem rolagem horizontal**, com corpo de 14 px, cabeçalho de 13 px e linhas de 3 px de
   respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
   isso as 12 linhas agrupadas e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; desde a
   etapa 4G as listas longas (Supervisão, Consultor e a visão Supervisão do Detalhe) são paginadas de 15 em 15, a visão
-  Gerência do Detalhe cabe inteira (etapa 4I), e **nenhuma aba rola**. O seletor "Mês de referência" vale no Ranking GC **e** na
+  Gerência do Detalhe cabe inteira (etapa 4I), e **nenhuma aba rola**. A **altura-base de 930** (etapa 4M, regras
+  v1.13, seção 7; ⚠️ pendência 30) é o que garante isso também em janela mais baixa que 16:9 — a altura-base de 720
+  deixava a Supervisão e o Consultor rolando ~1 cm no notebook. A medição de 10/11/2026 (escala 1) deu, por aba:
+  Ranking GC 797 · Supervisão Mista 905 · Consultor 925 (o maior) · Detalhe Gerência 862 · Detalhe Supervisão 844;
+  acima de 940 a janela maximizada (1920×940) começaria a encolher, então a altura-base fica entre 925 e 940. A
+  lista "Dados e alertas" da aba Regras (`.al`, tamanho variável) é a exceção conhecida: pode rolar, e já rolava. O seletor "Mês de referência" vale no Ranking GC **e** na
   Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`). O **mês
   vigente** é outra coisa: é o mês de referência da API (`mesesDoSeletor(...).referencia`), e é ele — nunca a escolha
   do seletor — que decide as colunas que só existem em dezembro e em qual coluna fica o quadradinho do Aperitivo.
@@ -486,7 +496,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 234 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 244 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

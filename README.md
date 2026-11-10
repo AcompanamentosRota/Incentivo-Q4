@@ -140,12 +140,16 @@ carga), e as premissas a confirmar ficam só no documento de regras (seção 10)
 célula **"% Acum." do Total Band** deixou de ser "—" e passou a mostrar a soma dos % mensais da empresa — a mesma
 conta das outras linhas, que o motor já entregava; o Total Band continua sem RANK, sem status e fora da ordenação.
 Nenhum número das demais linhas, ordem ou status muda.
+A **etapa 4M** (regras v1.13, seção 7) acertou a **escala da tela** para **nenhuma aba rolar por dentro em
+notebook**: o `fit()` passou a ter uma **altura-base** (930), que garante a altura lógica mínima do palco, e a
+conta saiu da tela para a função pura `escalaDoPalco` do adaptador (`CONFIG.palco`). Em janela com altura folgada
+(1920×1080, 1920×940, 1366×768, 1280×720) a escala é a mesma de antes; nenhum número do incentivo muda.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 234 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 244 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

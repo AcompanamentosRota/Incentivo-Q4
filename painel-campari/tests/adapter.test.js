@@ -1907,9 +1907,9 @@ test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada 
   // o gatilho por média da 4H não existe mais no código embutido (a palavra só sobra no comentário de história
   // do motor, que conta de onde o mínimo veio)
   assert.doesNotMatch(html, /gatilhoVolume: \{|R\.gatilhoVolume|motor\.gatilhoVolume|function gatilhoVolume/);
-  // a versão aqui acompanha o motor embutido (a 4K sobe para a v1.11)
+  // a versão aqui acompanha o motor embutido (a 4K subiu para a v1.11; a 4M, para a v1.13)
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.12');
+  assert.equal(Motor.REGRAS.versao, '1.13');
 });
 
 // ===============================================================================================================
@@ -2098,4 +2098,113 @@ test('4K tela: o HTML gerado leva RANK, o Aperitivo sem gatilho e o rodapé novo
   assert.doesNotMatch(html, /APERITIVO <small>· RANKING · GATILHO/);
   assert.match(html, /RANK: posição oficial, só de quem bateu os dois pilares/);
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\.') + "'"));
+});
+
+// ===============================================================================================================
+// Etapa 4M — sem rolagem interna em notebook: a altura-base do fit() (regras v1.13, seção 7; problema relatado
+// pela Karen em 10/11/2026). Só escala: nenhum número do incentivo muda.
+// As alturas lógicas abaixo são as medidas no repositório em 10/11/2026 (Chrome, escala 1, dados da API
+// publicada), aba por aba: Ranking GC 797 · Supervisão Mista pág. 1 905 · Consultor 925 (o maior) ·
+// Detalhe · Gerência 862 · Detalhe · Supervisão 844.
+// ===============================================================================================================
+const ALTURA_PEDIDA = { 'Ranking GC': 797, 'Supervisão Mista': 905, Consultor: 925, 'Detalhe · Gerência': 862,
+                        'Detalhe · Supervisão': 844 };
+const ALTURA_BASE_ANTIGA = 720;   // a de antes da 4M, que deixava a Supervisão e o Consultor rolando
+
+test('4M CONFIG: o palco fica em configuração (largura e altura-base), nunca na tela', () => {
+  assert.deepEqual(Object.keys(CONFIG.palco).sort(), ['alturaBase', 'largura']);
+  assert.equal(CONFIG.palco.largura, 1920);
+  assert.equal(typeof CONFIG.palco.alturaBase, 'number');
+  // a altura-base cobre a aba mais alta medida (o Consultor) e não passa de 940, que é onde a janela
+  // maximizada (1920×940) começaria a encolher
+  const maior = Math.max(...Object.values(ALTURA_PEDIDA));
+  assert.ok(CONFIG.palco.alturaBase >= maior, 'altura-base ' + CONFIG.palco.alturaBase + ' < ' + maior);
+  assert.ok(CONFIG.palco.alturaBase <= 940, 'altura-base acima de 940 encolhe a janela maximizada');
+});
+
+test('4M escalaDoPalco: a escala é a MENOR entre largura/1920 e altura/altura-base', () => {
+  const base = CONFIG.palco.alturaBase;
+  for (const [l, a] of [[1920, 1080], [1920, 940], [1366, 768], [1280, 720], [1366, 600], [1280, 560], [1536, 640]]) {
+    const r = A.escalaDoPalco(l, a);
+    assert.equal(r.escala, Math.min(l / 1920, a / base), l + 'x' + a);
+    assert.equal(r.largura, l / r.escala);
+    assert.equal(r.altura, a / r.escala);
+  }
+});
+
+test('4M escalaDoPalco: a altura lógica nunca fica abaixo da altura-base (é o que impede a rolagem)', () => {
+  const base = CONFIG.palco.alturaBase;
+  for (let l = 1280; l <= 1920; l += 80) {
+    for (let a = 540; a <= 1200; a += 20) {
+      const r = A.escalaDoPalco(l, a);
+      assert.ok(r.altura >= base - 1e-9, l + 'x' + a + ' deu altura lógica ' + r.altura);
+      assert.ok(r.largura >= CONFIG.palco.largura - 1e-9, l + 'x' + a + ' deu largura lógica ' + r.largura);
+    }
+  }
+});
+
+test('4M escalaDoPalco: toda aba medida cabe na altura lógica, nas janelas conferidas', () => {
+  const janelas = [[1920, 940], [1920, 800], [1536, 730], [1536, 640], [1366, 768], [1366, 625], [1366, 600],
+                   [1280, 720], [1280, 560]];
+  for (const [l, a] of janelas) {
+    const agora = A.escalaDoPalco(l, a).altura;
+    const antes = a / Math.min(l / 1920, a / ALTURA_BASE_ANTIGA);
+    for (const [aba, pede] of Object.entries(ALTURA_PEDIDA)) {
+      assert.ok(agora >= pede, aba + ' não cabe em ' + l + 'x' + a + ': ' + agora + ' < ' + pede);
+      // e a altura-base antiga era mesmo pequena demais em pelo menos uma janela conferida
+      if (aba === 'Consultor' && l === 1366 && a === 600) assert.ok(antes < pede);
+    }
+  }
+});
+
+test('4M escalaDoPalco: em janela com altura folgada manda a largura — a escala não muda', () => {
+  // as janelas do checklist do repositório: a escala tem de ser a MESMA de antes da 4M
+  for (const [l, a] of [[1920, 1080], [1920, 940], [1366, 768], [1280, 720]]) {
+    const antes = Math.min(l / 1920, a / ALTURA_BASE_ANTIGA);
+    assert.equal(A.escalaDoPalco(l, a).escala, antes, l + 'x' + a);
+    assert.equal(A.escalaDoPalco(l, a).escala, l / 1920, l + 'x' + a + ' deveria ser limitada pela largura');
+  }
+});
+
+test('4M escalaDoPalco: janela sem medida não divide por zero (escala 1 no palco inteiro)', () => {
+  for (const [l, a] of [[0, 0], [1920, 0], [0, 940], [-10, 600], [NaN, 600], ['1920', 940], [1920, null]]) {
+    const r = A.escalaDoPalco(l, a);
+    assert.equal(r.escala, 1, String(l) + 'x' + String(a));
+    assert.equal(r.largura, CONFIG.palco.largura);
+    assert.equal(r.altura, CONFIG.palco.alturaBase);
+  }
+});
+
+test('4M escalaDoPalco: a altura-base vem do CONFIG (nenhum número fixo na função)', () => {
+  const cfg = { palco: { largura: 1000, alturaBase: 500 } };
+  const r = A.escalaDoPalco(1000, 250, cfg);
+  assert.equal(r.escala, 0.5);
+  assert.equal(r.largura, 2000);
+  assert.equal(r.altura, 500);
+});
+
+test('4M tela: o fit() pede a escala ao adaptador — nenhum número solto na tela', () => {
+  assert.match(SEM_CSS, /function fit\(\)\{ const p=escalaDoPalco\(innerWidth, innerHeight\)/);
+  // os números da escala saíram do script da tela (a largura 1920 continua só no CSS do #stage)
+  assert.doesNotMatch(SEM_CSS, /innerHeight\s*\/\s*\d/);
+  assert.doesNotMatch(SEM_CSS, /innerWidth\s*\/\s*\d/);
+  assert.doesNotMatch(SEM_CSS, /\b720\b/);
+  // e a tela só aplica o que a função devolveu
+  assert.match(SEM_CSS, /setProperty\('--s', p\.escala\)/);
+  assert.match(SEM_CSS, /sg\.style\.width=p\.largura\+'px'; sg\.style\.height=p\.altura\+'px'/);
+});
+
+test('4M tela: o HTML gerado leva a escala do adaptador e a altura-base (build rodado)', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /palco: \{ largura: 1920, alturaBase: \d+ \}/);
+  assert.match(html, /function escalaDoPalco\(largura, altura, cfg\)/);
+  assert.match(html, /const p=escalaDoPalco\(innerWidth, innerHeight\)/);
+  assert.doesNotMatch(html, /Math\.min\(innerWidth\/1920, innerHeight\/720\)/);
+});
+
+test('4M tela: a 4M não mexeu no resto do layout (linhas por página, vistas e rodapé continuam)', () => {
+  assert.equal(CONFIG.linhasPorPagina, 15);
+  assert.deepEqual(CONFIG.detalheSemPaginacao, ['gc']);
+  assert.match(TPL, /\.view\{position:absolute;left:60px;right:60px;top:198px;bottom:48px/);
+  assert.match(TPL, /\.rolar\{flex:1;min-height:0;overflow:auto;overflow-x:hidden\}/);
 });
