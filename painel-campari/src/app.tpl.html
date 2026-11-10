@@ -44,10 +44,13 @@
    "RANK" (pendência 29 resolvida), o título do bloco Aperitivo perde o texto "GATILHO ≥ …" (pendência 28
    resolvida), o rodapé e a aba Regras passam a falar de mínimo de volume. Layout, colunas, ordem das linhas e
    cores não mudam; quem tem "✓ Bateu!" e quem recebe número em RANK podem mudar, porque a conta do pilar mudou.
-   Etapa 4L (regras v1.12; decisão da Karen de 10/11/2026): a lista "Dados e alertas" da aba Regras passa a ter só
-   alerta de DADO — as premissas a confirmar saíram dela e ficam no documento de regras (seção 10) e no checklist.
-   A lista continua vindo inteira de adapter.alertasDaTela: nada aqui escolhe nem escreve alerta. Layout, cores,
-   colunas, ordem e números não mudam. */
+   Etapa 4L (regras v1.12; decisão da Karen de 10/11/2026): (a) a lista "Dados e alertas" da aba Regras passa a ter
+   só alerta de DADO — as premissas a confirmar saíram dela e ficam no documento de regras (seção 10) e no
+   checklist. A lista continua vindo inteira de adapter.alertasDaTela: nada aqui escolhe nem escreve alerta.
+   (b) A célula "% Acum." do Total Band deixa de ser "—" e mostra a soma dos % mensais da empresa, que o motor já
+   calculava e entregava em tabela.aperitivo.soma (a MESMA conta das outras linhas: apurarMeses -> somaRanking,
+   com a trava do mês). Nada é somado aqui. O Total Band continua SEM RANK, com "sem ranking" na coluna Status e
+   fora da ordenação. Layout, cores, colunas e os números das outras linhas não mudam. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -422,7 +425,7 @@ function linhaRanking(l, opc){
   return '<tr'+(opc.total?' class="tot"':'')+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
     mesesAp.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m), m===SEL.referencia)).join('')+
-    '<td class="k">'+(opc.total?esc(TRACO):pct(bAp.soma))+'</td>'+
+    '<td class="k">'+pct(bAp.soma)+'</td>'+
     '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+
     pctCobCel(sk.pct)+
     (mostrarPctNov?'<td><span class="n">'+pct(bSk.pctNov)+'</span></td>':'')+

@@ -5,7 +5,7 @@ interpretações a confirmar (seção 10): use-os como estão descritos e sinali
 
 **v1.12 (10/11/2026, manhã):** **as pendências não aparecem mais no painel.** A aba Regras > Dados e alertas deixa de listar as premissas a confirmar (pendências 22 e 26b);
 elas ficam **só nesta seção 10 e no checklist**. A tela mantém apenas alertas de dado (API indisponível, dados simulados, mês sem fonte, mês em prévia, supervisão fora do
-ranking, avisos da carga). Só tela; nenhuma regra de cálculo muda.
+ranking, avisos da carga). **Total Band passa a mostrar o % Acum. de Aperitivo** (antes "—"; pedido da Karen, 10/11/2026): a soma dos % mensais da empresa, com a mesma conta e a mesma trava das linhas (seção 7); continua sem ranking, sem RANK e sem status. Só tela; nenhuma regra de cálculo das linhas muda.
 
 **v1.11 (10/11/2026, manhã):** o **volume de Aperitivo deixa de ter "gatilho" por média** e passa a ter um **mínimo de volume**: o "✓ Bateu!" exige o **% de
 Aperitivo do mês vigente ≥ 100%** (bruto), **sem média e sem soma** (decisão da Karen). A **soma** (out + nov + dez, % Acum.) serve **só para ranquear**. O **único
@@ -236,7 +236,7 @@ posição e o status:
   navegação (‹ 1 2 ›) no lugar da rolagem. **A visão Gerência do Detalhe do mês não é paginada** (decisão de 09/11/2026, fim da noite): 16 linhas e o Total Band
   numa tela só; o **Total Band** fica fixo no rodapé de todas as páginas. **Consultor abre com todas as rotas** (filtro de SV em "Todas").
 - **Total Band** é a última linha das tabelas de ranking e do Detalhe do mês (mockup de 08/11/2026), sem coluna lateral
-  e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking.
+  e sem o quadro "Mecânica"; no bloco Aperitivo, sem ranking, **mas com o % Acum.** (v1.12): soma dos % mensais do Total Band (`resumo.json` → `empresa`, e o `fechado` dos meses fechados), cada mês = (Real + Online) ÷ Meta da empresa, bruto, com a trava de 130% em out e nov (dez sem trava), a mesma conta das linhas. Exemplo em 10/11/2026: out 88,1% + nov 17,3% = 105,4%. ⚠️ Premissa: soma dos % **da empresa**, não média nem soma dos % das gerências.
 - **Consultor e Detalhe do mês:** mesmas colunas (Meta, Real, M. Dia, Online, Dif, %) nos dois grupos, **Volume de
   Aperitivo** e **Cobertura de Skyy · clientes**.
 - **"Hoje" colorido (confirmado em 08/11/2026):** quando **Online > 0 e Online ≥ Meta dia**. Meta dia 0 com Online > 0

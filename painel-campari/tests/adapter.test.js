@@ -1452,8 +1452,9 @@ test('tela 4F: o quadradinho do Aperitivo fica só na coluna do mês vigente, e 
   assert.match(SEM_CSS, /M\.corDoPercentualAperitivo\(m\.pct, m\.mes\)/);
   const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
   assert.match(cel, /vigente \? M\.corDoPercentualAperitivo/);  // nas outras colunas de mês, nenhum quadradinho
-  // o % Acum. não ganha quadradinho
-  assert.match(SEM_CSS, /'<td class="k">'\+\(opc\.total\?esc\(TRACO\):pct\(bAp\.soma\)\)\+'<\/td>'/);
+  // o % Acum. não ganha quadradinho (na etapa 4L o Total Band passou a mostrar a soma nessa mesma célula, sem
+  // quadradinho também: a célula é `pct(bAp.soma)` e nada mais)
+  assert.match(SEM_CSS, /'<td class="k">'\+pct\(bAp\.soma\)\+'<\/td>'/);
   // e a tela não compara nada com limite nenhum
   assert.doesNotMatch(SEM_CSS, />= ?130|>= ?R\.trava|>= ?R\.corAperitivoSemTrava/);
   for (const cor of [Motor.corDoPercentualAperitivo(130, 11), Motor.corDoPercentualAperitivo(0, 11)]) {
@@ -1978,6 +1979,61 @@ test('4L alertasDaTela: os alertas de DADO continuam em todos os cenários antes
   const carga = A.alertasDaTela(Object.assign({}, d, { avisos: ['resumo.json indisponível ou em formato inesperado'] }));
   assert.ok(carga.some((a) => a.titulo === 'Aviso da carga' && /resumo\.json/.test(a.texto)));
   limpo(carga);
+});
+
+/* --- Etapa 4L (b): o "% Acum." do Total Band (regras v1.12, seção 7; pedido da Karen de 10/11/2026) ---------
+   A célula era "—" e passa a mostrar a soma dos % mensais da EMPRESA, com a MESMA conta das outras linhas
+   (apurarMeses -> somaRanking, com a trava do mês). O adaptador e o motor já a entregavam: só a tela escondia.
+   Fixtures sintéticas: o Total Band de montar3() (outubro do fechado, novembro do resumo.json). */
+
+test('4L Total Band: o % Acum. é a soma dos % mensais da empresa, pela conta do motor', () => {
+  const d = montar3();
+  const ap = d.totalBand.tabela.aperitivo;
+  // outubro: totais.empresa do fechado (1700 / 1500); novembro: resumo.json -> empresa.produtos (900 + 20) / 1800
+  assert.equal(ap.porMes[10].pct, (1700 / 1500) * 100);
+  assert.equal(ap.porMes[11].pct, ((900 + 20) / 1800) * 100);
+  assert.equal(ap.soma, (1700 / 1500) * 100 + ((900 + 20) / 1800) * 100);
+  // a conta é a do motor, a mesma das outras linhas (nada somado no adaptador nem na tela)
+  assert.equal(ap.soma, Motor.somaRanking([ap.porMes[10].pctTravado, ap.porMes[11].pctTravado, ap.porMes[12].pctTravado]));
+  assert.equal(ap.incompleta, false);        // dezembro é futuro: não é mês "sem %"
+  // e o Total Band continua SEM apuração própria: nem posição oficial, nem status
+  assert.equal('oficial' in d.totalBand, false);
+  assert.equal('status' in d.totalBand, false);
+});
+
+test('4L Total Band: a trava do mês vale na soma da empresa, como nas linhas', () => {
+  // empresa com 200% em outubro: entra travada em 130%, e a soma não leva o excedente
+  const travado = montar3({ fechados: { 202610: fechadoDe('202610',
+    [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 150] }]],
+    { empresa: { aperitivos: [100, 200] }, gerencias: { XA: { aperitivos: [100, 200] } } }) } });
+  const ap = travado.totalBand.tabela.aperitivo;
+  assert.equal(ap.porMes[10].pct, 200);
+  assert.equal(ap.porMes[10].pctTravado, Motor.REGRAS.trava[10]);
+  assert.equal(ap.porMes[10].travado, true);
+  assert.equal(ap.soma, Motor.REGRAS.trava[10] + ((900 + 20) / 1800) * 100);
+});
+
+test('4L Total Band: mês sem % deixa a soma incompleta, como nas linhas (nunca some da tela)', () => {
+  const semNov = montar3({ resumo: null });        // sem resumo.json o mês de referência fica indisponível
+  const ap = semNov.totalBand.tabela.aperitivo;
+  assert.equal(ap.porMes[11].situacao, 'indisponivel');
+  assert.equal(ap.porMes[11].pct, null);
+  assert.equal(ap.soma, (1700 / 1500) * 100);      // só outubro
+  assert.deepEqual([ap.incompleta, ap.mesesSemPct], [true, [11]]);
+});
+
+test('4L tela: a célula "% Acum." do Total Band mostra a soma; ele segue sem RANK e com "sem ranking"', () => {
+  const rk = /function linhaRanking\([\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(rk, /<td class="k">'\+pct\(bAp\.soma\)\+'<\/td>/);
+  assert.doesNotMatch(rk, /opc\.total\?esc\(TRACO\):pct\(bAp\.soma\)/);   // o "—" fixo saiu
+  // nada é somado na tela: ela só lê tabela.aperitivo.soma
+  assert.doesNotMatch(rk, /soma\s*[+]=|reduce\(/);
+  // a identificação do total continua com colspan (sem a célula da coluna RANK) e o Status continua "sem ranking"
+  assert.match(rk, /opc\.total\s*\?\s*'<td class="l" colspan="2">'\+esc\(l\.codigo\)\+'<\/td>'/);
+  assert.match(rk, /opc\.total\?'<td class="l sep"[^']*>sem ranking<\/td>':statusCel\(l\)/);
+  const html = fs.readFileSync(GERADO, 'utf8');     // o build foi rodado
+  assert.match(html, /<td class="k">'\+pct\(bAp\.soma\)\+'<\/td>/);
+  assert.doesNotMatch(html, /opc\.total\?esc\(TRACO\):pct\(bAp\.soma\)/);
 });
 
 test('4K tela: o cabeçalho da coluna de posição é "RANK" e o bloco Aperitivo não fala de gatilho', () => {

@@ -136,14 +136,16 @@ sem soma — a soma dos meses (% Acum.) só ordena o ranking —, o único gatil
 coluna da posição oficial passa a se chamar **"RANK"** e o cabeçalho do bloco Aperitivo perde o texto "GATILHO ≥ …".
 A **etapa 4L** (regras v1.12) tirou as **pendências da tela**: a lista "Dados e alertas" da aba Regras fica só com
 alerta de dado (API fora, dados simulados, mês sem fonte, mês em prévia, supervisão fora do ranking, avisos da
-carga), e as premissas a confirmar ficam só no documento de regras (seção 10) e no checklist. Nenhum número, ordem
-ou status muda.
+carga), e as premissas a confirmar ficam só no documento de regras (seção 10) e no checklist. Na mesma etapa, a
+célula **"% Acum." do Total Band** deixou de ser "—" e passou a mostrar a soma dos % mensais da empresa — a mesma
+conta das outras linhas, que o motor já entregava; o Total Band continua sem RANK, sem status e fora da ordenação.
+Nenhum número das demais linhas, ordem ou status muda.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 230 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 234 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

@@ -37,7 +37,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   ≥ 100%, sem média e sem soma, com a soma dos meses servindo só para ranquear —, deu à coluna da posição oficial o
   cabeçalho **"RANK"** e tirou o "GATILHO ≥ …" do cabeçalho do bloco Aperitivo. A **Etapa 4L** (regras v1.12,
   seção 10) tirou as **pendências da tela**: a lista "Dados e alertas" da aba Regras ficou só com alerta de dado, e
-  as premissas a confirmar ficam no documento de regras e no checklist do PR; nenhum cálculo mudou.
+  as premissas a confirmar ficam no documento de regras e no checklist do PR; na mesma etapa (seção 7) o
+  **% Acum. do Total Band** deixou de ser "—" e passou a mostrar a soma dos % mensais da empresa. Nenhum cálculo
+  novo: a soma já vinha do motor.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -84,7 +86,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 230 testes (75 do motor, 155 do adaptador)
+# testes do painel Campari Club — 234 testes (75 do motor, 159 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -278,7 +280,12 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   linha "Total da mesa" pode ser maior que a soma das linhas visíveis — a tela conta quantas ficaram fora
   (`rotasDaMesa` + `textoDasOcultas`). **Total Band** (`resumo.json` → `empresa`) tem os
   números e o acumulado de cobertura, mas não tem posição oficial nem status (a empresa não tem apuração própria).
-  Na tela a linha mostra só **"Total Band"** (o "· Diretoria e GP" saiu na etapa 4F).
+  Na tela a linha mostra só **"Total Band"** (o "· Diretoria e GP" saiu na etapa 4F) e, desde a **etapa 4L**
+  (regras v1.12, seção 7; pedido da Karen de 10/11/2026), a célula **"% Acum." do Aperitivo** mostra a **soma dos %
+  mensais da empresa** no lugar de "—": o mesmo `tabela.aperitivo.soma` das outras linhas, calculado pelo motor
+  (`apurarMeses` → `somaRanking`, com a trava do mês) sobre os números da empresa — nunca a média nem a soma dos %
+  das gerências (⚠️ premissa da seção 7), e nada somado na tela. Mês sem % deixa a soma **incompleta**, como nas
+  linhas. O Total Band continua **sem RANK, sem status e fora da ordenação**.
 - **A tela (Etapa 4, mockup de 08/11/2026):** cinco abas — Ranking GC · Supervisão (uma tela só, Mista ⇄ Segmentada) ·
   Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
   `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **18 colunas**
@@ -479,7 +486,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 230 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 234 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
