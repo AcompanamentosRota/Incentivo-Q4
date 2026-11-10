@@ -939,10 +939,11 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissas a confirmar da meta dia de volume, do quadradinho do
- *     Aperitivo, do status com os dois pilares e do texto do gatilho no cabeçalho do bloco Aperitivo);
+ *     Aperitivo, do status com os dois pilares, do texto do gatilho no cabeçalho do bloco Aperitivo e do nome
+ *     da coluna de posição);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
  * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24 e 27) não aparecem: só o que continua em aberto nas regras
- * v1.9 (10, 22, 25, 26 e 28). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
+ * v1.10 (10, 22, 25, 26, 28 e 29). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -982,13 +983,13 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.9, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.10, seção 7).');
   // ⚠️ pendência 25 das regras v1.8: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
   // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
   // ainda confirma. O número sai do motor, nunca escrito aqui.
   add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
       'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
-      ' (regras v1.9, pendência 25). Nos meses travados o limite é o da trava.');
+      ' (regras v1.10, pendência 25). Nos meses travados o limite é o da trava.');
   // ⚠️ pendência 26 das regras v1.8 (status com os dois pilares): a tela sinaliza as premissas, não decide. Os
   // números (mínimo e meses do gatilho de volume) saem do motor, nunca escritos aqui.
   const gv = motor.REGRAS.gatilhoVolume;
@@ -997,14 +998,19 @@ function alertasDaTela(dados, cfg, motor) {
       gv.meses.map((m) => NOMES_MES[m]).join(' e ') + ', com a trava do mês) é parcial em ' + NOMES_MES[gv.meses[0]] +
       ' (só ' + NOMES_MES[gv.meses[0]] + '); meta de ' +
       'volume nula deixa o gatilho indisponível; e a tela não tem coluna própria para ele: o selo e a cor da posição ' +
-      'mostram o resultado (regras v1.9, pendência 26).');
-  // ⚠️ pendência 28 das regras v1.9 (aberta na etapa 4I): o texto do gatilho no cabeçalho do bloco Aperitivo
+      'mostram o resultado (regras v1.10, pendência 26).');
+  // ⚠️ pendência 28 das regras v1.10 (aberta na etapa 4I): o texto do gatilho no cabeçalho do bloco Aperitivo
   // fica como está até a Karen decidir entre tirá-lo ou criar uma coluna para o gatilho de volume. A tela sinaliza,
   // não decide; os meses saem do motor.
   add('aviso', 'Cabeçalho do bloco Aperitivo: pendência em aberto',
       'O texto do gatilho no título do bloco Aperitivo fica como está até a decisão: a coluna "% Acum." ao lado é ' +
       'a pontuação do ranking, e o gatilho de volume (média de ' + gv.meses.map((m) => NOMES_MES[m]).join(' e ') +
-      ') não tem coluna própria (regras v1.9, pendência 28).');
+      ') não tem coluna própria (regras v1.10, pendência 28).');
+  // ⚠️ pendência 29 das regras v1.10 (aberta na etapa 4J): com a coluna "Pos." fora da tela, o nome da coluna
+  // que sobrou ("OF.") e o texto do rodapé são premissa. A tela sinaliza, não decide.
+  add('aviso', 'Coluna de posição: nome a confirmar',
+      'As tabelas de ranking mostram só a posição oficial, na coluna "OF."; o nome da coluna e o texto do ' +
+      'rodapé ficam como estão até a decisão (regras v1.10, pendência 29).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',

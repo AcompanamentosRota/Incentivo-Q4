@@ -9,10 +9,11 @@ const M = require('../src/motor.js');
 // A etapa 4B subiu para a v1.6 (09/11/2026) e a 4F sobe para a v1.7 (ajustes de tabela, seção 7). Os dois
 // testes abaixo substituem os anteriores, com a lista exata do que o motor exporta. A 4H sobe para a v1.8 (status
 // com os dois pilares, 09/11/2026, noite). A 4I sobe para a v1.9 (Detalhe do mês sem paginação na visão Gerência,
-// 09/11/2026, fim da noite): só a versão muda no motor.
-test('motor carrega no Node e exporta versaoRegras 1.9', () => {
-  assert.equal(M.versaoRegras, '1.9');
-  assert.equal(M.REGRAS.versao, '1.9');
+// 09/11/2026, fim da noite): só a versão muda no motor. A 4J sobe para a v1.10 (as tabelas de ranking passam a
+// mostrar só a posição oficial, 10/11/2026): também só a versão muda aqui, e `numerarRanking` e `pos` continuam.
+test('motor carrega no Node e exporta versaoRegras 1.10', () => {
+  assert.equal(M.versaoRegras, '1.10');
+  assert.equal(M.REGRAS.versao, '1.10');
 });
 
 // A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
@@ -33,7 +34,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.9');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.10');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 

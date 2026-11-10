@@ -1466,9 +1466,9 @@ test('tela 4F: os números do Aperitivo saem da fonte condensada grande (ficam c
   assert.doesNotMatch(TPL, /\.n\.g\{/);                        // e o CSS que só ele usava saiu junto
   const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
   assert.doesNotMatch(cel, /class="n"|class="n /);             // nem as colunas de mês usam a condensada
-  // a fonte condensada continua no que não mudou: Pos., Of. e os % do bloco Skyy
+  // a fonte condensada continua no que não mudou: a coluna OF. (a "Pos." saiu na 4J) e os % do bloco Skyy
   assert.match(TPL, /\.n\{font-family:var\(--cond\)/);
-  assert.match(SEM_CSS, /<span class="n pos/);
+  assert.match(SEM_CSS, /<span class="n of"/);
 });
 
 test('tela 4F: a linha do total mostra só "Total Band" — "Diretoria e GP" sai de todas as abas', () => {
@@ -1806,23 +1806,23 @@ test('tela 4G: o HTML gerado leva a paginação (build rodado)', () => {
 
 /* --- Etapa 4H: status com os dois pilares (regras v1.8, seções 2, 5 e 7) -------------------------------------- */
 
-test('4H tela: "Oficial", cinza e contagem seguem os dois pilares do motor; nada de regra digitada', () => {
+test('4H tela: "Oficial" e contagem seguem os dois pilares do motor; nada de regra digitada', () => {
   // a tela conta pelo gatilho dos dois pilares do motor, nunca pelo gatilho de Skyy sozinho
   assert.match(TPL, /const bateuPilares = \(l\)=>!!\(l\.gatilhoPilares&&l\.gatilhoPilares\.batido\)/);
   assert.doesNotMatch(TPL, /l\.gatilho&&l\.gatilho\.batido/);
   assert.match(TPL, /com os dois pilares/);
   assert.doesNotMatch(TPL, /gatilho pendente/);
-  // a cor cinza da posição e o "Of." continuam lendo só o oficial do motor
-  assert.match(TPL, /<span class="n pos'\+\(l\.oficial\?'':' cinza'\)\+'">/);
+  // a coluna exibida continua lendo só o oficial do motor (a 4J tirou a "Pos." e a cor cinza da tela)
+  assert.match(TPL, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
   // o mínimo do gatilho de volume vem do motor, nunca digitado
   assert.match(TPL, /R\.gatilhoVolume\.minimo/);
   assert.match(TPL, /R\.gatilhoVolume\.meses/);
   const html = fs.readFileSync(GERADO, 'utf8');
   assert.match(html, /gatilhoVolume: \{ meses: \[11, 12\], minimo: 100 \}/); // o gatilho de volume da v1.8
-  // 4I: o motor embutido passou para a v1.9 (só a versão; nenhuma regra de cálculo mudou), então a versão aqui
-  // acompanha o motor em vez de ficar presa na v1.8
+  // 4I/4J: o motor embutido passou para a v1.9 e depois para a v1.10 (só a versão; nenhuma regra de cálculo
+  // mudou), então a versão aqui acompanha o motor em vez de ficar presa na v1.8
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.9');
+  assert.equal(Motor.REGRAS.versao, '1.10');
 });
 
 test('4H alertasDaTela: a pendência 26 aparece, com os números do motor', () => {
@@ -1930,4 +1930,71 @@ test('4I alertasDaTela: a pendência 28 aparece (texto do cabeçalho do Aperitiv
   assert.match(p28.texto, /novembro e dezembro/);                     // os meses do gatilho de volume, do motor
   assert.ok(al.every((a) => !/pendência 27/.test(a.texto)));          // resolvida na v1.9
   assert.ok(al.every((a) => !/regras v1\.8/.test(a.texto)));          // os textos citam a versão em vigor
+});
+
+/* --- Etapa 4J: só a posição oficial nas tabelas de ranking (regras v1.10, seções 5 e 7) --------------------- */
+
+test('tela 4J: as tabelas de ranking têm a coluna "OF." e não têm mais a "Pos."', () => {
+  // o cabeçalho das duas tabelas de ranking (Ranking GC e Supervisão) é um só, e passa a ter 2 colunas de id
+  const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');   // o que a tela ESCREVE, sem comentários
+  const cab = semCom(/function cabecalhoRanking\(rotuloId\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
+  assert.match(cab, /<tr class="hdr"><th class="l">OF\.<\/th><th class="l">'\+esc\(rotuloId\)\+'<\/th>/);
+  assert.doesNotMatch(cab, /Pos\./);
+  // colgroup e colspan da identificação acompanham as 2 colunas
+  assert.match(cab, /<colgroup><col span="2"><\/colgroup>/);
+  assert.match(cab, /<tr class="grp"><th colspan="2"><\/th>/);
+  assert.doesNotMatch(cab, /span="3"|colspan="3"/);
+  // a linha de dados não desenha mais a célula da posição, e a do total ocupa as 2 colunas
+  const lin = semCom(/function linhaRanking\(l, opc\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
+  assert.doesNotMatch(lin, /l\.pos/);
+  assert.match(lin, /'<td class="l" colspan="2">'\+esc\(l\.codigo\)\+'<\/td>'/);
+  // "—" para quem não bateu os dois pilares; o número vem do motor (l.oficial), nunca contado aqui
+  assert.match(lin, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  // e a tela inteira não fala mais de "Pos." nem de cinza
+  assert.doesNotMatch(TPL, /class="n pos|\.pos\{|\.pos\.cinza|--cinza/);
+});
+
+test('tela 4J: a ordem das linhas não depende da coluna que saiu', () => {
+  // as duas views entregam ao tabelaRanking a lista que o adaptador já ordenou; nada reordena por `pos` na tela
+  const gc = /function viewGC\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  const sv = /function viewSV\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  for (const v of [gc, sv]) {
+    assert.doesNotMatch(v, /\.sort\(|l\.pos|\.reverse\(/);
+    assert.match(v, /ordem pelo % Acum\. de Aperitivo/);
+  }
+  assert.doesNotMatch(/function tabelaRanking\([\s\S]*?\n\}/.exec(SEM_CSS)[0], /\.sort\(|l\.pos/);
+  // e o motor segue numerando a posição de todas as linhas (ela só não aparece)
+  const d = montar3();
+  assert.deepEqual(d.gc.map((l) => l.pos), d.gc.map((_, i) => i + 1));
+});
+
+test('tela 4J: o rodapé e a aba Regras falam da coluna OF., não de posição em cinza', () => {
+  // a busca é no que a tela ESCREVE (SEM_CSS): os comentários do <style> citam a decisão e a posição em cinza
+  // que saiu, que é histórico do arquivo, não texto de tela
+  assert.match(SEM_CSS, /OF\.: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código/);
+  assert.doesNotMatch(SEM_CSS, /posição em cinza/);
+  const regras = /function viewRegras\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(regras, /a única coluna de posição é a <strong style="color:var\(--gold\)">OF\.<\/strong>/);
+  assert.match(regras, /mostram só a posição oficial/);
+  // nenhum número de regra digitado no texto novo
+  assert.doesNotMatch(regras, /posição em cinza/);
+});
+
+test('tela 4J: o HTML gerado leva a tabela sem a coluna "Pos." (build rodado)', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /<tr class="hdr"><th class="l">OF\.<\/th>/);
+  assert.doesNotMatch(html, /<th class="l">Pos\.<\/th>|<th class="l">Of\.<\/th>/);
+  assert.doesNotMatch(html, /\.pos\{color:#fff\}|\.pos\.cinza\{|--cinza:/);
+  assert.match(html, /OF\.: posição oficial, só de quem bateu os dois pilares/);
+  assert.match(html, /versao: '1\.10'/);
+});
+
+test('4J alertasDaTela: a pendência 29 aparece (nome da coluna de posição)', () => {
+  const al = A.alertasDaTela(montar3());
+  const p29 = al.find((a) => /Coluna de posição/.test(a.titulo));
+  assert.ok(p29);
+  assert.equal(p29.tipo, 'aviso');
+  assert.match(p29.texto, /pendência 29/);
+  assert.match(p29.texto, /"OF\."/);
+  assert.ok(al.every((a) => !/regras v1\.9/.test(a.texto)));          // os textos citam a versão em vigor
 });

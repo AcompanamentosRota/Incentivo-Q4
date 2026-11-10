@@ -17,7 +17,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e gatilho de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.9 (09/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.10 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -30,7 +30,10 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   o Consultor com todas as rotas. A **Etapa 4H** (regras v1.8, seções 2, 5 e 7) fez o "Bateu!" e a coluna Oficial
   exigirem os **dois pilares** (gatilho de Skyy **e** gatilho de volume de Aperitivo); o ranking não mudou. A **Etapa 4I**
   (regras v1.9, seção 7) tirou a paginação da visão **Gerência** do Detalhe do mês (16 linhas e o Total Band numa tela
-  só); a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
+  só); a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A **Etapa 4J** (regras v1.10,
+  seções 5 e 7) deixou nas duas tabelas de ranking **só a coluna da posição oficial** ("OF."): a coluna "Pos." e a
+  regra de pintá-la em cinza saíram da tela, sem mudar número, ordem nem status.
+  A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
   Q4, rode o script e o build do Campari.
@@ -76,7 +79,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 227 testes (76 do motor, 151 do adaptador)
+# testes do painel Campari Club — 232 testes (76 do motor, 156 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -202,7 +205,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.9 de 09/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.10 de 10/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
   cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -237,10 +240,12 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   "cobertura em X% e volume em Y%: precisam de 100%" (X e Y truncados em 1 casa), "suba N posições" ("suba 1 posição"
   no singular), "cobertura indisponível", "sem meta de cobertura", "volume indisponível" e "sem meta de volume" (os dois
   indisponíveis: unidos por " e "). **Desde a v1.6 (09/11/2026) o motivo não aparece na tela:** a coluna Status das
-  tabelas de ranking mostra só o selo, e o motivo continua calculado no motor. Todas as linhas têm "Pos."; a coluna
-  "Oficial" numera só quem bateu **os dois pilares**, e quem bateu só um fica com a posição em cinza. ⚠️ Pendência 26
-  (premissas da v1.8: novembro parcial, meta nula indisponível, sem coluna nova, textos dos motivos), sinalizada em
-  Regras > Dados e alertas.
+  tabelas de ranking mostra só o selo, e o motivo continua calculado no motor. **Desde a v1.10 (10/11/2026) a tela
+  mostra só a posição oficial:** a coluna "OF." numera quem bateu **os dois pilares** e mostra "—" para os demais, a
+  coluna "Pos." saiu das duas tabelas (com a regra de pintá-la em cinza) e as linhas continuam ordenadas pelo % Acum.
+  de Aperitivo — o motor segue calculando `pos` em todas elas, que ordena o ranking e entra no motivo do status.
+  ⚠️ Pendência 26 (premissas da v1.8: novembro parcial, meta nula indisponível, sem coluna nova, textos dos motivos)
+  e ⚠️ pendência 29 (nome da coluna "OF." e texto do rodapé), sinalizadas em Regras > Dados e alertas.
 - **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
   `calendario.dias_uteis_restantes`, com o Real até ontem; **travada** (não desconta o Online, não muda durante o dia).
   Real ≥ Meta dá 0; 0 dias restantes dá a diferença total; exibida como **inteiro arredondado para cima** (cliente não
@@ -261,10 +266,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Na tela a linha mostra só **"Total Band"** (o "· Diretoria e GP" saiu na etapa 4F).
 - **A tela (Etapa 4, mockup de 08/11/2026):** cinco abas — Ranking GC · Supervisão (uma tela só, Mista ⇄ Segmentada) ·
   Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
-  `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **19 colunas**
-  em outubro e novembro e **21 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F), cabem em 1.754 px **sem rolagem
-  horizontal**, com corpo de 14 px,
-  cabeçalho de 13 px e linhas de 3 px de respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
+  `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **18 colunas**
+  em outubro e novembro e **20 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F — uma a menos desde a 4J, que tirou
+  a "Pos."), cabem **sem rolagem horizontal**, com corpo de 14 px, cabeçalho de 13 px e linhas de 3 px de
+  respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
   isso as 12 linhas agrupadas e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; desde a
   etapa 4G as listas longas (Supervisão, Consultor e a visão Supervisão do Detalhe) são paginadas de 15 em 15, a visão
   Gerência do Detalhe cabe inteira (etapa 4I), e **nenhuma aba rola**. O seletor "Mês de referência" vale no Ranking GC **e** na
@@ -459,7 +464,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 227 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 232 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
