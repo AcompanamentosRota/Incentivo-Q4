@@ -125,19 +125,21 @@ também só de apresentação: conteúdo centralizado em todas as tabelas, colun
 "% Acum." e o "% Acum." do Skyy virou "% Médio", quadradinho no % do mês vigente do Aperitivo, números do Aperitivo
 na fonte da tabela, linha do total só com "Total Band" e as mesmas cores no Consultor e no Detalhe do mês. A
 **etapa 4G** paginou a Supervisão, o Consultor e o Detalhe do mês (15 linhas). A **etapa 4H** (regras v1.8, seções 2, 5
-e 7) faz o status "Bateu!" e a coluna Oficial exigirem os **dois pilares**: o gatilho de cobertura de Skyy **e** o novo
-gatilho de **volume de Aperitivo** (média simples dos % de novembro e dezembro, mínimo 100%, com a trava de 130% em
-novembro); o ranking não muda. A **etapa 4I** (regras v1.9, seção 7) tirou a paginação da visão Gerência do Detalhe do
-mês: a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A **etapa 4J** (regras v1.10,
-seções 5 e 7) deixou nas duas tabelas de ranking **só a coluna da posição oficial** ("OF.", de quem bateu os dois
-pilares; os demais "—"): a coluna "Pos." e a regra de pintá-la em cinza saíram da tela, e a ordem das linhas (% Acum.
-de Aperitivo) não muda. O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em
-`painel-campari/data/data.json`.
+e 7) fez o status "Bateu!" e a coluna da posição oficial exigirem os **dois pilares**: o gatilho de cobertura de Skyy
+**e** o volume de Aperitivo; o ranking não muda. A **etapa 4I** (regras v1.9, seção 7) tirou a paginação da visão
+Gerência do Detalhe do mês: a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A
+**etapa 4J** (regras v1.10, seções 5 e 7) deixou nas duas tabelas de ranking **só a coluna da posição oficial** (de
+quem bateu os dois pilares; os demais "—"): a coluna "Pos." e a regra de pintá-la em cinza saíram da tela, e a ordem
+das linhas (% Acum. de Aperitivo) não muda. A **etapa 4K** (regras v1.11, seções 2.2, 3 e 5) trocou o gatilho de
+volume por um **mínimo de volume**: o "Bateu!" exige o **% de Aperitivo do mês vigente ≥ 100%** (bruto), sem média e
+sem soma — a soma dos meses (% Acum.) só ordena o ranking —, o único gatilho por média é o de cobertura de Skyy, a
+coluna da posição oficial passa a se chamar **"RANK"** e o cabeçalho do bloco Aperitivo perde o texto "GATILHO ≥ …".
+O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 232 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 230 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

@@ -15,9 +15,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
-  out–dez/2026: dois pilares (gatilho de cobertura de Skyy e gatilho de volume de Aperitivo) e ranking por volume de
+  out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.10 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.11 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -27,12 +27,15 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   quadradinho no % do mês vigente do Aperitivo, números do Aperitivo na fonte da tabela, linha do total só com
   "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. A **Etapa 4G** (regras v1.7, seção 7)
   trocou a rolagem por **navegação por páginas** (15 linhas) na Supervisão, no Consultor e no Detalhe do mês, e abriu
-  o Consultor com todas as rotas. A **Etapa 4H** (regras v1.8, seções 2, 5 e 7) fez o "Bateu!" e a coluna Oficial
-  exigirem os **dois pilares** (gatilho de Skyy **e** gatilho de volume de Aperitivo); o ranking não mudou. A **Etapa 4I**
+  o Consultor com todas as rotas. A **Etapa 4H** (regras v1.8, seções 2, 5 e 7) fez o "Bateu!" e a coluna da posição
+  oficial exigirem os **dois pilares** (gatilho de Skyy **e** volume de Aperitivo); o ranking não mudou. A **Etapa 4I**
   (regras v1.9, seção 7) tirou a paginação da visão **Gerência** do Detalhe do mês (16 linhas e o Total Band numa tela
   só); a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A **Etapa 4J** (regras v1.10,
-  seções 5 e 7) deixou nas duas tabelas de ranking **só a coluna da posição oficial** ("OF."): a coluna "Pos." e a
-  regra de pintá-la em cinza saíram da tela, sem mudar número, ordem nem status.
+  seções 5 e 7) deixou nas duas tabelas de ranking **só a coluna da posição oficial**: a coluna "Pos." e a
+  regra de pintá-la em cinza saíram da tela, sem mudar número, ordem nem status. A **Etapa 4K** (regras v1.11,
+  seções 2.2, 3 e 5) trocou o gatilho de volume por um **mínimo de volume** — o % de Aperitivo do **mês vigente**
+  ≥ 100%, sem média e sem soma, com a soma dos meses servindo só para ranquear —, deu à coluna da posição oficial o
+  cabeçalho **"RANK"** e tirou o "GATILHO ≥ …" do cabeçalho do bloco Aperitivo.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -59,7 +62,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, gatilho de volume (`gatilhoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`; canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -79,7 +82,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 232 testes (76 do motor, 156 do adaptador)
+# testes do painel Campari Club — 230 testes (75 do motor, 155 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -205,22 +208,24 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.10 de 10/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.11 de 10/11/2026)
 
-- **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
-  cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
+- **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
+  status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
 - **Gatilho de Skyy:** cobertura de **Skyy**, média simples dos % de **novembro e dezembro**, mínimo **100%** no valor bruto
   (99,99999% não bate; a tela trunca, o cálculo não arredonda). Outubro nunca entra. Em novembro o gatilho é
   **parcial** (só novembro). `REGRAS.gatilho = { meses: [11, 12], minimo: 100 }`; na linha, `gatilho` (é o "% Médio").
-- **Gatilho de volume de Aperitivo (v1.8, seção 2.2; etapa 4H):** média simples dos % mensais de Aperitivo de
-  **novembro e dezembro** — os **mesmos** % do ranking (`percentualMes` + `aplicarTrava`: 130% em novembro, dezembro
-  sem trava) —, mínimo **100%** no valor bruto. Outubro nunca entra (só pontua o ranking); em novembro é **parcial**;
-  em dezembro precisa dos dois meses (faltando um, **indisponível**); meta nula ou ≤ 0 dá **indisponível** ("sem meta de
-  volume"), nunca 0 nem 100. `REGRAS.gatilhoVolume = { meses: [11, 12], minimo: 100 }`, função `gatilhoVolume`; na
-  linha, `gatilhoVolume`. Na linha agrupada do Ranking GC o % é o da soma das gerências (como no ranking).
-- **Dois pilares (`gatilhoPilares`, etapa 4H):** junta os dois em `{ batido, indisponivel, motivo }` — batido só com os
-  dois batidos; indisponível quando falta algum e nenhum falhou com valor. Na linha, `gatilhoPilares`. É ele que decide
-  a coluna Oficial e o "Bateu!" (`numerarOficial` e `statusLinha` leem `gatilho` + `gatilhoVolume`).
+- **Mínimo de volume de Aperitivo (v1.11, seção 2.2; etapa 4K, que substitui o gatilho por média da 4H):** o % de
+  Aperitivo do **mês vigente** — o mês de referência da API (`mesGatilho`), **nunca** o escolhido no seletor da tela —,
+  no mesmo % do ranking (`percentualMes` + `aplicarTrava`: 130% em outubro e novembro, dezembro sem trava), tem de
+  chegar a **100%** no valor bruto (99,99999% não bate). **Não é média nem soma:** a soma dos % (out + nov + dez) é só
+  a pontuação do ranking. Sem `parcial`. Mês vigente sem fonte dá **indisponível** ("volume indisponível"); meta nula
+  ou ≤ 0 dá **indisponível** ("sem meta de volume"), nunca 0 nem 100. `REGRAS.minimoVolume = { minimo: 100 }` (sem
+  `meses`), função `minimoVolume`; na linha, `minimoVolume`. Na linha agrupada do Ranking GC o % é o da soma das
+  gerências (como no ranking).
+- **Dois pilares (`gatilhoPilares`, etapas 4H e 4K):** junta os dois em `{ batido, indisponivel, motivo }` — batido só
+  com os dois batidos; indisponível quando falta algum e nenhum falhou com valor. Na linha, `gatilhoPilares`. É ele que
+  decide a coluna RANK e o "Bateu!" (`numerarOficial` e `statusLinha` leem `gatilho` + `minimoVolume`).
 - **% de cobertura** = (realizado + online_hoje) ÷ meta, bruto; `online_hoje` null conta 0. Meta de cobertura null ou
   ≤ 0 dá % **null** (nunca 0 nem 100), com o motivo "sem meta de cobertura". Os blocos `cobertura` de supervisão e
   gerência da API entram **como estão** (meta só das rotas com meta; realizado e online de todas as rotas) — decisão
@@ -234,18 +239,19 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Posições premiadas** (só para decidir o status, nunca para mostrar prêmio): `REGRAS.premiadas = { gc: 6,
   svMista: 12, svSegmentada: 3 }`, padrão do motor como o `gatilhoPontos` do Q4 — a regra em vigor não depende de
   arquivo que pode faltar. Nada fixo em lógica nem em texto. **Prêmios não aparecem em lugar nenhum do painel.**
-- **Status (v1.8):** "Bateu!" só com os **dois pilares** batidos (Skyy **e** volume de Aperitivo) **e** posição
+- **Status (v1.11):** "Bateu!" só com os **dois pilares** batidos (gatilho de Skyy **e** mínimo de volume de
+  Aperitivo) **e** posição
   oficial ≤ limite do nível; qualquer outro caso "-". Motivos exatos, só no motor (`MOTIVOS` + `gatilhoPilares` +
   `statusLinha`): "dentro das premiadas", "cobertura em X%: precisa de 100%", "volume em X%: precisa de 100%",
   "cobertura em X% e volume em Y%: precisam de 100%" (X e Y truncados em 1 casa), "suba N posições" ("suba 1 posição"
   no singular), "cobertura indisponível", "sem meta de cobertura", "volume indisponível" e "sem meta de volume" (os dois
   indisponíveis: unidos por " e "). **Desde a v1.6 (09/11/2026) o motivo não aparece na tela:** a coluna Status das
   tabelas de ranking mostra só o selo, e o motivo continua calculado no motor. **Desde a v1.10 (10/11/2026) a tela
-  mostra só a posição oficial:** a coluna "OF." numera quem bateu **os dois pilares** e mostra "—" para os demais, a
-  coluna "Pos." saiu das duas tabelas (com a regra de pintá-la em cinza) e as linhas continuam ordenadas pelo % Acum.
-  de Aperitivo — o motor segue calculando `pos` em todas elas, que ordena o ranking e entra no motivo do status.
-  ⚠️ Pendência 26 (premissas da v1.8: novembro parcial, meta nula indisponível, sem coluna nova, textos dos motivos)
-  e ⚠️ pendência 29 (nome da coluna "OF." e texto do rodapé), sinalizadas em Regras > Dados e alertas.
+  mostra só a posição oficial:** a coluna **"RANK"** (nome decidido na v1.11) numera quem bateu **os dois pilares** e
+  mostra "—" para os demais, a coluna "Pos." saiu das duas tabelas (com a regra de pintá-la em cinza) e as linhas
+  continuam ordenadas pelo % Acum. de Aperitivo — o motor segue calculando `pos` em todas elas, que ordena o ranking e
+  entra no motivo do status. ⚠️ Pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que
+  sobrou, sinalizada em Regras > Dados e alertas; as pendências 24, 25, 28 e 29 foram resolvidas na v1.11.
 - **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
   `calendario.dias_uteis_restantes`, com o Real até ontem; **travada** (não desconta o Online, não muda durante o dia).
   Real ≥ Meta dá 0; 0 dias restantes dá a diferença total; exibida como **inteiro arredondado para cima** (cliente não
@@ -268,7 +274,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Consultor · Detalhe do mês · Regras. Palco de 1920 px com o `fit()` do Q4 (copiado, não importado), abas em
   `top:148px`, vistas em `top:198px / bottom:48px`, rodapé em `bottom:10px`. As tabelas de ranking têm **18 colunas**
   em outubro e novembro e **20 em dezembro** (a coluna Dez e o "% Nov"; etapa 4F — uma a menos desde a 4J, que tirou
-  a "Pos."), cabem **sem rolagem horizontal**, com corpo de 14 px, cabeçalho de 13 px e linhas de 3 px de
+  a "Pos."; a que sobrou tem o cabeçalho "RANK" desde a 4K), cabem **sem rolagem horizontal**, com corpo de 14 px, cabeçalho de 13 px e linhas de 3 px de
   respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
   isso as 12 linhas agrupadas e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; desde a
   etapa 4G as listas longas (Supervisão, Consultor e a visão Supervisão do Detalhe) são paginadas de 15 em 15, a visão
@@ -464,7 +470,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 232 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 230 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

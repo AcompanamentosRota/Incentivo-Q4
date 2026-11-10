@@ -11,21 +11,25 @@ const M = require('../src/motor.js');
 // com os dois pilares, 09/11/2026, noite). A 4I sobe para a v1.9 (Detalhe do mês sem paginação na visão Gerência,
 // 09/11/2026, fim da noite): só a versão muda no motor. A 4J sobe para a v1.10 (as tabelas de ranking passam a
 // mostrar só a posição oficial, 10/11/2026): também só a versão muda aqui, e `numerarRanking` e `pos` continuam.
-test('motor carrega no Node e exporta versaoRegras 1.10', () => {
-  assert.equal(M.versaoRegras, '1.10');
-  assert.equal(M.REGRAS.versao, '1.10');
+// A 4K sobe para a v1.11 (10/11/2026): o volume de Aperitivo passa a ter MÍNIMO no mês vigente, no lugar do
+// gatilho por média da 4H.
+test('motor carrega no Node e exporta versaoRegras 1.11', () => {
+  assert.equal(M.versaoRegras, '1.11');
+  assert.equal(M.REGRAS.versao, '1.11');
 });
 
 // A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
 // gerência comercial agrupada do Ranking GC) e a 4F `corDoPercentualAperitivo` (a cor do quadradinho do % do mês
-// de Aperitivo, regras v1.7, seção 7): a lista exata substitui a da 4C. A 4H acrescenta `gatilhoVolume` e
-// `gatilhoPilares` (regras v1.8, seções 2 e 5), e a lista abaixo substitui a da 4F.
-// A tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
-test('etapa 4H: motor exporta o ranking, os gatilhos, o status, as metas dia, as duas cores e a soma do grupo', () => {
+// de Aperitivo, regras v1.7, seção 7): a lista exata substitui a da 4C. A 4H acrescentou `gatilhoVolume` e
+// `gatilhoPilares` (regras v1.8, seções 2 e 5), e a 4K troca o primeiro por `minimoVolume` (regras v1.11, seção
+// 2.2): a lista abaixo substitui a da 4H. A tela não pode ganhar função nova por engano, nem levar regra para
+// dentro do HTML.
+test('etapa 4K: motor exporta o ranking, os dois pilares, o status, as metas dia, as duas cores e a soma do grupo', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
-    'corDoPercentual', 'corDoPercentualAperitivo', 'diferenca', 'gatilhoCobertura', 'gatilhoPilares', 'gatilhoVolume',
+    'corDoPercentual', 'corDoPercentualAperitivo', 'diferenca', 'gatilhoCobertura', 'gatilhoPilares',
     'hojeAtingiu',
-    'metaDiaCobertura', 'metaDiaVolume', 'montarRanking', 'numerarOficial', 'numerarRanking', 'ordenarRanking',
+    'metaDiaCobertura', 'metaDiaVolume', 'minimoVolume', 'montarRanking', 'numerarOficial', 'numerarRanking',
+    'ordenarRanking',
     'percentualCobertura', 'percentualMes', 'somaRanking', 'somarGrupo', 'statusLinha', 'versaoRegras']);
 });
 
@@ -34,7 +38,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.10');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.11');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -253,10 +257,10 @@ test('gatilhoCobertura: referência antes de novembro (outubro) deixa o gatilho 
   }
 });
 
-// 4H: "bateu" agora são os DOIS pilares (regras v1.8, seção 5): a fixture põe o gatilho de volume batido em todas,
+// 4H/4K: "bateu" são os DOIS pilares (regras v1.11, seção 5): a fixture põe o mínimo de volume batido em todas,
 // e o teste continua medindo a numeração pelo gatilho de Skyy. A renumeração com um pilar só está mais abaixo.
 test('numerarOficial: numera 1..k só quem bateu o gatilho, na ordem do ranking', () => {
-  const bateu = (b) => ({ gatilho: { batido: b }, gatilhoVolume: { batido: true } });
+  const bateu = (b) => ({ gatilho: { batido: b }, minimoVolume: { batido: true } });
   const linhas = [Object.assign({ codigo: 'A', pos: 1 }, bateu(false)), Object.assign({ codigo: 'B', pos: 2 }, bateu(true)),
                   Object.assign({ codigo: 'C', pos: 3 }, bateu(true)), { codigo: 'D', pos: 4 }];
   const o = M.numerarOficial(linhas);
@@ -265,13 +269,13 @@ test('numerarOficial: numera 1..k só quem bateu o gatilho, na ordem do ranking'
   assert.deepEqual(M.numerarOficial([]), []);
 });
 
-// linha pronta para o status: gatilho de Skyy batido ou não e posição oficial. 4H: o status exige também o gatilho
-// de volume de Aperitivo (regras v1.8), então a linha traz o de volume BATIDO por padrão — os testes da etapa 3
-// abaixo continuam medindo o pilar de Skyy, o limite e o "suba N", e os casos do volume ficam nos testes da 4H.
-const VOL_OK = { valor: 110, batido: true, parcial: true, indisponivel: false, motivo: null };
-const ln = (valor, batido, oficial, gatilhoVolume) => ({ oficial,
+// linha pronta para o status: gatilho de Skyy batido ou não e posição oficial. 4H/4K: o status exige também o
+// MÍNIMO de volume de Aperitivo (regras v1.11), então a linha traz o de volume BATIDO por padrão — os testes da
+// etapa 3 abaixo continuam medindo o pilar de Skyy, o limite e o "suba N", e os casos do volume ficam na 4K.
+const VOL_OK = { valor: 110, batido: true, indisponivel: false, motivo: null };
+const ln = (valor, batido, oficial, minimoVolume) => ({ oficial,
   gatilho: { valor, batido, parcial: false, indisponivel: false, motivo: null },
-  gatilhoVolume: gatilhoVolume === undefined ? VOL_OK : gatilhoVolume });
+  minimoVolume: minimoVolume === undefined ? VOL_OK : minimoVolume });
 
 test('statusLinha: "Bateu!" na posição do limite de cada nível e "-" no limite + 1', () => {
   for (const [nivel, limite] of [['gc', 6], ['svMista', 12], ['svSegmentada', 3]]) {
@@ -290,24 +294,24 @@ test('statusLinha: sem o gatilho é "-" com "cobertura em X%: precisa de 100%", 
 });
 
 test('statusLinha: gatilho indisponível ou sem meta repete o motivo do gatilho', () => {
-  const indisp = { oficial: null, gatilhoVolume: VOL_OK, gatilho: { valor: null, batido: false, indisponivel: true, motivo: 'cobertura indisponível' } };
+  const indisp = { oficial: null, minimoVolume: VOL_OK, gatilho: { valor: null, batido: false, indisponivel: true, motivo: 'cobertura indisponível' } };
   assert.deepEqual(M.statusLinha(indisp, 'gc'), { status: '-', motivo: 'cobertura indisponível' });
-  const semMeta = { oficial: null, gatilhoVolume: VOL_OK, gatilho: { valor: null, batido: false, indisponivel: true, motivo: 'sem meta de cobertura' } };
+  const semMeta = { oficial: null, minimoVolume: VOL_OK, gatilho: { valor: null, batido: false, indisponivel: true, motivo: 'sem meta de cobertura' } };
   assert.deepEqual(M.statusLinha(semMeta, 'svMista'), { status: '-', motivo: 'sem meta de cobertura' });
   // 4H: linha sem gatilho nenhum agora não tem nenhum dos dois pilares (era só "cobertura indisponível")
   assert.deepEqual(M.statusLinha({}, 'gc'), { status: '-', motivo: 'cobertura indisponível e volume indisponível' });
-  assert.deepEqual(M.statusLinha({ gatilhoVolume: VOL_OK }, 'gc'), { status: '-', motivo: 'cobertura indisponível' });
+  assert.deepEqual(M.statusLinha({ minimoVolume: VOL_OK }, 'gc'), { status: '-', motivo: 'cobertura indisponível' });
 });
 
-// 4H: os cfg de teste ganham o `gatilhoVolume` (regras v1.8), que o status agora lê; o que o teste mede não mudou.
+// 4H/4K: os cfg de teste ganham o `minimoVolume` (regras v1.11), que o status também lê; o que o teste mede não mudou.
 test('statusLinha: limite e mínimo vêm das regras (nada fixo) e nível desconhecido é erro', () => {
-  const GV = { meses: [11, 12], minimo: 100 };
-  const cfg = { gatilho: { meses: [11, 12], minimo: 100 }, gatilhoVolume: GV, premiadas: { gc: 2, svMista: 12, svSegmentada: 3 } };
+  const MVR = { minimo: 100 };
+  const cfg = { gatilho: { meses: [11, 12], minimo: 100 }, minimoVolume: MVR, premiadas: { gc: 2, svMista: 12, svSegmentada: 3 } };
   assert.equal(M.statusLinha(ln(120, true, 2), 'gc', cfg).status, 'Bateu!');
   assert.equal(M.statusLinha(ln(120, true, 3), 'gc', cfg).status, '-');
   assert.equal(M.statusLinha(ln(120, true, 3), 'gc').status, 'Bateu!'); // padrão do motor: 6
   assert.throws(() => M.statusLinha(ln(120, true, 1), 'rota'), /sem posições premiadas/);
-  const outroMinimo = { gatilho: { meses: [11, 12], minimo: 95.5 }, gatilhoVolume: GV, premiadas: { gc: 6, svMista: 12, svSegmentada: 3 } };
+  const outroMinimo = { gatilho: { meses: [11, 12], minimo: 95.5 }, minimoVolume: MVR, premiadas: { gc: 6, svMista: 12, svSegmentada: 3 } };
   assert.equal(M.statusLinha(ln(90, false, null), 'gc', outroMinimo).motivo, 'cobertura em 90,0%: precisa de 95,5%');
 });
 
@@ -316,154 +320,174 @@ test('statusLinha: gatilho batido sem posição oficial não vira "Bateu!"', () 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-// Etapa 4H — gatilho de volume de Aperitivo e status com os dois pilares (regras v1.8, seções 2.2, 5 e 7)
+// Etapa 4K — mínimo de volume de Aperitivo (mês vigente) e os dois pilares (regras v1.11, seções 2.2 e 5)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// A v1.11 (decisão da Karen de 10/11/2026) troca o GATILHO de volume da 4H — média de novembro e dezembro, com a
+// trava — por um MÍNIMO: o % de Aperitivo do MÊS VIGENTE tem de chegar a 100%, sem média e sem soma. Os testes da
+// 4H que mediam a média dos dois meses, o "parcial" de novembro e o dezembro com um mês só descreviam a regra
+// antiga e foram reescritos abaixo; o que continua valendo — o valor BRUTO, o % do ranking com a trava, a meta
+// nula indisponível, os dois pilares, a posição oficial e o status — segue medido, com o campo `minimoVolume`.
 
-// mês de volume pronto para o gatilho: meta 100, então o % bruto é o próprio real (online 0)
+// mês de volume pronto para o mínimo: meta 100, então o % bruto é o próprio real (online 0)
 const vm_ = (mes, pct, situacao) => ({ mes, situacao: situacao || 'dado', meta: 100, real: pct, online: 0 });
 
-test('4H REGRAS: gatilho de volume de novembro e dezembro, mínimo 100, em configuração', () => {
-  assert.deepEqual(M.REGRAS.gatilhoVolume, { meses: [11, 12], minimo: 100 });
+test('4K REGRAS: mínimo de volume de 100, sem meses, em configuração', () => {
+  assert.deepEqual(M.REGRAS.minimoVolume, { minimo: 100 });
+  assert.equal('meses' in M.REGRAS.minimoVolume, false);  // não é média: não há meses nesta conta
+  assert.equal('gatilhoVolume' in M.REGRAS, false);       // o gatilho por média da v1.8 saiu das regras
+  assert.equal(typeof M.gatilhoVolume, 'undefined');      // e da interface do motor
   assert.equal(M.MOTIVOS.volumeIndisponivel, 'volume indisponível');
   assert.equal(M.MOTIVOS.semMetaVolume, 'sem meta de volume');
 });
 
-test('4H gatilhoVolume: exemplos da v1.8 — a trava de novembro vale, dezembro sem trava', () => {
-  // novembro 200% vale 130% (trava); com dezembro 60%: (130 + 60) ÷ 2 = 95 -> não bate
-  let g = M.gatilhoVolume([vm_(10, 300), vm_(11, 200), vm_(12, 60)], 12);
-  assert.deepEqual([g.valor, g.batido, g.parcial, g.indisponivel, g.motivo], [95, false, false, false, null]);
-  // novembro 130% e dezembro 70%: 100 -> bate
-  g = M.gatilhoVolume([vm_(11, 130), vm_(12, 70)], 12);
-  assert.deepEqual([g.valor, g.batido], [100, true]);
-  // dezembro sem trava: 250% entra inteiro
-  g = M.gatilhoVolume([vm_(11, 50), vm_(12, 250)], 12);
-  assert.deepEqual([g.valor, g.batido], [150, true]);
+test('4K minimoVolume: o corte é o % do mês vigente, no valor bruto (99,99999 não bate; 100 bate)', () => {
+  let m = M.minimoVolume([vm_(10, 300), vm_(11, 99.99999), vm_(12, null, 'futuro')], 11);
+  assert.deepEqual([m.valor, m.batido, m.indisponivel, m.motivo], [99.99999, false, false, null]); // não arredonda
+  assert.equal('parcial' in m, false);                    // sem média não existe "parcial"
+  m = M.minimoVolume([vm_(11, 100), vm_(12, null, 'futuro')], 11);
+  assert.deepEqual([m.valor, m.batido], [100, true]);     // 100% exatos batem
 });
 
-test('4H gatilhoVolume: novembro é parcial (só novembro), no valor bruto', () => {
-  let g = M.gatilhoVolume([vm_(10, 0), vm_(11, 99.99999), vm_(12, null, 'futuro')], 11);
-  assert.deepEqual([g.valor, g.batido, g.parcial, g.indisponivel], [99.99999, false, true, false]); // não arredonda
-  g = M.gatilhoVolume([vm_(11, 100), vm_(12, null, 'futuro')], 11);
-  assert.deepEqual([g.valor, g.batido, g.parcial], [100, true, true]);
-  g = M.gatilhoVolume([vm_(11, 200)], 11);
-  assert.deepEqual([g.valor, g.batido], [130, true]); // a mesma trava do ranking
-  // online entra (Real + Online), como no ranking
-  g = M.gatilhoVolume([{ mes: 11, situacao: 'dado', meta: 200, real: 150, online: 50 }], 11);
-  assert.deepEqual([g.valor, g.batido], [100, true]);
-});
-
-test('4H gatilhoVolume: o % é o mesmo do ranking (percentualMes + aplicarTrava de apurarMeses)', () => {
+test('4K minimoVolume: o % é o mesmo do ranking, com a trava do mês vigente', () => {
+  // novembro 200% entra como 130%, a trava do mês — o mesmo número que a coluna do mês mostra
+  assert.deepEqual([M.minimoVolume([vm_(11, 200)], 11).valor, M.minimoVolume([vm_(11, 200)], 11).batido], [130, true]);
+  // dezembro não tem trava: 250% entra inteiro
+  assert.equal(M.minimoVolume([vm_(11, 50), vm_(12, 250)], 12).valor, 250);
+  // o valor é o pctTravado do mesmo mês em apurarMeses (percentualMes + aplicarTrava), em qualquer mês vigente
   const meses = [vm_(10, 140), vm_(11, 180), { mes: 12, situacao: 'dado', meta: 300, real: 200, online: 7 }];
   const a = M.apurarMeses(meses);
-  const g = M.gatilhoVolume(meses, 12);
-  assert.equal(g.valor, (a.meses[1].pctTravado + a.meses[2].pctTravado) / 2);
+  for (const mes of [10, 11, 12]) {
+    assert.equal(M.minimoVolume(meses, mes).valor, a.meses.find((x) => x.mes === mes).pctTravado, String(mes));
+  }
+  // o Online entra (Real + Online), como no ranking
+  assert.equal(M.minimoVolume([{ mes: 11, situacao: 'dado', meta: 200, real: 150, online: 50 }], 11).batido, true);
 });
 
-test('4H gatilhoVolume: outubro nunca entra; antes de novembro, indisponível', () => {
-  // outubro 0% não puxa a média de dezembro
-  const g = M.gatilhoVolume([vm_(10, 0), vm_(11, 100), vm_(12, 100)], 12);
-  assert.deepEqual([g.valor, g.batido], [100, true]);
-  for (const ref of [10, null, undefined]) {
-    const x = M.gatilhoVolume([vm_(10, 150)], ref);
-    assert.deepEqual([x.valor, x.batido, x.indisponivel, x.motivo], [null, false, true, 'volume indisponível']);
+test('4K minimoVolume: só o mês vigente conta — nem média, nem soma, nem os outros meses', () => {
+  // 130% em outubro e 0% em novembro NÃO bate: a soma do ranking seria 130, e ela não entra nesta conta
+  const forte = [vm_(10, 130), vm_(11, 0), vm_(12, null, 'futuro')];
+  const m11 = M.minimoVolume(forte, 11);
+  assert.deepEqual([m11.valor, m11.batido, m11.indisponivel], [0, false, false]);
+  assert.equal(M.somaRanking(M.apurarMeses(forte).meses.map((x) => x.pctTravado)), 130); // o ranking soma; o mínimo não
+  // em novembro, um dezembro diferente não muda nada (na v1.8 a média mudava)
+  for (const dez of [0, 60, 250]) {
+    const m = M.minimoVolume([vm_(11, 125), vm_(12, dez)], 11);
+    assert.deepEqual([m.valor, m.batido], [125, true], String(dez));
   }
+  // e em dezembro é dezembro que decide, mesmo com novembro altíssimo
+  const m12 = M.minimoVolume([vm_(11, 200), vm_(12, 90)], 12);
+  assert.deepEqual([m12.valor, m12.batido], [90, false]);
+  // dezembro sozinho basta: não precisa mais dos dois meses
+  assert.deepEqual([M.minimoVolume([vm_(12, 105)], 12).valor, M.minimoVolume([vm_(12, 105)], 12).batido], [105, true]);
 });
 
-test('4H gatilhoVolume: dezembro sem um dos meses fica indisponível (nunca a média de um mês só)', () => {
-  for (const meses of [[vm_(12, 200)], [vm_(11, 200), vm_(12, null, 'indisponivel')], [vm_(11, 200, 'indisponivel'), vm_(12, 200)]]) {
-    const g = M.gatilhoVolume(meses, 12);
-    assert.deepEqual([g.valor, g.batido, g.parcial, g.indisponivel, g.motivo], [null, false, false, true, 'volume indisponível']);
+test('4K minimoVolume: sem mês vigente, mês sem fonte ou real não numérico -> "volume indisponível"', () => {
+  for (const ref of [null, undefined, NaN]) {
+    const m = M.minimoVolume([vm_(11, 150)], ref);
+    assert.deepEqual([m.valor, m.batido, m.indisponivel, m.motivo], [null, false, true, 'volume indisponível'], String(ref));
   }
-});
-
-test('4H gatilhoVolume: meta nula ou ≤ 0 deixa indisponível com "sem meta de volume" (nunca 0 nem 100)', () => {
-  for (const meta of [null, 0, -10]) {
-    const g = M.gatilhoVolume([{ mes: 11, situacao: 'dado', meta, real: 50, online: 0 }], 11);
-    assert.deepEqual([g.valor, g.batido, g.indisponivel, g.motivo], [null, false, true, 'sem meta de volume']);
+  for (const meses of [[vm_(10, 150)], [vm_(11, null, 'indisponivel')], [vm_(11, null, 'futuro')], [], null]) {
+    const m = M.minimoVolume(meses, 11);
+    assert.deepEqual([m.valor, m.indisponivel, m.motivo], [null, true, 'volume indisponível']);
   }
-  const semReal = M.gatilhoVolume([{ mes: 11, situacao: 'dado', meta: 100, real: null, online: 0 }], 11);
+  const semReal = M.minimoVolume([{ mes: 11, situacao: 'dado', meta: 100, real: null, online: 0 }], 11);
   assert.deepEqual([semReal.indisponivel, semReal.motivo], [true, 'volume indisponível']);
 });
 
-test('4H gatilhoVolume: mínimo e meses vêm das regras (nada fixo)', () => {
-  const cfg = Object.assign({}, M.REGRAS, { gatilhoVolume: { meses: [11, 12], minimo: 90 } });
-  assert.equal(M.gatilhoVolume([vm_(11, 95)], 11, cfg).batido, true);
-  assert.equal(M.gatilhoVolume([vm_(11, 95)], 11).batido, false);
+test('4K minimoVolume: meta nula ou ≤ 0 deixa indisponível com "sem meta de volume" (nunca 0 nem 100)', () => {
+  for (const meta of [null, 0, -10]) {
+    const m = M.minimoVolume([{ mes: 11, situacao: 'dado', meta, real: 50, online: 0 }], 11);
+    assert.deepEqual([m.valor, m.batido, m.indisponivel, m.motivo], [null, false, true, 'sem meta de volume'], String(meta));
+  }
 });
 
+test('4K minimoVolume: o mínimo vem das regras (nada fixo) e mês fora da vigência é erro', () => {
+  const cfg = Object.assign({}, M.REGRAS, { minimoVolume: { minimo: 90 } });
+  assert.equal(M.minimoVolume([vm_(11, 95)], 11, cfg).batido, true);
+  assert.equal(M.minimoVolume([vm_(11, 95)], 11).batido, false);
+  assert.throws(() => M.minimoVolume([{ mes: 9, situacao: 'dado', meta: 100, real: 150, online: 0 }], 9), /fora da vigência/);
+});
+
+// pilares prontos: GS/GI = gatilho de cobertura de Skyy (tem `parcial`); MV/MI = mínimo de volume (não tem)
 const GS = (valor, batido) => ({ valor, batido, parcial: true, indisponivel: false, motivo: null });
 const GI = (motivo) => ({ valor: null, batido: false, parcial: false, indisponivel: true, motivo });
+const MV = (valor, batido) => ({ valor, batido, indisponivel: false, motivo: null });
+const MI = (motivo) => ({ valor: null, batido: false, indisponivel: true, motivo });
 
-test('4H gatilhoPilares: batido só com os dois; motivos de quem falha com valor', () => {
-  assert.deepEqual(M.gatilhoPilares(GS(120, true), GS(130, true)), { batido: true, indisponivel: false, motivo: null });
-  assert.deepEqual(M.gatilhoPilares(GS(100, true), GS(0, false)),
+test('4K gatilhoPilares: batido só com os dois; motivos de quem falha com valor', () => {
+  assert.deepEqual(M.gatilhoPilares(GS(120, true), MV(130, true)), { batido: true, indisponivel: false, motivo: null });
+  assert.deepEqual(M.gatilhoPilares(GS(100, true), MV(0, false)),
     { batido: false, indisponivel: false, motivo: 'volume em 0,0%: precisa de 100%' });
-  assert.deepEqual(M.gatilhoPilares(GS(97.46, false), GS(130, true)),
+  assert.deepEqual(M.gatilhoPilares(GS(97.46, false), MV(130, true)),
     { batido: false, indisponivel: false, motivo: 'cobertura em 97,4%: precisa de 100%' });
-  assert.deepEqual(M.gatilhoPilares(GS(97.46, false), GS(99.99999, false)),
+  assert.deepEqual(M.gatilhoPilares(GS(97.46, false), MV(99.99999, false)),
     { batido: false, indisponivel: false, motivo: 'cobertura em 97,4% e volume em 99,9%: precisam de 100%' });
 });
 
-test('4H gatilhoPilares: indisponível só quando nenhum falhou com valor', () => {
+test('4K gatilhoPilares: indisponível só quando nenhum falhou com valor', () => {
   // um falhou com valor: o motivo é dele, e não é "indisponível"
-  assert.deepEqual(M.gatilhoPilares(GS(80, false), GI('volume indisponível')),
+  assert.deepEqual(M.gatilhoPilares(GS(80, false), MI('volume indisponível')),
     { batido: false, indisponivel: false, motivo: 'cobertura em 80,0%: precisa de 100%' });
-  assert.deepEqual(M.gatilhoPilares(GI('cobertura indisponível'), GS(50, false)),
+  assert.deepEqual(M.gatilhoPilares(GI('cobertura indisponível'), MV(50, false)),
     { batido: false, indisponivel: false, motivo: 'volume em 50,0%: precisa de 100%' });
   // o outro batido: indisponível com o motivo do que falta
-  assert.deepEqual(M.gatilhoPilares(GS(120, true), GI('sem meta de volume')),
+  assert.deepEqual(M.gatilhoPilares(GS(120, true), MI('sem meta de volume')),
     { batido: false, indisponivel: true, motivo: 'sem meta de volume' });
-  assert.deepEqual(M.gatilhoPilares(GI('sem meta de cobertura'), GS(120, true)),
+  assert.deepEqual(M.gatilhoPilares(GI('sem meta de cobertura'), MV(120, true)),
     { batido: false, indisponivel: true, motivo: 'sem meta de cobertura' });
   // os dois faltando
-  assert.deepEqual(M.gatilhoPilares(GI('cobertura indisponível'), GI('volume indisponível')),
+  assert.deepEqual(M.gatilhoPilares(GI('cobertura indisponível'), MI('volume indisponível')),
     { batido: false, indisponivel: true, motivo: 'cobertura indisponível e volume indisponível' });
-  // gatilho ausente nunca conta como batido
+  // pilar ausente nunca conta como batido
   assert.deepEqual(M.gatilhoPilares(GS(120, true), undefined),
     { batido: false, indisponivel: true, motivo: 'volume indisponível' });
-  assert.deepEqual(M.gatilhoPilares(null, GS(120, true)),
+  assert.deepEqual(M.gatilhoPilares(null, MV(120, true)),
     { batido: false, indisponivel: true, motivo: 'cobertura indisponível' });
 });
 
-test('4H numerarOficial: Oficial só para quem bateu os DOIS pilares; quem está atrás sobe', () => {
-  const l = (codigo, pos, sk, vo) => ({ codigo, pos, gatilho: GS(sk ? 120 : 80, sk), gatilhoVolume: GS(vo ? 120 : 80, vo) });
+test('4K numerarOficial: RANK só para quem bateu os DOIS pilares; quem está atrás sobe', () => {
+  const l = (codigo, pos, sk, vo) => ({ codigo, pos, gatilho: GS(sk ? 120 : 80, sk), minimoVolume: MV(vo ? 120 : 80, vo) });
   // o 1º bateu só o Skyy, o 2º só o volume, o 3º os dois, o 4º nenhum, o 5º os dois
   const o = M.numerarOficial([l('A', 1, true, false), l('B', 2, false, true), l('C', 3, true, true),
                               l('D', 4, false, false), l('E', 5, true, true)]);
   assert.deepEqual(o.map((x) => [x.codigo, x.pos, x.oficial]), [['A', 1, null], ['B', 2, null], ['C', 3, 1], ['D', 4, null], ['E', 5, 2]]);
-  // renumeração: com o 1º só no Skyy, o 2º ranqueado que bateu os dois vira Oficial 1
+  // renumeração: com o 1º só no Skyy, o 2º ranqueado que bateu os dois vira o RANK 1
   const r = M.numerarOficial([l('A', 1, true, false), l('B', 2, true, true)]);
   assert.deepEqual(r.map((x) => [x.codigo, x.oficial]), [['A', null], ['B', 1]]);
-  // pilar indisponível: sem oficial
-  const ind = M.numerarOficial([{ codigo: 'X', pos: 1, gatilho: GS(120, true), gatilhoVolume: GI('volume indisponível') }]);
+  // pilar indisponível: sem posição oficial
+  const ind = M.numerarOficial([{ codigo: 'X', pos: 1, gatilho: GS(120, true), minimoVolume: MI('volume indisponível') }]);
   assert.equal(ind[0].oficial, null);
 });
 
-test('4H statusLinha: Skyy batido e volume não -> "-" (o caso que a Karen viu em 09/11/2026)', () => {
-  const linha = { oficial: null, gatilho: GS(100, true), gatilhoVolume: GS(0, false) };
+test('4K statusLinha: Skyy batido e volume abaixo do mínimo -> "-" e sem RANK', () => {
+  const linha = { oficial: null, gatilho: GS(100, true), minimoVolume: MV(0, false) };
   assert.deepEqual(M.statusLinha(linha, 'svMista'), { status: '-', motivo: 'volume em 0,0%: precisa de 100%' });
   // e o motor não dá posição oficial a ela
   assert.equal(M.numerarOficial([Object.assign({ pos: 1 }, linha)])[0].oficial, null);
+  // 99,99999% de volume também fica fora (o corte é no bruto)
+  const quase = { oficial: null, gatilho: GS(100, true), minimoVolume: MV(99.99999, false) };
+  assert.deepEqual(M.statusLinha(quase, 'gc'), { status: '-', motivo: 'volume em 99,9%: precisa de 100%' });
+  assert.equal(M.numerarOficial([Object.assign({ pos: 1 }, quase)])[0].oficial, null);
 });
 
-test('4H statusLinha: volume batido e Skyy não -> "-"', () => {
-  const linha = { oficial: null, gatilho: GS(99.99999, false), gatilhoVolume: GS(130, true) };
+test('4K statusLinha: volume batido e Skyy não -> "-"', () => {
+  const linha = { oficial: null, gatilho: GS(99.99999, false), minimoVolume: MV(130, true) };
   assert.deepEqual(M.statusLinha(linha, 'gc'), { status: '-', motivo: 'cobertura em 99,9%: precisa de 100%' });
 });
 
-test('4H statusLinha: os dois batidos, dentro e fora do limite, nos três níveis', () => {
+test('4K statusLinha: os dois batidos, dentro e fora do limite, nos três níveis', () => {
   for (const [nivel, limite] of [['gc', 6], ['svMista', 12], ['svSegmentada', 3]]) {
-    const dois = (oficial) => ({ oficial, gatilho: GS(100, true), gatilhoVolume: GS(100, true) });
+    const dois = (oficial) => ({ oficial, gatilho: GS(100, true), minimoVolume: MV(100, true) });
     assert.deepEqual(M.statusLinha(dois(limite), nivel), { status: 'Bateu!', motivo: 'dentro das premiadas' });
     assert.deepEqual(M.statusLinha(dois(limite + 2), nivel), { status: '-', motivo: 'suba 2 posições' });
   }
-  assert.throws(() => M.statusLinha({ oficial: 1, gatilho: GS(100, true), gatilhoVolume: GS(100, true) }, 'rota'), /sem posições premiadas/);
+  assert.throws(() => M.statusLinha({ oficial: 1, gatilho: GS(100, true), minimoVolume: MV(100, true) }, 'rota'), /sem posições premiadas/);
 });
 
-test('4H statusLinha: pilar indisponível -> "-" com o motivo do pilar', () => {
-  assert.deepEqual(M.statusLinha({ oficial: null, gatilho: GS(120, true), gatilhoVolume: GI('sem meta de volume') }, 'gc'),
+test('4K statusLinha: pilar indisponível -> "-" com o motivo do pilar', () => {
+  assert.deepEqual(M.statusLinha({ oficial: null, gatilho: GS(120, true), minimoVolume: MI('sem meta de volume') }, 'gc'),
     { status: '-', motivo: 'sem meta de volume' });
-  assert.deepEqual(M.statusLinha({ oficial: null, gatilho: GS(120, true), gatilhoVolume: GI('volume indisponível') }, 'svSegmentada'),
+  assert.deepEqual(M.statusLinha({ oficial: null, gatilho: GS(120, true), minimoVolume: MI('volume indisponível') }, 'svSegmentada'),
     { status: '-', motivo: 'volume indisponível' });
 });
 
