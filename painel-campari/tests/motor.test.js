@@ -14,20 +14,23 @@ const M = require('../src/motor.js');
 // A 4K sobe para a v1.11 (10/11/2026): o volume de Aperitivo passa a ter MÍNIMO no mês vigente, no lugar do
 // gatilho por média da 4H. A 4L sobe para a v1.12 (10/11/2026): as premissas a confirmar saem da aba Regras, que
 // é tela (adaptador) — no motor só a versão muda, e as duas regras citadas por elas seguem iguais. A 4M sobe
-// para a v1.13 (10/11/2026): a altura-base do fit() é escala de tela (adaptador), e aqui só a versão muda.
-test('motor carrega no Node e exporta versaoRegras 1.13', () => {
-  assert.equal(M.versaoRegras, '1.13');
-  assert.equal(M.REGRAS.versao, '1.13');
+// para a v1.13 (10/11/2026): a altura-base do fit() é escala de tela (adaptador), e aqui só a versão muda. A 4N
+// sobe para a v1.14 (10/11/2026, meio-dia): `statusLinha` ganha o terceiro estado "Bateu, fora do ranking" e os
+// três textos de selo passam a sair de `STATUS` — a RANK de todas as linhas e a linha azul são tela (adaptador).
+test('motor carrega no Node e exporta versaoRegras 1.14', () => {
+  assert.equal(M.versaoRegras, '1.14');
+  assert.equal(M.REGRAS.versao, '1.14');
 });
 
 // A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
 // gerência comercial agrupada do Ranking GC) e a 4F `corDoPercentualAperitivo` (a cor do quadradinho do % do mês
 // de Aperitivo, regras v1.7, seção 7): a lista exata substitui a da 4C. A 4H acrescentou `gatilhoVolume` e
 // `gatilhoPilares` (regras v1.8, seções 2 e 5), e a 4K troca o primeiro por `minimoVolume` (regras v1.11, seção
-// 2.2): a lista abaixo substitui a da 4H. A tela não pode ganhar função nova por engano, nem levar regra para
+// 2.2): a lista abaixo substitui a da 4H. A 4N acrescenta `STATUS`, os três textos de selo (regras v1.14, seção
+// 5), que a tela lê em vez de escrever. A tela não pode ganhar função nova por engano, nem levar regra para
 // dentro do HTML.
-test('etapa 4K: motor exporta o ranking, os dois pilares, o status, as metas dia, as duas cores e a soma do grupo', () => {
-  assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
+test('etapa 4N: motor exporta o ranking, os dois pilares, o status, os três selos, as metas dia, as duas cores e a soma do grupo', () => {
+  assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'STATUS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
     'corDoPercentual', 'corDoPercentualAperitivo', 'diferenca', 'gatilhoCobertura', 'gatilhoPilares',
     'hojeAtingiu',
     'metaDiaCobertura', 'metaDiaVolume', 'minimoVolume', 'montarRanking', 'numerarOficial', 'numerarRanking',
@@ -40,7 +43,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.13');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.14');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -279,12 +282,16 @@ const ln = (valor, batido, oficial, minimoVolume) => ({ oficial,
   gatilho: { valor, batido, parcial: false, indisponivel: false, motivo: null },
   minimoVolume: minimoVolume === undefined ? VOL_OK : minimoVolume });
 
-test('statusLinha: "Bateu!" na posição do limite de cada nível e "-" no limite + 1', () => {
+// 4N (regras v1.14, seção 5): passado o limite, o selo deixa de ser "-" e passa a ser "Bateu, fora do ranking"
+// (os dois pilares batidos). O motivo "suba N posições" e o limite de cada nível não mudaram.
+test('statusLinha: "Bateu!" na posição do limite de cada nível e "Bateu, fora do ranking" no limite + 1', () => {
   for (const [nivel, limite] of [['gc', 6], ['svMista', 12], ['svSegmentada', 3]]) {
     assert.deepEqual(M.statusLinha(ln(120, true, limite), nivel), { status: 'Bateu!', motivo: 'dentro das premiadas' });
     assert.deepEqual(M.statusLinha(ln(120, true, 1), nivel), { status: 'Bateu!', motivo: 'dentro das premiadas' });
-    assert.deepEqual(M.statusLinha(ln(120, true, limite + 1), nivel), { status: '-', motivo: 'suba 1 posição' });
+    assert.deepEqual(M.statusLinha(ln(120, true, limite + 1), nivel),
+                     { status: 'Bateu, fora do ranking', motivo: 'suba 1 posição' });
     assert.equal(M.statusLinha(ln(120, true, limite + 4), nivel).motivo, 'suba 4 posições');
+    assert.equal(M.statusLinha(ln(120, true, limite + 4), nivel).status, 'Bateu, fora do ranking');
   }
 });
 
@@ -310,7 +317,7 @@ test('statusLinha: limite e mínimo vêm das regras (nada fixo) e nível desconh
   const MVR = { minimo: 100 };
   const cfg = { gatilho: { meses: [11, 12], minimo: 100 }, minimoVolume: MVR, premiadas: { gc: 2, svMista: 12, svSegmentada: 3 } };
   assert.equal(M.statusLinha(ln(120, true, 2), 'gc', cfg).status, 'Bateu!');
-  assert.equal(M.statusLinha(ln(120, true, 3), 'gc', cfg).status, '-');
+  assert.equal(M.statusLinha(ln(120, true, 3), 'gc', cfg).status, 'Bateu, fora do ranking'); // 4N: fora do limite do cfg
   assert.equal(M.statusLinha(ln(120, true, 3), 'gc').status, 'Bateu!'); // padrão do motor: 6
   assert.throws(() => M.statusLinha(ln(120, true, 1), 'rota'), /sem posições premiadas/);
   const outroMinimo = { gatilho: { meses: [11, 12], minimo: 95.5 }, minimoVolume: MVR, premiadas: { gc: 6, svMista: 12, svSegmentada: 3 } };
@@ -481,7 +488,8 @@ test('4K statusLinha: os dois batidos, dentro e fora do limite, nos três nívei
   for (const [nivel, limite] of [['gc', 6], ['svMista', 12], ['svSegmentada', 3]]) {
     const dois = (oficial) => ({ oficial, gatilho: GS(100, true), minimoVolume: MV(100, true) });
     assert.deepEqual(M.statusLinha(dois(limite), nivel), { status: 'Bateu!', motivo: 'dentro das premiadas' });
-    assert.deepEqual(M.statusLinha(dois(limite + 2), nivel), { status: '-', motivo: 'suba 2 posições' });
+    assert.deepEqual(M.statusLinha(dois(limite + 2), nivel),
+                     { status: 'Bateu, fora do ranking', motivo: 'suba 2 posições' }); // 4N: o terceiro selo
   }
   assert.throws(() => M.statusLinha({ oficial: 1, gatilho: GS(100, true), minimoVolume: MV(100, true) }, 'rota'), /sem posições premiadas/);
 });
@@ -718,4 +726,55 @@ test('somarGrupo: `campos` permite a cobertura, que não tem meta dia própria',
 test('somarGrupo: grupo de uma gerência só devolve os próprios valores (as oito linhas sozinhas do mapa)', () => {
   const um = { meta: 1234.5, real: 1000, online: 7, metaDia: 2.5 };
   assert.deepEqual(M.somarGrupo([um]), um);
+});
+
+// ===============================================================================================================
+// Etapa 4N — o terceiro estado do status (regras v1.14, seção 5; decisão da Karen de 10/11/2026, meio-dia).
+// Só o SELO muda: quem bateu os dois pilares e ficou além do limite de premiadas sai de "-" e passa a
+// "Bateu, fora do ranking". Quem decide continua sendo a posição OFICIAL contra REGRAS.premiadas, e os motivos,
+// os limites, `pos` e `oficial` ficam exatamente como estavam.
+
+test('4N STATUS: os três textos de selo ficam no motor, nunca na tela', () => {
+  assert.deepEqual(M.STATUS, { bateu: 'Bateu!', fora: 'Bateu, fora do ranking', nao: '-' });
+  // os três são distintos: é o que deixa a tela escolher a cor por comparação
+  assert.equal(new Set(Object.values(M.STATUS)).size, 3);
+});
+
+test('4N statusLinha: os três estados, com os dois pilares batidos ou não', () => {
+  const GS = (valor, batido) => ({ valor, batido, parcial: false, indisponivel: false, motivo: null });
+  const MV = (valor, batido) => ({ valor, batido, indisponivel: false, motivo: null });
+  const linha = (oficial, volBatido) => ({ oficial, gatilho: GS(120, true), minimoVolume: MV(volBatido ? 130 : 80, volBatido) });
+  // (i) os dois pilares e dentro das premiadas: "Bateu!" (é a linha que a tela pinta de azul)
+  assert.equal(M.statusLinha(linha(6, true), 'gc').status, M.STATUS.bateu);
+  // (ii) os dois pilares e além do limite: o selo novo, com o motivo de antes
+  assert.deepEqual(M.statusLinha(linha(7, true), 'gc'), { status: M.STATUS.fora, motivo: 'suba 1 posição' });
+  // (iii) só um pilar: "-" (e sem posição oficial, porque numerarOficial não numera quem não bateu os dois)
+  assert.deepEqual(M.statusLinha(linha(null, false), 'gc'),
+                   { status: M.STATUS.nao, motivo: 'volume em 80,0%: precisa de 100%' });
+});
+
+test('4N statusLinha: o selo novo só aparece com os dois pilares; sem posição oficial continua "-"', () => {
+  const GS = (valor, batido) => ({ valor, batido, parcial: false, indisponivel: false, motivo: null });
+  const MV = (valor, batido) => ({ valor, batido, indisponivel: false, motivo: null });
+  // pilares batidos, mas `numerarOficial` não rodou (oficial null): "-" sem motivo, como antes da 4N
+  assert.deepEqual(M.statusLinha({ oficial: null, gatilho: GS(120, true), minimoVolume: MV(130, true) }, 'gc'),
+                   { status: M.STATUS.nao, motivo: null });
+  // um pilar fora, posição oficial alta: nunca o selo novo
+  assert.equal(M.statusLinha({ oficial: 20, gatilho: GS(90, false), minimoVolume: MV(130, true) }, 'gc').status,
+               M.STATUS.nao);
+  assert.equal(M.statusLinha({ oficial: 20, gatilho: GS(120, true), minimoVolume: MV(90, false) }, 'gc').status,
+               M.STATUS.nao);
+});
+
+test('4N: a quantidade de "Bateu!" nunca passa do limite de premiadas do nível', () => {
+  const GS = (valor, batido) => ({ valor, batido, parcial: false, indisponivel: false, motivo: null });
+  const MV = (valor, batido) => ({ valor, batido, indisponivel: false, motivo: null });
+  for (const [nivel, limite] of [['gc', 6], ['svMista', 12], ['svSegmentada', 3]]) {
+    // 40 linhas, todas com os dois pilares: a oficial vai de 1 a 40 e só as `limite` primeiras têm "Bateu!"
+    const linhas = M.numerarOficial(Array.from({ length: 40 }, () => ({ gatilho: GS(120, true), minimoVolume: MV(130, true) })));
+    const selos = linhas.map((l) => M.statusLinha(l, nivel).status);
+    assert.equal(selos.filter((x) => x === M.STATUS.bateu).length, limite);
+    assert.equal(selos.filter((x) => x === M.STATUS.fora).length, 40 - limite);
+    assert.equal(selos.filter((x) => x === M.STATUS.nao).length, 0);
+  }
 });

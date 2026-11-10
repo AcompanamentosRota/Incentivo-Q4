@@ -697,6 +697,8 @@ test('4K montarDados: volume batido e Skyy não -> "-"; meta de volume 0 -> "sem
   assert.deepEqual([sv.oficial, sv.status.motivo, sv.gatilhoPilares.indisponivel], [null, 'cobertura em 99,0%: precisa de 100%', false]);
 });
 
+// 4N (regras v1.14, seção 5): o 4o SV, que bate os dois pilares e fica além do limite de 3, passa de "-" para
+// "Bateu, fora do ranking". O motivo "suba 1 posição", a ordem, `pos` e `oficial` não mudam.
 test('montarDados: quem bate o gatilho mas fica fora das premiadas recebe "suba N posições"', () => {
   // 4 SVs Segmentada, todas batendo o gatilho: o limite do nível é 3. 4H: o volume de novembro sai de 90/80/70/60%
   // para 125/120/115/110% (todos batem o gatilho de volume e ficam abaixo da trava, a ordem é a mesma).
@@ -711,7 +713,7 @@ test('montarDados: quem bate o gatilho mas fica fora das premiadas recebe "suba 
     ['SV.XC.1', 1, 1, 'Bateu!', 'dentro das premiadas'],
     ['SV.XC.2', 2, 2, 'Bateu!', 'dentro das premiadas'],
     ['SV.XC.3', 3, 3, 'Bateu!', 'dentro das premiadas'],
-    ['SV.XC.4', 4, 4, '-', 'suba 1 posição'],
+    ['SV.XC.4', 4, 4, 'Bateu, fora do ranking', 'suba 1 posição'],
   ]);
 });
 
@@ -1308,6 +1310,9 @@ test('4C: a estrutura da tabela da linha agrupada é a mesma das outras (a tela 
 
 const TPL = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.tpl.html'), 'utf8');
 const SEM_CSS = TPL.replace(/<style>[\s\S]*?<\/style>/g, '');
+// o template sem os comentários: os comentários contam a história do arquivo e citam valores antigos, então uma
+// busca por valor de cor (etapa 4N) tem de olhar só o que vale de fato
+const SEM_COM = TPL.replace(/\/\*[\s\S]*?\*\//g, '');
 const GERADO = path.join(__dirname, '..', '..', 'frontend', 'campari-club.html');
 
 test('tela: nenhum número de regra digitado — gatilho, trava e posições premiadas vêm do motor (P6)', () => {
@@ -1509,7 +1514,12 @@ test('tela 4C: o bloco Aperitivo em laranja (título e cabeçalhos das colunas),
   assert.match(TPL, /--ap-tit:#E07B41/);                     // o laranja médio do print do SAC
   assert.match(TPL, /--ap-tit-fg:#2B1703/);                  // texto escuro: branco sobre o laranja dá 2,97:1
   assert.match(TPL, /--ap-cel:rgba\(224,123,65,\./);         // corpo das células, no mesmo laranja (tom na 4D)
-  assert.doesNotMatch(TPL, /#4A3500|rgba\(255,200,74,\.16\)/); // o marrom-amarelado da 4B saiu
+  assert.doesNotMatch(TPL, /rgba\(255,200,74,\.16\)/);          // o marrom-amarelado da 4B saiu
+  // o #4A3500 do Q4 voltou na etapa 4N, mas só como fundo da tag "Bateu, fora do ranking": nunca no Aperitivo
+  const varsAp = (TPL.match(/--ap-[a-z-]+:[^;]+;/g) || []).join(' ');
+  assert.doesNotMatch(varsAp, /#4A3500|rgba\(255,200,74/);
+  assert.deepEqual(SEM_COM.match(/#4A3500/g), ['#4A3500']);   // uma vez só, na declaração da variável
+  assert.match(TPL, /--pill-fora-bg:#4A3500/);
   // o laranja vai também aos cabeçalhos das colunas do bloco, e o texto deles é escuro
   assert.match(TPL, /\.tb tr\.hdr th\.hd-ap\{background:var\(--ap-tit\)\}/);
   assert.match(TPL, /th\.bl-ap,\.tb tr\.grp th\.bl-ap small,\.tb tr\.hdr th\.hd-ap\{color:var\(--ap-tit-fg\)\}/);
@@ -1895,8 +1905,10 @@ test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada 
   assert.doesNotMatch(TPL, /l\.gatilho&&l\.gatilho\.batido/);
   assert.match(TPL, /com os dois pilares/);
   assert.doesNotMatch(TPL, /gatilho pendente/);
-  // a coluna exibida continua lendo só o oficial do motor (a 4J tirou a "Pos." e a cor cinza da tela)
-  assert.match(TPL, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  // 4N: a coluna exibida passa a ler a posição do RANKING do motor (l.pos), em todas as linhas; a oficial
+  // (l.oficial) continua vindo do motor e decidindo o "Bateu!", sem ser exibida
+  assert.match(TPL, /<span class="n of">'\+\(l\.pos\?esc\(l\.pos\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  assert.doesNotMatch(TPL, /\(l\.oficial\?esc\(l\.oficial\)/);
   // 4K: o gatilho de volume por média saiu da tela, e com ele o número no cabeçalho do bloco Aperitivo
   assert.doesNotMatch(TPL, /gatilhoVolume/);
   assert.doesNotMatch(TPL, /mesesDoGatilhoVolume/);
@@ -1909,7 +1921,7 @@ test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada 
   assert.doesNotMatch(html, /gatilhoVolume: \{|R\.gatilhoVolume|motor\.gatilhoVolume|function gatilhoVolume/);
   // a versão aqui acompanha o motor embutido (a 4K subiu para a v1.11; a 4M, para a v1.13)
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.13');
+  assert.equal(Motor.REGRAS.versao, '1.14');
 });
 
 // ===============================================================================================================
@@ -2049,12 +2061,12 @@ test('4K tela: o cabeçalho da coluna de posição é "RANK" e o bloco Aperitivo
   assert.match(cab, /<colgroup><col span="2"><\/colgroup>/);
   assert.match(cab, /<tr class="grp"><th colspan="2"><\/th>/);
   assert.doesNotMatch(cab, /span="3"|colspan="3"/);
-  // a linha de dados não desenha célula de posição do ranking, e a do total ocupa as 2 colunas
+  // 4N: a linha de dados desenha a posição do RANKING (l.pos) e a do total continua ocupando as 2 colunas
   const lin = semCom(/function linhaRanking\(l, opc\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
-  assert.doesNotMatch(lin, /l\.pos/);
+  assert.doesNotMatch(lin, /l\.oficial/);
   assert.match(lin, /'<td class="l" colspan="2">'\+esc\(l\.codigo\)\+'<\/td>'/);
-  // "—" para quem não bateu os dois pilares; o número vem do motor (l.oficial), nunca contado aqui
-  assert.match(lin, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  // o número vem do motor (l.pos), nunca contado aqui
+  assert.match(lin, /<span class="n of">'\+\(l\.pos\?esc\(l\.pos\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
   // e a tela inteira não fala mais de "Pos." nem de cinza
   assert.doesNotMatch(TPL, /class="n pos|\.pos\{|\.pos\.cinza|--cinza/);
 });
@@ -2068,7 +2080,7 @@ test('tela 4J/4K: a ordem das linhas não depende da coluna que saiu', () => {
     assert.doesNotMatch(v, /\.sort\(|l\.pos|\.reverse\(/);
     assert.match(v, /ordem pelo % Acum\. de Aperitivo/);
   }
-  assert.doesNotMatch(/function tabelaRanking\([\s\S]*?\n\}/.exec(SEM_CSS)[0], /\.sort\(|l\.pos/);
+  assert.doesNotMatch(/function tabelaRanking\([\s\S]*?\n\}/.exec(SEM_CSS)[0], /\.sort\(|\.reverse\(/);
   // e o motor segue numerando a posição de todas as linhas (ela só não aparece)
   const d = montar3();
   assert.deepEqual(d.gc.map((l) => l.pos), d.gc.map((_, i) => i + 1));
@@ -2077,11 +2089,13 @@ test('tela 4J/4K: a ordem das linhas não depende da coluna que saiu', () => {
 test('4K tela: o rodapé e a aba Regras falam de RANK e de mínimo de volume', () => {
   // a busca é no que a tela ESCREVE (SEM_CSS): os comentários do <style> citam decisões antigas, que são
   // histórico do arquivo, não texto de tela
-  assert.match(SEM_CSS, /RANK: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código/);
+  assert.match(SEM_CSS, /RANK: posição no ranking \(% Acum\. de Aperitivo\) · linha azul: ✓ Bateu! \(dois pilares e dentro das /);
+  assert.match(SEM_CSS, /premiadas\) · desempate pela ordem alfabética do código/);
+  assert.doesNotMatch(SEM_CSS, /RANK: posição oficial/);
   assert.doesNotMatch(SEM_CSS, /posição em cinza/);
   const regras = /function viewRegras\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
-  assert.match(regras, /a única coluna de posição é a <strong style="color:var\(--gold\)">RANK<\/strong>/);
-  assert.match(regras, /mostram só a posição oficial/);
+  assert.match(regras, /a coluna <strong style="color:var\(--gold\)">RANK<\/strong> numera todas as linhas/);
+  assert.doesNotMatch(regras, /mostram só a posição oficial|a única coluna de posição/);
   // o passo dos dois pilares descreve o MÍNIMO do mês vigente e diz que a soma só ordena o ranking
   assert.match(regras, /Mínimo de '\+\s*'volume: o Aperitivo do mês vigente em '\+fmtPct\(R\.minimoVolume\.minimo\)/);
   assert.match(regras, /a soma dos meses só '\+\s*'ordena o ranking/);
@@ -2096,7 +2110,8 @@ test('4K tela: o HTML gerado leva RANK, o Aperitivo sem gatilho e o rodapé novo
   assert.doesNotMatch(html, /\.pos\{color:#fff\}|\.pos\.cinza\{|--cinza:/);
   assert.match(html, /VOLUME DE APERITIVO <small>· RANKING<\/small>/);
   assert.doesNotMatch(html, /APERITIVO <small>· RANKING · GATILHO/);
-  assert.match(html, /RANK: posição oficial, só de quem bateu os dois pilares/);
+  assert.match(html, /RANK: posição no ranking \(% Acum\. de Aperitivo\) · linha azul: ✓ Bateu!/);
+  assert.doesNotMatch(html, /RANK: posição oficial/);
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\.') + "'"));
 });
 
@@ -2208,3 +2223,95 @@ test('4M tela: a 4M não mexeu no resto do layout (linhas por página, vistas e 
   assert.match(TPL, /\.view\{position:absolute;left:60px;right:60px;top:198px;bottom:48px/);
   assert.match(TPL, /\.rolar\{flex:1;min-height:0;overflow:auto;overflow-x:hidden\}/);
 });
+
+// ===============================================================================================================
+// Etapa 4N — RANK em todas as linhas, linha azul no "Bateu!" e a tag "Bateu, fora do ranking" (regras v1.14,
+// seções 5 e 7; decisão da Karen de 10/11/2026, meio-dia). Só exibição: o cálculo da posição, da posição oficial
+// e do status fica no motor, e o que a tela faz é mostrar `pos`, pintar a linha e escolher a cor do selo.
+
+test('4N tela: a coluna RANK mostra a posição do ranking em todas as linhas, e o Total Band não tem número', () => {
+  const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');
+  const lin = semCom(/function linhaRanking\(l, opc\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
+  // o número é o `pos` do motor, não o `oficial` e não uma contagem da tela
+  assert.match(lin, /<span class="n of">'\+\(l\.pos\?esc\(l\.pos\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  assert.doesNotMatch(lin, /l\.oficial|\+\+|indexOf\(|forEach\(/);
+  // o Total Band continua com as 2 colunas da identificação juntas: sem célula de RANK
+  assert.match(lin, /opc\.total\s*\?\s*'<td class="l" colspan="2">'\+esc\(l\.codigo\)\+'<\/td>'/);
+});
+
+test('4N tela: a linha azul sai do mesmo teste do selo e nunca pega a linha de total', () => {
+  const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');
+  const lin = semCom(/function linhaRanking\(l, opc\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
+  // o total vem primeiro no ternário: linha de total nunca recebe a classe .bateu
+  assert.match(lin, /const classe = opc\.total \? ' class="tot"' : bateuStatus\(l\) \? ' class="bateu"' : '';/);
+  assert.match(lin, /return '<tr'\+classe\+'>'\+idCels\+/);
+  // e o teste do "Bateu!" é o do motor (M.STATUS.bateu), nunca um texto digitado na tela
+  assert.match(SEM_CSS, /const bateuStatus = \(l\)=>!!l\.status && l\.status\.status===M\.STATUS\.bateu;/);
+  assert.doesNotMatch(SEM_CSS, /status==='Bateu!'|status == 'Bateu!'/);
+});
+
+test('4N tela: os três selos usam os textos do motor e cada um a sua classe de cor', () => {
+  const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');
+  const cel = semCom(/const statusCel = \(l\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0]);
+  assert.match(cel, /t===M\.STATUS\.bateu \? 'ok' : t===M\.STATUS\.fora \? 'fora' : 'no'/);
+  // o "✓" é o único texto de selo que a tela acrescenta; os três nomes vêm do motor
+  assert.match(cel, /\(cls==='ok'\?'✓ ':''\)\+esc\(t\)/);
+  assert.doesNotMatch(SEM_CSS, /'Bateu, fora do ranking'|"Bateu, fora do ranking"/);
+});
+
+test('4N CSS: a linha azul cobre os dois blocos e o .k, e os quadradinhos não mudam de cor', () => {
+  // a cor vai no `td` (pinta por cima do <colgroup> e do .k) e também no hover, para o azul não sumir
+  assert.match(TPL, /\.tb\.rk tr\.bateu td,\.tb\.rk tr\.bateu:hover td\{background:var\(--rk-bateu\)\}/);
+  // e vem DEPOIS da regra do hover, que tem a mesma especificidade
+  assert.ok(TPL.indexOf('.tb.rk tr.bateu td') > TPL.indexOf('.tb tr:hover td:not(.k)'));
+  // os quadradinhos e o "Hoje" ganham o valor já achatado, para ficarem iguais aos das outras linhas
+  assert.match(TPL, /\.tb\.rk tr\.bateu \.pchip\.verde\{background:var\(--pct-ok-op\)\}/);
+  assert.match(TPL, /\.tb\.rk tr\.bateu \.pchip\.vermelho\{background:var\(--pct-no-op\)\}/);
+  assert.match(TPL, /\.tb\.rk tr\.bateu \.hoje\.ok\{background:var\(--hoje-ok-op\)\}/);
+  // a tag "Bateu, fora do ranking" tem cor própria e não pinta linha nenhuma
+  assert.match(TPL, /\.pill\.fora\{background:var\(--pill-fora-bg\);color:var\(--pill-fora-fg\)\}/);
+  assert.doesNotMatch(TPL, /tr\.fora|\.fora td/);
+  // as três cores são distintas entre si (azul da linha, âmbar da tag e o turquesa do selo "✓ Bateu!")
+  assert.match(TPL, /--rk-bateu:#114084/);
+  assert.match(TPL, /--pill-fora-bg:#4A3500; --pill-fora-fg:#FFE29A/);
+});
+
+test('4N tela: o HTML gerado leva a RANK de todas as linhas, a linha azul e a tag (build rodado)', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /<span class="n of">'\+\(l\.pos\?esc\(l\.pos\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  assert.match(html, /\.tb\.rk tr\.bateu td,\.tb\.rk tr\.bateu:hover td\{background:var\(--rk-bateu\)\}/);
+  assert.match(html, /\.pill\.fora\{background:var\(--pill-fora-bg\)/);
+  assert.match(html, /fora: 'Bateu, fora do ranking'/);               // o texto vem do motor embutido
+  assert.doesNotMatch(html, /\(l\.oficial\?esc\(l\.oficial\)/);
+});
+
+test('4N: a posição do ranking numera todas as linhas de cada nível, sem repetir, e o status não muda de regra', () => {
+  const d = montar3();
+  for (const nivel of ['gc', 'svMista', 'svSegmentada']) {
+    const pos = d[nivel].map((l) => l.pos);
+    assert.deepEqual(pos, d[nivel].map((_, i) => i + 1));          // 1..N, na ordem entregue
+    assert.equal(new Set(pos).size, pos.length);                   // sem repetição (o desempate já resolveu)
+  }
+  // o Total Band fica fora: sem posição, sem posição oficial e sem status
+  for (const campo of ['pos', 'oficial', 'status']) {
+    assert.ok(!(campo in d.totalBand), `Total Band não pode ter ${campo}`);
+  }
+  // e quem não bateu os dois pilares continua sem posição oficial, mesmo tendo RANK
+  for (const l of d.gc) {
+    if (!l.gatilhoPilares.batido) assert.equal(l.oficial, null);
+  }
+});
+
+test('4N: o selo de cada linha é o do motor, e "Bateu!" nunca passa do limite de premiadas', () => {
+  const d = montar3();
+  const niveis = { gc: 'gc', svMista: 'svMista', svSegmentada: 'svSegmentada' };
+  for (const nivel of Object.keys(niveis)) {
+    for (const l of d[nivel]) {
+      assert.deepEqual(l.status, Motor.statusLinha(l, niveis[nivel]));  // nada recalculado no adaptador
+      assert.ok([Motor.STATUS.bateu, Motor.STATUS.fora, Motor.STATUS.nao].includes(l.status.status));
+    }
+    const azuis = d[nivel].filter((l) => l.status.status === Motor.STATUS.bateu).length;
+    assert.ok(azuis <= Motor.REGRAS.premiadas[nivel], `${nivel}: ${azuis} linhas azuis`);
+  }
+});
+

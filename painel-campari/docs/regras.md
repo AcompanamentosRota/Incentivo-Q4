@@ -1,7 +1,11 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.13 (10/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.14 (10/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.14 (10/11/2026, meio-dia):** conceito do ranking do Desafio Q4 (decisão da Karen): a coluna **RANK numera todas as linhas** pela ordem do ranking (% Acum.) e a **linha inteira fica pintada de azul
+quando tem "✓ Bateu!"** (os dois pilares e dentro das premiadas). **Reverte** a decisão de 10/11 (manhã) de mostrar só a posição oficial. O **cálculo não muda**: o "Bateu!" segue
+decidido pela posição **oficial** (só quem bateu os dois pilares; quem está atrás sobe), a tela passa a exibir a posição da ordem (`pos`). Decisão da Karen (pendência 31, mesmo dia): **só pinta de azul a linha dentro da quantidade de premiados**; quem bateu os dois pilares mas ficou **fora das premiadas** recebe a tag **"Bateu, fora do ranking"**, em outra cor, sem pintar a linha. Seções 5 e 7.
 
 **v1.13 (10/11/2026, fim da manhã):** **nenhuma aba pode rolar por dentro em notebook** (seção 7). A tela se ajusta à janela pela largura e pela altura (`fit()`, escala = menor entre
 largura ÷ 1920 e altura ÷ altura-base); a altura-base de 720 deixava a Supervisão (página 1, 15 linhas + Total Band) rolando ~1 cm em janelas mais baixas que ~16:9 (ex.: 1366×~600
@@ -166,16 +170,17 @@ grupo); o M. Dia de cobertura é calculado sobre a meta e o real somados; (c) To
 
 ## 5. Posição, status e desempate
 
-- **A tela mostra só a posição oficial (decisão de 10/11/2026).** A coluna **Oficial** (cabeçalho **"RANK"**, decisão de 10/11/2026) numera 1, 2, 3… só quem bateu
-  **os dois pilares** (gatilho de Skyy **e** mínimo de volume de Aperitivo), na ordem do ranking; quem não bateu mostra "—" e quem está atrás sobe (decisão de
-  09/11/2026, noite). **A coluna "Pos." sai da tela** (Ranking GC e Supervisão) e, com ela, a regra de pintar a posição em cinza. As linhas continuam **ordenadas** pelo
-  % Acum. de Aperitivo (desempate pelo código), e o motor continua calculando a posição (`pos`) de todas as linhas, que não é exibida.
+- **Coluna RANK e linha azul (decisão de 10/11/2026, meio-dia; conceito do ranking do Desafio Q4):** a coluna **RANK** numera **todas** as linhas (1, 2, 3…) na ordem do ranking, pelo
+  % Acum. de Aperitivo (desempate pelo código); é a posição `pos` do motor. A **linha inteira fica pintada de azul quando tem "✓ Bateu!"** (os dois pilares e dentro das premiadas, abaixo).
+  Só a quantidade de premiados é pintada; linha sem "Bateu!" (inclusive a "Bateu, fora do ranking") fica sem cor. **O cálculo da posição oficial não muda**: ela numera só quem bateu os dois pilares (quem está atrás sobe) e é ela que decide o "Bateu!" contra o limite
+  de premiadas; a tela não a exibe. ⚠️ Pendência 30: por isso uma linha azul pode ter RANK maior que o limite (ex.: RANK 7 azul numa tabela com 6 premiadas, porque as linhas à frente não
+  bateram os dois pilares). O Total Band não tem RANK nem cor.
 - **Status (decisão de 08/11/2026, conceito do Q4):** "✓ Bateu!" = **gatilho de Skyy batido e mínimo de
   volume de Aperitivo batido** (os dois pilares, seção 2) **e** posição oficial dentro das posições premiadas do ranking (GC: 6; SV Mista: 12;
-  SV Segmentada: 3). Qualquer outro caso = "-". O motivo ("dentro das premiadas", "cobertura em X%: precisa de 100%", "volume em X%: precisa de 100%",
+  SV Segmentada: 3) = linha azul. **Bateu os dois pilares mas posição oficial fora das premiadas = tag "Bateu, fora do ranking"** (cor própria, diferente do azul e do selo ✓; a linha não é pintada). Qualquer outro caso = "-". O motivo ("dentro das premiadas", "cobertura em X%: precisa de 100%", "volume em X%: precisa de 100%",
   "cobertura em X% e volume em Y%: precisam de 100%" ou "suba N posições", com N = posição
   oficial − limite) **continua calculado pelo motor, mas não aparece mais na tela** (decisão de 09/11/2026): a coluna Status
-  mostra só o selo, "✓ Bateu!" ou "-".
+  mostra só o selo: "✓ Bateu!", "Bateu, fora do ranking" ou "-".
 - **Os prêmios não aparecem no painel** (decisão de 08/11/2026): nem nomes, nem quadro de premiação. O painel usa
   só a quantidade de posições premiadas para decidir o "Bateu!".
 - **Desempate (confirmado em 08/11/2026):** ordem alfabética do **código** da supervisão ou da gerência (ex.:
@@ -211,10 +216,10 @@ posição e o status:
 
 | Parte | Colunas |
 | --- | --- |
-| Identificação | RANK · Gerência (ou SV) |
+| Identificação | RANK (todas as linhas; azul no Bateu!) · Gerência (ou SV) |
 | Aperitivo (volume) | Meta · Real · M. Dia · Online · Dif · Out · Nov · Dez (só em dezembro) · **% Acum.** (os % mensais com a trava somados; é a pontuação do ranking). Sem texto de gatilho no cabeçalho |
 | Skyy (cobertura · clientes) | Meta · Real · M. Dia · Online · Dif · % do mês · % Nov (só em dezembro) · **% Médio** (era "% Acum."; = gatilho: média simples de novembro e dezembro; em novembro, parcial) |
-| Resultado | Status (só o selo: "✓ Bateu!" ou "-"; exige os dois pilares, seção 5) |
+| Resultado | Status (só o selo: "✓ Bateu!" (linha azul), "Bateu, fora do ranking" (outra cor) ou "-"; exige os dois pilares, seção 5) |
 
 - **Seletor "Mês de referência"** (Ranking GC; vale também na Supervisão): troca **Meta, Real, Dif e o % do mês** dos
   dois blocos pelo mês escolhido. **Não muda** Out, Nov, Dez, Soma, % Nov e % Acumulado. O padrão é o mês de referência
@@ -290,12 +295,14 @@ previsão 12/11/2026.
 | 22 | Meta dia de volume: a comparação Real × Meta considera só o Real (D-1) ou Real + Online? | Em aberto (premissa da seção 7, registrada na v1.4). Hoje o painel usa só o Real e não sinaliza na tela (v1.12: pendências só aqui e no checklist) | Karen |
 | 23 | Arte do fundo (`campari-fundo.jpg`) entregue em 1568×777, ampliada para 1920 na tela | Em aberto: conferir se existe o original em 1920 px de largura | Karen |
 | 27 | Detalhe do mês paginado (a 4G paginou também o Detalhe) | **Resolvida** em 09/11/2026 (fim da noite): sem paginação na visão Gerência; a visão Supervisão continua paginada (seção 7) | — |
+| 30 | Altura-base do `fit()` em **930** e não em 920 (a medição de 10/11/2026 deu 925 de altura lógica para a aba Consultor; 930 é o maior valor útil, porque acima de 940 a janela maximizada encolhe) | Em aberto: confirmar o número com a Karen. Vale só para a escala da tela; nenhum número do incentivo muda | Karen |
+| 31 | Linha azul só dentro dos premiados; quem bateu os dois pilares e ficou fora | **Resolvida** em 10/11/2026: azul só na quantidade de premiados (GC 6; Mista 12; Segmentada 3); fora das premiadas, tag "Bateu, fora do ranking" em outra cor | — |
+| 32 | RANK exibido = ordem do ranking (% Acum.), enquanto o limite de premiados vale para a posição oficial (só quem bateu os dois pilares) | **Em aberto** (premissa): uma linha azul pode ter RANK maior que o limite (RANK 7 azul com 6 premiadas, porque as linhas à frente não bateram os dois pilares). Alternativa: exibir a oficial para quem bateu os dois pilares | Karen |
 | 28 | Cabeçalho do bloco Aperitivo com o texto "GATILHO ≥ 100,0%" | **Resolvida** em 10/11/2026: o texto sai do cabeçalho; o volume tem mínimo, não gatilho (seção 2.2) | — |
-| 29 | Nome da coluna única de posição oficial | **Resolvida** em 10/11/2026: "RANK"; rodapé "RANK: posição oficial, só de quem bateu os dois pilares" | — |
+| 29 | Nome da coluna única de posição | **Resolvida** em 10/11/2026: "RANK" (v1.14: numera todas as linhas) | — |
 | 26 | Status com os dois pilares: premissas | (a), (c) e (d) confirmadas em 10/11/2026. (a) no mínimo de volume não há parcial: vale o mês vigente. **Em aberto só a (b)**: % de volume nulo (meta nula ou ≤ 0) deixa o mínimo indisponível | Karen |
 | 25 | Centralização total e limite de 100% em dezembro para o quadradinho do Aperitivo | **Resolvida** (confirmada em 10/11/2026) | — |
 | 24 | Ranking GC pela gerência comercial agrupada do SAC | **Resolvida** (print do SAC, 12 linhas, seção 4; premissas confirmadas em 10/11/2026) | — |
-| 30 | Altura-base do `fit()` em **930** e não em 920 (a medição de 10/11/2026 deu 925 de altura lógica para a aba Consultor; 930 é o maior valor útil, porque acima de 940 a janela maximizada encolhe) | Em aberto: confirmar o número com a Karen. Vale só para a escala da tela; nenhum número do incentivo muda | Karen |
 
 ## 11. Intencionalmente fora deste arquivo
 

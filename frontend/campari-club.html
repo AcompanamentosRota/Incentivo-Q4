@@ -57,7 +57,15 @@
    do fit() daqui e vai para `escalaDoPalco` (adaptador, pura), com a largura do palco e a altura-base em
    CONFIG.palco — nenhum número solto nesta tela. Só a escala muda: altura de linha, fonte, cores, colunas,
    paginação (15 linhas) e layout ficam exatamente como estavam, e em janela com altura folgada (1920×1080,
-   1920×940, 1366×768, 1280×720) a escala continua a mesma de antes. */
+   1920×940, 1366×768, 1280×720) a escala continua a mesma de antes.
+   Etapa 4N (regras v1.14, seções 5 e 7; decisão da Karen de 10/11/2026, meio-dia): o conceito do ranking do
+   Desafio Q4 nas duas tabelas de ranking. (a) A coluna RANK volta a numerar TODAS as linhas, com a posição do
+   ranking (l.pos, do motor), no lugar de mostrar só a oficial com "—" para quem não bateu os dois pilares
+   (4J/4K). (b) A linha inteira fica azul quando tem "✓ Bateu!" (classe .bateu, cor --rk-bateu). (c) Quem bateu os
+   dois pilares e ficou fora das premiadas recebe a tag "Bateu, fora do ranking" (.pill.fora), em cor própria e
+   sem pintar a linha. O CÁLCULO não muda: o "Bateu!" continua decidido pela posição OFICIAL (l.oficial) contra
+   REGRAS.premiadas, dentro do motor; a oficial só não aparece na tela. Os três textos de selo vêm de motor.STATUS
+   e a ordem das linhas é a mesma de antes. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -85,6 +93,25 @@
      título fica mais escuro (--sk-tit, do #0A2A6E para #061C4D) e vale também para os cabeçalhos das COLUNAS do
      bloco; o texto deles é claro (--sk-tit-fg, 14:1 sobre o azul novo). */
   --sk-tit:#061C4D; --sk-tit-fg:#E8EEFB; --sk-cel:rgba(29,123,255,.20);
+  /* Etapa 4N (regras v1.14, seções 5 e 7; decisão da Karen de 10/11/2026, meio-dia) — a linha com "✓ Bateu!" é
+     pintada de ponta a ponta, no conceito do ranking do Desafio Q4, e quem bateu os dois pilares fora das
+     premiadas recebe uma tag em cor própria:
+     --rk-bateu  = o azul da linha que bateu. É o --blue do Q4 (#1D7BFF) a 40% sobre o painel, calculado e
+               escrito OPACO (#114084) porque a cor tem de cobrir os dois blocos, que já têm fundo próprio pelo
+               <colgroup>: num rgba() o laranja do Aperitivo e o azul do Skyy apareceriam por baixo e a linha
+               ficaria de duas cores. Opaco, a linha fica uniforme e mais clara que o corpo do Skyy
+               (rgb(12,45,91)), que é o bloco mais parecido. Contrastes medidos sobre ela: branco 9,9:1,
+               Dif. negativa (--negv) 5,9:1 e o número da RANK (--gold) 6,4:1 — todos acima de 4,5:1.
+     --pct-*-op e --hoje-ok-op = o quadradinho verde/vermelho do % e o "Hoje" em turquesa são SEMITRANSPARENTES:
+               sobre o azul da linha eles mudariam de tom e de matiz (o verde virava azul-petroleo). Estes três
+               valores são os mesmos quadradinhos já achatados sobre o painel, então na linha azul eles ficam
+               iguais aos das outras linhas (verde 9,7:1, vermelho 9,8:1, turquesa 7,7:1).
+     --pill-fora-* = a tag "Bateu, fora do ranking", copiada do .pill.bat do Desafio Q4 (âmbar: fundo #4A3500 e
+               texto #FFE29A, 9,2:1). É cor própria, diferente do azul da linha, do turquesa do selo "✓ Bateu!" e
+               do cinza do "-", e NÃO pinta a linha. */
+  --rk-bateu:#114084;
+  --pct-ok-op:#104439; --pct-no-op:#3D1D36; --hoje-ok-op:#113F4F;
+  --pill-fora-bg:#4A3500; --pill-fora-fg:#FFE29A;
   --pct-ok-bg:rgba(34,177,76,.28); --pct-ok-fg:#C4FFD3;
   --pct-no-bg:rgba(194,40,64,.28); --pct-no-fg:#FFC2CC;
   --panel:rgba(9,26,52,.93); --line:rgba(255,255,255,.12); --muted:#B9BCC4; --ink:#FFFFFF;
@@ -194,12 +221,25 @@ button{cursor:pointer}
 .pchip.vermelho{background:var(--pct-no-bg);color:var(--pct-no-fg)}
 .hoje{display:inline-block;padding:1px 8px;border-radius:7px}
 .hoje.ok{background:rgba(46,196,182,.22);color:var(--turq2);font-weight:700}
-/* Etapa 4J: só a posição OFICIAL aparece nas tabelas de ranking (regras v1.10, seção 5); o seletor da outra
-   coluna de posição, e o da cor cinza de quem não bateu os dois pilares, saíram da tela junto com ela. */
+/* Etapa 4J: só a posição OFICIAL aparecia nas tabelas de ranking (regras v1.10, seção 5); o seletor da outra
+   coluna de posição, e o da cor cinza de quem não bateu os dois pilares, saíram da tela naquela etapa.
+   Etapa 4N: a coluna volta a numerar TODAS as linhas (a posição `pos` do motor) e continua neste mesmo .of. */
 .of{color:var(--gold)}
 .pill{display:inline-block;padding:3px 12px;border-radius:999px;font-size:14px;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--turq);color:#032B28}
 .pill.no{background:rgba(255,255,255,.08);color:var(--muted)}
+/* Etapa 4N (regras v1.14, seção 5): a tag de quem bateu os dois pilares e ficou fora das premiadas. O texto vem
+   do motor (STATUS.fora); aqui fica só a cor. */
+.pill.fora{background:var(--pill-fora-bg);color:var(--pill-fora-fg)}
+/* Etapa 4N: a linha com "✓ Bateu!" fica azul de ponta a ponta nas duas tabelas de ranking. O fundo vai no `td`,
+   não na `tr`, porque a célula pinta por cima do <colgroup> dos dois blocos e também por cima do .k (o leve
+   realce das colunas de % Acum. e % Médio): assim a linha sai de uma cor só. As duas regras vêm DEPOIS da do
+   hover, que tem a mesma especificidade, para o azul não sumir quando o mouse passa. Nenhuma linha de total
+   recebe esta classe: o Total Band não tem RANK nem cor (regras v1.14, seções 5 e 7). */
+.tb.rk tr.bateu td,.tb.rk tr.bateu:hover td{background:var(--rk-bateu)}
+.tb.rk tr.bateu .pchip.verde{background:var(--pct-ok-op)}
+.tb.rk tr.bateu .pchip.vermelho{background:var(--pct-no-op)}
+.tb.rk tr.bateu .hoje.ok{background:var(--hoje-ok-op)}
 
 /* Etapa 4G: botões de navegação no rodapé da tabela (regras v1.7, seção 7). Só aparecem quando há mais de uma
    página; a página atual leva o vermelho do painel, como no print que a Karen enviou (‹ [1] 2 ›). */
@@ -222,6 +262,8 @@ button{cursor:pointer}
 .rg .st{display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:14px}
 .rg .st.a{background:rgba(46,196,182,.12);border:1px solid rgba(46,196,182,.45)}
 .rg .st.b{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18)}
+/* Etapa 4N: o terceiro selo ("Bateu, fora do ranking"), no âmbar da própria tag. */
+.rg .st.c{background:rgba(255,200,74,.10);border:1px solid rgba(255,200,74,.45)}
 .rg .st .pill{min-width:92px;text-align:center;padding:5px 14px;font-size:16px}
 .rg .st div{font-size:16px;line-height:1.4}
 .rg p{font-size:15px;line-height:1.5;color:#D7DBE3}
@@ -262,7 +304,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.13 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.14 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -301,6 +343,12 @@ button{cursor:pointer}
  * Etapa 4M (regras v1.13, seção 7; problema relatado pela Karen em 10/11/2026): só a versão muda aqui. A v1.13
  * sobe a altura-base do `fit()` da tela para nenhuma aba rolar por dentro em notebook, e isso é escala de tela
  * (adaptador: `CONFIG.palco` e `escalaDoPalco`). Nenhum número e nenhuma conta deste motor mudam.
+ * Etapa 4N (regras v1.14, seções 5 e 7; decisão da Karen de 10/11/2026, meio-dia): `statusLinha` ganha um
+ * TERCEIRO estado, "Bateu, fora do ranking" (`STATUS.fora`), para quem bateu os DOIS PILARES e ficou com a
+ * posição oficial além do limite de premiadas — onde antes devolvia "-" com o motivo "suba N posições". O motivo
+ * não muda, e "Bateu!" e "-" não mudam de regra: quem decide continua sendo a posição OFICIAL contra
+ * `REGRAS.premiadas`. A v1.14 também volta a exibir a posição do ranking (`pos`) na coluna RANK de todas as
+ * linhas e pinta de azul a linha com "Bateu!", mas isso é tela: aqui `pos` e `oficial` seguem como estavam.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -311,7 +359,7 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.13',
+    versao: '1.14',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -343,6 +391,15 @@ button{cursor:pointer}
     // regras v1.11 (mínimo de volume de Aperitivo); os textos de "volume em X%" saem de `gatilhoPilares`
     volumeIndisponivel: 'volume indisponível',
     semMetaVolume: 'sem meta de volume',
+  };
+
+  // Textos exatos dos TRÊS estados do status (regras v1.14, seção 5; decisão da Karen de 10/11/2026, meio-dia).
+  // Ficam aqui, e não na tela, porque são o resultado da regra: a tela lê `l.status.status` e só acrescenta o "✓"
+  // do "✓ Bateu!" e a cor de cada selo. `fora` = bateu os dois pilares e ficou além do limite de premiadas.
+  const STATUS = {
+    bateu: 'Bateu!',
+    fora: 'Bateu, fora do ranking',
+    nao: '-',
   };
 
   const numero = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -603,10 +660,15 @@ button{cursor:pointer}
   }
 
   /**
-   * Status da linha (regras v1.11, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
-   * "Bateu!" só com OS DOIS PILARES batidos (gatilho de Skyy E mínimo de volume de Aperitivo, `gatilhoPilares`)
-   * E a posição oficial dentro das posições premiadas do nível (`REGRAS.premiadas`, nunca número fixo em lógica
-   * nem em texto). Qualquer outro caso: "-".
+   * Status da linha (regras v1.14, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
+   * São TRÊS estados, todos em `STATUS` (nenhum texto de selo na tela):
+   *   - "Bateu!" (`STATUS.bateu`): OS DOIS PILARES batidos (gatilho de Skyy E mínimo de volume de Aperitivo,
+   *     `gatilhoPilares`) E a posição oficial dentro das posições premiadas do nível (`REGRAS.premiadas`, nunca
+   *     número fixo em lógica nem em texto). É esta linha que a tela pinta de azul (regras v1.14);
+   *   - "Bateu, fora do ranking" (`STATUS.fora`, etapa 4N): os dois pilares batidos, mas a posição oficial além do
+   *     limite de premiadas — o caso que até a v1.13 devolvia "-" com o motivo "suba N posições". O motivo é o
+   *     mesmo de antes; muda só o selo. A tela NÃO pinta a linha: só a tag, em cor própria;
+   *   - "-" (`STATUS.nao`): qualquer outro caso (algum pilar pendente, ou pilares batidos sem posição oficial).
    * O `motivo` é "dentro das premiadas", o de `gatilhoPilares` ("cobertura em X%: precisa de 100%", "volume em X%:
    * precisa de 100%", "cobertura em X% e volume em Y%: precisam de 100%", "cobertura indisponível", "sem meta de
    * cobertura", "volume indisponível", "sem meta de volume") ou "suba N posições" ("suba 1 posição" no
@@ -622,13 +684,13 @@ button{cursor:pointer}
       throw new Error(`nível ${nivel} sem posições premiadas no Campari Club`);
     }
     const p = gatilhoPilares(linha && linha.gatilho, linha && linha.minimoVolume, regras);
-    if (!p.batido) return { status: '-', motivo: p.motivo };
+    if (!p.batido) return { status: STATUS.nao, motivo: p.motivo };
     const oficial = linha ? linha.oficial : null;
-    if (!numero(oficial)) return { status: '-', motivo: null }; // pilares batidos sem posição oficial (numerarOficial não rodou)
+    if (!numero(oficial)) return { status: STATUS.nao, motivo: null }; // pilares batidos sem posição oficial (numerarOficial não rodou)
     const limite = regras.premiadas[nivel];
-    if (oficial <= limite) return { status: 'Bateu!', motivo: MOTIVOS.premiadas };
+    if (oficial <= limite) return { status: STATUS.bateu, motivo: MOTIVOS.premiadas };
     const n = oficial - limite;
-    return { status: '-', motivo: `suba ${n} ${n === 1 ? 'posição' : 'posições'}` };
+    return { status: STATUS.fora, motivo: `suba ${n} ${n === 1 ? 'posição' : 'posições'}` };
   }
 
   /**
@@ -717,7 +779,7 @@ button{cursor:pointer}
     return online >= metaDia;
   }
 
-  return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
+  return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, STATUS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, minimoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            corDoPercentualAperitivo, hojeAtingiu };
@@ -2033,7 +2095,8 @@ const mesesDoGatilho = listar(R.gatilho.meses);
 const bateuPilares = (l)=>!!(l.gatilhoPilares&&l.gatilhoPilares.batido);
 const limites = Object.keys(R.premiadas).map((k)=>NOME_NIVEL[k]+': '+R.premiadas[k]).join(' · ');
 $('rodesq').innerHTML = 'Real: vendido até ontem · Online: venda de hoje · "Hoje" em turquesa: atingiu a meta dia · '+
-  'RANK: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código';
+  'RANK: posição no ranking (% Acum. de Aperitivo) · linha azul: ✓ Bateu! (dois pilares e dentro das '+
+  'premiadas) · desempate pela ordem alfabética do código';
 $('rod').innerHTML = 'Regras v'+esc(M.versaoRegras)+' · fonte: API (./api/v1/)';
 
 /* ─── páginas (etapa 4G) ──────────────────────────────────────────────────────────────────────────────── */
@@ -2099,10 +2162,14 @@ const pctCobCel = (v, extra)=>{
    no Aperitivo (M.corDoPercentualAperitivo). Sem valor: sem quadradinho. */
 const pctGrupoCel = (v, cor)=>'<td style="font-weight:700"><span'+(cor?' class="pchip '+cor+'"':'')+'>'+pct(v)+'</span></td>';
 /* Status: só o selo (regras v1.6, seção 5; decisão de 09/11/2026). O motor continua devolvendo o motivo
-   (l.status.motivo) e nada na tela o escreve. */
+   (l.status.motivo) e nada na tela o escreve.
+   Etapa 4N (regras v1.14, seção 5): são TRÊS selos, e os três textos vêm do motor (M.STATUS) — a tela só escolhe
+   a classe de cor e acrescenta o "✓" do "✓ Bateu!". `bateuStatus` é o mesmo teste que decide a linha azul. */
+const bateuStatus = (l)=>!!l.status && l.status.status===M.STATUS.bateu;
 const statusCel = (l)=>{
-  const ok = !!l.status && l.status.status==='Bateu!';
-  return '<td class="l sep"><span class="pill '+(ok?'ok':'no')+'">'+(ok?'✓ ':'')+esc(l.status?l.status.status:TRACO)+'</span></td>';
+  const t = l.status ? l.status.status : TRACO;
+  const cls = t===M.STATUS.bateu ? 'ok' : t===M.STATUS.fora ? 'fora' : 'no';
+  return '<td class="l sep"><span class="pill '+cls+'">'+(cls==='ok'?'✓ ':'')+esc(t)+'</span></td>';
 };
 
 /* ─── tabela de ranking (Ranking GC e Supervisão; colunas da premissa P5 / regras v1.4, seção 7) ──────── */
@@ -2134,13 +2201,18 @@ function linhaRanking(l, opc){
   opc = opc || {};
   const ap = valoresDoMes(l.tabela,'aperitivo',st.mes), sk = valoresDoMes(l.tabela,'skyy',st.mes);
   const bAp = l.tabela.aperitivo, bSk = l.tabela.skyy;
-  /* Etapa 4J: só a posição oficial (l.oficial, do motor) — "—" para quem não bateu os dois pilares. A posição
-     do ranking (l.pos) continua calculada pelo motor e não é exibida; a ordem das linhas não depende dela aqui. */
+  /* Etapa 4N (regras v1.14, seções 5 e 7): a coluna RANK mostra a posição do RANKING (l.pos, do motor) em TODAS
+     as linhas — e não mais só a oficial, com "—" para quem não bateu os dois pilares (4J/4K). O número é o da
+     ordem global do ranking, que o adaptador já entregou ordenado, então ele não muda de página para página. A
+     posição OFICIAL (l.oficial) continua vindo do motor e continua decidindo o "Bateu!"; ela só não é exibida.
+     A linha inteira fica azul quando tem "✓ Bateu!" (o mesmo teste do selo), e o Total Band não tem nem número
+     nem cor. */
   const idCels = opc.total
     ? '<td class="l" colspan="2">'+esc(l.codigo)+'</td>'
-    : '<td class="l"><span class="n of">'+(l.oficial?esc(l.oficial)+'º':esc(TRACO))+'</span></td>'+
+    : '<td class="l"><span class="n of">'+(l.pos?esc(l.pos)+'º':esc(TRACO))+'</span></td>'+
       '<td class="l cod">'+esc(l.codigo)+'</td>';
-  return '<tr'+(opc.total?' class="tot"':'')+'>'+idCels+
+  const classe = opc.total ? ' class="tot"' : bateuStatus(l) ? ' class="bateu"' : '';
+  return '<tr'+classe+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
     mesesAp.map((m)=>mesCel(valoresDoMes(l.tabela,'aperitivo',m), m===SEL.referencia)).join('')+
     '<td class="k">'+pct(bAp.soma)+'</td>'+
@@ -2295,8 +2367,8 @@ function viewRegras(){
     ['Quem disputa','gerentes comerciais, supervisores Mista e Segmentada. O consultor acompanha, sem ranking. '+
       'O Ranking GC é por gerência comercial agrupada: algumas gerências da API somam numa linha só (o Detalhe do '+
       'mês e os filtros seguem com as gerências da API).'],
-    ['Posição','as tabelas de ranking mostram só a posição oficial, de quem bate os dois pilares; as linhas '+
-      'seguem a ordem do % acumulado de Aperitivo. Desempate pela ordem alfabética do código.'],
+    ['Posição','a coluna RANK das tabelas de ranking numera todas as linhas, na ordem do % acumulado de '+
+      'Aperitivo, e a linha fica azul quando tem "✓ Bateu!". Desempate pela ordem alfabética do código.'],
   ];
   const alertas = alertasDaTela(D);
   const classe = { erro:'erro', aviso:'aviso2', nota:'nota' };
@@ -2306,7 +2378,9 @@ function viewRegras(){
     '</section>'+
     '<section><h2>Status</h2>'+
     '<div class="st a"><span class="pill ok">✓ Bateu!</span><div>Bateu os dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e está dentro das posições premiadas do seu ranking ('+esc(limites)+').</div></div>'+
-    '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: algum pilar pendente ou fora das posições premiadas.</div></div>'+
+    '<div class="st c"><span class="pill fora">'+esc(M.STATUS.fora)+'</span><div>Bateu os dois pilares, mas a '+
+    'posição oficial ficou além das premiadas do seu ranking. A linha não é pintada.</div></div>'+
+    '<div class="st b"><span class="pill no">'+esc(TRACO)+'</span><div>Ainda não: algum pilar pendente.</div></div>'+
     '<p>Nas tabelas de ranking a coluna Status mostra só o selo. Nelas, o <strong>% do mês</strong> e o '+
     '<strong>% Médio</strong> de Skyy aparecem num quadradinho <span class="pchip verde">verde</span> quando o % '+
     'chega ao mínimo do gatilho ('+pct(R.gatilho.minimo)+') e <span class="pchip vermelho">vermelho</span> quando '+
@@ -2315,9 +2389,10 @@ function viewRegras(){
     'trava, em '+pct(R.corAperitivoSemTrava)+'; o <strong>% Acum.</strong> não tem quadradinho. O Consultor e o '+
     'Detalhe do mês usam as mesmas cores. A <strong>Dif.</strong> negativa aparece '+
     '<span style="color:var(--negv);font-weight:700">em vermelho</span>.</p>'+
-    '<p>Nas tabelas de ranking a única coluna de posição é a <strong style="color:var(--gold)">RANK</strong>, a '+
-    'oficial: ela numera só quem bateu os dois pilares, e quem não bateu aparece com "'+esc(TRACO)+'". As linhas '+
-    'continuam na ordem do % Acum. de Aperitivo, que não é numerada na tela.</p>'+
+    '<p>Nas tabelas de ranking a coluna <strong style="color:var(--gold)">RANK</strong> numera todas as linhas '+
+    'na ordem do % Acum. de Aperitivo, e a <strong>linha fica azul</strong> quando tem "✓ Bateu!". Quem decide o '+
+    '"✓ Bateu!" é a posição oficial, a de quem bateu os dois pilares, contada só entre eles: ela é calculada e '+
+    'não aparece na tela.</p>'+
     '<p>Os prêmios não aparecem no painel: o painel usa só a quantidade de posições premiadas para decidir o "Bateu!".</p>'+
     '</section>'+
     '<section><h2>Medidas</h2><table class="md"><tbody>'+

@@ -17,7 +17,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.13 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.14 (10/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -42,7 +42,11 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   novo: a soma já vinha do motor. A **Etapa 4M** (regras v1.13, seção 7) acertou a **escala da tela** para
   **nenhuma aba rolar por dentro em notebook**: o `fit()` ganhou uma **altura-base** (930) e a conta saiu da tela
   para `escalaDoPalco` (adaptador, pura), com os dois números em `CONFIG.palco`; em janela com altura folgada a
-  escala é a mesma de antes. Só escala: nenhum número, cor, coluna ou paginação muda.
+  escala é a mesma de antes. Só escala: nenhum número, cor, coluna ou paginação muda. A **Etapa 4N** (regras
+  v1.14, seções 5 e 7) trouxe o **conceito do ranking do Q4**: a coluna **RANK numera todas as linhas** (a posição
+  `pos`, no lugar de só a oficial com "—") e a **linha inteira fica azul** com "✓ Bateu!"; quem bateu os dois
+  pilares fora das premiadas recebe a tag **"Bateu, fora do ranking"**, sem pintar a linha. O cálculo não muda: o
+  "Bateu!" segue decidido pela **posição oficial**, e no motor só `statusLinha` ganhou esse terceiro selo.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -69,7 +73,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status, meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`, `escalaDoPalco` (escala do palco, com `CONFIG.palco`); canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status com os **três selos** de `STATUS` (`statusLinha`), meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`, `escalaDoPalco` (escala do palco, com `CONFIG.palco`); canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -89,7 +93,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 244 testes (75 do motor, 169 do adaptador)
+# testes do painel Campari Club — 255 testes (79 do motor, 176 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -246,18 +250,21 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **Posições premiadas** (só para decidir o status, nunca para mostrar prêmio): `REGRAS.premiadas = { gc: 6,
   svMista: 12, svSegmentada: 3 }`, padrão do motor como o `gatilhoPontos` do Q4 — a regra em vigor não depende de
   arquivo que pode faltar. Nada fixo em lógica nem em texto. **Prêmios não aparecem em lugar nenhum do painel.**
-- **Status (v1.11):** "Bateu!" só com os **dois pilares** batidos (gatilho de Skyy **e** mínimo de volume de
-  Aperitivo) **e** posição
-  oficial ≤ limite do nível; qualquer outro caso "-". Motivos exatos, só no motor (`MOTIVOS` + `gatilhoPilares` +
+- **Status (v1.14):** **três selos**, todos em `motor.STATUS` (a tela não escreve nenhum): **"Bateu!"** só com os
+  **dois pilares** batidos (gatilho de Skyy **e** mínimo de volume de Aperitivo) **e** posição oficial ≤ limite do
+  nível; **"Bateu, fora do ranking"** com os dois pilares e posição oficial além do limite (o caso que até a v1.13
+  era "-", com o motivo "suba N posições", que não mudou); "-" em qualquer outro caso. Motivos exatos, só no motor (`MOTIVOS` + `gatilhoPilares` +
   `statusLinha`): "dentro das premiadas", "cobertura em X%: precisa de 100%", "volume em X%: precisa de 100%",
   "cobertura em X% e volume em Y%: precisam de 100%" (X e Y truncados em 1 casa), "suba N posições" ("suba 1 posição"
   no singular), "cobertura indisponível", "sem meta de cobertura", "volume indisponível" e "sem meta de volume" (os dois
   indisponíveis: unidos por " e "). **Desde a v1.6 (09/11/2026) o motivo não aparece na tela:** a coluna Status das
-  tabelas de ranking mostra só o selo, e o motivo continua calculado no motor. **Desde a v1.10 (10/11/2026) a tela
-  mostra só a posição oficial:** a coluna **"RANK"** (nome decidido na v1.11) numera quem bateu **os dois pilares** e
-  mostra "—" para os demais, a coluna "Pos." saiu das duas tabelas (com a regra de pintá-la em cinza) e as linhas
-  continuam ordenadas pelo % Acum. de Aperitivo — o motor segue calculando `pos` em todas elas, que ordena o ranking e
-  entra no motivo do status. ⚠️ Pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que
+  tabelas de ranking mostra só o selo, e o motivo continua calculado no motor. **Desde a v1.14 (10/11/2026, etapa 4N) a tela volta a numerar todas as
+  linhas:** a coluna **"RANK"** mostra a posição do ranking (`pos`) de cada linha e a **linha inteira fica azul**
+  quando tem "✓ Bateu!" — o conceito do ranking do Q4. A **posição oficial** (`numerarOficial`, só de quem bateu os
+  dois pilares) continua calculada e é ela que decide o "Bateu!" contra o limite de premiadas; ela **não aparece na
+  tela**. A coluna "Pos." segue fora das tabelas (v1.10) e a ordem continua a do % Acum. de Aperitivo. Por isso uma
+  linha azul pode ter RANK maior que o limite de premiadas (⚠️ premissa da seção 5 das regras, que **não vai para a
+  tela**). ⚠️ Pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que
   sobrou; as pendências 24, 25, 28 e 29 foram resolvidas na v1.11.
 - **Pendência não vai para a tela (v1.12, seção 10; etapa 4L, decisão da Karen de 10/11/2026):** a lista
   "Dados e alertas" da aba Regras (`alertasDaTela`) tem **só alerta de dado** — API indisponível, dados simulados,
@@ -496,7 +503,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 244 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 255 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.

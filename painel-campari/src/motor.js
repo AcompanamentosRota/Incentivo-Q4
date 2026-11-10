@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.13 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.14 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -38,6 +38,12 @@
  * Etapa 4M (regras v1.13, seção 7; problema relatado pela Karen em 10/11/2026): só a versão muda aqui. A v1.13
  * sobe a altura-base do `fit()` da tela para nenhuma aba rolar por dentro em notebook, e isso é escala de tela
  * (adaptador: `CONFIG.palco` e `escalaDoPalco`). Nenhum número e nenhuma conta deste motor mudam.
+ * Etapa 4N (regras v1.14, seções 5 e 7; decisão da Karen de 10/11/2026, meio-dia): `statusLinha` ganha um
+ * TERCEIRO estado, "Bateu, fora do ranking" (`STATUS.fora`), para quem bateu os DOIS PILARES e ficou com a
+ * posição oficial além do limite de premiadas — onde antes devolvia "-" com o motivo "suba N posições". O motivo
+ * não muda, e "Bateu!" e "-" não mudam de regra: quem decide continua sendo a posição OFICIAL contra
+ * `REGRAS.premiadas`. A v1.14 também volta a exibir a posição do ranking (`pos`) na coluna RANK de todas as
+ * linhas e pinta de azul a linha com "Bateu!", mas isso é tela: aqui `pos` e `oficial` seguem como estavam.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -48,7 +54,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.13',
+    versao: '1.14',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -80,6 +86,15 @@
     // regras v1.11 (mínimo de volume de Aperitivo); os textos de "volume em X%" saem de `gatilhoPilares`
     volumeIndisponivel: 'volume indisponível',
     semMetaVolume: 'sem meta de volume',
+  };
+
+  // Textos exatos dos TRÊS estados do status (regras v1.14, seção 5; decisão da Karen de 10/11/2026, meio-dia).
+  // Ficam aqui, e não na tela, porque são o resultado da regra: a tela lê `l.status.status` e só acrescenta o "✓"
+  // do "✓ Bateu!" e a cor de cada selo. `fora` = bateu os dois pilares e ficou além do limite de premiadas.
+  const STATUS = {
+    bateu: 'Bateu!',
+    fora: 'Bateu, fora do ranking',
+    nao: '-',
   };
 
   const numero = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -340,10 +355,15 @@
   }
 
   /**
-   * Status da linha (regras v1.11, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
-   * "Bateu!" só com OS DOIS PILARES batidos (gatilho de Skyy E mínimo de volume de Aperitivo, `gatilhoPilares`)
-   * E a posição oficial dentro das posições premiadas do nível (`REGRAS.premiadas`, nunca número fixo em lógica
-   * nem em texto). Qualquer outro caso: "-".
+   * Status da linha (regras v1.14, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
+   * São TRÊS estados, todos em `STATUS` (nenhum texto de selo na tela):
+   *   - "Bateu!" (`STATUS.bateu`): OS DOIS PILARES batidos (gatilho de Skyy E mínimo de volume de Aperitivo,
+   *     `gatilhoPilares`) E a posição oficial dentro das posições premiadas do nível (`REGRAS.premiadas`, nunca
+   *     número fixo em lógica nem em texto). É esta linha que a tela pinta de azul (regras v1.14);
+   *   - "Bateu, fora do ranking" (`STATUS.fora`, etapa 4N): os dois pilares batidos, mas a posição oficial além do
+   *     limite de premiadas — o caso que até a v1.13 devolvia "-" com o motivo "suba N posições". O motivo é o
+   *     mesmo de antes; muda só o selo. A tela NÃO pinta a linha: só a tag, em cor própria;
+   *   - "-" (`STATUS.nao`): qualquer outro caso (algum pilar pendente, ou pilares batidos sem posição oficial).
    * O `motivo` é "dentro das premiadas", o de `gatilhoPilares` ("cobertura em X%: precisa de 100%", "volume em X%:
    * precisa de 100%", "cobertura em X% e volume em Y%: precisam de 100%", "cobertura indisponível", "sem meta de
    * cobertura", "volume indisponível", "sem meta de volume") ou "suba N posições" ("suba 1 posição" no
@@ -359,13 +379,13 @@
       throw new Error(`nível ${nivel} sem posições premiadas no Campari Club`);
     }
     const p = gatilhoPilares(linha && linha.gatilho, linha && linha.minimoVolume, regras);
-    if (!p.batido) return { status: '-', motivo: p.motivo };
+    if (!p.batido) return { status: STATUS.nao, motivo: p.motivo };
     const oficial = linha ? linha.oficial : null;
-    if (!numero(oficial)) return { status: '-', motivo: null }; // pilares batidos sem posição oficial (numerarOficial não rodou)
+    if (!numero(oficial)) return { status: STATUS.nao, motivo: null }; // pilares batidos sem posição oficial (numerarOficial não rodou)
     const limite = regras.premiadas[nivel];
-    if (oficial <= limite) return { status: 'Bateu!', motivo: MOTIVOS.premiadas };
+    if (oficial <= limite) return { status: STATUS.bateu, motivo: MOTIVOS.premiadas };
     const n = oficial - limite;
-    return { status: '-', motivo: `suba ${n} ${n === 1 ? 'posição' : 'posições'}` };
+    return { status: STATUS.fora, motivo: `suba ${n} ${n === 1 ? 'posição' : 'posições'}` };
   }
 
   /**
@@ -454,7 +474,7 @@
     return online >= metaDia;
   }
 
-  return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
+  return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, STATUS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, minimoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            corDoPercentualAperitivo, hojeAtingiu };
