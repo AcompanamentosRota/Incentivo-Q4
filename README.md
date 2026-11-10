@@ -48,6 +48,8 @@ Incentivo-Q4/
    de clientes e o calendário, calcula meta x realizado por rota e cliente, soma em supervisão, gerência
    e empresa, e **valida** o resultado. À parte, consulta o modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` e grava o
    realizado das **Missões Guiadas** em `missoes.json`. Se essa consulta falhar, o arquivo anterior fica e o resto segue.
+   Desde 10/11/2026 o painel Desafio Q4 lê esse arquivo: o pilar Missões Guiadas de novembro soma as duas missões que
+   contam no mês, com meta 10 por rota (regras, seção 4).
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
 4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também

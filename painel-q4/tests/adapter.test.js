@@ -362,15 +362,23 @@ const BASE_V = { ...BASE, rotas: [
   { gc: 'Nv', sv: 'Sv. Nv.1', rota: 'N2', canal: 'Mista', sub: null, v: {} },
   { gc: 'Nv', sv: 'Sv. Nv.2', rota: 'N3', canal: 'Mista', sub: null, v: {} },
 ] };
+/* Missões Guiadas (fixture sintética, nomes fictícios): duas missões contam e a terceira não. Na configuração dos
+ * testes um dos nomes vai sem acento e em maiúsculas, para exercitar a comparação normalizada. */
+const MISSOES_NOV = { missoes: [
+  { codigo: '901', nome: 'Missão Família', realizado: 10, rotas: { N1: 6, N2: 4, N3: 0 } },
+  { codigo: '902', nome: 'Traga Alguém', realizado: 11, rotas: { N1: 4, N2: 7 } },
+  { codigo: '903', nome: 'Combo Da Semana', realizado: 150, rotas: { N1: 50, N2: 50, N3: 50 } }, // não conta
+] };
+const MISSOES_TESTE = ['MISSAO FAMILIA', 'Traga Alguém'];
 // novembro (só nos testes): coringas 4 e 5 diferentes dos reais, para exercitar a virada com pilares que mudam de mês
-const cfgNov = (missoes) => {
+const cfgNov = () => {
   const cfg = JSON.parse(JSON.stringify(CONFIG));
   const pl = (nome) => ({ nome, tipo: nome === 'Missões Guiadas' ? 'missao' : 'volume' });
   cfg.pilaresConfig.find((c) => c.mes === 11 && c.canal === 'Mista').pilares =
     ['Volume Sabores', 'Volume Retornáveis', 'Missões Guiadas', 'Volume Powerade', 'Volume Refri Single'].map(pl);
   cfg.pilaresConfig.find((c) => c.mes === 11 && c.canal === 'Segmentada').pilares =
     ['Volume Sabores', 'Volume Refri Single', 'Volume Powerade', 'Volume Sucos', 'Missões Guiadas'].map(pl);
-  if (missoes) { cfg.produtoDaApi['Missoes Guiadas'] = 'missoes'; cfg.fonteDoPilar['Missões Guiadas'] = 'Missoes Guiadas'; }
+  cfg.missoesConfig = [{ mes: 11, metaPorRota: 10, contam: MISSOES_TESTE.slice() }];
   return cfg;
 };
 const FECHADO_OUT = {
@@ -387,7 +395,7 @@ const FECHADO_OUT = {
 const INDEX_NOV = {
   atualizado_em: '2026-11-04T10:00:00', simulado: false,
   mes_referencia: { anomes: '202611', rotulo: 'Novembro/26', fechamento: false },
-  produtos: ['sucos', 'powerade', 'sabores', 'retornaveis', 'individuais', 'refrigerantes', 'missoes'].map((id) => ({ id, nome: id })),
+  produtos: ['sucos', 'powerade', 'sabores', 'retornaveis', 'individuais', 'refrigerantes'].map((id) => ({ id, nome: id })),
   gerencias: [{ id: 'NV', nome: 'Gerência Nova', arquivo: 'gerencias/NV.json' }],
   fechados: [{ anomes: '202610', rotulo: 'Outubro/26', arquivo: 'fechado/202610.json', gerado_em: '2026-11-03T18:46:02',
                fechamento_final: true, oficial_em: '2026-11-12T14:30:00', fonte_selo: 'flash' }],
@@ -395,7 +403,7 @@ const INDEX_NOV = {
 const rotaNv = (id, sv, produtos) => ({ id, tipo: 'normal', gerencia: 'NV', supervisao: sv, produtos });
 const GER_NOV = { rotas: [
   rotaNv('N1', 'SV.NV.1', { sabores: b(100, 50, 10, 4), retornaveis: b(100, 100, 5, 4), powerade: b(100, 95, 0, 4), individuais: b(100, 100, 0, 4),
-                            sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 900, 50, 40), missoes: b(10, 9, 1, 0) }),
+                            sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 900, 50, 40) }),
   rotaNv('N2', 'SV.NV.1', { sabores: b(100, 100, 0, 4), retornaveis: b(100, 90, 0, 4), powerade: b(100, 100, 0, 4), individuais: b(100, 110, 0, 4),
                             sucos: b(100, 100, 0, 4), refrigerantes: b(1000, 1000, 0, 40) }),
   rotaNv('N3', 'SV.NV.2', { sabores: b(100, 50, 0, 4), retornaveis: b(100, 100, 0, 4), powerade: b(100, 100, 0, 4), individuais: b(100, 100, 0, 4),
@@ -412,6 +420,7 @@ async function comApi(arquivos, fn, falhar = []) {
   try { return await fn(); } finally { globalThis.fetch = original; }
 }
 const API_NOV = { 'index.json': INDEX_NOV, 'gerencias/NV.json': GER_NOV, 'fechado/202610.json': FECHADO_OUT };
+const API_NOV_MIS = { ...API_NOV, 'missoes.json': MISSOES_NOV }; // a mesma API, agora com o arquivo das missões
 // dezembro: desde 04/11/2026 é o único mês do Q4 sem os 5 pilares no CONFIG (coringas 4 e 5 a decidir)
 const API_DEZ = { ...API_NOV, 'index.json': { ...INDEX_NOV, atualizado_em: '2026-12-02T10:00:00',
   mes_referencia: { anomes: '202612', rotulo: 'Dezembro/26', fechamento: false } } };
@@ -516,14 +525,21 @@ test('virada: cada confronto é apurado com os dados do mês dele (fechado ou co
   assert.equal(pessoaDe(res, 'N3').pontosConfronto, 0);  // o +5 de outubro não passa para novembro
 });
 
-test('virada: Missões Guiadas de novembro sem fonte fica "sem dados" e não pontua; com fonte pontua como os demais', async () => {
-  const sem = (await calcularNov(cfgNov(false))).res;
+test('virada: Missões Guiadas de novembro soma só as missões que contam, com a meta por rota da configuração; sem o arquivo fica "sem dados"', async () => {
+  const sem = (await calcularNov(cfgNov())).res; // a API desta fixture não publica missoes.json
   const mgSem = pessoaDe(sem, 'N1').pilares.find((p) => p.nome === 'Missões Guiadas');
   assert.deepEqual([mgSem.pontos, mgSem.validada, mgSem.pct], [0, false, null]); // nunca 100% em novembro
   assert.ok(mgSem.alertas.includes('META_AUSENTE'));
-  const com = (await calcularNov(cfgNov(true))).res;
+  const com = (await calcularNov(cfgNov(), API_NOV_MIS)).res;
+  // N1: 6 (Missão Família) + 4 (Traga Alguém) = 10, de meta 10; o Combo Da Semana não conta
   const mgCom = pessoaDe(com, 'N1').pilares.find((p) => p.nome === 'Missões Guiadas');
-  assert.deepEqual([mgCom.pontos, mgCom.pctTexto, mgCom.validada], [3, '100,0%', false]); // (9 + 1) / 10
+  assert.deepEqual([mgCom.meta, mgCom.real, mgCom.online, mgCom.pctTexto, mgCom.pontos, mgCom.validada], [10, 10, 0, '100,0%', 3, false]);
+  // rota que aparece no arquivo com 0 participa com zero (nunca "sem dados")
+  const mgN3 = pessoaDe(com, 'N3').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgN3.meta, mgN3.real, mgN3.pontos, mgN3.alertas], [10, 0, 0, []]);
+  // SV: soma das rotas da mesa dos dois lados — meta 10 × 2 rotas e real 10 + 11
+  const mgSv = pessoaDe(com, 'Sv. Nv.1#Mista').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgSv.meta, mgSv.real, mgSv.pctTexto, mgSv.pontos], [20, 21, '105,0%', 5]);
   // outubro do mesmo SV continua com Missões validada em 100% (3 pontos)
   assert.equal(pessoaDe(com, 'Sv. Nv.1#Mista').porMes[0].pontosPilares, 12);
 });
@@ -634,7 +650,7 @@ const BASE_P = { ...BASE, rotas: [
 const rotaPx = (id, sv, produtos) => ({ id, tipo: 'normal', gerencia: 'PX', supervisao: sv, produtos });
 const GER_PX = { rotas: [
   rotaPx('P1', 'SV.PX.1', { sabores: b(200, 190, 20, 5), retornaveis: b(100, 95, 0, 4), sucos: b(100, 100, 0, 4), powerade: b(50, 40, 4, 2),
-                            individuais: b(100, 80, 0, 4), refrigerantes: b(1000, 940, 20, 40), missoes: b(10, 9, 1, 0) }),
+                            individuais: b(100, 80, 0, 4), refrigerantes: b(1000, 940, 20, 40) }),
   rotaPx('P2', 'SV.PX.2', { sabores: b(100, 99.99, 0, 4), individuais: b(200, 210, 0, 6), powerade: b(100, 100, 0, 3), sucos: b(100, 89.999, 0, 3),
                             retornaveis: b(100, 104.99, 0, 3), refrigerantes: b(1000, 900, 0, 40) }),
   rotaPx('P3', 'SV.PX.2', { sabores: b(100, 120, 0, 4), individuais: b(100, 90, 0, 4), powerade: b(100, 50, 0, 4), sucos: b(100, 105, 0, 4),
@@ -656,12 +672,21 @@ const apiPx = (anomes, rotulo, fechados, extras = []) => {
 const OUT_PX = ['202610', 'Outubro/26'], NOV_PX = ['202611', 'Novembro/26'];
 // Coringas FICTÍCIOS, só nos testes (os de dezembro ainda não foram decididos pelo Back Office): sempre nas posições 4 e 5
 const CORINGAS_TESTE = { Mista: ['Volume Sucos', 'Volume Powerade'], Segmentada: ['Volume Sucos', 'Volume Retornáveis'] };
-const comMissoes = (cfg) => { cfg.produtoDaApi['Missoes Guiadas'] = 'missoes'; cfg.fonteDoPilar['Missões Guiadas'] = 'Missoes Guiadas'; return cfg; };
-const cfgComCoringas = (meses, canais = ['Mista', 'Segmentada'], missoes = false) => {
+// Missões Guiadas das rotas Px (fixture sintética, nomes fictícios): as duas primeiras contam, a terceira não
+const MISSOES_PX = { missoes: [
+  { codigo: '901', nome: 'Missão Família', realizado: 21, rotas: { P1: 6, P2: 12, P3: 3 } },
+  { codigo: '902', nome: 'Traga Alguém', realizado: 4, rotas: { P1: 4, P2: 0 } },
+  { codigo: '903', nome: 'Combo Da Semana', realizado: 150, rotas: { P1: 50, P2: 50, P3: 50 } }, // não conta
+] };
+const cfgMissoesPx = (cfg, metaPorRota = 10, contam = MISSOES_TESTE) => {
+  cfg.missoesConfig = [{ mes: 11, metaPorRota, contam: contam.slice() }];
+  return cfg;
+};
+const cfgComCoringas = (meses, canais = ['Mista', 'Segmentada']) => {
   const cfg = JSON.parse(JSON.stringify(CONFIG));
   for (const c of cfg.pilaresConfig) if (meses.includes(c.mes) && canais.includes(c.canal))
     c.pilares = c.pilares.slice(0, 3).concat(CORINGAS_TESTE[c.canal].map((nome) => ({ nome, tipo: 'volume' })));
-  return missoes ? comMissoes(cfg) : cfg;
+  return cfg;
 };
 // Mês só com os pilares 1 a 3, como dezembro no CONFIG (coringas 4 e 5 a decidir)
 const cfgSemCoringas = (meses, canais = ['Mista', 'Segmentada']) => {
@@ -669,6 +694,8 @@ const cfgSemCoringas = (meses, canais = ['Mista', 'Segmentada']) => {
   for (const c of cfg.pilaresConfig) if (meses.includes(c.mes) && canais.includes(c.canal)) c.pilares = c.pilares.slice(0, 3);
   return cfg;
 };
+/** A API das rotas Px de novembro, com o arquivo das missões publicado. */
+const apiMissoesPx = (missoes = MISSOES_PX) => ({ ...apiPx(...NOV_PX, [OUT_PX]), 'missoes.json': missoes });
 const calcularPx = (cfg, arquivos) => comApi(arquivos, async () => {
   const d = await carregarDados(BASE_P, cfg);
   return { d, res: d.meta.semCalculo ? null : M.calcular(montarEntrada(d, cfg).entrada) };
@@ -757,17 +784,17 @@ test('pilares de novembro: mês fechado só com os pilares 1 a 3 deixa o acumula
   assert.equal(pessoaDe(res, 'P2').pontosMes, 13); // o consultor (mês vigente) não é afetado
 });
 
-test('pilares de novembro: Missões Guiadas sem fonte fica "sem dados" na Mista (3º) e na Segmentada (5º); com fonte pontua com meta, real e online', async () => {
-  const sem = (await calcularPx(CONFIG, apiPx(...NOV_PX, [OUT_PX]))).res;
+test('pilares de novembro: Missões Guiadas fica na Mista (3º) e na Segmentada (5º); sem o arquivo das missões, "sem dados"', async () => {
+  const sem = (await calcularPx(CONFIG, apiPx(...NOV_PX, [OUT_PX]))).res; // a API desta fixture não publica missoes.json
   for (const [id, pos] of [['P1', 3], ['Sv. Px.1#Mista', 3], ['P2', 5], ['Sv. Px.2#Segmentada', 5]]) {
     const pilares = pessoaDe(sem, id).pilares, i = pilares.findIndex((p) => p.nome === 'Missões Guiadas'), mg = pilares[i];
     assert.equal(i + 1, pos, id);                                                             // Mista: pilar 3; Segmentada: coringa 5
     assert.deepEqual([mg.pontos, mg.validada, mg.pct, mg.pctTexto], [0, false, null, '-'], id); // nunca 100% em novembro
     assert.ok(mg.alertas.includes('META_AUSENTE'), id);
   }
-  const com = (await calcularPx(comMissoes(JSON.parse(JSON.stringify(CONFIG))), apiPx(...NOV_PX, [OUT_PX], ['missoes']))).res;
+  const com = (await calcularPx(cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG))), apiMissoesPx())).res;
   const p1 = pessoaDe(com, 'P1'), mg = p1.pilares.find((p) => p.nome === 'Missões Guiadas');
-  assert.deepEqual([mg.meta, mg.real, mg.online, mg.pctTexto, mg.pontos, mg.validada], [10, 9, 1, '100,0%', 3, false]); // (9 + 1) / 10
+  assert.deepEqual([mg.meta, mg.real, mg.online, mg.pctTexto, mg.pontos, mg.validada], [10, 10, 0, '100,0%', 3, false]); // 6 + 4
   assert.equal(p1.pontosMes, 13);
   // outubro continua com Missões validada em 100%: Sabores 95% (2) · Retornáveis (2) · Missões (3) · Sucos (3) · Powerade 80% (0)
   assert.equal(p1.porMes[0].pontosPilares, 10);
@@ -2015,14 +2042,16 @@ test('admin resumo: pilares do mês — 5 pilares nos dois canais e a fonte das 
   const C = A15.CONFIG;
   const out = A15.estadoPilaresMes(C, 10, [10]);
   assert.deepEqual([out.ok, out.configurado, out.exigeMeta], [true, true, false]);       // outubro: validada em 100%
+  // novembro tem meta por rota desde 10/11/2026 (missoesConfig): o pilar exige meta e tem fonte
   const nov = A15.estadoPilaresMes(C, 11, [10]);
-  assert.deepEqual([nov.ok, nov.configurado, nov.exigeMeta, nov.missaoSemFonte], [false, true, true, true]); // sem fonte: Pendente
+  assert.deepEqual([nov.ok, nov.configurado, nov.exigeMeta, nov.missaoSemFonte], [true, true, true, false]);
   const dez = A15.estadoPilaresMes(C, 12, [10]);
   assert.equal(dez.configurado, false);
   assert.deepEqual(dez.canais.map((c) => [c.canal, c.n, c.ok]), [['Mista', 3, false], ['Segmentada', 3, false]]);
-  // com fonte definida para Missões Guiadas, novembro fica OK (a fonte vem da configuração, nunca de 100% assumido)
-  const comFonte = Object.assign({}, C, { fonteDoPilar: Object.assign({}, C.fonteDoPilar, { 'Missões Guiadas': 'Missoes Teste' }) });
-  assert.equal(A15.estadoPilaresMes(comFonte, 11, [10]).ok, true);
+  // mês sem meta configurada (como dezembro): o pilar volta a ficar "sem dados" — nunca se assume 100%
+  const semMeta = Object.assign({}, C, { missoesConfig: [] });
+  const novSemMeta = A15.estadoPilaresMes(semMeta, 11, [10]);
+  assert.deepEqual([novSemMeta.ok, novSemMeta.exigeMeta, novSemMeta.missaoSemFonte], [false, true, true]);
 });
 
 test('admin resumo: meses fechados — ok, incompleto (sem pilares) e indisponível (sem arquivo)', () => {
@@ -2135,8 +2164,11 @@ test('admin pilares do mês: etiqueta Fixo, Coringa ou "Validada em 100%"; mês 
   assert.deepEqual(A15.pilaresDoTopico(C, 10, 'Segmentada', [10]).map((l) => [l.n, l.etiqueta]),
     [[1, 'Fixo'], [2, 'Fixo'], [3, 'Fixo'], [4, 'Coringa'], [5, 'Validada em 100%']]);
   const nov = A15.pilaresDoTopico(C, 11, 'Mista', [10]);
-  assert.deepEqual(nov.find((l) => l.nome === 'Missões Guiadas'), { n: 3, nome: 'Missões Guiadas', tipo: 'missao', coringa: false, etiqueta: 'Fixo', semFonte: true });
-  assert.equal(nov.filter((l) => l.semFonte).length, 1);
+  assert.deepEqual(nov.find((l) => l.nome === 'Missões Guiadas'), { n: 3, nome: 'Missões Guiadas', tipo: 'missao', coringa: false, etiqueta: 'Fixo', semFonte: false });
+  assert.equal(nov.filter((l) => l.semFonte).length, 0); // novembro tem meta por rota (10/11/2026)
+  // mês sem meta configurada: o pilar fica "sem dados"
+  const semMeta = A15.pilaresDoTopico(Object.assign({}, C, { missoesConfig: [] }), 11, 'Mista', [10]);
+  assert.equal(semMeta.find((l) => l.nome === 'Missões Guiadas').semFonte, true);
   const dez = A15.pilaresDoTopico(C, 12, 'Mista', [10]);
   assert.deepEqual(dez.map((l) => l.nome === null), [false, false, false, true, true]);
   assert.deepEqual(dez.slice(3).map((l) => l.etiqueta), ['Coringa', 'Coringa']);
@@ -2203,4 +2235,218 @@ test('canal das rotas: o tópico abre sem o seletor de SV, com o texto recolhido
   assert.match(bloco, /pendência 7 do documento/);
   assert.match(tpl, /const sobre = \(id, rotulo, html\)=> `<button class="admlink admsobre" type="button" data-sobre="\$\{id\}" aria-expanded="false"/);
   assert.match(tpl, /<div class="admcomo" id="\$\{id\}" hidden>/);
+});
+
+// ─────────── Missões Guiadas no painel (etapa 22; decisão informada pela Karen em 10/11/2026) ───────────
+// Fixtures sintéticas, com nomes de missão fictícios. A meta por rota e as missões que contam saem sempre da
+// configuração (CONFIG.missoesConfig ou ajustes.json), nunca do código; o cálculo é o do motor, como em todo pilar.
+const AM = require('../src/adapter.js');
+const ARQ_MIS = { missoes: [
+  { codigo: '901', nome: 'Missão Família', realizado: 10, rotas: { P1: 6, P2: 4, P9: 3 } },
+  { codigo: '902', nome: 'Traga Alguém', realizado: 7, rotas: { P1: 4, P2: 3, EVI: 2, EVM: 1, EVS: 0 } },
+  { codigo: '903', nome: 'Combo Da Semana', realizado: 150, rotas: { P1: 50, P2: 50 } }, // não conta
+] };
+const semMissoes = (cfg) => Object.assign({}, cfg, { missoesConfig: [] });
+
+test('missões: soma por rota só das missões que contam, com o nome comparado sem acento e sem caixa', () => {
+  const s = AM.somaDasMissoes(ARQ_MIS, ['MISSAO FAMILIA', 'traga alguém']);
+  assert.deepEqual(s.porRota, { P1: 10, P2: 7, P9: 3, EVI: 2, EVM: 1, EVS: 0 }); // o Combo Da Semana (50 + 50) não entra
+  assert.deepEqual(s.encontradas.map((m) => [m.codigo, m.nome]), [['901', 'Missão Família'], ['902', 'Traga Alguém']]);
+  assert.deepEqual(s.naoEncontradas, []);
+  // rota que aparece com 0 participa com zero; rota que não aparece em nenhuma missão fica fora do mapa (real nulo)
+  assert.equal(s.porRota.EVS, 0);
+  assert.equal('P3' in s.porRota, false);
+});
+
+test('missões: missão que não está no arquivo entra em naoEncontradas; nenhuma encontrada deixa o mês sem fonte', () => {
+  const s = AM.somaDasMissoes(ARQ_MIS, ['Missão Família', 'Missão Que Não Existe']);
+  assert.deepEqual([s.porRota, s.naoEncontradas], [{ P1: 6, P2: 4, P9: 3 }, ['Missão Que Não Existe']]);
+  const soNomeErrado = Object.assign({}, CONFIG, { missoesConfig: [{ mes: 11, metaPorRota: 10, contam: ['Nenhuma Dessas'] }] });
+  assert.deepEqual([AM.missoesDoMes(soNomeErrado, 11).mes, AM.missoesDoMes(soNomeErrado, 11).metaPorRota], [11, 10]);
+  assert.equal(AM.fonteDasMissoes(soNomeErrado, 11, { arquivo: ARQ_MIS }), null); // nenhuma das missões: "sem dados", nunca zero
+  // arquivo ausente, ilegível ou vazio também deixa o mês sem fonte
+  for (const m of [null, {}, { arquivo: null }, { arquivo: {} }, { arquivo: { missoes: 'x' } }, { arquivo: null, erro: 'HTTP 404' }])
+    assert.equal(AM.fonteDasMissoes(CONFIG, 11, m), null, JSON.stringify(m));
+});
+
+test('missões: a configuração do mês manda — novembro tem meta 10 por rota e duas missões; outubro e dezembro não têm meta', () => {
+  assert.deepEqual(AM.missoesDoMes(CONFIG, 11), { mes: 11, metaPorRota: 10, contam: ['Aumente A Família', 'Traga De Volta'] });
+  assert.equal(AM.missoesDoMes(CONFIG, 10), null);  // outubro entra validada em 100% pelo motor
+  assert.equal(AM.missoesDoMes(CONFIG, 12), null);  // dezembro ainda não foi decidido
+  // meta zero ou negativa, lista vazia ou campo ausente: mês sem meta configurada (nunca calcula pela metade)
+  for (const c of [{ mes: 11 }, { mes: 11, metaPorRota: 0, contam: ['X'] }, { mes: 11, metaPorRota: -1, contam: ['X'] },
+                   { mes: 11, metaPorRota: 10 }, { mes: 11, metaPorRota: 10, contam: [] }])
+    assert.equal(AM.missoesDoMes({ missoesConfig: [c] }, 11), null, JSON.stringify(c));
+  // semFonte é por mês: só o mês com meta configurada deixa de ficar "sem dados"
+  assert.deepEqual([AM.semFonte(CONFIG, AM.PILAR_MISSAO, 11), AM.semFonte(CONFIG, AM.PILAR_MISSAO, 12)], [false, true]);
+  assert.equal(AM.semFonte(CONFIG, 'Volume Sabores', 11), false);
+});
+
+test('missões: as faixas são as do motor — 8 de meta 10 não pontua, 9 vale 2, 10 vale 3 e 11 vale 5', async () => {
+  for (const [real, pontos, pct] of [[8, 0, '80,0%'], [9, 2, '90,0%'], [10, 3, '100,0%'], [11, 5, '110,0%']]) {
+    const arq = { missoes: [{ codigo: '901', nome: 'Missão Família', realizado: real, rotas: { P1: real } }] };
+    const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)), 10, ['Missão Família']);
+    const { res } = await calcularPx(cfg, apiMissoesPx(arq));
+    const mg = pessoaDe(res, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+    assert.deepEqual([mg.meta, mg.real, mg.pctTexto, mg.pontos], [10, real, pct, pontos], `real ${real}`);
+  }
+});
+
+test('missões: rota que não está no arquivo fica "sem dados" (real nulo, 0 pontos), sem virar zero', async () => {
+  const arq = { missoes: [{ codigo: '901', nome: 'Missão Família', realizado: 12, rotas: { P1: 12 } }] }; // sem P2 e P3
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)), 10, ['Missão Família']);
+  const { d, res } = await calcularPx(cfg, apiMissoesPx(arq));
+  const mg = (id) => pessoaDe(res, id).pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mg('P1').real, mg('P1').pontos], [12, 5]);
+  assert.deepEqual([mg('P2').meta, mg('P2').real, mg('P2').pct, mg('P2').pontos], [10, null, null, 0]);
+  assert.ok(mg('P2').alertas.includes('REAL_AUSENTE'));
+  // o SV só soma as rotas que entram: P2 e P3 ficam fora, então a mesa Segmentada não tem nem meta nem real
+  assert.deepEqual([mg('Sv. Px.2#Segmentada').meta, mg('Sv. Px.2#Segmentada').real], [null, null]);
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual([est.comDado, est.semDado], [1, ['P2', 'P3']]);
+});
+
+test('missões: meta do SV = meta por rota × as rotas que entram na soma (nunca a meta de uma rota)', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { res } = await calcularPx(cfg, apiMissoesPx());
+  const mg = (id) => pessoaDe(res, id).pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mg('P1').meta, mg('P1').real], [10, 10]);                         // 6 + 4
+  assert.deepEqual([mg('P2').meta, mg('P2').real, mg('P2').pontos], [10, 12, 5]);     // 12 + 0
+  assert.deepEqual([mg('P3').meta, mg('P3').real, mg('P3').pontos], [10, 3, 0]);      // 3, só na primeira missão
+  assert.deepEqual([mg('Sv. Px.1#Mista').meta, mg('Sv. Px.1#Mista').real], [10, 10]); // 1 rota na mesa
+  assert.deepEqual([mg('Sv. Px.2#Segmentada').meta, mg('Sv. Px.2#Segmentada').real, mg('Sv. Px.2#Segmentada').pctTexto],
+    [20, 15, '75,0%']);                                                               // 2 rotas: 10 × 2 e 12 + 3
+});
+
+test('missões: rotas do arquivo que não existem no cadastro (EVI, EVM e EVS) são ignoradas e aparecem no alerta', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { d, res } = await calcularPx(cfg, apiMissoesPx(ARQ_MIS));
+  assert.deepEqual(res.pessoas.map((p) => p.id).filter((id) => ['EVI', 'EVM', 'EVS', 'P9'].includes(id)), []);
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual(est.foraDoCadastro, ['EVI', 'EVM', 'EVS', 'P9']); // P9 também não é do cadastro desta fixture
+  assert.deepEqual([est.ok, est.metaPorRota, est.comDado, est.semDado], [true, 10, 2, ['P3']]);
+  assert.deepEqual(est.encontradas.map((m) => m.nome), ['Missão Família', 'Traga Alguém']);
+});
+
+test('missões: outubro continua validada em 100% (3 pontos) e dezembro sem meta continua "sem dados"', async () => {
+  // outubro: o motor valida em 100% e o arquivo das missões não é nem lido
+  const lidos = [];
+  const { res } = await comApi({ ...apiPx(...OUT_PX, []), 'missoes.json': ARQ_MIS }, async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (url) => { lidos.push(url); return orig(url); };
+    const d = await carregarDados(BASE_P, CONFIG);
+    return { res: M.calcular(montarEntrada(d, CONFIG).entrada) };
+  });
+  const mgOut = pessoaDe(res, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgOut.validada, mgOut.pctTexto, mgOut.pontos], [true, '100,0%', 3]);
+  assert.equal(lidos.some((u) => u.includes('missoes.json')), false);
+  // dezembro com os coringas definidos, mas sem meta de missões: "sem dados", 0 pontos e nunca 100%
+  const dez = cfgComCoringas([12]);
+  assert.equal(AM.missoesDoMes(dez, 12), null);
+  const { res: resDez } = await calcularPx(dez, { ...apiPx('202612', 'Dezembro/26', [OUT_PX, NOV_PX]), 'missoes.json': ARQ_MIS });
+  const mgDez = pessoaDe(resDez, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mgDez.validada, mgDez.pct, mgDez.pontos], [false, null, 0]);
+  assert.ok(mgDez.alertas.includes('META_AUSENTE'));
+});
+
+test('missões: arquivo ausente ou ilegível não quebra o painel — aviso, pilar sem dados e nada calculado pela metade', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  for (const [arquivos, falhar, trecho] of [
+    [apiPx(...NOV_PX, [OUT_PX]), [], /HTTP 404/],                        // nunca gerado (404)
+    [apiMissoesPx(), ['missoes.json'], /Failed to fetch/],               // falha de rede
+  ]) {
+    const { d, res } = await comApi(arquivos, async () => {
+      const dd = await carregarDados(BASE_P, cfg);
+      return { d: dd, res: M.calcular(montarEntrada(dd, cfg).entrada) };
+    }, falhar);
+    assert.match(d.meta.aviso, /sem dados de Missões Guiadas/);
+    assert.match(d.meta.aviso, trecho);
+    const est = AM.estadoMissoes(d, cfg, 11);
+    assert.deepEqual([est.ok, est.configurado, est.comDado, est.encontradas], [false, true, 0, []]);
+    assert.ok(est.erro);
+    const mg = pessoaDe(res, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+    assert.deepEqual([mg.meta, mg.real, mg.pontos, mg.validada], [null, null, 0, false]); // nem meta nem 100% assumido
+    assert.ok(pessoaDe(res, 'P1').pontosMes > 0);                                         // os outros pilares seguem
+    assert.deepEqual(M.conferir(res), []);
+  }
+  // mês sem meta configurada: o arquivo não é nem procurado
+  const lidos = [];
+  await comApi(apiMissoesPx(), async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (url) => { lidos.push(url); return orig(url); };
+    await carregarDados(BASE_P, semMissoes(cfg));
+  });
+  assert.equal(lidos.some((u) => u.includes('missoes.json')), false);
+});
+
+test('missões: o admin troca a meta e as missões pelo ajustes.json (nada fixo no código)', () => {
+  const avisos = [];
+  const aj = normalizarAjustes({ missoes: { 11: { metaPorRota: 12, contam: ['Missão Família'] } } }, avisos);
+  assert.deepEqual(aj.missoes, { 11: { metaPorRota: 12, contam: ['Missão Família'] } });
+  assert.deepEqual(avisos, []);
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  aplicarAjustes(aj, cfg, {});
+  assert.deepEqual(AM.missoesDoMes(cfg, 11), { mes: 11, metaPorRota: 12, contam: ['Missão Família'] });
+  assert.equal(AM.missoesDoMes(cfg, 12), null); // mês sem ajuste e sem configuração continua sem meta
+  // o ajuste aparece na lista de alterações para publicar, no tópico Pilares do mês
+  const itens = AM.itensDosAjustes(aj);
+  assert.deepEqual(itens['missoes:11'], { metaPorRota: 12, contam: ['Missão Família'] });
+  assert.equal(AM.rotuloItem('missoes:11'), 'Missões Guiadas · novembro');
+  assert.equal(AM.textoItem('missoes:11', itens['missoes:11']), 'meta 12 por rota · Missão Família');
+  assert.equal(AM.textoItem('missoes:11', null), 'padrão do mês');
+  assert.equal(AM.topicoDoItem('missoes:11'), 'pilares');
+  assert.deepEqual(AM.objetoDosItens(itens).missoes, { 11: { metaPorRota: 12, contam: ['Missão Família'] } });
+});
+
+test('missões: valor inválido no ajustes.json é ignorado com aviso e vale a configuração do painel', () => {
+  for (const [bruto, trecho] of [
+    [{ missoes: 'x' }, /precisa ser um objeto/],
+    [{ missoes: { 9: { metaPorRota: 10, contam: ['X'] } } }, /mês fora do trimestre/],
+    [{ missoes: { 11: { contam: ['X'] } } }, /precisa de metaPorRota/],
+    [{ missoes: { 11: { metaPorRota: 0, contam: ['X'] } } }, /precisa de metaPorRota/],
+    [{ missoes: { 11: { metaPorRota: 10 } } }, /contam precisa ser uma lista/],
+    [{ missoes: { 11: { metaPorRota: 10, contam: [] } } }, /contam precisa ser uma lista/],
+    [{ missoes: { 11: { metaPorRota: 10, contam: ['Ok', 42] } } }, /contam precisa ser uma lista/],
+  ]) {
+    const avisos = [];
+    assert.equal(normalizarAjustes(bruto, avisos), null, JSON.stringify(bruto)); // nenhum campo válido
+    assert.equal(avisos.length, 1, JSON.stringify(bruto));
+    assert.match(avisos[0], trecho);
+  }
+  const avisos = [];
+  const muitas = Array.from({ length: AM.MISSOES_MAX + 1 }, (_, i) => 'Missão ' + i);
+  assert.equal(normalizarAjustes({ missoes: { 11: { metaPorRota: 10, contam: muitas } } }, avisos), null);
+  assert.match(avisos[0], new RegExp(`1 a ${AM.MISSOES_MAX} nomes`));
+});
+
+test('missões: estadoMissoes é só apresentação — conta rotas, missões somadas e o que faltou', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { d } = await calcularPx(cfg, apiMissoesPx());
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual([est.mes, est.validada, est.configurado, est.ok, est.metaPorRota], [11, false, true, true, 10]);
+  assert.deepEqual([est.contam, est.naoEncontradas, est.erro], [['MISSAO FAMILIA', 'Traga Alguém'], [], null]);
+  assert.deepEqual(est.encontradas.map((m) => m.nome), ['Missão Família', 'Traga Alguém']);
+  assert.deepEqual([est.comDado, est.semDado, est.foraDoCadastro, est.arquivo], [3, [], [], 'missoes.json']);
+  // outubro: o mês é validado em 100% e não usa nada disto
+  assert.equal(AM.estadoMissoes(d, cfg, 10).validada, true);
+  // mês sem meta configurada: nada somado, e a lista de missões do mês fica vazia
+  const semMeta = AM.estadoMissoes(d, semMissoes(cfg), 11);
+  assert.deepEqual([semMeta.configurado, semMeta.ok, semMeta.metaPorRota, semMeta.contam], [false, false, null, []]);
+});
+
+test('missões: a tela não digita a meta nem o nome das missões — tudo vem da configuração e do adaptador', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  // os nomes das missões ficam só na configuração (CONFIG.missoesConfig) e no ajustes.json, nunca na tela
+  for (const nome of AM.missoesDoMes(CONFIG, 11).contam) assert.equal(tpl.includes(nome), false, nome);
+  // a meta por rota vem de estadoMissoes/missoesDoMes; a tela nunca escreve o número
+  for (const f of ['estadoMissoes', 'missoesDoMes']) assert.match(tpl, new RegExp(f + '\\('), f);
+  assert.doesNotMatch(tpl, /meta\s*(de|por rota de)?\s*10\b/i);
+  // o pilar nunca é apresentado como 100% fora dos meses validados pelo motor
+  const ini = tpl.indexOf('const missaoSemDados'), fim = tpl.indexOf('let GRID');
+  assert.match(tpl.slice(ini, fim), /!MISS\.ok/);
+  // no HTML gerado os nomes entram uma vez só como configuração (o resto das ocorrências é comentário do adaptador)
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  const cfgTexto = `contam: ['${AM.missoesDoMes(CONFIG, 11).contam.join("', '")}']`;
+  assert.equal(html.split(cfgTexto).length - 1, 1, cfgTexto);
 });

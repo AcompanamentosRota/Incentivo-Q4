@@ -566,6 +566,8 @@ aplicarCoringas(AJ.ativo, CONFIG, MES);
 const {entrada, notasRefri} = SEMCALC ? { entrada:null, notasRefri:[] } : montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
 const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], alertas:[], mesesIncompletos:[] } : M.calcular(entrada);
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
+// Missões Guiadas do mês (meta por rota, missões somadas e o que faltou): tudo vem do adaptador, nada é decidido aqui
+const MISS = estadoMissoes(DADOS, CONFIG, MES);
 if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
 let PAGE = 17;
 const ALT_LINHA = 32;
@@ -708,8 +710,13 @@ const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single
 const grupo = (nome)=> 'g'+(GCOL[nome] ?? 5); // g5: agrupador extra incluído pelo admin
 const rotuloPilar = (nome)=> nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase();
 const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(MES);
-// Missões Guiadas fora de outubro sem fonte de meta e real: "sem dados" e não pontua
-const missaoSemDados = (pl)=> pl.tipo==='missao' && !compacta(pl) && !fonteDe(pl.nome);
+// Missões Guiadas fora dos meses validados, sem meta configurada ou sem o arquivo: "sem dados" e não pontua
+const missaoSemDados = (pl)=> pl.tipo==='missao' && !compacta(pl) && !MISS.ok;
+// Por que o pilar ficou sem dados (texto, nunca número de regra): a razão vem do estado do adaptador
+const motivoMissao = ()=> !MISS.configurado ? `Meta do mês ainda não configurada: não pontua.`
+  : MISS.erro ? `O arquivo das missões não foi lido (${esc(MISS.erro)}): não pontua.`
+  : MISS.naoEncontradas.length ? `As missões do mês não estão no arquivo (${MISS.naoEncontradas.map(esc).join(', ')}): não pontua.`
+  : 'Sem fonte de meta e realizado: não pontua.';
 let GRID = '';
 /* Largura real de um texto com a fonte das tabelas, para dimensionar cada coluna pelo maior valor que ela recebe. */
 const REG = document.createElement('div');
@@ -919,7 +926,7 @@ function renderDetalhe(){
   $('cards').innerHTML = pil.map((pl,i)=>{
     const sub = 'pilar '+(i+1)+(i>=3?' · coringa':'');
     if(compacta(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">100,0%</div><i class="bar"><b class="t3" style="width:95%"></b></i><div class="txt">Validada em outubro: entra com 100% e vale ${M.faixaPontos(R.missaoValidadaPct,100)} pontos. Sem meta e real neste mês.</div></div>`;
-    if(missaoSemDados(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">-</div><i class="bar"><b class="t0" style="width:0%"></b></i><div class="txt"><b>Sem dados de Missões Guiadas.</b> Fonte ainda não definida: não pontua.</div></div>`;
+    if(missaoSemDados(pl)) return `<div class="card"><div class="n">${esc(pl.nome)}<small>${sub}</small></div><div class="big">-</div><i class="bar"><b class="t0" style="width:0%"></b></i><div class="txt"><b>Sem dados de Missões Guiadas.</b> ${motivoMissao()}</div></div>`;
     const a = mesa ? doSV(mesa.sv.pilares.find(x=>x.nome===pl.nome)) : agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
@@ -950,7 +957,7 @@ function renderDetalhe(){
     <div class="s"><small>Pontos no mês</small><b>${r.pontosAtuaisExibidos}</b></div>
     <div class="s"><small>Status</small>${s.pill}<div class="micro">${s.micro}</div></div></div>
     <div class="dcols dt"><div>Pilar</div><div class="n">Meta</div><div class="n">Real</div><div class="n">Online</div><div class="n">Meta dia</div><div class="n">Diferença</div><div class="n">%</div><div class="c">Pts</div></div>
-    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.validada?'validada em outubro':missaoSemDados(p)?'fonte não definida':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'&&!fonteDe(p.nome)?'–':diaDe(fonteDe(p.nome)), false)).join('')}
+    ${r.pilares.map((p,i)=> linhaP(p.nome.replace('Volume ',''), p.validada?'validada em outubro':missaoSemDados(p)?'sem dados':'pilar '+(i+1)+(i>=3?' · coringa':''), p, p.tipo==='missao'?'–':diaDe(fonteDe(p.nome)), false)).join('')}
     ${linhaP('Refrigerantes', REFRI_CAT?'categoria · gatilho':'provisório · gatilho', r.refri, diaRf, true)}`;
 }
 $('dlist').addEventListener('click',e=>{ const b=e.target.closest('button[data-sel]'); if(!b) return; st.sel=b.dataset.sel; renderDetalhe(); });
@@ -1209,7 +1216,7 @@ const SEC = [
     [`${pctTxt(f[2].min)}% até ${pctTxt(f[1].min-0.00001)}%`,chip(f[2].pontos,2)],[`${pctTxt(f[1].min)}% até ${pctTxt(f[0].min-0.00001)}%`,chip(f[1].pontos,3)],
     [`${pctTxt(f[0].min)}% ou mais`,chip(f[0].pontos,5)]])}
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
-  <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Em novembro e dezembro terá meta, real e online como os demais pilares.</p>
+  <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Desde novembro ela tem <b>meta e realizado</b> e pontua nas mesmas faixas: o realizado da rota é a soma, no arquivo das missões, das missões que contam no mês, e a meta por rota vem da configuração (decisão informada pela Karen em 10/11/2026). No Supervisor valem a soma das rotas da mesa e a meta correspondente. O mês sem meta configurada aparece "sem dados" e não pontua: nunca se assume 100%. O que o mês tem está em <b>Dados e alertas</b>.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
   <p>Confronto entre Supervisores: o +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem (decisão de 03/11/2026). Ele entra <b>só depois do fechamento do mês</b> (decisão de 30/10/2026), nos pontos acumulados do trimestre do SV. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. O +${R.bonusConfronto} entra no dia 1 do mês seguinte, com o fechamento do mês na API, e é reapurado a cada rodada enquanto o mês está em prévia: o vencedor pode mudar até o Back Office marcar o flash de vendas, quando o resultado congela (decisão de 05/11/2026; documento de regras v3.6, seções 5 e 8). Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} pontos, só dos pilares.</p>
   <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
@@ -1229,7 +1236,8 @@ const SEC = [
     const nomes=[]; ['Mista','Segmentada'].forEach(c=>pilaresDo(c).forEach(p=>{ if(!nomes.includes(p.nome)) nomes.push(p.nome); }));
     const pos = (c,n)=>{ const i=pilaresDo(c).findIndex(p=>p.nome===n); return i<0 ? '–' : (i+1)+'º'+(i>=3?' (coringa)':''); };
     const fonte = (n)=> n==='Missões Guiadas' && R.missaoValidadaMeses.includes(MES) ? 'Sem dado: validada em 100% em outubro'
-      : n==='Missões Guiadas' && !CONFIG.fonteDoPilar[n] ? 'Sem dados de Missões Guiadas: fonte ainda não definida <span class="pend">pendente</span>'
+      : n==='Missões Guiadas' && !MISS.configurado ? 'Sem dados de Missões Guiadas: meta do mês ainda não configurada <span class="pend">pendente</span>'
+      : n==='Missões Guiadas' ? esc((MISS.arquivo||'arquivo das missões') + ': ' + MISS.contam.join(' + ')) + (MISS.ok ? '' : ' <span class="pend">sem dados</span>')
       : esc(CONFIG.fonteDoPilar[n]||'–') + (n==='Volume Refri Single' ? ' <span class="pend">a confirmar</span>' : '');
     if (!mesConfigurado(CONFIG, MES)) {
       // mês incompleto (ex.: só os pilares 1 a 3): mostra o que já foi definido e o que falta, sem calcular nada
@@ -1287,6 +1295,16 @@ const SEC = [
     <h3>Pilares sem meta ou sem real (${al.length})</h3>
     <div class="chips">${al.map(a=>`<span>${esc(a)}</span>`).join('')||'<span>Nenhum</span>'}</div>
     <p>Esses pilares ficam com 0 ponto e sem % na tela; nada é preenchido por suposição.</p>
+    ${MISS.validada ? '' : `<h3>Missões Guiadas</h3>
+    ${MISS.configurado
+      ? `<p><b>Meta por rota:</b> ${esc(String(MISS.metaPorRota).replace('.',','))} no mês. <b>Missões somadas:</b> ${MISS.encontradas.length ? MISS.encontradas.map(m=>esc(m.nome)+(m.codigo?` (${esc(m.codigo)})`:'')).join(' · ') : 'nenhuma'}. O realizado da rota é a soma dessas missões em <code>${esc(MISS.arquivo||'missoes.json')}</code>; no Supervisor, a soma das rotas da mesa, com a meta acompanhando o mesmo conjunto de rotas (decisão informada pela Karen em 10/11/2026). As outras missões do arquivo não contam.</p>`
+      : `<p>O mês ainda não tem meta configurada para o pilar: ele aparece "sem dados" e não pontua — nunca se assume 100%.</p>`}
+    ${MISS.erro ? `<p><b>Sem dados de Missões Guiadas:</b> ${esc(MISS.erro)}. O pilar não pontua neste mês.</p>` : ''}
+    ${MISS.naoEncontradas.length ? `<p><b>Missão que não está no arquivo:</b> ${MISS.naoEncontradas.map(esc).join(', ')}. ${MISS.ok?'As demais foram somadas.':'Nenhuma das missões do mês foi encontrada: o pilar fica sem dados.'}</p>` : ''}
+    ${MISS.configurado && !MISS.erro ? T(['Item','Qtde'],[
+      ['Rotas do painel com realizado de missão', MISS.comDado],
+      ['Rotas do painel sem dado de missão (o pilar fica "sem dados" para elas)', MISS.semDado.length ? MISS.semDado.map(esc).join(', ') : '0'],
+      ['Rotas do arquivo que não existem no cadastro da API (ignoradas)', MISS.foraDoCadastro.length ? MISS.foraDoCadastro.map(esc).join(', ') : '0']]) : ''}`}
     <h3>Gatilho de Refrigerantes: componentes fora da soma (${notasRefri.length} rotas)</h3>
     <p>${Object.keys(exc).map(k=>`${esc(k)} sem meta ou meta zero: ${exc[k]} rotas`).join(' · ')||'Nenhum'}. Componente sem meta sai da soma, para não inflar o %.</p>`; } },
  { id:'pend', t:'Pendências', html:()=>{
@@ -1608,7 +1626,7 @@ function resumoHtml(){
       : api.motivo==='outro-mes' ? `<p>A API não está no mês esperado: confira se o workflow "Atualizar dados" rodou.</p>` : '')
     + (SEMCALC ? `<p>${esc(SEMCALC)}.</p>` : '');
   const mPil = pil.canais.map(c=>`<p>${c.canal}: <b>${c.n} de ${PILARES_NO_MES}</b> pilares${c.ok?'':' <span class="pend">Pendente</span>'}</p>`).join('')
-    + (pil.exigeMeta ? `<p>Missões Guiadas: fonte de meta e realizado — ${pil.missaoSemFonte ? '<span class="pend">Não definida</span>' : '<b>definida</b>'}</p>`
+    + (pil.exigeMeta ? `<p>Missões Guiadas: meta e missões do mês — ${pil.missaoSemFonte ? '<span class="pend">Não configuradas</span>' : `meta <b>${esc(String(MISS.metaPorRota).replace('.',','))}</b> por rota · ${esc(MISS.contam.join(' + '))}`}</p>`
       : `<p>Missões Guiadas: validada em ${esc(String(R.missaoValidadaPct))}% em ${esc(MESES[MES].toLowerCase())}</p>`);
   const nivelF = { ok:'ok', incompleto:'al', indisponivel:'er' }, rotF = { ok:'OK', incompleto:'Incompleto', indisponivel:'Indisponível' };
   const mFech = FECH_ADM.meses.length ? FECH_ADM.meses.map(m=>`<p>${esc(MESES[m.mes])}: <span class="admst ${nivelF[m.estado]}">${rotF[m.estado]}</span>`
@@ -1637,7 +1655,10 @@ function pilaresBlocoHtml(m, c, opcoesPilar, cor){
       <td>${l.tipo==='missao' ? 'execução' : l.tipo ? 'volume' : '–'}</td><td>${etq(l)}</td></tr>`).join('')}</tbody></table>`
     + (!conf ? `<div class="seg-av" role="alert">⚠️ ${esc(avisoSemPilares(m))}: o painel não calcula pontos nem ranking${m===MES?'':' deste mês'}.
         Os coringas do admin só trocam os pilares 4 e 5 de um mês que já tem os ${PILARES_NO_MES} pilares na configuração (<code>CONFIG.pilaresConfig</code>): o admin não completa sozinho um mês que só tem os pilares 1 a 3.</div>` : '')
-    + (est.exigeMeta && linhas.some(l=>l.tipo==='missao') ? `<p>Missões Guiadas: fonte de meta e realizado — ${est.missaoSemFonte ? '<span class="pend">Não definida</span> (o pilar aparece "sem dados" e não pontua; nunca se assume 100%)' : '<b>definida</b>'}</p>` : '')
+    + (est.exigeMeta && linhas.some(l=>l.tipo==='missao') ? (()=>{ const mc = missoesDoMes(CONFIG, m); // a meta é a DESTE mês, não a do mês de referência
+        return `<p>Missões Guiadas: meta e missões de ${esc(MESES[m].toLowerCase())} — ${!mc
+          ? '<span class="pend">Não configuradas</span> (o pilar aparece "sem dados" e não pontua; nunca se assume 100%)'
+          : `meta <b>${esc(String(mc.metaPorRota).replace('.',','))}</b> por rota · ${esc(mc.contam.join(' + '))}${m===MES && !MISS.ok ? ' <span class="pend">sem dados no arquivo</span>' : ''}`}</p>`; })() : '')
     + (conf && !edita ? `<p class="sub">Pilares da configuração de ${MESES[m].toLowerCase()}, só leitura: os coringas do admin trocam os pilares 4 e 5 só do mês de referência (${MESES[MES].toLowerCase()}).</p>` : '')
     + `</div>`;
 }
