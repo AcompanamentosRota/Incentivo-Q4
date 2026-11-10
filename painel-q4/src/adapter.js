@@ -34,7 +34,8 @@ const CONFIG = {
     // de outubro ("Volume Individuais" da Segmentada = Volume Refri Single).
     // Novembro: coringas 4 e 5 iguais aos de outubro (informado pela Karen em 04/11/2026).
     // Dezembro: coringas 4 e 5 ainda a decidir; até entrarem aqui, o mês fica "ainda não configurado".
-    // Missões Guiadas de novembro e dezembro sem fonte: "sem dados", não pontua (nunca 100%).
+    // Missões Guiadas: novembro tem meta e realizado (missoesConfig, abaixo); dezembro ainda não, e sem meta
+    // configurada o pilar fica "sem dados" e não pontua (nunca 100%).
     { mes: 11, canal: 'Mista', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Retornáveis', tipo: 'volume' },
       { nome: 'Missões Guiadas', tipo: 'missao' }, { nome: 'Volume Sucos', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
@@ -46,16 +47,25 @@ const CONFIG = {
     { mes: 12, canal: 'Segmentada', pilares: [
       { nome: 'Volume Sabores', tipo: 'volume' }, { nome: 'Volume Refri Single', tipo: 'volume' }, { nome: 'Volume Powerade', tipo: 'volume' } ] },
   ],
-  // Pilar do desafio -> agrupador de produto no modelo SAP
+  // Missões Guiadas, mês a mês (decisão informada pela Karen em 10/11/2026): meta por rota e as missões do
+  // missoes.json que contam. O realizado da rota é a soma dessas missões no arquivo; o do SV, a soma das rotas da
+  // mesa, com a meta acompanhando (metaPorRota × número de rotas que entram na soma, nunca a meta de uma rota).
+  // Mês sem entrada aqui não tem meta configurada: o pilar fica "sem dados" e não pontua (nunca se assume 100%).
+  // Outubro não entra: nele a missão é validada em 100% pelo motor (REGRAS.missaoValidadaMeses).
+  // Dezembro ainda não foi decidido. O admin troca isso pelo ajustes.json (campo `missoes`).
+  missoesConfig: [
+    { mes: 11, metaPorRota: 10, contam: ['Aumente A Família', 'Traga De Volta'] },
+  ],
+  // Nome do arquivo das missões quando o index.json não traz `arquivos.missoes`.
+  missoesArquivo: 'missoes.json',
+  // Pilar do desafio -> agrupador de produto no modelo SAP (Missões Guiadas não é produto: vem de missoesConfig)
   fonteDoPilar: {
     'Volume Sabores': 'Sabores Tt',
     'Volume Retornáveis': 'Refrigerantes Retornavel',
     'Volume Refri Single': 'Refrigerantes Individual',
     'Volume Powerade': 'Powerade',
     'Volume Sucos': 'Sucos',
-    // 'Missões Guiadas': em outubro entra validada em 100%, sem dado. De novembro em diante pontua com meta, real e
-    // online; a fonte por rota ainda não foi definida. Quando existir, entra aqui (agrupador) e em produtoDaApi.
-    // Sem fonte, o pilar aparece como "sem dados de Missões Guiadas" e não pontua.
+    // 'Missões Guiadas' não entra aqui: a meta e o realizado dela vêm de missoesConfig + missoes.json (10/11/2026).
   },
   // Gatilho de 95% e desempate: categoria Refrigerantes do SAC (agrupador com todos os itens de refri), vinda da API.
   refri: 'Refrigerantes',
@@ -84,8 +94,100 @@ function pilaresDoMes(cfg, mes, canal) {
 /** O mês só é calculado com os pilares dos dois canais configurados. */
 const mesConfigurado = (cfg, mes) => ['Mista', 'Segmentada'].every((c) => pilaresDoMes(cfg, mes, c));
 const avisoSemPilares = (mes) => `Pilares de ${NOMES_MES[mes]} ainda não configurados`;
-/** Missões Guiadas (ou outro pilar) sem fonte de meta e real por rota: aparece "sem dados" e não pontua. */
-const semFonte = (cfg, nome) => !cfg.fonteDoPilar[nome];
+const PILAR_MISSAO = 'Missões Guiadas';
+/** Pilar sem fonte de meta e real por rota: aparece "sem dados" e não pontua. Missões Guiadas tem fonte no mês que
+ *  tem meta e missões configuradas (`missoesConfig`); o que o missoes.json traz é dado, e fica em `fonteDasMissoes`. */
+const semFonte = (cfg, nome, mes) => (nome === PILAR_MISSAO ? !missoesDoMes(cfg, mes) : !cfg.fonteDoPilar[nome]);
+
+/*
+ * ─────────────── Missões Guiadas (decisão informada pela Karen em 10/11/2026) ───────────────
+ * Meta por rota e missões que contam vêm da configuração do mês (CONFIG.missoesConfig, trocável pelo ajustes.json),
+ * nunca do código. O realizado é a soma, no arquivo missoes.json, das missões que contam. Nada aqui calcula pontos:
+ * o adaptador entrega meta e real e o motor aplica as faixas como em qualquer pilar.
+ */
+
+/** Configuração das Missões Guiadas no mês: {mes, metaPorRota, contam}. null = mês sem meta configurada. */
+function missoesDoMes(cfg, mes) {
+  const c = ((cfg && cfg.missoesConfig) || []).find((x) => x && x.mes === mes);
+  if (!c || !(c.metaPorRota > 0) || !Array.isArray(c.contam) || !c.contam.length) return null;
+  return { mes, metaPorRota: c.metaPorRota, contam: c.contam.slice() };
+}
+
+/**
+ * Soma, por rota, das missões que contam. O nome é comparado exato depois de normalizar acento e caixa
+ * (`normalizarTexto`, a mesma chave do gerador): "Aumente A Família" bate com "AUMENTE A FAMILIA".
+ * Rota que não aparece em nenhuma das missões fica FORA do mapa (realizado nulo, "sem dados" para ela): nunca vira
+ * zero. Rota que aparece com 0 participa com zero. Devolve também as missões encontradas e as que faltaram.
+ */
+function somaDasMissoes(arquivo, nomes) {
+  const alvo = new Map((nomes || []).map((n) => [normalizarTexto(n), n]));
+  const porRota = {}, encontradas = [], achadas = new Set();
+  for (const m of (arquivo && Array.isArray(arquivo.missoes) ? arquivo.missoes : [])) {
+    if (!m || typeof m.nome !== 'string') continue;
+    const k = normalizarTexto(m.nome);
+    if (!alvo.has(k) || achadas.has(k)) continue; // missão repetida no arquivo: vale a primeira
+    achadas.add(k);
+    encontradas.push({ codigo: m.codigo === undefined || m.codigo === null ? null : String(m.codigo), nome: m.nome });
+    for (const [rota, v] of Object.entries(m.rotas && typeof m.rotas === 'object' ? m.rotas : {})) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) continue;
+      porRota[rota] = (porRota[rota] || 0) + n;
+    }
+  }
+  return { porRota, encontradas, naoEncontradas: [...alvo.keys()].filter((k) => !achadas.has(k)).map((k) => alvo.get(k)) };
+}
+
+/**
+ * Fonte do pilar no mês: a configuração do mês mais o que o missoes.json traz. null quando o pilar fica "sem dados" —
+ * mês sem meta configurada, arquivo ausente/ilegível ou nenhuma das missões encontrada (nunca calcula pela metade,
+ * nunca assume 100% nem zero).
+ */
+function fonteDasMissoes(cfg, mes, missoes) {
+  const c = missoesDoMes(cfg, mes);
+  if (!c) return null;
+  const s = somaDasMissoes(missoes && missoes.arquivo, c.contam);
+  return s.encontradas.length ? Object.assign({}, c, s) : null;
+}
+
+/** Valor do pilar Missões Guiadas de uma rota: [meta, real, online, hoje, meta dia] (cfg.idx). A missão não tem
+ *  online, hoje nem meta dia; rota fora do arquivo fica com real nulo ("sem dados" para ela, nunca zero). */
+function linhaDasMissoes(fonte, rota, I) {
+  const l = [null, null, null, null, null];
+  if (!fonte) return l;
+  l[I.meta] = fonte.metaPorRota;
+  l[I.real] = rota in fonte.porRota ? fonte.porRota[rota] : null;
+  return l;
+}
+
+/** Missões sem arquivo lido (API fora do ar, index.json sem o arquivo ou mês que não precisa delas). */
+const missoesVazias = (erro) => ({ arquivo: null, caminho: null, erro: erro || null });
+
+/**
+ * Estado das Missões Guiadas no mês, para a tela (cartões e Regras > Dados e alertas): a meta por rota e as missões
+ * que contam, quais foram somadas, quais faltaram no arquivo, quantas rotas do incentivo ficaram com e sem dado e
+ * quais rotas do arquivo não existem no cadastro da API (EVI, EVM e EVS: ignoradas, nunca quebram o painel).
+ * `ok` = o pilar tem fonte no mês; `validada` = o mês entra em 100% pelo motor (outubro) e não usa nada disto.
+ * Só apresentação: nada aqui pontua.
+ */
+function estadoMissoes(dados, cfg, mes, validadas) {
+  cfg = cfg || CONFIG;
+  const val = validadas || MotorRegras().missaoValidadaMeses;
+  const c = missoesDoMes(cfg, mes), m = dados.missoes || missoesVazias(null);
+  const base = { mes, validada: val.includes(mes), configurado: !!c, metaPorRota: c ? c.metaPorRota : null,
+                 contam: c ? c.contam : [], arquivo: m.caminho || null, erro: m.erro || null,
+                 encontradas: [], naoEncontradas: c ? c.contam.slice() : [], comDado: 0, semDado: [],
+                 foraDoCadastro: [], ok: false };
+  if (!c || !m.arquivo) return base;
+  const s = somaDasMissoes(m.arquivo, c.contam);
+  const rotas = (dados.rotas || []).map((r) => r.rota);
+  const cadastro = new Set(rotas.concat((dados.semCanal || []).map((r) => r.rota)));
+  return Object.assign(base, {
+    encontradas: s.encontradas, naoEncontradas: s.naoEncontradas, ok: s.encontradas.length > 0,
+    comDado: rotas.filter((r) => r in s.porRota).length,
+    semDado: rotas.filter((r) => !(r in s.porRota)).sort(),
+    foraDoCadastro: Object.keys(s.porRota).filter((r) => !cadastro.has(r)).sort(),
+  });
+}
 /** Regras do motor (meses com Missões Guiadas validada): no painel vem de window.MotorQ4; no Node, de motor.js. */
 const Motor = () => (typeof MotorQ4 !== 'undefined' ? MotorQ4 : require('./motor.js'));
 const MotorRegras = () => Motor().REGRAS;
@@ -186,7 +288,7 @@ function dadosDaApi(index, gerencias, base, cfg, canais, resumo) {
       aviso: faltam.length ? `a API ainda não traz ${faltam.join(', ')}` : null,
       acumulado: { meses: MESES_Q4.filter((m) => m <= mes), usados: [], faltando: [], previa: [] },
     },
-    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [],
+    rotas, semCanal, totaisGerencia, totalEmpresa, duplicadas: base.duplicadas, fechados: [], missoes: missoesVazias(null),
     segmentacao: linhasSegmentacao(lista, base, canais),
     nomesSV: nomesDosSVs(gerencias),
     segSemInfos: base.rotas.map((r) => r.rota).filter((r) => !naApi.has(r)),
@@ -315,7 +417,7 @@ async function carregarFechados(d, index, ler, base, cfg, canais, flash) {
 /** Base embutida: só no mês dela, com o rótulo "base embutida (<mês>)"; em outro mês, nada é calculado. */
 function daBase(base, canais, motivo, hoje) {
   const rotuloBase = `base embutida (${NOMES_MES[base.meta.mes]})`;
-  const d = Object.assign({}, comCanais(base, canais), { fechados: [] });
+  const d = Object.assign({}, comCanais(base, canais), { fechados: [], missoes: missoesVazias(motivo) });
   d.segmentacao = linhasSegmentacao(base.rotas.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv }))
     .concat(base.semCanal.map((r) => ({ rota: r.rota, gc: r.gc, sv: r.sv || null }))), base, canais);
   d.meta = Object.assign({}, base.meta, { origem: 'base', rotuloBase, fechamento: false, semCalculo: null,
@@ -371,6 +473,17 @@ async function carregarDados(base, cfg, ajustes, hoje) {
     return aplicarCanalSV(fora, canaisSV);
   }
   if (erroResumo) d.meta.aviso = [d.meta.aviso, `o total da empresa veio da soma das gerências (${erroResumo})`].filter(Boolean).join('; ');
+  // Missões Guiadas (missoes.json): lido só quando algum mês do trimestre até o de referência tem meta configurada
+  // (outubro entra validada em 100%). Arquivo ausente (404) ou ilegível = "sem dados de missões" (API.md): o pilar
+  // não pontua e o aviso aparece em Regras > Dados e alertas. Nunca calcula pela metade.
+  if (!d.meta.semCalculo && MESES_Q4.filter((m) => m <= d.meta.mes).some((m) => missoesDoMes(cfg, m))) {
+    const caminho = (index.arquivos && index.arquivos.missoes) || cfg.missoesArquivo;
+    try { d.missoes = { arquivo: await ler(caminho), caminho, erro: null }; }
+    catch (e) {
+      d.missoes = { arquivo: null, caminho, erro: e.message };
+      d.meta.aviso = [d.meta.aviso, `sem dados de Missões Guiadas (${e.message}): o pilar não pontua`].filter(Boolean).join('; ');
+    }
+  }
   if (d.meta.semCalculo) d.meta.aviso = [d.meta.semCalculo, d.meta.aviso].filter(Boolean).join('; ');
   else await carregarFechados(d, index, ler, base, cfg, canais, ajustes ? ajustes.flashFechado : null);
   return aplicarCanalSV(d, canaisSV);
@@ -421,7 +534,9 @@ function aplicarCanalSV(dados, ajusteSV) {
  *            pilares: {Mista: [pilar 4, pilar 5], Segmentada: [...]}, canais: {rota: {canal, sub, segmento}},
             canaisSV: {sv: 'Mista' | 'Segmentada'}  (canal do SV; sem ajuste, a maioria das rotas da mesa),
  *            agrupadores: [{id, nome, agrupador}],
+ *            missoes: {mes: {metaPorRota, contam: [nome da missão]}},
  *            confrontos: [{mes, id_sv_desafiante, id_sv_desafiado, pilar}] }
+ * "missoes" troca a meta por rota e as missões que contam no pilar Missões Guiadas daquele mês (CONFIG.missoesConfig).
  * "agrupadores" são os extras: viram o pilar "Volume <nome>" e o gerador da API (scripts/gerar.py) passa a buscá-los.
  * "confrontos" são os desafios entre supervisores do mês; o motor apura o vencedor e dá o bônus.
  */
@@ -480,7 +595,8 @@ function normalizarConfrontos(lista, avisos) {
 }
 
 const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores',
-  'confrontos', 'flashFechado'];
+  'confrontos', 'flashFechado', 'missoes'];
+const MISSOES_MAX = 10; // missões que podem contar no mesmo mês
 const CAMPOS_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas'];
 const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -499,6 +615,30 @@ function normalizarFlash(bruto, ano, avisos) {
     if (v.fechado !== true) continue; // mês não marcado = flash ainda não fechou (o mesmo que ausente)
     if (v.em !== undefined && v.em !== null && !textoOk(v.em, 40)) { av(`flash de vendas de ${JSON.stringify(mes)}: data ${JSON.stringify(v.em)} inválida: marcado sem data`); out[mes] = { fechado: true, em: null }; continue; }
     out[mes] = { fechado: true, em: v.em ? v.em.trim() : null };
+  }
+  return out;
+}
+
+/*
+ * Missões Guiadas por mês (decisão de 10/11/2026): {"11": {"metaPorRota": 10, "contam": ["Aumente A Família", ...]}}.
+ * Troca a configuração do painel (CONFIG.missoesConfig) no mês informado; mês sem entrada continua como no CONFIG.
+ * Campo opcional e retrocompatível. Meta tem de ser número maior que zero e `contam` uma lista de nomes de missão.
+ */
+function normalizarMissoes(bruto, avisos) {
+  const out = {};
+  const av = (t) => { if (avisos) avisos.push(t); };
+  if (bruto !== undefined && bruto !== null && !ehObjeto(bruto)) { av('missoes: precisa ser um objeto {mes: {metaPorRota, contam}}: ignorado'); return out; }
+  for (const [mes, v] of Object.entries(ehObjeto(bruto) ? bruto : {})) {
+    const qual = `Missões Guiadas de ${NOMES_MES[Number(mes)] || JSON.stringify(mes)}`;
+    if (!MESES_Q4.includes(Number(mes))) { av(`${qual}: mês fora do trimestre do painel: ignorado`); continue; }
+    if (!ehObjeto(v) || !(typeof v.metaPorRota === 'number' && Number.isFinite(v.metaPorRota) && v.metaPorRota > 0)) {
+      av(`${qual}: precisa de metaPorRota (número maior que zero): ignorado, vale a configuração do painel`); continue;
+    }
+    const nomes = (Array.isArray(v.contam) ? v.contam : []).filter((n) => textoOk(n, 120)).map((n) => n.trim()).slice(0, MISSOES_MAX);
+    if (!Array.isArray(v.contam) || !nomes.length || nomes.length !== v.contam.length) {
+      av(`${qual}: contam precisa ser uma lista de 1 a ${MISSOES_MAX} nomes de missão: ignorado, vale a configuração do painel`); continue;
+    }
+    out[String(Number(mes))] = { metaPorRota: v.metaPorRota, contam: nomes };
   }
   return out;
 }
@@ -549,9 +689,10 @@ function normalizarAjustes(aj, avisos) {
     else if (avisos) avisos.push(`SV ${sv}: canal do SV ${JSON.stringify(c)} não é Mista nem Segmentada: ajuste ignorado`);
   }
   const flashFechado = normalizarFlash(aj.flashFechado, CONFIG.ano, avisos);
+  const missoes = normalizarMissoes(aj.missoes, avisos);
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
-      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length) return null;
-  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado };
+      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length && !Object.keys(missoes).length) return null;
+  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado, missoes };
 }
 
 /** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
@@ -559,6 +700,12 @@ function normalizarAjustes(aj, avisos) {
 function aplicarAjustes(aj, cfg, regras, mes) {
   if (!aj) return;
   for (const e of aj.agrupadores || []) { cfg.produtoDaApi[e.agrupador] = e.id; cfg.fonteDoPilar[pilarDoExtra(e)] = e.agrupador; }
+  // Missões Guiadas: a meta e as missões do mês vêm do ajuste, no lugar da configuração do painel (o mês sem ajuste
+  // continua como no CONFIG). Mesma forma de missoesConfig, para missoesDoMes não precisar saber de onde veio.
+  for (const [mes, v] of Object.entries(aj.missoes || {})) {
+    const entrada = { mes: Number(mes), metaPorRota: v.metaPorRota, contam: v.contam.slice() };
+    cfg.missoesConfig = (cfg.missoesConfig || []).filter((x) => !x || x.mes !== entrada.mes).concat([entrada]);
+  }
   const r = aj.regras;
   if (r.faixas) regras.faixas = r.faixas.concat([{ min: 0, pontos: 0 }]);
   for (const k of ['gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas']) if (r[k] !== undefined) regras[k] = r[k];
@@ -585,7 +732,7 @@ function aplicarCoringas(aj, cfg, mes) {
 const MotorPadrao = JSON.parse(JSON.stringify(MotorRegras())); // REGRAS do motor antes de qualquer ajuste
 const CHAVES_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos.RT', 'gatilhoPontos.SV',
   'premiadas.RT.Mista', 'premiadas.RT.Segmentada', 'premiadas.SV.Mista', 'premiadas.SV.Segmentada'].map((k) => 'regras:' + k);
-const ORDEM_TIPOS = ['regras', 'pilares', 'canaisSV', 'canais', 'agrupadores', 'confrontos', 'flash'];
+const ORDEM_TIPOS = ['regras', 'pilares', 'missoes', 'canaisSV', 'canais', 'agrupadores', 'confrontos', 'flash'];
 const ROTULOS_REGRAS = {
   faixas: 'Faixas de pontos', gatilhoVolumePct: 'Gatilho de Refrigerantes (%)', bonusConfronto: 'Bônus do confronto (pontos)',
   'gatilhoPontos.RT': 'Mínimo da Rota (pontos no mês)', 'gatilhoPontos.SV': 'Mínimo do SV (pontos no trimestre)',
@@ -615,18 +762,19 @@ function itensDosAjustes(aj) {
   for (const c of aj.confrontos || []) out[`confrontos:${c.mes}|${c.id_sv_desafiante}|${c.id_sv_desafiado}`] =
     { mes: c.mes, id_sv_desafiante: c.id_sv_desafiante, id_sv_desafiado: c.id_sv_desafiado, pilar: c.pilar };
   for (const [mes, v] of Object.entries(aj.flashFechado || {})) out['flash:' + mes] = { fechado: true, em: v.em || null };
+  for (const [mes, v] of Object.entries(aj.missoes || {})) out['missoes:' + mes] = { metaPorRota: v.metaPorRota, contam: v.contam.slice() };
   return out;
 }
 
 /** {chave: valor} -> objeto no formato do ajustes.json (mínimo de pontos e premiadas completos com o padrão). */
 function objetoDosItens(itens, padrao) {
   padrao = padrao || MotorPadrao;
-  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {} }, r = {};
+  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {}, missoes: {} }, r = {};
   for (const [chave, v] of Object.entries(itens || {})) {
     if (v === null || v === undefined) continue;
     const [tipo, id] = partesChave(chave);
     if (tipo === 'regras') r[id] = v;
-    else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV') aj[tipo][id] = v;
+    else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV' || tipo === 'missoes') aj[tipo][id] = v;
     else if (tipo === 'agrupadores' || tipo === 'confrontos') aj[tipo].push(v);
     else if (tipo === 'flash') aj.flashFechado[id] = v;
   }
@@ -643,6 +791,7 @@ function rotuloItem(chave) {
   const [tipo, id] = partesChave(chave);
   if (tipo === 'regras') return ROTULOS_REGRAS[id] || id;
   if (tipo === 'pilares') return `Pilares coringa · ${id}`;
+  if (tipo === 'missoes') return `Missões Guiadas · ${NOMES_MES[Number(id)] || id}`;
   if (tipo === 'canais') return `Canal da rota ${id}`;
   if (tipo === 'canaisSV') return `Canal do SV ${id}`;
   if (tipo === 'agrupadores') return `Agrupador extra ${id}`;
@@ -656,7 +805,8 @@ function rotuloItem(chave) {
 /** Valor do ajuste para a tela; null = ausente (padrão, ou não existe). */
 function textoItem(chave, v) {
   const [tipo, id] = partesChave(chave);
-  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês', flash: 'ainda não fechou' })[tipo] || 'não existe';
+  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês', flash: 'ainda não fechou', missoes: 'padrão do mês' })[tipo] || 'não existe';
+  if (tipo === 'missoes') return `meta ${String(v.metaPorRota).replace('.', ',')} por rota · ${v.contam.join(', ')}`;
   if (tipo === 'regras' && id === 'faixas') return v.map((f) => `${String(f.min).replace('.', ',')}%: ${f.pontos} pts`).join(' · ');
   if (tipo === 'regras') return String(v).replace('.', ',');
   if (tipo === 'pilares') return v.map((n) => n.replace('Volume ', '')).join(', ');
@@ -984,8 +1134,8 @@ const TOPICOS_ADMIN = [
   { id: 'fechamento', rotulo: 'Fechamento do mês' },
 ];
 /** Tópico da Administração de cada ajuste (chave "tipo:id" de itensDosAjustes). */
-const TOPICO_DO_TIPO = { regras: 'regras', pilares: 'pilares', agrupadores: 'pilares', canais: 'canais', canaisSV: 'canais',
-                         confrontos: 'confrontos', flash: 'fechamento' };
+const TOPICO_DO_TIPO = { regras: 'regras', pilares: 'pilares', agrupadores: 'pilares', missoes: 'pilares',
+                         canais: 'canais', canaisSV: 'canais', confrontos: 'confrontos', flash: 'fechamento' };
 const topicoDoItem = (chave) => TOPICO_DO_TIPO[partesChave(chave)[0]] || null;
 /** Alterações para publicar (diferencasAjustes) por tópico: o selo de cada aba. */
 function contagemPorTopico(diferencas) {
@@ -1013,7 +1163,7 @@ function estadoPilaresMes(cfg, mes, validadas) {
   const canais = ['Mista', 'Segmentada'].map((c) => ({ canal: c, n: pilaresDefinidos(cfg, mes, c).length, ok: !!pilaresDoMes(cfg, mes, c) }));
   const temMissao = ['Mista', 'Segmentada'].some((c) => pilaresDefinidos(cfg, mes, c).some((p) => p && p.tipo === 'missao'));
   const exigeMeta = temMissao && !val.includes(mes);
-  const missaoSemFonte = exigeMeta && semFonte(cfg, 'Missões Guiadas');
+  const missaoSemFonte = exigeMeta && semFonte(cfg, PILAR_MISSAO, mes);
   const configurado = canais.every((c) => c.ok);
   return { mes, ok: configurado && !missaoSemFonte, configurado, canais, exigeMeta, missaoSemFonte };
 }
@@ -1126,7 +1276,7 @@ function pilaresDoTopico(cfg, mes, canal, validadas) {
     if (!p || !p.nome) return { n: i + 1, nome: null, tipo: null, coringa, etiqueta: coringa ? 'Coringa' : 'Fixo', semFonte: false };
     const validada = p.tipo === 'missao' && val.includes(mes);
     return { n: i + 1, nome: p.nome, tipo: p.tipo, coringa, etiqueta: validada ? 'Validada em 100%' : coringa ? 'Coringa' : 'Fixo',
-             semFonte: !validada && semFonte(cfg, p.nome) };
+             semFonte: !validada && semFonte(cfg, p.nome, mes) };
   });
 }
 
@@ -1281,20 +1431,24 @@ function montarEntrada(dados, cfg, confrontos) {
   let svAtual = {};
   for (const { mes, rotas } of meses) {
     const corrente = mes === mesRef;
+    // Missões Guiadas: validada (outubro) não tem dado; sem meta configurada, sem arquivo ou sem nenhuma das missões
+    // no arquivo, o pilar fica "sem dados" e não pontua (nunca 100%, nunca zero).
+    const fonteMis = fonteDasMissoes(cfg, mes, dados.missoes);
+    const comDado = (pl) => pl.tipo === 'volume' || !(validada(mes) || (pl.tipo === 'missao' ? !fonteMis : semFonte(cfg, pl.nome, mes)));
+    const valorDoPilar = (r, pl) => (pl.tipo === 'missao' ? linhaDasMissoes(fonteMis, r.rota, I) : r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO);
     const svAgg = {};
     for (const r of rotas) {
       if (corrente) pessoas.push({ id: r.rota, nome: 'Rota ' + r.rota, cargo: 'RT', canal: r.canal, unidade: r.gc, sub: r.sub, id_supervisor: svKey(r) });
       // a mesa soma no SV do canal dele (empate sem escolha: sem SV); o SV mede cada rota nos pilares do canal DELE
       const canalSV = r.svCanal !== undefined ? r.svCanal : r.canal;
       const ag = canalSV ? (svAgg[svKey(r)] = svAgg[svKey(r)] || { sv: r.sv, canal: canalSV, gc: r.gc, p: {} }) : null;
-      // Missões Guiadas validada (outubro) não tem dado; sem fonte (nov/dez ainda sem definição) fica "sem dados"
-      const comDado = (pl) => pl.tipo === 'volume' || !(validada(mes) || semFonte(cfg, pl.nome));
       for (const pl of (pilaresDoMes(cfg, mes, r.canal) || []).filter(comDado)) {
-        const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
+        const v = valorDoPilar(r, pl);
         medidas.push({ id: r.rota, mes, pilar: pl.nome, meta: v[I.meta], real: v[I.real], online: v[I.online], hoje: v[I.hoje], metaDia: v[I.metaDia] });
       }
+      // a mesma função nas duas pontas: a meta do SV nas Missões é metaPorRota × as rotas que entram nesta soma
       if (ag) for (const pl of (pilaresDoMes(cfg, mes, canalSV) || []).filter(comDado)) {
-        const v = r.v[cfg.fonteDoPilar[pl.nome]] || VAZIO;
+        const v = valorDoPilar(r, pl);
         if (v[I.meta] > 0 && v[I.real] !== null) somar(ag.p, pl.nome, { meta: v[I.meta], real: v[I.real], online: v[I.online] || 0 });
       }
       // Gatilho de Refrigerantes: componentes sem meta (nula ou zero) ficam fora da soma
@@ -1313,8 +1467,7 @@ function montarEntrada(dados, cfg, confrontos) {
     // Supervisor (PROVISÓRIO): soma de todas as rotas da mesa nos pilares do canal do SV; rota sem meta ou sem real fica fora
     for (const k of Object.keys(svAgg)) {
       const a = svAgg[k];
-      const nomes = (pilaresDoMes(cfg, mes, a.canal) || [])
-        .filter((p) => p.tipo === 'volume' || !(validada(mes) || semFonte(cfg, p.nome))).map((p) => p.nome).concat(['Refrigerantes']);
+      const nomes = (pilaresDoMes(cfg, mes, a.canal) || []).filter(comDado).map((p) => p.nome).concat(['Refrigerantes']);
       for (const n of nomes) { const x = a.p[n]; medidas.push({ id: k, mes, pilar: n, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : 0 }); }
     }
     if (corrente) svAtual = svAgg;
@@ -1811,6 +1964,8 @@ if (typeof module === 'object' && module.exports) {
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
                      diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
                      normalizarFlash, estadoFechado, dataBr, totaisDoFechado,
+                     PILAR_MISSAO, MISSOES_MAX, missoesDoMes, somaDasMissoes, fonteDasMissoes, linhaDasMissoes,
+                     missoesVazias, estadoMissoes, normalizarMissoes, semFonte,
                      pilaresDaConsulta, dadosDoFechado, ordemPainel, posicoesDeTela, consultaFechamento, estratDoFechado,
                      tabelaFechamento, filtrarFechamento, contextoFechamento, abasFechamento, nomeArquivoFechamento,
                      VISOES_FECHAMENTO, planilhaXlsx, zipStored, crc32, colunaXlsx, nomeAba,

@@ -214,7 +214,12 @@ Vem do modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` do Datasphere e é consultado em 
 - `rotas`: rota atual do cliente (`CD_ROTA_Clien`, a mesma do volume) → realizado. Uma rota que aparece com `0`
   participa da missão sem nada realizado. Uma rota que não aparece não participa.
 - **Sem filtro de data:** traz todas as missões do modelo (ativas, pausadas e finalizadas, de qualquer mês), em ordem
-  de código. Escolher quais missões contam em cada mês fica com quem consome.
+  de código. Escolher quais missões contam em cada mês fica com quem consome. O painel Desafio Q4 faz essa escolha
+  na configuração do mês (`CONFIG.missoesConfig`): em novembro/26 somam **"Aumente A Família"** e **"Traga De Volta"**,
+  com meta 10 por rota (decisão de 10/11/2026). O contrato deste arquivo **não muda** por causa disso.
+- Comparação de nome: exata depois de normalizar acento e caixa (`Aumente A Família` = `AUMENTE A FAMILIA`).
+- O arquivo pode trazer códigos de rota que **não existem** em `rotas/` nem no cadastro (em 10/11/2026: `EVI`, `EVM`
+  e `EVS`). Quem consome deve ignorá-los.
 - Ainda não traz meta, percentual nem online da missão.
 - Se a consulta falhar, o arquivo anterior é mantido e o volume segue atualizando. Se o arquivo nunca foi gerado, ele
   não existe: trate o 404 como "sem dados de missões".

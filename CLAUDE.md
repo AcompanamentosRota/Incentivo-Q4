@@ -14,7 +14,8 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   online de hoje) em cada produto. Contrato em `API.md`.
 - `missoes.json` traz o realizado das **Missões Guiadas** (modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA`), por missão e por
   rota, sem filtro de data e sem meta. O modelo tem dados pessoais (CPF, telefone, endereço): só as colunas de
-  `mapeamento.ColMissao` vão no `$select`. Os painéis ainda não leem esse arquivo.
+  `mapeamento.ColMissao` vão no `$select`. Desde 10/11/2026 (etapa 22) o **painel Desafio Q4 lê esse arquivo**: o
+  pilar Missões Guiadas de novembro soma as missões que contam no mês (seção 5). O painel Campari não o usa.
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
@@ -76,7 +77,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
 | `backend/scripts/reabrir_fechado.py` | volta um mês fechado de oficial para prévia (ajuste único) | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
-| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG`, consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG` com `pilaresConfig` e `missoesConfig`, Missões Guiadas (`missoesDoMes`, `somaDasMissoes`, `fonteDasMissoes`, `estadoMissoes`), consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
@@ -87,7 +88,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
 | `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
 | `frontend/campari-club.html` | painel Campari Club pronto | **gerado** por `painel-campari/scripts/build.py` |
-| `frontend/ajustes.json` | ajustes do admin (pilares, canais, confrontos, agrupadores, flash de vendas fechado) | só por **PR** do botão da Administração |
+| `frontend/ajustes.json` | ajustes do admin (pilares, missões do mês, canais, confrontos, agrupadores, flash de vendas fechado) | só por **PR** do botão da Administração |
 | `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
 
 Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram nas abas do
@@ -98,7 +99,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
+# testes do painel — 171 testes (42 do motor, 129 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do painel Campari Club — 258 testes (79 do motor, 179 do adaptador)
@@ -169,7 +170,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.6, 05/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.7, 10/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -178,8 +179,17 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   é **truncado**, nunca arredondado (99,96% não pode virar "100,0%").
 - **Pilares nunca fixos no código:** vêm de `CONFIG.pilaresConfig` e dos ajustes do admin. Pilares de volume
   são todos, menos Missões Guiadas.
-- **Missões Guiadas:** em outubro entra validada em 100% (3 pontos); em novembro e dezembro passa a ter
-  meta, real e online.
+- **Missões Guiadas (10/11/2026, informada pela Karen; documento de regras v3.7, seção 4):** em outubro entra
+  validada em 100% (3 pontos). Em **novembro** pontua com dado real: o realizado da rota é a soma, no
+  `api/v1/missoes.json`, de **duas** missões ("Aumente A Família" e "Traga De Volta"; as outras 24 entradas do
+  arquivo não contam), a **meta da rota é 10**, e o SV soma as rotas da mesa dos dois lados (realizado somado e meta
+  de 10 por rota que entra na soma — nunca 10 fixo). A meta e a lista de missões ficam em `CONFIG.missoesConfig`
+  (adaptador), trocáveis pelo `ajustes.json` → `missoes`: **nada fixo na lógica nem na tela**. O pilar continua
+  `tipo: 'missao'` e o cálculo é o do motor, como em qualquer pilar. **Dezembro** ainda não tem meta: sem meta
+  configurada, sem o arquivo ou sem nenhuma das missões nele, o pilar fica "sem dados", não pontua e o painel avisa
+  em Regras > Dados e alertas — nunca se assume 100% nem zero. Rota que não aparece no arquivo fica com realizado
+  nulo ("sem dados" para ela); `EVI`, `EVM` e `EVS` existem no arquivo e não no cadastro da API: são ignoradas e
+  listadas no alerta. O arquivo **não filtra por data**: escolher as missões do mês é o que define o mês.
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
   **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor **17** no mês (zera todo mês) — decisão da
   gerência de planejamento e da IM em 29/10/2026, no documento de regras desde a v3.6. O 17 é o **padrão do motor**
@@ -467,10 +477,13 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   decididos**: quando forem, acrescente-os na entrada do mês (os dois canais), rode o `build.py` e comite o HTML
   gerado. Os coringas do admin (`ajustes.json` → `pilares`, sem mês) só **trocam** os 4 e 5 do mês de referência
   quando ele já tem os 5 no `CONFIG`; nunca completam um mês sozinhos.
-- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro: passa a ter meta, real e online. A fonte
-  por rota ainda não foi definida; quando for, entra em `CONFIG.fonteDoPilar['Missões Guiadas']` (+ `produtoDaApi`).
-  Sem fonte, o pilar aparece "sem dados" e não pontua — em novembro, portanto, o teto do mês vem dos 4 pilares de
-  volume do canal (20 pontos), nunca de 100% assumido.
+- **Missões Guiadas** deixa de ser validada em 100% a partir de novembro. A fonte de **novembro** está definida
+  desde 10/11/2026 (`CONFIG.missoesConfig` + `api/v1/missoes.json`; seção 5), então o mês volta a ter os 5 pilares
+  valendo. **Dezembro** ainda não tem meta nem lista de missões: acrescente a entrada do mês em `missoesConfig`
+  (`{ mes: 12, metaPorRota, contam: [...] }`), rode o `build.py` e comite o HTML gerado. Sem essa entrada o pilar
+  aparece "sem dados" e não pontua, e o teto do mês vem dos 4 pilares de volume do canal (20 pontos), nunca de 100%
+  assumido. Quando novembro fechar, o `fechado/AAAAMM.json` **não** guarda missões: o realizado do pilar continua
+  vindo do `missoes.json` do momento (pendência 5 do documento de regras).
 - **Acumulado do SV:** o adaptador lê os meses fechados do trimestre (`index.json` → `fechados`), cada mês é
   calculado com os pilares e os confrontos dele, e o motor recebe todos os meses até o vigente. Mês fechado ausente
   ou com falha: aviso, acumulado "incompleto" (`mesesIncompletos` na entrada do motor) e SV sem posição oficial.
@@ -513,7 +526,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 171 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 131 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
