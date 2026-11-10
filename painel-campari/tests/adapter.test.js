@@ -1818,8 +1818,11 @@ test('4H tela: "Oficial", cinza e contagem seguem os dois pilares do motor; nada
   assert.match(TPL, /R\.gatilhoVolume\.minimo/);
   assert.match(TPL, /R\.gatilhoVolume\.meses/);
   const html = fs.readFileSync(GERADO, 'utf8');
-  assert.match(html, /gatilhoVolume: \{ meses: \[11, 12\], minimo: 100 \}/); // o motor embutido é o da v1.8
-  assert.match(html, /versao: '1\.8'/);
+  assert.match(html, /gatilhoVolume: \{ meses: \[11, 12\], minimo: 100 \}/); // o gatilho de volume da v1.8
+  // 4I: o motor embutido passou para a v1.9 (só a versão; nenhuma regra de cálculo mudou), então a versão aqui
+  // acompanha o motor em vez de ficar presa na v1.8
+  assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
+  assert.equal(Motor.REGRAS.versao, '1.9');
 });
 
 test('4H alertasDaTela: a pendência 26 aparece, com os números do motor', () => {
@@ -1843,4 +1846,88 @@ test('4H montarDados: Total Band e linhas da API sem ranking têm os gatilhos, m
   const xa = d.gcApi.find((l) => l.codigo === 'XA');
   assert.equal(xa.gatilhoPilares.batido, true);
   assert.equal(xa.oficial, undefined);
+});
+
+/* --- Etapa 4I: Detalhe do mês, visão Gerência sem paginação (decisão de 09/11/2026, pendência 27) --------------- */
+
+const listaFicticia = (n, pre) => Array.from({ length: n }, (_, i) => ({ codigo: (pre || 'ZG') + (i + 1) }));
+
+test('4I CONFIG: só a visão Gerência do Detalhe fica sem paginação; o tamanho da página não muda', () => {
+  assert.deepEqual(CONFIG.detalheSemPaginacao, ['gc']);
+  assert.equal(CONFIG.linhasPorPagina, 15);
+});
+
+test('4I paginaDoDetalhe: visão Gerência com 16 linhas fica numa fatia só, sem botões, qualquer página pedida', () => {
+  const dezesseis = listaFicticia(16);
+  for (const pg of [1, 2, 99, 0, null]) {
+    const p = A.paginaDoDetalhe(dezesseis, 'gc', pg);
+    assert.deepEqual([p.linhas.length, p.pagina, p.paginas, p.uma, p.inicio, p.fim, p.total],
+                     [16, 1, 1, true, 1, 16, 16], String(pg));
+    assert.deepEqual(p.linhas.map((l) => l.codigo), dezesseis.map((l) => l.codigo));   // mesma ordem, nada repetido
+  }
+  // continua sem paginação com qualquer quantidade (nenhum 16 fixo): 40 gerências, uma fatia
+  assert.equal(A.paginaDoDetalhe(listaFicticia(40), 'gc', 1).linhas.length, 40);
+  // lista vazia: uma página vazia, como fatiar
+  const vazia = A.paginaDoDetalhe([], 'gc', 1);
+  assert.deepEqual([vazia.linhas.length, vazia.paginas, vazia.uma], [0, 1, true]);
+  assert.deepEqual(A.paginaDoDetalhe(null, 'gc', 1).linhas, []);
+});
+
+test('4I paginaDoDetalhe: visão Supervisão continua em páginas de CONFIG.linhasPorPagina, igual a fatiar', () => {
+  const svs = listaFicticia(48, 'SV.ZG.');
+  const p1 = A.paginaDoDetalhe(svs, 'sv', 1);
+  assert.equal(p1.tamanho, CONFIG.linhasPorPagina);
+  assert.deepEqual([p1.paginas, p1.uma, p1.linhas.length], [4, false, 15]);
+  for (let pg = 1; pg <= p1.paginas; pg++) {
+    assert.deepEqual(A.paginaDoDetalhe(svs, 'sv', pg), A.fatiar(svs, pg, CONFIG.linhasPorPagina));
+  }
+  // a soma das páginas devolve todas as linhas, sem perder nem repetir
+  const juntas = [];
+  for (let pg = 1; pg <= p1.paginas; pg++) juntas.push(...A.paginaDoDetalhe(svs, 'sv', pg).linhas);
+  assert.deepEqual(juntas.map((l) => l.codigo), svs.map((l) => l.codigo));
+  // 30 supervisões (uma gerência no filtro): 2 páginas
+  assert.equal(A.paginaDoDetalhe(listaFicticia(30, 'SV.ZG.'), 'sv', 1).paginas, 2);
+});
+
+test('4I paginaDoDetalhe: com as linhas do Detalhe montadas, a visão GC é uma fatia só e a SV usa fatiar', () => {
+  const d = montar3();
+  const gc = A.linhasDoDetalhe(d, 'gc');
+  assert.deepEqual(A.paginaDoDetalhe(gc, 'gc', 2).linhas, gc);
+  const sv = A.linhasDoDetalhe(d, 'sv');
+  assert.deepEqual(A.paginaDoDetalhe(sv, 'sv', 1), A.fatiar(sv, 1));
+  // configuração diferente (nada fixo na função): sem visão isenta, a GC também pagina
+  const cfg = Object.assign({}, CONFIG, { detalheSemPaginacao: [], linhasPorPagina: 1 });
+  assert.equal(A.paginaDoDetalhe(gc, 'gc', 1, cfg).paginas, gc.length);
+});
+
+test('tela 4I: o Detalhe do mês pede a página ao adaptador; Consultor e Supervisão seguem na fatia da tela', () => {
+  const det = /function viewDet\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(det, /paginaDoDetalhe\(linhas, st\.detVisao, st\.pag\[chavePag\(\)\]\|\|1\)/);
+  assert.doesNotMatch(det, /\b1[56]\b/);                               // nenhum 15 nem 16 digitado
+  const g2 = /function tabelaGrupos\([\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.match(g2, /const p = fatia \|\| fatiaDaTela\(linhas\);/);
+  const rt = /function viewRT\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  assert.doesNotMatch(rt, /paginaDoDetalhe/);                          // o Consultor continua paginado pela tela
+  // a página do Detalhe continua separada por visão, e trocar a visão volta à página 1
+  assert.match(SEM_CSS, /st\.aba==='det' \? 'det:'\+st\.detVisao/);
+  assert.match(SEM_CSS, /st\.detVisao = t\.value;\n  voltarPagina1\(\);/);
+  assert.doesNotMatch(SEM_CSS, /detalheSemPaginacao/);                 // a escolha das visões é do adaptador
+});
+
+test('tela 4I: o HTML gerado leva a visão Gerência do Detalhe sem paginação (build rodado)', () => {
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /function paginaDoDetalhe\(/);
+  assert.match(html, /detalheSemPaginacao: \['gc'\]/);
+  assert.match(html, /paginaDoDetalhe\(linhas, st\.detVisao, st\.pag\[chavePag\(\)\]\|\|1\)/);
+});
+
+test('4I alertasDaTela: a pendência 28 aparece (texto do cabeçalho do Aperitivo), e a 27, resolvida, não', () => {
+  const al = A.alertasDaTela(montar3());
+  const p28 = al.find((a) => /Cabeçalho do bloco Aperitivo/.test(a.titulo));
+  assert.ok(p28);
+  assert.equal(p28.tipo, 'aviso');
+  assert.match(p28.texto, /pendência 28/);
+  assert.match(p28.texto, /novembro e dezembro/);                     // os meses do gatilho de volume, do motor
+  assert.ok(al.every((a) => !/pendência 27/.test(a.texto)));          // resolvida na v1.9
+  assert.ok(al.every((a) => !/regras v1\.8/.test(a.texto)));          // os textos citam a versão em vigor
 });

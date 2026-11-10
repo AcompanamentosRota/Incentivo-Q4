@@ -25,9 +25,14 @@ const CONFIG = {
     UR_RI: ['UR', 'RI'], IT_MO: ['IT', 'MO'], PA_DI: ['PA', 'DI'], GU_PO: ['GU', 'PO'],
   },
   // Linhas por página das tabelas paginadas (etapa 4G; regras v1.7, seção 7). Fica em configuração, nunca na
-  // lógica nem na tela: a Supervisão, o Consultor e o Detalhe do mês pedem a fatia a `fatiar`, que lê este
-  // número. A linha de total (Total Band ou Total da mesa) NÃO entra na conta: ela se repete em toda página.
+  // lógica nem na tela: a Supervisão, o Consultor e a visão Supervisão do Detalhe do mês pedem a fatia a
+  // `fatiar`, que lê este número. A linha de total (Total Band ou Total da mesa) NÃO entra na conta: ela se
+  // repete em toda página.
   linhasPorPagina: 15,
+  // Visões do Detalhe do mês que NÃO são paginadas (etapa 4I; decisão da Karen de 09/11/2026, pendência 27): a
+  // visão Gerência mostra todas as linhas e o Total Band numa tela só; a visão Supervisão continua em páginas de
+  // `linhasPorPagina`. Quem decide é `paginaDoDetalhe`, que só escolhe o tamanho e chama `fatiar`.
+  detalheSemPaginacao: ['gc'],
 };
 
 /*
@@ -901,6 +906,21 @@ function fatiar(linhas, pagina, tamanho) {
 }
 
 /**
+ * A página da aba Detalhe do mês (etapa 4I; decisão da Karen de 09/11/2026, pendência 27) -> o mesmo objeto de
+ * `fatiar`. Função PURA e sem conta própria de paginação: só escolhe o tamanho e chama `fatiar`.
+ *   - visão em CONFIG.detalheSemPaginacao ('gc', Gerência): uma página com TODAS as linhas (`uma: true`, a tela
+ *     não desenha botões), qualquer que seja a página pedida;
+ *   - outra visão ('sv', Supervisão): páginas de CONFIG.linhasPorPagina, como na etapa 4G.
+ * A linha de total (Total Band) continua fora da conta, como em `fatiar`.
+ */
+function paginaDoDetalhe(linhas, visao, pagina, cfg) {
+  cfg = cfg || CONFIG;
+  const todas = Array.isArray(linhas) ? linhas : [];
+  const semPaginacao = (cfg.detalheSemPaginacao || []).indexOf(visao) >= 0;
+  return semPaginacao ? fatiar(todas, 1, Math.max(1, todas.length)) : fatiar(todas, pagina, cfg.linhasPorPagina);
+}
+
+/**
  * Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional.
  * A visão de gerência usa as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o Detalhe do mês continua
  * com as 16 (premissa (d) da seção 4 das regras v1.6).
@@ -919,10 +939,10 @@ function linhasDoDetalhe(dados, visao, gc) {
  *   - 'erro': nada é calculado (API fora, dados simulados, produtos do Campari não publicados);
  *   - 'aviso': pendência aberta ou dado faltando que muda o resultado (cobertura de um mês do gatilho, mês de
  *     volume indisponível, SV fora do ranking, premissas a confirmar da meta dia de volume, do quadradinho do
- *     Aperitivo e do status com os dois pilares);
+ *     Aperitivo, do status com os dois pilares e do texto do gatilho no cabeçalho do bloco Aperitivo);
  *   - 'nota': informação (mês em prévia, mês que ainda não começou, cobertura de outubro, que nunca conta).
- * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24) não aparecem: só o que continua em aberto nas regras v1.8
- * (10, 22, 25 e 26).
+ * As pendências RESOLVIDAS (9, 11, 12, 14, 16 a 21, 24 e 27) não aparecem: só o que continua em aberto nas regras
+ * v1.9 (10, 22, 25, 26 e 28). A 23 (arte do fundo) não muda número nenhum e fica fora da tela.
  * O aviso das supervisões fora do ranking fica SÓ aqui desde a v1.6: ele saiu da tela da Supervisão.
  */
 function alertasDaTela(dados, cfg, motor) {
@@ -962,13 +982,13 @@ function alertasDaTela(dados, cfg, motor) {
     }
   }
   add('aviso', 'Meta dia de volume: premissa a confirmar',
-      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.8, seção 7).');
+      'A exibição compara só o Real (até ontem) com a Meta, sem o Online do dia (regras v1.9, seção 7).');
   // ⚠️ pendência 25 das regras v1.8: a tela sinaliza, não decide. O limite do quadradinho do mês vigente é o da
   // trava nos meses travados; no mês sem trava ele vem de REGRAS.corAperitivoSemTrava, e é esse que a Karen
   // ainda confirma. O número sai do motor, nunca escrito aqui.
   add('aviso', 'Quadradinho do % de Aperitivo: premissa a confirmar',
       'No mês sem trava o verde começa em ' + fmtPct(motor.REGRAS.corAperitivoSemTrava) +
-      ' (regras v1.8, pendência 25). Nos meses travados o limite é o da trava.');
+      ' (regras v1.9, pendência 25). Nos meses travados o limite é o da trava.');
   // ⚠️ pendência 26 das regras v1.8 (status com os dois pilares): a tela sinaliza as premissas, não decide. Os
   // números (mínimo e meses do gatilho de volume) saem do motor, nunca escritos aqui.
   const gv = motor.REGRAS.gatilhoVolume;
@@ -977,7 +997,14 @@ function alertasDaTela(dados, cfg, motor) {
       gv.meses.map((m) => NOMES_MES[m]).join(' e ') + ', com a trava do mês) é parcial em ' + NOMES_MES[gv.meses[0]] +
       ' (só ' + NOMES_MES[gv.meses[0]] + '); meta de ' +
       'volume nula deixa o gatilho indisponível; e a tela não tem coluna própria para ele: o selo e a cor da posição ' +
-      'mostram o resultado (regras v1.8, pendência 26).');
+      'mostram o resultado (regras v1.9, pendência 26).');
+  // ⚠️ pendência 28 das regras v1.9 (aberta na etapa 4I): o texto do gatilho no cabeçalho do bloco Aperitivo
+  // fica como está até a Karen decidir entre tirá-lo ou criar uma coluna para o gatilho de volume. A tela sinaliza,
+  // não decide; os meses saem do motor.
+  add('aviso', 'Cabeçalho do bloco Aperitivo: pendência em aberto',
+      'O texto do gatilho no título do bloco Aperitivo fica como está até a decisão: a coluna "% Acum." ao lado é ' +
+      'a pontuação do ranking, e o gatilho de volume (média de ' + gv.meses.map((m) => NOMES_MES[m]).join(' e ') +
+      ') não tem coluna própria (regras v1.9, pendência 28).');
   const fora = (dados.fora || []).map((l) => l.codigo);
   if (fora.length) {
     add('aviso', fora.length + ' ' + (fora.length === 1 ? 'supervisão' : 'supervisões') + ' fora do ranking',
@@ -997,5 +1024,7 @@ if (typeof module === 'object' && module.exports) {
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
                      linhasDoDetalhe, alertasDaTela,
                      // Etapa 4G (navegação por páginas), também puras
-                     rotasDoConsultor, fatiar };
+                     rotasDoConsultor, fatiar,
+                     // Etapa 4I (Detalhe do mês: visão Gerência sem paginação), pura
+                     paginaDoDetalhe };
 }

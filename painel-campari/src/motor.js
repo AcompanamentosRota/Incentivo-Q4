@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.8 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.9 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -20,6 +20,8 @@
  * Etapa 4H: o gatilho de VOLUME de Aperitivo (`gatilhoVolume`) e o gatilho dos DOIS PILARES (`gatilhoPilares`), regras
  * v1.8, seções 2, 5 e 7 (decisão da Karen de 09/11/2026, noite): "Bateu!" e a coluna "Oficial" passam a exigir o
  * gatilho de Skyy E o de volume. O ranking (% Acum., ordem e Pos.) não muda.
+ * Etapa 4I (regras v1.9, seção 7): só a versão muda aqui. A v1.9 tira a paginação da visão Gerência do Detalhe do
+ * mês, que é apresentação (adaptador e tela); nenhuma regra de cálculo muda.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -30,7 +32,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.8',
+    versao: '1.9',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },

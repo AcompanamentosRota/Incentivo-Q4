@@ -6,10 +6,10 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.8, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
+Regras: [`docs/regras.md`](docs/regras.md) (v1.9, 09/11/2026). Itens ⚠️ são interpretações a confirmar: o painel
 sinaliza, não decide.
 
-## Estado: etapa 4H — status "Bateu!" com os dois pilares (v1.8)
+## Estado: etapa 4I — Detalhe do mês sem paginação na visão Gerência (v1.9)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -37,9 +37,12 @@ sinaliza, não decide.
   página** na Supervisão (uma paginação por canal), no Consultor — que passa a abrir com **todas as rotas** — e no
   Detalhe do mês, com a linha de total fixa no rodapé de todas as páginas e **sem rolagem** dentro da tabela. A conta
   é uma função pura do adaptador (`fatiar`), com o tamanho em `CONFIG.linhasPorPagina`. **Nenhum número muda.**
-- **Etapa 4H (esta):** o **status "Bateu!" e a coluna Oficial exigem os dois pilares** (regras v1.8, seções 2.2, 5 e
+- **Etapa 4H:** o **status "Bateu!" e a coluna Oficial exigem os dois pilares** (regras v1.8, seções 2.2, 5 e
   7), descrito no fim deste arquivo: o novo **gatilho de volume de Aperitivo** (`gatilhoVolume`) e o gatilho dos dois
   pilares (`gatilhoPilares`), no motor. **O ranking não muda** (% Acum., ordem e Pos.); mudam só Oficial e status.
+- **Etapa 4I (esta):** a visão **Gerência** do Detalhe do mês **deixa de ser paginada** (regras v1.9, seção 7;
+  pendência 27): as 16 gerências e o Total Band numa tela só, sem botões. A paginação fica na Supervisão, no
+  Consultor e na visão Supervisão do Detalhe. Descrita no fim deste arquivo. **Nenhum número muda.**
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -60,8 +63,8 @@ sinaliza, não decide.
 | **Ranking GC** | as **12 linhas da gerência comercial agrupada** (etapa 4C) na ordem do % Acum. de Aperitivo, com os dois blocos, o seletor de mês e o **Total Band** como última linha (sem % Acum. e sem status: a empresa não tem apuração própria). A coluna Gerência mostra o código da linha; quem agrupa é `CONFIG.gruposGC` |
 | **Supervisão** | uma tela só, aberta em Mista, com os botões `Mista | Segmentada` (`aria-pressed`), filtro de gerência e o mesmo seletor de mês. As supervisões **fora do ranking** (sem canal ou com empate) saíram desta tela na etapa 4B: o aviso está em Regras > Dados e alertas |
 | **Consultor** | filtros Gerência e Supervisão (que **abre em "Todas"** desde a etapa 4G), o aviso de que ranking e premiação são do supervisor para cima, e as rotas em dois grupos (Volume de Aperitivo · Cobertura de Skyy), paginadas de 15 em 15, com a linha de total fixa no rodapé — "Total Band" em "Todas", "Total da gerência XX" com uma gerência escolhida e "Total da mesa SV.XX.N" com um SV |
-| **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês, a mesma tabela de dois grupos, paginada, e a linha "Total Band" |
-| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**; desde a 4H, **26**) aparecem |
+| **Detalhe do mês** | filtros Visão (Gerência \| Supervisão) e Mês e a mesma tabela de dois grupos. Visão **Gerência**: todas as gerências da API e a linha "Total Band" numa tela só, **sem paginação** (etapa 4I); visão **Supervisão** (com filtro de gerência): paginada de 15 em 15, sem linha de total |
+| **Regras** | três colunas — Como funciona, Status e (Medidas + Dados e alertas). Os alertas saem de `alertasDaTela`, com o estado **real** dos dados; as pendências resolvidas (9, 11, 12, 14, 16 a 21, 24 e 27) não aparecem, e as abertas (10, 22 e, desde a etapa 4F, **25**; desde a 4H, **26**; desde a 4I, **28**) aparecem |
 
 ### Motor (`src/motor.js`, toda regra de cálculo)
 
@@ -162,6 +165,7 @@ Formatar e recortar não é calcular: o % já vem bruto do motor e estas funçõ
 | `rotasDaMesa(dados, sv)` / `textoDasOcultas(ocultas)` | as rotas `normal` da mesa, o que ficou fora (contado por tipo) e a linha do SV que vira "Total da mesa" |
 | `rotasDoConsultor(dados, {sv, gc})` | **(4G)** o recorte da aba Consultor nas três situações do filtro — uma mesa, uma gerência inteira ou todas as rotas — com o rótulo do total ("Total da mesa SV.XX.N", "Total da gerência XX" ou "Total Band"). O total é sempre uma linha que a **API publica**: nada é somado aqui |
 | `fatiar(linhas, pagina, tamanho)` | **(4G)** uma página de linhas: `{ linhas, pagina, paginas, total, tamanho, inicio, fim, uma }`. Página fora do intervalo fica travada no intervalo; lista vazia dá uma página sem linhas; tamanho padrão `CONFIG.linhasPorPagina` (15). A linha de total fica **fora** desta conta |
+| `paginaDoDetalhe(linhas, visao, pagina)` | **(4I)** a página da aba Detalhe do mês, no formato de `fatiar`: visão em `CONFIG.detalheSemPaginacao` (`['gc']`) → uma página com **todas** as linhas (`uma: true`, sem botões); outra visão → páginas de `CONFIG.linhasPorPagina`. Não tem conta própria: só escolhe o tamanho e chama `fatiar` |
 | `linhasDoDetalhe(dados, visao, gc)` | as linhas da aba Detalhe do mês; a visão de gerência usa `gcApi` (as 16 da API) |
 | `alertasDaTela(dados)` | `[{tipo: 'erro' \| 'aviso' \| 'nota', titulo, texto}]` com o estado real dos dados |
 
@@ -201,7 +205,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 220 testes (76 do motor, 144 do adaptador); precisa de Node 18+
+# testes do painel — 227 testes (76 do motor, 151 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -404,3 +408,23 @@ eram 2: SV.IT.2 e SV.AT.2, só com o Skyy).
 nulo (meta nula ou ≤ 0) deixa o gatilho indisponível; (c) a tela não ganha coluna nova para o gatilho de volume; (d) o
 texto dos motivos novos — inclusive o de dois pilares indisponíveis ao mesmo tempo, que o painel une com " e "
 ("cobertura indisponível e volume indisponível").
+
+## Etapa 4I — Detalhe do mês sem paginação na visão Gerência (regras v1.9, seção 7)
+
+Decisão da Karen em 09/11/2026 (fim da noite; pendência 27, resolvida): a 4G paginou também o Detalhe do mês, e na
+visão Gerência a página 2 ficava com uma linha só. **Só apresentação: nenhum número muda** — as linhas do Detalhe, célula
+a célula, saíram idênticas às da 4H na mesma cópia de `api/v1` (foto de 09/11/2026 18:45), nas duas visões.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | Visão **Gerência** do Detalhe do mês: todas as linhas e o Total Band numa tela só, **sem botões** | `CONFIG.detalheSemPaginacao: ['gc']` e `paginaDoDetalhe` no adaptador, que chama `fatiar` com o tamanho igual ao total de linhas |
+| 2 | Visão **Supervisão** do Detalhe: continua em páginas de `CONFIG.linhasPorPagina` (uma paginação por visão; trocar a visão volta à página 1) | `paginaDoDetalhe` → `fatiar`; `chavePag()` (`det:gc`, `det:sv`) e `voltarPagina1()`, sem mudança |
+| 3 | A tela passa a página pronta para `tabelaGrupos` (parâmetro opcional `fatia`); sem ele, o Consultor segue com a página da tela, como na 4G | `app.tpl.html` |
+| 4 | **Dados e alertas:** aviso da ⚠️ pendência 28 (texto "GATILHO ≥ …" no título do bloco Aperitivo, em aberto); o texto em si **não** mudou | `alertasDaTela` |
+| 5 | `REGRAS.versao = '1.9'` (só a versão: nenhuma regra de cálculo muda no motor) | `motor.js` |
+
+**Linhas e páginas na foto de 09/11/2026 18:45:** Detalhe Gerência 16 + Total Band (1 página, sem botões) · Detalhe
+Supervisão em "Todas" 63 (5 páginas) e com uma gerência 2 a 5 (1 página) · Supervisão Mista 29 (2) · Supervisão
+Segmentada 6 (1) · Consultor 218 rotas (15) · Ranking GC 12 + Total Band (1, sem botões). Cabe sem rolagem em
+~1920×940 e em 1366×768.
+

@@ -28,7 +28,11 @@
    Ranking GC (12 linhas) cabe numa página só, então continua sem botões. Nenhum número muda.
    Etapa 4H (regras v1.8, seções 2, 5 e 7; decisão da Karen de 09/11/2026, noite): o "Bateu!", a coluna Oficial e a
    posição em cinza passam a seguir os DOIS pilares (Skyy e volume de Aperitivo), decididos pelo motor
-   (l.gatilhoPilares, l.oficial, l.status). Sem coluna nova (pendência 26); só os textos e as contagens mudam. */
+   (l.gatilhoPilares, l.oficial, l.status). Sem coluna nova (pendência 26); só os textos e as contagens mudam.
+   Etapa 4I (decisão da Karen de 09/11/2026, pendência 27): a visão GERÊNCIA do Detalhe do mês deixa de ser
+   paginada — todas as linhas e o Total Band numa tela só, sem botões. A visão Supervisão do Detalhe, a Supervisão
+   e o Consultor continuam em páginas. A escolha é do adaptador (paginaDoDetalhe, que chama fatiar). Nenhum número
+   muda. */
 :root{
   --red:#E4002B; --gold:#FFC84A; --turq:#2EC4B6; --turq2:#7FE7DC;
   /* Etapa 4B — valores copiados do Desafio Q4 (painel-q4/src/app.tpl.html), que o Campari não importa:
@@ -421,7 +425,9 @@ function tabelaRanking(linhas, rotuloId, comTotal){
 /* Etapa 4F (item 6): os dois blocos usam as MESMAS cores e os mesmos quadradinhos das tabelas de ranking, pelas
    classes e variáveis que já existem (nenhum CSS novo). O pedido da Karen fala do Detalhe do mês; o Consultor é
    esta mesma tabela, com estes mesmos dois blocos, então recebe o mesmo tratamento. */
-function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal){
+/* `fatia` (etapa 4I): a página já escolhida pelo adaptador (Detalhe do mês, `paginaDoDetalhe`); sem ela, a
+   página da tela (Consultor), como na etapa 4G. */
+function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal, fatia){
   const COLS = ['Meta','Real','Meta dia','Hoje','Dif.','%'];
   const cabHd = (classe)=>COLS.map((c,i)=>'<th class="'+classe+(i===0?' sep':'')+'">'+c+'</th>').join('');
   const cabeca = '<colgroup><col></colgroup>'+
@@ -438,7 +444,7 @@ function tabelaGrupos(linhas, rotuloId, mes, totalLinha, rotuloTotal){
       '<td class="sep">'+cob(sk.meta)+'</td><td>'+cob(sk.real)+'</td>'+mdiaCel(sk, fmtCobertura)+hojeCel(sk, fmtCobertura)+difCel(sk.dif, fmtCobertura)+pctGrupoCel(sk.pct, M.corDoPercentual(sk.pct))+
       '</tr>';
   };
-  const p = fatiaDaTela(linhas);
+  const p = fatia || fatiaDaTela(linhas);
   return '<div class="rolar"><table class="tb g2">'+cabeca+'<tbody>'+p.linhas.map((l)=>corpo(l,false)).join('')+
     (totalLinha?corpo(totalLinha,true):'')+'</tbody></table></div>'+navPaginas(p);
 }
@@ -530,7 +536,8 @@ function viewDet(){
   const rot = st.detVisao==='sv'?'Supervisão':'Gerência';
   return '<div class="panel"><div class="ph"><h2>'+esc(rotuloMesSel(st.detMes))+' por '+esc(rot.toLowerCase())+'</h2>'+
     '<div class="nota">'+linhas.length+' linhas · "Hoje" em turquesa: atingiu a meta dia · diferença negativa em vermelho</div></div>'+
-    (linhas.length?tabelaGrupos(linhas,rot,st.detMes,st.detVisao==='gc'?D.totalBand:null,'Total Band')
+    (linhas.length?tabelaGrupos(linhas,rot,st.detMes,st.detVisao==='gc'?D.totalBand:null,'Total Band',
+                                paginaDoDetalhe(linhas, st.detVisao, st.pag[chavePag()]||1))
       :'<div class="vazio">Nenhuma linha neste filtro.</div>')+
     '</div>';
 }

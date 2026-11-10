@@ -17,7 +17,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e gatilho de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.8 (09/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.9 (09/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -28,7 +28,9 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   "Total Band" e as cores do ranking também no Consultor e no Detalhe do mês. A **Etapa 4G** (regras v1.7, seção 7)
   trocou a rolagem por **navegação por páginas** (15 linhas) na Supervisão, no Consultor e no Detalhe do mês, e abriu
   o Consultor com todas as rotas. A **Etapa 4H** (regras v1.8, seções 2, 5 e 7) fez o "Bateu!" e a coluna Oficial
-  exigirem os **dois pilares** (gatilho de Skyy **e** gatilho de volume de Aperitivo); o ranking não mudou. A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
+  exigirem os **dois pilares** (gatilho de Skyy **e** gatilho de volume de Aperitivo); o ranking não mudou. A **Etapa 4I**
+  (regras v1.9, seção 7) tirou a paginação da visão **Gerência** do Detalhe do mês (16 linhas e o Total Band numa tela
+  só); a paginação fica na Supervisão, no Consultor e na visão Supervisão do Detalhe. A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
   Q4, rode o script e o build do Campari.
@@ -74,7 +76,7 @@ rotas com Real.
 # testes do painel — 158 testes (42 do motor, 116 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 220 testes (76 do motor, 144 do adaptador)
+# testes do painel Campari Club — 227 testes (76 do motor, 151 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 123 testes, sem rede (Datasphere falso e simulado)
@@ -200,7 +202,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.8 de 09/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.9 de 09/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, posição oficial, status e meta dia de
   cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -264,7 +266,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   horizontal**, com corpo de 14 px,
   cabeçalho de 13 px e linhas de 3 px de respiro (`.tb.rk`, etapa 4B) — nenhum texto abaixo de 13 px no palco. Com
   isso as 12 linhas agrupadas e o Total Band cabem no Ranking GC **sem rolagem** em ~1920×940 e em 1366×768; desde a
-  etapa 4G as listas longas (Supervisão, Consultor e Detalhe do mês) são paginadas de 15 em 15, e **nenhuma aba rola**. O seletor "Mês de referência" vale no Ranking GC **e** na
+  etapa 4G as listas longas (Supervisão, Consultor e a visão Supervisão do Detalhe) são paginadas de 15 em 15, a visão
+  Gerência do Detalhe cabe inteira (etapa 4I), e **nenhuma aba rola**. O seletor "Mês de referência" vale no Ranking GC **e** na
   Supervisão, troca só Meta, Real, Dif e o % do mês, e mês sem dado fica desabilitado (`mesesDoSeletor`). O **mês
   vigente** é outra coisa: é o mês de referência da API (`mesesDoSeletor(...).referencia`), e é ele — nunca a escolha
   do seletor — que decide as colunas que só existem em dezembro e em qual coluna fica o quadradinho do Aperitivo.
@@ -315,14 +318,20 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   outros meses não têm quadradinho. O Consultor e o Detalhe do mês passam a usar as mesmas cores e os mesmos
   quadradinhos das tabelas de ranking, pelas classes que já existiam (nenhum CSS novo).
 - **Navegação por páginas (etapa 4G, v1.7, seção 7; decisão de 09/11/2026):** só apresentação — **15 linhas por
-  página** (`CONFIG.linhasPorPagina`) na Supervisão (uma paginação por canal), no Consultor e no Detalhe do mês, com
+  página** (`CONFIG.linhasPorPagina`) na Supervisão (uma paginação por canal), no Consultor e na visão Supervisão do
+  Detalhe, com
   os botões `‹ 1 2 ›` no rodapé da tabela (atual em vermelho, setas desabilitadas nos extremos, nenhum botão quando
   cabe numa página só) e **sem rolagem** dentro de nenhuma aba. A conta é a função pura `fatiar` do adaptador; a
   linha de total fica **fora** da contagem e se repete em todas as páginas. O **Consultor abre em "Todas"**
   (`rotasDoConsultor`, que também dá o rótulo do total: Total Band, da gerência ou da mesa). Trocar aba, canal, mês
   ou filtro volta à página 1; a página não é lembrada ao recarregar. O Ranking GC (12 linhas) cabe numa página e
-  continua sem botões; o **Detalhe do mês foi paginado também** — ⚠️ premissa a confirmar, porque a v1.7 cita só
-  Supervisão e Consultor.
+  continua sem botões. **Detalhe do mês (etapa 4I, v1.9, seção 7; pendência 27 resolvida em 09/11/2026):** a visão
+  **Gerência não é paginada** — 16 linhas e o Total Band numa tela só, sem botões — e a visão Supervisão continua em
+  páginas de 15 (uma paginação por visão: `det:gc` e `det:sv`; trocar a visão volta à página 1). Quem escolhe é a
+  função pura `paginaDoDetalhe` do adaptador, que só decide o tamanho e chama `fatiar`; as visões sem paginação ficam
+  em `CONFIG.detalheSemPaginacao` (`['gc']`), nunca na tela. A visão Supervisão do Detalhe **não** tem linha de total
+  (como desde a 4G). ⚠️ Pendência 28 (texto "GATILHO ≥ …" no título do bloco Aperitivo, em aberto com a Karen):
+  o texto fica como está e o aviso aparece em Regras > Dados e alertas.
 - **Desempate** (confronto nenhum aqui, só ranking): ordem alfabética do código em minúsculas, texto simples
   (`sv.g2.10` antes de `sv.g2.2`).
 - **Privacidade na tela e no PR:** só códigos de rota, SV e gerência; nunca nome de vendedor, supervisor ou cliente.
@@ -450,7 +459,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 158 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 220 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 227 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 123 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
