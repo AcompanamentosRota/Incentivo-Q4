@@ -33,6 +33,14 @@ const CONFIG = {
   // visão Gerência mostra todas as linhas e o Total Band numa tela só; a visão Supervisão continua em páginas de
   // `linhasPorPagina`. Quem decide é `paginaDoDetalhe`, que só escolhe o tamanho e chama `fatiar`.
   detalheSemPaginacao: ['gc'],
+  // Palco da tela (etapa 4M; regras v1.13, seção 7). Fica em configuração, nunca solto no fit() da tela: a
+  // largura do palco é fixa (1920, a mesma do CSS) e a ALTURA-BASE é a altura lógica mínima que a escala
+  // garante, para nenhuma aba rolar por dentro em janela mais baixa que 16:9 (o notebook de 10/11/2026).
+  // A medição de 10/11/2026 (escala 1, dados da API publicada) deu, por aba: Ranking GC 797, Supervisão Mista
+  // pág. 1 905, Consultor 925 (o maior), Detalhe · Gerência 862 e Detalhe · Supervisão 844. 930 cobre o maior
+  // com folga e ainda deixa a escala inteira na janela maximizada (1920×940), que é o limite de cima: acima de
+  // 940 a janela maximizada começaria a encolher.
+  palco: { largura: 1920, alturaBase: 930 },
 };
 
 /*
@@ -925,6 +933,26 @@ function paginaDoDetalhe(linhas, visao, pagina, cfg) {
 }
 
 /**
+ * Escala do palco (etapa 4M; regras v1.13, seção 7) -> { escala, largura, altura } em px LÓGICOS, os que o
+ * #stage recebe. Função PURA, e a única conta do `fit()` da tela: ela só aplica o resultado, sem número solto.
+ *   - escala = a MENOR entre largura ÷ CONFIG.palco.largura e altura ÷ CONFIG.palco.alturaBase;
+ *   - a altura-base garante uma altura lógica mínima (`altura` nunca fica abaixo dela), que é o que impede a
+ *     rolagem por dentro das abas em janela mais baixa que 16:9 — o notebook de 10/11/2026, onde a altura-base
+ *     de 720 deixava a Supervisão rolando ~1 cm;
+ *   - em janela com altura folgada manda a largura, então a escala é a MESMA de antes da etapa 4M
+ *     (1920×1080, 1920×940, 1366×768 e 1280×720 não mudam);
+ *   - janela sem medida (0, negativa, não numérica): escala 1 no palco inteiro, nunca divisão por zero.
+ */
+function escalaDoPalco(largura, altura, cfg) {
+  const p = (cfg || CONFIG).palco;
+  const l = numeroOk(largura) && largura > 0 ? largura : 0;
+  const a = numeroOk(altura) && altura > 0 ? altura : 0;
+  const escala = Math.min(l / p.largura, a / p.alturaBase);
+  if (!(escala > 0) || !Number.isFinite(escala)) return { escala: 1, largura: p.largura, altura: p.alturaBase };
+  return { escala, largura: l / escala, altura: a / escala };
+}
+
+/**
  * Linhas da aba Detalhe do mês: visão 'gc' (gerências) ou 'sv' (supervisões), com filtro de gerência opcional.
  * A visão de gerência usa as da API (`gcApi`), não as linhas agrupadas do Ranking GC: o Detalhe do mês continua
  * com as 16 (premissa (d) da seção 4 das regras v1.6).
@@ -1007,5 +1035,7 @@ if (typeof module === 'object' && module.exports) {
                      // Etapa 4G (navegação por páginas), também puras
                      rotasDoConsultor, fatiar,
                      // Etapa 4I (Detalhe do mês: visão Gerência sem paginação), pura
-                     paginaDoDetalhe };
+                     paginaDoDetalhe,
+                     // Etapa 4M (escala do palco: nenhuma aba rola por dentro), pura
+                     escalaDoPalco };
 }

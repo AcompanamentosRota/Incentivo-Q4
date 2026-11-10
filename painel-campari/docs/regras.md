@@ -1,7 +1,13 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.12 (10/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.13 (10/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.13 (10/11/2026, fim da manhã):** **nenhuma aba pode rolar por dentro em notebook** (seção 7). A tela se ajusta à janela pela largura e pela altura (`fit()`, escala = menor entre
+largura ÷ 1920 e altura ÷ altura-base); a altura-base de 720 deixava a Supervisão (página 1, 15 linhas + Total Band) rolando ~1 cm em janelas mais baixas que ~16:9 (ex.: 1366×~600
+de área útil, já descontada a barra do navegador). A altura-base passa a ser **930**: a medição no repositório em 10/11/2026 (escala 1, dados da API publicada) mostrou que a aba
+Consultor pede **925** de altura lógica — e não 908, como se estimou ao abrir a etapa —, então 920 ainda deixaria 5 px de rolagem; 930 cobre o maior conteúdo com folga e ainda é
+o máximo útil, porque acima de 940 a janela maximizada (1920×940) começaria a encolher. Em telas 1920×1080 nada muda. Só tela; nenhum número muda.
 
 **v1.12 (10/11/2026, manhã):** **as pendências não aparecem mais no painel.** A aba Regras > Dados e alertas deixa de listar as premissas a confirmar (pendências 22 e 26b);
 elas ficam **só nesta seção 10 e no checklist**. A tela mantém apenas alertas de dado (API indisponível, dados simulados, mês sem fonte, mês em prévia, supervisão fora do
@@ -232,6 +238,8 @@ posição e o status:
   bruto, nunca o truncado (129,99999 é vermelho; 130 é verde).
 - **Fonte do Aperitivo (decisão de 09/11/2026, 16h25):** os números do bloco Aperitivo (Out, Nov, Dez, % Acum.) têm o mesmo tamanho, peso e fonte
   dos números do bloco Skyy; hoje são maiores e em fonte condensada.
+- **Sem rolagem interna (decisão de 10/11/2026):** em nenhuma aba (Ranking GC, Supervisão, Consultor, Detalhe do mês) e em nenhuma página a tabela pode rolar por dentro, em janelas a partir de 1280×560 de área útil; a escala do `fit()` usa altura-base **930** para garantir isso.
+  A lista "Dados e alertas" da aba Regras é a exceção conhecida: ela é uma lista de tamanho variável e continua podendo rolar por dentro, como antes.
 - **Paginação (decisão de 09/11/2026):** Supervisão, Consultor e a visão **Supervisão** do Detalhe do mês mostram **15 linhas por página**, com botões de
   navegação (‹ 1 2 ›) no lugar da rolagem. **A visão Gerência do Detalhe do mês não é paginada** (decisão de 09/11/2026, fim da noite): 16 linhas e o Total Band
   numa tela só; o **Total Band** fica fixo no rodapé de todas as páginas. **Consultor abre com todas as rotas** (filtro de SV em "Todas").
@@ -287,6 +295,7 @@ previsão 12/11/2026.
 | 26 | Status com os dois pilares: premissas | (a), (c) e (d) confirmadas em 10/11/2026. (a) no mínimo de volume não há parcial: vale o mês vigente. **Em aberto só a (b)**: % de volume nulo (meta nula ou ≤ 0) deixa o mínimo indisponível | Karen |
 | 25 | Centralização total e limite de 100% em dezembro para o quadradinho do Aperitivo | **Resolvida** (confirmada em 10/11/2026) | — |
 | 24 | Ranking GC pela gerência comercial agrupada do SAC | **Resolvida** (print do SAC, 12 linhas, seção 4; premissas confirmadas em 10/11/2026) | — |
+| 30 | Altura-base do `fit()` em **930** e não em 920 (a medição de 10/11/2026 deu 925 de altura lógica para a aba Consultor; 930 é o maior valor útil, porque acima de 940 a janela maximizada encolhe) | Em aberto: confirmar o número com a Karen. Vale só para a escala da tela; nenhum número do incentivo muda | Karen |
 
 ## 11. Intencionalmente fora deste arquivo
 

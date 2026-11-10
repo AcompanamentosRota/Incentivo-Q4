@@ -13,10 +13,11 @@ const M = require('../src/motor.js');
 // mostrar só a posição oficial, 10/11/2026): também só a versão muda aqui, e `numerarRanking` e `pos` continuam.
 // A 4K sobe para a v1.11 (10/11/2026): o volume de Aperitivo passa a ter MÍNIMO no mês vigente, no lugar do
 // gatilho por média da 4H. A 4L sobe para a v1.12 (10/11/2026): as premissas a confirmar saem da aba Regras, que
-// é tela (adaptador) — no motor só a versão muda, e as duas regras citadas por elas seguem iguais.
-test('motor carrega no Node e exporta versaoRegras 1.12', () => {
-  assert.equal(M.versaoRegras, '1.12');
-  assert.equal(M.REGRAS.versao, '1.12');
+// é tela (adaptador) — no motor só a versão muda, e as duas regras citadas por elas seguem iguais. A 4M sobe
+// para a v1.13 (10/11/2026): a altura-base do fit() é escala de tela (adaptador), e aqui só a versão muda.
+test('motor carrega no Node e exporta versaoRegras 1.13', () => {
+  assert.equal(M.versaoRegras, '1.13');
+  assert.equal(M.REGRAS.versao, '1.13');
 });
 
 // A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
@@ -39,7 +40,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.12');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.13');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
