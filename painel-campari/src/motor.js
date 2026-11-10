@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.10 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.11 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -17,14 +17,20 @@
  * decisão da Karen de 09/11/2026). Exibição outra vez, e regra outra vez — e é regra DIFERENTE da do % de
  * cobertura: o verde começa no limite da TRAVA do mês e, no mês sem trava, em `REGRAS.corAperitivoSemTrava`,
  * nunca no mínimo do gatilho, que é de cobertura.
- * Etapa 4H: o gatilho de VOLUME de Aperitivo (`gatilhoVolume`) e o gatilho dos DOIS PILARES (`gatilhoPilares`), regras
- * v1.8, seções 2, 5 e 7 (decisão da Karen de 09/11/2026, noite): "Bateu!" e a coluna "Oficial" passam a exigir o
- * gatilho de Skyy E o de volume. O ranking (% Acum., ordem e Pos.) não muda.
+ * Etapa 4H: o segundo pilar de volume de Aperitivo e o gatilho dos DOIS PILARES (`gatilhoPilares`), regras
+ * v1.8, seções 2, 5 e 7 (decisão da Karen de 09/11/2026, noite): "Bateu!" e a coluna da posição oficial passam a
+ * exigir o gatilho de Skyy E o volume. O ranking (% Acum., ordem e Pos.) não muda.
  * Etapa 4I (regras v1.9, seção 7): só a versão muda aqui. A v1.9 tira a paginação da visão Gerência do Detalhe do
  * mês, que é apresentação (adaptador e tela); nenhuma regra de cálculo muda.
  * Etapa 4J (regras v1.10, seções 5 e 7): só a versão muda aqui outra vez. A v1.10 tira a coluna "Pos." das duas
  * tabelas de ranking, que é apresentação (tela): `numerarRanking` continua dando `pos` a todas as linhas — é ela
  * que ordena o ranking e entra no motivo do status —, e `numerarOficial` continua dando a coluna exibida.
+ * Etapa 4K (regras v1.11, seções 2.2, 3 e 5; decisão da Karen de 10/11/2026): o volume de Aperitivo deixa de ter
+ * GATILHO por média e passa a ter um MÍNIMO (`minimoVolume`, no lugar do `gatilhoVolume` da 4H): o % do MÊS
+ * VIGENTE (o mês de referência da API) tem de chegar a `REGRAS.minimoVolume.minimo`, sem média e sem soma. A soma
+ * dos % (out + nov + dez) continua sendo SÓ a pontuação do ranking. O gatilho de cobertura de Skyy não muda, nem a
+ * ordem, o desempate, a soma e as posições premiadas: muda só a conta do segundo pilar — e, com ela, quem recebe
+ * número na coluna RANK e quem tem "Bateu!".
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -35,7 +41,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.10',
+    versao: '1.11',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -47,10 +53,11 @@
     // Gatilho de cobertura de Skyy (regras, seção 2): média simples dos % de novembro e dezembro, mínimo 100%.
     // Outubro nunca entra. Em novembro o gatilho é parcial (só novembro).
     gatilho: { meses: [11, 12], minimo: 100 },
-    // Gatilho de volume de Aperitivo (regras v1.8, seção 2.2): média simples dos % de novembro e dezembro — os
-    // MESMOS % do ranking, já com a trava do mês (130% em novembro; dezembro sem trava) —, mínimo 100% no valor
-    // bruto. Outubro nunca entra (só pontua o ranking). Em novembro o gatilho é parcial (só novembro).
-    gatilhoVolume: { meses: [11, 12], minimo: 100 },
+    // Mínimo de volume de Aperitivo (regras v1.11, seção 2.2; decisão da Karen de 10/11/2026, que substitui o
+    // gatilho por média da v1.8): o % do MÊS VIGENTE — o mesmo % do ranking, já com a trava do mês — tem de chegar
+    // a 100% no valor bruto. Não há meses nesta conta: não é média nem soma, é o mês vigente e só ele, por isso
+    // a chave não tem `meses` (a soma dos % continua sendo a pontuação do ranking, seção 3).
+    minimoVolume: { minimo: 100 },
     // Posições premiadas de cada nível (regras, seção 5), usadas SÓ para decidir o "Bateu!": o painel não mostra
     // prêmio nenhum. Padrão do motor, como o gatilhoPontos do Desafio Q4: a regra em vigor não depende de arquivo
     // que pode faltar ou ficar ilegível. `statusLinha(linha, nivel, cfg)` aceita outro cfg para mudança futura.
@@ -63,7 +70,7 @@
     premiadas: 'dentro das premiadas',
     indisponivel: 'cobertura indisponível',
     semMeta: 'sem meta de cobertura',
-    // regras v1.8 (gatilho de volume de Aperitivo); os textos de "volume em X%" saem de `motivoDosPilares`
+    // regras v1.11 (mínimo de volume de Aperitivo); os textos de "volume em X%" saem de `gatilhoPilares`
     volumeIndisponivel: 'volume indisponível',
     semMetaVolume: 'sem meta de volume',
   };
@@ -241,65 +248,61 @@
   }
 
   /**
-   * Gatilho de VOLUME de Aperitivo (regras v1.8, seção 2.2; decisão da Karen de 09/11/2026, noite): média simples
-   * dos % mensais de Aperitivo dos meses de `REGRAS.gatilhoVolume.meses` (novembro e dezembro), mínimo
-   * `REGRAS.gatilhoVolume.minimo` (100), no valor BRUTO. Outubro nunca entra (só pontua o ranking).
+   * MÍNIMO de volume de Aperitivo (regras v1.11, seção 2.2; decisão da Karen de 10/11/2026, que substitui o
+   * gatilho por média da v1.8): o % de Aperitivo do MÊS VIGENTE tem de chegar a `REGRAS.minimoVolume.minimo`
+   * (100), comparado no valor BRUTO (99,99999% não bate; a tela trunca, a conta não arredonda).
    *
-   * O % de cada mês é o MESMO do ranking: `percentualMes` + `aplicarTrava` (130% em novembro; dezembro sem trava).
-   * Nada de conta nova: um novembro de 200% vale 130% aqui também.
+   * NÃO é média e NÃO é soma: entra um mês só, o vigente. A soma dos % de outubro, novembro e dezembro continua
+   * sendo a pontuação do RANKING (seção 3) e não tem nada a ver com este corte.
+   *
+   * O % do mês é o MESMO do ranking: `percentualMes` + `aplicarTrava` (130% em outubro e novembro; dezembro sem
+   * trava). A trava não muda o corte, porque o mínimo (100) é menor que ela — mas o % é o mesmo que a tela mostra.
    *
    * meses:  [{ mes, situacao: 'dado' | 'indisponivel' | 'futuro', meta, real, online }] — os mesmos meses que o
    *         adaptador entrega a `apurarMeses` para o ranking da linha.
-   * mesRef: o mês da vigência que está valendo (10, 11 ou 12); null quando nenhum já começou.
+   * mesRef: o MÊS VIGENTE, o mês de referência da API (10, 11 ou 12) — nunca o escolhido no seletor da tela;
+   *         null quando nenhum mês da vigência começou.
    *
-   * Devolve { valor, batido, parcial, indisponivel, motivo }, no molde de `gatilhoCobertura`:
-   *   - novembro: `parcial` true e valor = % travado de novembro;
-   *   - dezembro: valor = (nov + dez) ÷ 2, e SÓ se os dois tiverem %; faltando um, indisponível e valor null;
-   *   - `batido` = valor ≥ mínimo no valor BRUTO (99,99999% não bate; a tela trunca depois);
-   *   - indisponível -> motivo "volume indisponível" (mês sem fonte, real não numérico) ou "sem meta de volume"
-   *     (meta nula ou ≤ 0). Nunca assume valor (nem 0, nem 100).
+   * Devolve { valor, batido, indisponivel, motivo }, no molde de `gatilhoCobertura`, mas SEM `parcial`: sem média
+   * não existe "parcial" (premissa (a) da pendência 26, confirmada em 10/11/2026).
+   *   - `batido` = valor ≥ mínimo no valor BRUTO;
+   *   - indisponível -> motivo "volume indisponível" (sem mês vigente, mês sem fonte, real não numérico) ou
+   *     "sem meta de volume" (meta nula ou ≤ 0, ⚠️ pendência 26b). Nunca assume valor (nem 0, nem 100).
    */
-  function gatilhoVolume(meses, mesRef, regras) {
+  function minimoVolume(meses, mesRef, regras) {
     regras = regras || REGRAS;
-    const semValor = (motivo) => ({ valor: null, batido: false, parcial: false, indisponivel: true, motivo });
+    const semValor = (motivo) => ({ valor: null, batido: false, indisponivel: true, motivo });
     if (!numero(mesRef)) return semValor(MOTIVOS.volumeIndisponivel);
-    const doGatilho = regras.gatilhoVolume.meses.filter((m) => m <= mesRef);
-    if (!doGatilho.length) return semValor(MOTIVOS.volumeIndisponivel); // referência antes de novembro
-    const pcts = [];
-    for (const m of doGatilho) {
-      const d = (meses || []).find((x) => x && x.mes === m);
-      if (!d || d.situacao !== 'dado') return semValor(MOTIVOS.volumeIndisponivel);
-      const pct = percentualMes(d.real, d.online, d.meta);
-      if (pct === null) return semValor(numero(d.meta) && d.meta > 0 ? MOTIVOS.volumeIndisponivel : MOTIVOS.semMetaVolume);
-      pcts.push(aplicarTrava(pct, m, regras).valor);
-    }
-    const valor = pcts.reduce((a, b) => a + b, 0) / pcts.length;
-    return { valor, batido: valor >= regras.gatilhoVolume.minimo,
-             parcial: doGatilho.length < regras.gatilhoVolume.meses.length, indisponivel: false, motivo: null };
+    const d = (meses || []).find((x) => x && x.mes === mesRef);
+    if (!d || d.situacao !== 'dado') return semValor(MOTIVOS.volumeIndisponivel);
+    const pct = percentualMes(d.real, d.online, d.meta);
+    if (pct === null) return semValor(numero(d.meta) && d.meta > 0 ? MOTIVOS.volumeIndisponivel : MOTIVOS.semMetaVolume);
+    const valor = aplicarTrava(pct, mesRef, regras).valor;
+    return { valor, batido: valor >= regras.minimoVolume.minimo, indisponivel: false, motivo: null };
   }
 
-  /** Gatilho que falhou COM valor (não bateu e tem número): é o que gera "cobertura em X%" / "volume em X%". */
+  /** Pilar que falhou COM valor (não bateu e tem número): é o que gera "cobertura em X%" / "volume em X%". */
   const falhouComValor = (g) => !!g && !g.batido && !g.indisponivel && numero(g.valor);
-  /** Gatilho ausente (linha montada sem ele) conta como indisponível, nunca como batido. */
-  const ouIndisponivel = (g, motivo) => g || { valor: null, batido: false, parcial: false, indisponivel: true, motivo };
+  /** Pilar ausente (linha montada sem ele) conta como indisponível, nunca como batido. */
+  const ouIndisponivel = (g, motivo) => g || { valor: null, batido: false, indisponivel: true, motivo };
 
   /**
-   * Gatilho dos DOIS PILARES (regras v1.8, seções 2 e 5): junta o gatilho de cobertura de Skyy (`gatilhoCobertura`)
-   * e o de volume de Aperitivo (`gatilhoVolume`) -> { batido, indisponivel, motivo }.
+   * Os DOIS PILARES (regras v1.11, seções 2 e 5): junta o gatilho de cobertura de Skyy (`gatilhoCobertura`) e o
+   * mínimo de volume de Aperitivo (`minimoVolume`) -> { batido, indisponivel, motivo }.
    *   - batido: só se os DOIS estiverem batidos;
    *   - indisponivel: algum dos dois indisponível E nenhum falhou com valor (um % abaixo do mínimo já decide);
    *   - motivo (só no motor; a tela mostra só o selo): null quando bateu os dois; "cobertura em X%: precisa de
    *     100%", "volume em X%: precisa de 100%" ou "cobertura em X% e volume em Y%: precisam de 100%" quando falha
    *     com valor (X e Y truncados em 1 casa); senão o motivo de "indisponível" do pilar que faltou (os dois,
-   *     unidos por " e ", quando faltam os dois — premissa (d) da pendência 26).
-   * Gatilho ausente conta como indisponível ("cobertura indisponível" / "volume indisponível"), nunca como batido.
+   *     unidos por " e ", quando faltam os dois — premissa (d) da pendência 26, confirmada em 10/11/2026).
+   * Pilar ausente conta como indisponível ("cobertura indisponível" / "volume indisponível"), nunca como batido.
    */
-  function gatilhoPilares(gSkyy, gVolume, cfg) {
+  function gatilhoPilares(gSkyy, mVolume, cfg) {
     const regras = cfg || REGRAS;
-    const sk = ouIndisponivel(gSkyy, MOTIVOS.indisponivel), vo = ouIndisponivel(gVolume, MOTIVOS.volumeIndisponivel);
+    const sk = ouIndisponivel(gSkyy, MOTIVOS.indisponivel), vo = ouIndisponivel(mVolume, MOTIVOS.volumeIndisponivel);
     if (sk.batido && vo.batido) return { batido: true, indisponivel: false, motivo: null };
     const fSk = falhouComValor(sk), fVo = falhouComValor(vo);
-    const minSk = texto(regras.gatilho.minimo), minVo = texto(regras.gatilhoVolume.minimo);
+    const minSk = texto(regras.gatilho.minimo), minVo = texto(regras.minimoVolume.minimo);
     if (fSk && fVo) {
       const motivo = minSk === minVo
         ? `cobertura em ${pct1(sk.valor)}% e volume em ${pct1(vo.valor)}%: precisam de ${minSk}%`
@@ -315,23 +318,23 @@
   }
 
   /**
-   * Coluna "Oficial" (regras v1.8, seção 5): numera 1..k só quem bateu OS DOIS PILARES (gatilho de Skyy E gatilho
-   * de volume de Aperitivo, `gatilhoPilares`), na ordem recebida — que é a do ranking (`montarRanking`), já com a
-   * coluna "Pos." em todas as linhas. Quem bateu só um (ou nenhum) fica com `oficial` null — sem posição oficial e,
-   * portanto, sem "Bateu!" — e quem está atrás sobe. Lê `linha.gatilho` e `linha.gatilhoVolume`; gatilho ausente
-   * não bateu. Devolve cópias, sem alterar a entrada.
+   * Posição oficial, a coluna "RANK" da tela (regras v1.11, seção 5): numera 1..k só quem bateu OS DOIS PILARES
+   * (gatilho de Skyy E mínimo de volume de Aperitivo, `gatilhoPilares`), na ordem recebida — que é a do ranking
+   * (`montarRanking`), já com a posição `pos` em todas as linhas. Quem bateu só um (ou nenhum) fica com `oficial`
+   * null — sem posição oficial e, portanto, sem "Bateu!" — e quem está atrás sobe. Lê `linha.gatilho` e
+   * `linha.minimoVolume`; pilar ausente não bateu. Devolve cópias, sem alterar a entrada.
    */
   function numerarOficial(linhas, cfg) {
     let n = 0;
     return (linhas || []).map((l) => {
-      const bateu = !!l && gatilhoPilares(l.gatilho, l.gatilhoVolume, cfg).batido;
+      const bateu = !!l && gatilhoPilares(l.gatilho, l.minimoVolume, cfg).batido;
       return Object.assign({}, l, { oficial: bateu ? ++n : null });
     });
   }
 
   /**
-   * Status da linha (regras v1.8, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
-   * "Bateu!" só com OS DOIS PILARES batidos (gatilho de Skyy E gatilho de volume de Aperitivo, `gatilhoPilares`)
+   * Status da linha (regras v1.11, seção 5; decisão de 08/11/2026, no conceito do Desafio Q4) -> { status, motivo }.
+   * "Bateu!" só com OS DOIS PILARES batidos (gatilho de Skyy E mínimo de volume de Aperitivo, `gatilhoPilares`)
    * E a posição oficial dentro das posições premiadas do nível (`REGRAS.premiadas`, nunca número fixo em lógica
    * nem em texto). Qualquer outro caso: "-".
    * O `motivo` é "dentro das premiadas", o de `gatilhoPilares` ("cobertura em X%: precisa de 100%", "volume em X%:
@@ -348,7 +351,7 @@
     if (!Object.prototype.hasOwnProperty.call(regras.premiadas, nivel)) {
       throw new Error(`nível ${nivel} sem posições premiadas no Campari Club`);
     }
-    const p = gatilhoPilares(linha && linha.gatilho, linha && linha.gatilhoVolume, regras);
+    const p = gatilhoPilares(linha && linha.gatilho, linha && linha.minimoVolume, regras);
     if (!p.batido) return { status: '-', motivo: p.motivo };
     const oficial = linha ? linha.oficial : null;
     if (!numero(oficial)) return { status: '-', motivo: null }; // pilares batidos sem posição oficial (numerarOficial não rodou)
@@ -445,6 +448,6 @@
 
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
            somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
-           gatilhoCobertura, gatilhoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
+           gatilhoCobertura, minimoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            corDoPercentualAperitivo, hojeAtingiu };
 });

@@ -519,10 +519,12 @@ const montar3 = (mais) => A.montarDados(Object.assign({ index: indexDe('202611',
 // o % de cobertura de XA em novembro: (180 + 25) ÷ 200 = 102,5% no papel, 102,49999999999999 em ponto flutuante.
 // O motor não arredonda, então o teste compara com a própria conta (truncar é papel da tela).
 const XA_COB = (205 / 200) * 100;
-// 4H (regras v1.8): o "Bateu!" exige também o gatilho de VOLUME de Aperitivo. Nas fixtures acima o volume de
-// novembro fica abaixo de 100% (XA 52%, SV.XA.1 77,5%, SV.XB.1 90%), então elas servem ao caso "Skyy batido e volume
-// não". XA3V/XB3V são as mesmas gerências com o volume de novembro batido em XA (102%), SV.XA.1 (102,5%) e
-// SV.XB.1 (100% exatos), para os testes que precisam ver o "Bateu!".
+// 4H/4K (regras v1.11): o "Bateu!" exige também o MÍNIMO de volume de Aperitivo — o % do mês vigente em 100% ou
+// mais. Nas fixtures acima o volume de novembro (o mês vigente de montar3) fica abaixo de 100% (XA 52%,
+// SV.XA.1 77,5%, SV.XB.1 90%), então elas servem ao caso "Skyy batido e volume não". XA3V/XB3V são as mesmas
+// gerências com o volume de novembro batido em XA (102%), SV.XA.1 (102,5%) e SV.XB.1 (100% exatos), para os
+// testes que precisam ver o "Bateu!". Em novembro o número é o mesmo que a média parcial da 4H devolvia: o que
+// muda é a conta (um mês só, sempre o vigente), e ela aparece nos testes de dezembro abaixo.
 const comAperitivo = (ger, gc, svs) => {
   const g = JSON.parse(JSON.stringify(ger));
   if (gc) g.produtos.aperitivos = gc;
@@ -592,9 +594,10 @@ test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e de
   assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.indisponivel, xa.gatilho.motivo],
     [null, false, true, 'cobertura indisponível']);
   assert.equal(xa.oficial, null);
-  // 4H: o status agora junta os dois pilares (regras v1.8). O volume de XA tem valor e não bate (nov 52% e dez 80%
-  // dão 66%), então o motivo do status é o do volume; o gatilho de Skyy continua indisponível (asserção acima).
-  assert.deepEqual(xa.status, { status: '-', motivo: 'volume em 66,0%: precisa de 100%' });
+  // 4H/4K: o status junta os dois pilares (regras v1.11). O mínimo de volume de XA tem valor e não bate — ele é o
+  // % do MÊS VIGENTE, que aqui é dezembro (52%), e não mais a média de novembro e dezembro da 4H (que dava 66%) —,
+  // então o motivo do status é o do volume; o gatilho de Skyy continua indisponível (asserção acima).
+  assert.deepEqual(xa.status, { status: '-', motivo: 'volume em 52,0%: precisa de 100%' });
   assert.equal(xa.gatilhoPilares.batido, false);
   // com o volume batido nos dois meses, sobra só a cobertura indisponível: o pilar fica indisponível
   const DEZV = fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 120] }]],
@@ -602,7 +605,8 @@ test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e de
   const dv = montar3({ index: indexDe('202612', false, ['202610', '202611']), fechados: { 202610: OUT, 202611: DEZV },
                        gerencias: [XA3V, XB3V] });
   const xav = achar(dv.gc, 'XA');
-  assert.deepEqual([xav.gatilhoVolume.valor, xav.gatilhoVolume.batido], [(120 + 102) / 2, true]);
+  // dezembro vigente: o mínimo é só o % de dezembro (102%), com ou sem o novembro de 120% do fechado
+  assert.deepEqual([xav.minimoVolume.valor, xav.minimoVolume.batido], [102, true]);
   assert.deepEqual([xav.gatilhoPilares.indisponivel, xav.oficial, xav.status.motivo], [true, null, 'cobertura indisponível']);
 });
 
@@ -615,14 +619,15 @@ test('montarDados: produto sem o bloco cobertura fica indisponível; cobertura.m
     ['dado', null, 7, null, null, 'sem meta de cobertura']);
 });
 
-// 4H: este teste usa XA3V/XB3V (volume de novembro batido) para continuar medindo o caminho do "Bateu!" pelo
-// adaptador; com as fixtures originais (volume abaixo de 100%) o resultado agora é "-", no teste 4H logo abaixo.
+// 4H/4K: este teste usa XA3V/XB3V (volume de novembro batido) para continuar medindo o caminho do "Bateu!" pelo
+// adaptador; com as fixtures originais (volume abaixo de 100%) o resultado é "-", no teste 4K logo abaixo.
 test('montarDados: gatilho parcial em novembro, posição oficial só de quem bateu e status do motor', () => {
   const d = montar3({ gerencias: [XA3V, XB3V] });
   assert.equal(d.mesGatilho, 11);
   const xa = achar(d.gc, 'XA'), xb = achar(d.gc, 'XB');
   assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.parcial], [XA_COB, true, true]);
-  assert.deepEqual([xa.gatilhoVolume.valor, xa.gatilhoVolume.batido, xa.gatilhoVolume.parcial], [102, true, true]);
+  assert.deepEqual([xa.minimoVolume.valor, xa.minimoVolume.batido], [102, true]);   // o % de novembro, o mês vigente
+  assert.equal('parcial' in xa.minimoVolume, false);                               // sem média não há parcial
   assert.deepEqual([xa.pos, xa.oficial], [1, 1]);
   assert.deepEqual(xa.status, { status: 'Bateu!', motivo: 'dentro das premiadas' });
   assert.deepEqual([xb.gatilho.valor, xb.gatilho.batido], [50, false]);
@@ -637,20 +642,20 @@ test('montarDados: gatilho parcial em novembro, posição oficial só de quem ba
   // SV Segmentada: limite 3, uma linha só
   const seg = achar(d.svSegmentada, 'SV.XB.1');
   assert.deepEqual([seg.gatilho.valor, seg.oficial, seg.status.status], [120, 1, 'Bateu!']);
-  assert.deepEqual([seg.gatilhoVolume.valor, seg.gatilhoVolume.batido], [100, true]); // 100% exatos batem
+  assert.deepEqual([seg.minimoVolume.valor, seg.minimoVolume.batido], [100, true]); // 100% exatos batem
 });
 
-test('4H montarDados: Skyy batido e volume não -> "-", sem posição oficial (o caso de 09/11/2026)', () => {
-  const d = montar3(); // fixtures originais: volume de novembro abaixo de 100%
+test('4K montarDados: Skyy batido e volume abaixo do mínimo -> "-", sem RANK (o caso de 09/11/2026)', () => {
+  const d = montar3(); // fixtures originais: volume de novembro (o mês vigente) abaixo de 100%
   const xa = achar(d.gc, 'XA');
-  assert.deepEqual([xa.gatilho.batido, xa.gatilhoVolume.valor, xa.gatilhoVolume.batido], [true, 52, false]);
-  assert.deepEqual([xa.pos, xa.oficial], [1, null]);  // Pos. não muda; Oficial some
+  assert.deepEqual([xa.gatilho.batido, xa.minimoVolume.valor, xa.minimoVolume.batido], [true, 52, false]);
+  assert.deepEqual([xa.pos, xa.oficial], [1, null]);  // a posição do ranking não muda; a oficial some
   assert.deepEqual(xa.status, { status: '-', motivo: 'volume em 52,0%: precisa de 100%' });
   assert.deepEqual(xa.gatilhoPilares, { batido: false, indisponivel: false, motivo: 'volume em 52,0%: precisa de 100%' });
   const sv1 = achar(d.svMista, 'SV.XA.1');
-  assert.deepEqual([sv1.gatilho.batido, sv1.gatilhoVolume.valor, sv1.oficial, sv1.status.status], [true, 77.5, null, '-']);
+  assert.deepEqual([sv1.gatilho.batido, sv1.minimoVolume.valor, sv1.oficial, sv1.status.status], [true, 77.5, null, '-']);
   const seg = achar(d.svSegmentada, 'SV.XB.1');
-  assert.deepEqual([seg.gatilho.batido, seg.gatilhoVolume.valor, seg.oficial, seg.status.motivo],
+  assert.deepEqual([seg.gatilho.batido, seg.minimoVolume.valor, seg.oficial, seg.status.motivo],
     [true, 90, null, 'volume em 90,0%: precisa de 100%']);
   // ninguém tem os dois pilares: nenhuma posição oficial e nenhum "Bateu!" em nível nenhum
   for (const nivel of ['gc', 'svMista', 'svSegmentada']) {
@@ -658,7 +663,7 @@ test('4H montarDados: Skyy batido e volume não -> "-", sem posição oficial (o
   }
 });
 
-test('4H montarDados: o ranking não muda — Pos., soma e % são os mesmos com e sem o gatilho de volume', () => {
+test('4K montarDados: o ranking não muda — Pos., soma e % são os mesmos com e sem o mínimo de volume', () => {
   const d = montar3();
   const ref = (l) => [l.codigo, l.pos, l.soma, l.meses.map((m) => m.pctTravado)];
   // a ordem do ranking de SV Mista e de GC continua sendo a da soma (desempate pelo código)
@@ -667,24 +672,25 @@ test('4H montarDados: o ranking não muda — Pos., soma e % são os mesmos com 
     const somas = d[nivel].map((l) => l.soma).filter((v) => v !== null);
     assert.deepEqual(somas, somas.slice().sort((a, b) => b - a), nivel);
   }
-  // o gatilho de volume reaproveita o % do ranking: novembro travado da própria linha
+  // o mínimo de volume reaproveita o % do ranking: o mês VIGENTE travado da própria linha (aqui, novembro)
+  assert.equal(d.mesGatilho, 11);
   for (const l of d.svMista.concat(d.gc)) {
-    const nov = l.meses.find((m) => m.mes === 11);
-    assert.equal(l.gatilhoVolume.valor, nov.pctTravado, ref(l).join());
+    const vigente = l.meses.find((m) => m.mes === d.mesGatilho);
+    assert.equal(l.minimoVolume.valor, vigente.pctTravado, ref(l).join());
   }
 });
 
-test('4H montarDados: volume batido e Skyy não -> "-"; meta de volume 0 -> "sem meta de volume"', () => {
+test('4K montarDados: volume batido e Skyy não -> "-"; meta de volume 0 -> "sem meta de volume"', () => {
   // SV.XA.2: cobertura 50% (não bate) e volume levado a 110%
   const xa = comAperitivo(XA3, null, [null, bl(200, 220, 0, 1)]);
   const d = montar3({ gerencias: [xa, XB3] });
   const fora = d.fora.find((l) => l.codigo === 'SV.XA.2'); // SV.XA.2 empata no canal: fora do ranking
-  assert.deepEqual([fora.gatilhoVolume.batido, fora.gatilho.batido, fora.gatilhoPilares.batido], [true, false, false]);
+  assert.deepEqual([fora.minimoVolume.batido, fora.gatilho.batido, fora.gatilhoPilares.batido], [true, false, false]);
   assert.equal(fora.gatilhoPilares.motivo, 'cobertura em 50,0%: precisa de 100%');
   assert.equal('oficial' in fora, false);
-  // SV.XB.2 tem meta de volume 0: o gatilho de volume fica indisponível ("sem meta de volume"), nunca 0 nem 100
+  // SV.XB.2 tem meta de volume 0: o mínimo de volume fica indisponível ("sem meta de volume"), nunca 0 nem 100
   const sv = achar(d.svMista, 'SV.XB.2');
-  assert.deepEqual([sv.gatilhoVolume.valor, sv.gatilhoVolume.indisponivel, sv.gatilhoVolume.motivo], [null, true, 'sem meta de volume']);
+  assert.deepEqual([sv.minimoVolume.valor, sv.minimoVolume.indisponivel, sv.minimoVolume.motivo], [null, true, 'sem meta de volume']);
   // a cobertura dele (99%) falha com valor: o motivo do status é o da cobertura, e o pilar não é "indisponível"
   assert.deepEqual([sv.oficial, sv.status.motivo, sv.gatilhoPilares.indisponivel], [null, 'cobertura em 99,0%: precisa de 100%', false]);
 });
@@ -1020,16 +1026,17 @@ test('alertasDaTela: pendência 10 (cobertura do mês fechado) e a premissa da m
   assert.match(texto, /Cobertura de outubro indisponível/);
   assert.match(texto, /pendência 10/);
   assert.match(texto, /Meta dia de volume: premissa a confirmar/);
-  // etapa 4F: a ⚠️ pendência 25 (limite do quadradinho do Aperitivo no mês sem trava) é sinalizada, não decidida,
-  // e o número vem do motor
-  assert.match(texto, /Quadradinho do % de Aperitivo: premissa a confirmar/);
-  assert.match(texto, new RegExp('pendência 25'));
-  assert.match(texto, new RegExp(A.fmtPct(Motor.REGRAS.corAperitivoSemTrava).replace('%', '%')));
+  // etapa 4K: a ⚠️ pendência 26b (meta de volume nula deixa o mínimo indisponível) é a única premissa que sobrou
+  // do status com os dois pilares, e o número vem do motor
+  assert.match(texto, /Mínimo de volume: premissa a confirmar/);
+  assert.match(texto, new RegExp('pendência 26b'));
+  assert.match(texto, new RegExp(A.fmtPct(Motor.REGRAS.minimoVolume.minimo)));
   assert.match(texto, /Outubro em prévia/);
   assert.match(texto, /Dezembro ainda não começou/);
-  // pendências resolvidas não podem voltar à tela
+  // pendências resolvidas não podem voltar à tela (a 25, a 28 e a 29 entraram nesta lista na v1.11)
   for (const resolvida of [/pendência 9\b/, /pendência 11/, /pendência 12/, /pendência 14/, /pendência 16/,
-                           /pendência 17/, /pendência 18/, /pendência 19/, /pendência 20/]) {
+                           /pendência 17/, /pendência 18/, /pendência 19/, /pendência 20/, /pendência 25/,
+                           /pendência 28/, /pendência 29/]) {
     assert.doesNotMatch(texto, resolvida, String(resolvida));
   }
   assert.ok(al.every((a) => ['erro', 'aviso', 'nota'].includes(a.tipo)));
@@ -1466,7 +1473,7 @@ test('tela 4F: os números do Aperitivo saem da fonte condensada grande (ficam c
   assert.doesNotMatch(TPL, /\.n\.g\{/);                        // e o CSS que só ele usava saiu junto
   const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
   assert.doesNotMatch(cel, /class="n"|class="n /);             // nem as colunas de mês usam a condensada
-  // a fonte condensada continua no que não mudou: a coluna OF. (a "Pos." saiu na 4J) e os % do bloco Skyy
+  // a fonte condensada continua no que não mudou: a coluna da posição oficial (RANK) e os % do bloco Skyy
   assert.match(TPL, /\.n\{font-family:var\(--cond\)/);
   assert.match(SEM_CSS, /<span class="n of"/);
 });
@@ -1804,44 +1811,9 @@ test('tela 4G: o HTML gerado leva a paginação (build rodado)', () => {
   assert.doesNotMatch(html, /rotasDaMesa\(D, st\.sv\)/);
 });
 
-/* --- Etapa 4H: status com os dois pilares (regras v1.8, seções 2, 5 e 7) -------------------------------------- */
-
-test('4H tela: "Oficial" e contagem seguem os dois pilares do motor; nada de regra digitada', () => {
-  // a tela conta pelo gatilho dos dois pilares do motor, nunca pelo gatilho de Skyy sozinho
-  assert.match(TPL, /const bateuPilares = \(l\)=>!!\(l\.gatilhoPilares&&l\.gatilhoPilares\.batido\)/);
-  assert.doesNotMatch(TPL, /l\.gatilho&&l\.gatilho\.batido/);
-  assert.match(TPL, /com os dois pilares/);
-  assert.doesNotMatch(TPL, /gatilho pendente/);
-  // a coluna exibida continua lendo só o oficial do motor (a 4J tirou a "Pos." e a cor cinza da tela)
-  assert.match(TPL, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
-  // o mínimo do gatilho de volume vem do motor, nunca digitado
-  assert.match(TPL, /R\.gatilhoVolume\.minimo/);
-  assert.match(TPL, /R\.gatilhoVolume\.meses/);
-  const html = fs.readFileSync(GERADO, 'utf8');
-  assert.match(html, /gatilhoVolume: \{ meses: \[11, 12\], minimo: 100 \}/); // o gatilho de volume da v1.8
-  // 4I/4J: o motor embutido passou para a v1.9 e depois para a v1.10 (só a versão; nenhuma regra de cálculo
-  // mudou), então a versão aqui acompanha o motor em vez de ficar presa na v1.8
-  assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.10');
-});
-
-test('4H alertasDaTela: a pendência 26 aparece, com os números do motor', () => {
-  const al = A.alertasDaTela(montar3());
-  const p26 = al.find((a) => /dois pilares/.test(a.titulo));
-  assert.ok(p26);
-  assert.equal(p26.tipo, 'aviso');
-  assert.match(p26.texto, /pendência 26/);
-  assert.match(p26.texto, new RegExp(A.fmtPct(Motor.REGRAS.gatilhoVolume.minimo)));
-  // mês de volume do gatilho indisponível: o aviso diz que o gatilho de volume fica indisponível; outubro não
-  const nov = A.alertasDaTela(Object.assign({}, montar3(), { meses: [{ mes: 10, fonte: 'indisponivel', motivo: 'x' },
-                                                                     { mes: 11, fonte: 'indisponivel', motivo: 'y' }] }));
-  assert.match(nov.find((a) => a.titulo === 'Novembro indisponível').texto, /gatilho de volume fica indisponível/);
-  assert.doesNotMatch(nov.find((a) => a.titulo === 'Outubro indisponível').texto, /gatilho de volume/);
-});
-
-test('4H montarDados: Total Band e linhas da API sem ranking têm os gatilhos, mas nunca posição oficial nem status', () => {
+test('4K montarDados: Total Band e linhas da API sem ranking têm os dois pilares, mas nunca posição oficial nem status', () => {
   const d = montar3({ gerencias: [XA3V, XB3V] });
-  for (const k of ['gatilho', 'gatilhoVolume', 'gatilhoPilares']) assert.ok(k in d.totalBand, k);
+  for (const k of ['gatilho', 'minimoVolume', 'gatilhoPilares']) assert.ok(k in d.totalBand, k);
   for (const k of ['oficial', 'status']) assert.equal(k in d.totalBand, false, k);
   const xa = d.gcApi.find((l) => l.codigo === 'XA');
   assert.equal(xa.gatilhoPilares.batido, true);
@@ -1921,30 +1893,80 @@ test('tela 4I: o HTML gerado leva a visão Gerência do Detalhe sem paginação 
   assert.match(html, /paginaDoDetalhe\(linhas, st\.detVisao, st\.pag\[chavePag\(\)\]\|\|1\)/);
 });
 
-test('4I alertasDaTela: a pendência 28 aparece (texto do cabeçalho do Aperitivo), e a 27, resolvida, não', () => {
-  const al = A.alertasDaTela(montar3());
-  const p28 = al.find((a) => /Cabeçalho do bloco Aperitivo/.test(a.titulo));
-  assert.ok(p28);
-  assert.equal(p28.tipo, 'aviso');
-  assert.match(p28.texto, /pendência 28/);
-  assert.match(p28.texto, /novembro e dezembro/);                     // os meses do gatilho de volume, do motor
-  assert.ok(al.every((a) => !/pendência 27/.test(a.texto)));          // resolvida na v1.9
-  assert.ok(al.every((a) => !/regras v1\.8/.test(a.texto)));          // os textos citam a versão em vigor
+/* --- Etapas 4H a 4K: os dois pilares, a coluna RANK e os textos (regras v1.11, seções 2.2, 5 e 7) ----------- */
+
+test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada de regra digitada', () => {
+  // a tela conta pelo gatilho dos dois pilares do motor, nunca pelo gatilho de Skyy sozinho
+  assert.match(TPL, /const bateuPilares = \(l\)=>!!\(l\.gatilhoPilares&&l\.gatilhoPilares\.batido\)/);
+  assert.doesNotMatch(TPL, /l\.gatilho&&l\.gatilho\.batido/);
+  assert.match(TPL, /com os dois pilares/);
+  assert.doesNotMatch(TPL, /gatilho pendente/);
+  // a coluna exibida continua lendo só o oficial do motor (a 4J tirou a "Pos." e a cor cinza da tela)
+  assert.match(TPL, /<span class="n of">'\+\(l\.oficial\?esc\(l\.oficial\)\+'º':esc\(TRACO\)\)\+'<\/span>/);
+  // 4K: o gatilho de volume por média saiu da tela, e com ele o número no cabeçalho do bloco Aperitivo
+  assert.doesNotMatch(TPL, /gatilhoVolume/);
+  assert.doesNotMatch(TPL, /mesesDoGatilhoVolume/);
+  // o mínimo de volume que a aba Regras cita vem do motor, nunca digitado
+  assert.match(TPL, /R\.minimoVolume\.minimo/);
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /minimoVolume: \{ minimo: 100 \}/);              // o mínimo da v1.11, sem meses
+  // o gatilho por média da 4H não existe mais no código embutido (a palavra só sobra no comentário de história
+  // do motor, que conta de onde o mínimo veio)
+  assert.doesNotMatch(html, /gatilhoVolume: \{|R\.gatilhoVolume|motor\.gatilhoVolume|function gatilhoVolume/);
+  // a versão aqui acompanha o motor embutido (a 4K sobe para a v1.11)
+  assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
+  assert.equal(Motor.REGRAS.versao, '1.11');
 });
 
-/* --- Etapa 4J: só a posição oficial nas tabelas de ranking (regras v1.10, seções 5 e 7) --------------------- */
+test('4K alertasDaTela: a premissa que sobrou da pendência 26 aparece, com o número do motor', () => {
+  const al = A.alertasDaTela(montar3());
+  const p26 = al.find((a) => /Mínimo de volume/.test(a.titulo));
+  assert.ok(p26);
+  assert.equal(p26.tipo, 'aviso');
+  assert.match(p26.texto, /pendência 26b/);
+  assert.match(p26.texto, new RegExp(A.fmtPct(Motor.REGRAS.minimoVolume.minimo)));
+  // nenhum alerta fala mais de média de novembro e dezembro para o volume, nem de "gatilho de volume"
+  const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  assert.doesNotMatch(texto, /gatilho de volume/);
+  // mês de volume indisponível: o aviso só fala do mínimo quando o mês é o VIGENTE (aqui, novembro)
+  const d = montar3();
+  assert.equal(d.mesGatilho, 11);
+  const nov = A.alertasDaTela(Object.assign({}, d, { meses: [{ mes: 10, fonte: 'indisponivel', motivo: 'x' },
+                                                             { mes: 11, fonte: 'indisponivel', motivo: 'y' }] }));
+  assert.match(nov.find((a) => a.titulo === 'Novembro indisponível').texto, /mínimo de volume fica indisponível/);
+  assert.doesNotMatch(nov.find((a) => a.titulo === 'Outubro indisponível').texto, /mínimo de volume/);
+});
 
-test('tela 4J: as tabelas de ranking têm a coluna "OF." e não têm mais a "Pos."', () => {
-  // o cabeçalho das duas tabelas de ranking (Ranking GC e Supervisão) é um só, e passa a ter 2 colunas de id
+test('4K alertasDaTela: as pendências 25, 28 e 29, resolvidas na v1.11, saem da tela', () => {
+  const al = A.alertasDaTela(montar3());
+  const texto = al.map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  for (const resolvida of [/pendência 25/, /pendência 27/, /pendência 28/, /pendência 29/]) {
+    assert.doesNotMatch(texto, resolvida, String(resolvida));
+  }
+  assert.ok(al.every((a) => !/Quadradinho do % de Aperitivo/.test(a.titulo)));
+  assert.ok(al.every((a) => !/Cabeçalho do bloco Aperitivo/.test(a.titulo)));
+  assert.ok(al.every((a) => !/Coluna de posição/.test(a.titulo)));
+  // os textos citam a versão em vigor
+  for (const antiga of [/regras v1\.8/, /regras v1\.9/, /regras v1\.10/]) {
+    assert.ok(al.every((a) => !antiga.test(a.texto)), String(antiga));
+  }
+  assert.match(texto, /regras v1\.11/);
+});
+
+test('4K tela: o cabeçalho da coluna de posição é "RANK" e o bloco Aperitivo não fala de gatilho', () => {
   const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');   // o que a tela ESCREVE, sem comentários
   const cab = semCom(/function cabecalhoRanking\(rotuloId\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
-  assert.match(cab, /<tr class="hdr"><th class="l">OF\.<\/th><th class="l">'\+esc\(rotuloId\)\+'<\/th>/);
-  assert.doesNotMatch(cab, /Pos\./);
-  // colgroup e colspan da identificação acompanham as 2 colunas
+  assert.match(cab, /<tr class="hdr"><th class="l">RANK<\/th><th class="l">'\+esc\(rotuloId\)\+'<\/th>/);
+  assert.doesNotMatch(cab, /OF\.|Pos\./);
+  // o título do bloco Aperitivo perde o "GATILHO ≥ …" (pendência 28); o do Skyy, que é gatilho mesmo, continua
+  assert.match(cab, /VOLUME DE APERITIVO <small>· RANKING<\/small>/);
+  assert.doesNotMatch(cab, /APERITIVO <small>· RANKING · GATILHO/);
+  assert.match(cab, /COBERTURA DE SKYY <small>· GATILHO ≥ '\+pct\(R\.gatilho\.minimo\)\+'<\/small>/);
+  // colgroup e colspan da identificação continuam com as 2 colunas da 4J
   assert.match(cab, /<colgroup><col span="2"><\/colgroup>/);
   assert.match(cab, /<tr class="grp"><th colspan="2"><\/th>/);
   assert.doesNotMatch(cab, /span="3"|colspan="3"/);
-  // a linha de dados não desenha mais a célula da posição, e a do total ocupa as 2 colunas
+  // a linha de dados não desenha célula de posição do ranking, e a do total ocupa as 2 colunas
   const lin = semCom(/function linhaRanking\(l, opc\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
   assert.doesNotMatch(lin, /l\.pos/);
   assert.match(lin, /'<td class="l" colspan="2">'\+esc\(l\.codigo\)\+'<\/td>'/);
@@ -1954,10 +1976,11 @@ test('tela 4J: as tabelas de ranking têm a coluna "OF." e não têm mais a "Pos
   assert.doesNotMatch(TPL, /class="n pos|\.pos\{|\.pos\.cinza|--cinza/);
 });
 
-test('tela 4J: a ordem das linhas não depende da coluna que saiu', () => {
+test('tela 4J/4K: a ordem das linhas não depende da coluna que saiu', () => {
   // as duas views entregam ao tabelaRanking a lista que o adaptador já ordenou; nada reordena por `pos` na tela
-  const gc = /function viewGC\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
-  const sv = /function viewSV\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
+  const semCom = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '');
+  const gc = semCom(/function viewGC\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
+  const sv = semCom(/function viewSV\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0]);
   for (const v of [gc, sv]) {
     assert.doesNotMatch(v, /\.sort\(|l\.pos|\.reverse\(/);
     assert.match(v, /ordem pelo % Acum\. de Aperitivo/);
@@ -1968,33 +1991,28 @@ test('tela 4J: a ordem das linhas não depende da coluna que saiu', () => {
   assert.deepEqual(d.gc.map((l) => l.pos), d.gc.map((_, i) => i + 1));
 });
 
-test('tela 4J: o rodapé e a aba Regras falam da coluna OF., não de posição em cinza', () => {
-  // a busca é no que a tela ESCREVE (SEM_CSS): os comentários do <style> citam a decisão e a posição em cinza
-  // que saiu, que é histórico do arquivo, não texto de tela
-  assert.match(SEM_CSS, /OF\.: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código/);
+test('4K tela: o rodapé e a aba Regras falam de RANK e de mínimo de volume', () => {
+  // a busca é no que a tela ESCREVE (SEM_CSS): os comentários do <style> citam decisões antigas, que são
+  // histórico do arquivo, não texto de tela
+  assert.match(SEM_CSS, /RANK: posição oficial, só de quem bateu os dois pilares · desempate pela ordem alfabética do código/);
   assert.doesNotMatch(SEM_CSS, /posição em cinza/);
   const regras = /function viewRegras\(\)\{[\s\S]*?\n\}/.exec(SEM_CSS)[0];
-  assert.match(regras, /a única coluna de posição é a <strong style="color:var\(--gold\)">OF\.<\/strong>/);
+  assert.match(regras, /a única coluna de posição é a <strong style="color:var\(--gold\)">RANK<\/strong>/);
   assert.match(regras, /mostram só a posição oficial/);
-  // nenhum número de regra digitado no texto novo
+  // o passo dos dois pilares descreve o MÍNIMO do mês vigente e diz que a soma só ordena o ranking
+  assert.match(regras, /Mínimo de '\+\s*'volume: o Aperitivo do mês vigente em '\+fmtPct\(R\.minimoVolume\.minimo\)/);
+  assert.match(regras, /a soma dos meses só '\+\s*'ordena o ranking/);
+  assert.doesNotMatch(regras, /na média de '\+mesesDoGatilhoVolume/);
   assert.doesNotMatch(regras, /posição em cinza/);
 });
 
-test('tela 4J: o HTML gerado leva a tabela sem a coluna "Pos." (build rodado)', () => {
+test('4K tela: o HTML gerado leva RANK, o Aperitivo sem gatilho e o rodapé novo (build rodado)', () => {
   const html = fs.readFileSync(GERADO, 'utf8');
-  assert.match(html, /<tr class="hdr"><th class="l">OF\.<\/th>/);
-  assert.doesNotMatch(html, /<th class="l">Pos\.<\/th>|<th class="l">Of\.<\/th>/);
+  assert.match(html, /<tr class="hdr"><th class="l">RANK<\/th>/);
+  assert.doesNotMatch(html, /<th class="l">Pos\.<\/th>|<th class="l">OF\.<\/th>|<th class="l">Of\.<\/th>/);
   assert.doesNotMatch(html, /\.pos\{color:#fff\}|\.pos\.cinza\{|--cinza:/);
-  assert.match(html, /OF\.: posição oficial, só de quem bateu os dois pilares/);
-  assert.match(html, /versao: '1\.10'/);
-});
-
-test('4J alertasDaTela: a pendência 29 aparece (nome da coluna de posição)', () => {
-  const al = A.alertasDaTela(montar3());
-  const p29 = al.find((a) => /Coluna de posição/.test(a.titulo));
-  assert.ok(p29);
-  assert.equal(p29.tipo, 'aviso');
-  assert.match(p29.texto, /pendência 29/);
-  assert.match(p29.texto, /"OF\."/);
-  assert.ok(al.every((a) => !/regras v1\.9/.test(a.texto)));          // os textos citam a versão em vigor
+  assert.match(html, /VOLUME DE APERITIVO <small>· RANKING<\/small>/);
+  assert.doesNotMatch(html, /APERITIVO <small>· RANKING · GATILHO/);
+  assert.match(html, /RANK: posição oficial, só de quem bateu os dois pilares/);
+  assert.match(html, /versao: '1\.11'/);
 });
