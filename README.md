@@ -144,12 +144,18 @@ A **etapa 4M** (regras v1.13, seção 7) acertou a **escala da tela** para **nen
 notebook**: o `fit()` passou a ter uma **altura-base** (930), que garante a altura lógica mínima do palco, e a
 conta saiu da tela para a função pura `escalaDoPalco` do adaptador (`CONFIG.palco`). Em janela com altura folgada
 (1920×1080, 1920×940, 1366×768, 1280×720) a escala é a mesma de antes; nenhum número do incentivo muda.
+A **etapa 4N** (regras v1.14, seções 5 e 7) trouxe o **conceito do ranking do Desafio Q4** para as duas tabelas de
+ranking: a coluna **"RANK" numera todas as linhas** na ordem do % Acum. de Aperitivo (antes mostrava só a posição
+oficial, com "—" para quem não bateu os dois pilares) e a **linha inteira fica azul** quando tem "✓ Bateu!". Quem
+bateu os dois pilares e ficou fora das premiadas recebe a tag **"Bateu, fora do ranking"**, em cor própria e sem
+pintar a linha. O **cálculo não muda**: o "Bateu!" continua decidido pela **posição oficial** (só de quem bateu os
+dois pilares), que o motor calcula e a tela não exibe; no motor, só `statusLinha` ganhou esse terceiro selo.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 244 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 255 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

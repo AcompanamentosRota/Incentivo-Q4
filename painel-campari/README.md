@@ -6,11 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.13, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+Regras: [`docs/regras.md`](docs/regras.md) (v1.14, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
 segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
 (seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4M — sem rolagem interna em notebook (v1.13)
+## Estado: etapa 4N — RANK em todas as linhas e linha azul no "Bateu!" (v1.14)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -62,13 +62,20 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   já calculavam e entregavam em `tabela.aperitivo.soma`. Descrita no fim deste arquivo. **Nenhum cálculo novo e
   nenhum número das outras linhas muda**: as regras das premissas seguem iguais no motor, e o Total Band continua
   sem RANK, sem status e fora da ordenação.
-- **Etapa 4M (esta):** **nenhuma aba rola por dentro em notebook** (regras v1.13, seção 7). O `fit()` da tela
+- **Etapa 4M:** **nenhuma aba rola por dentro em notebook** (regras v1.13, seção 7). O `fit()` da tela
   escalava o palco por `min(largura ÷ 1920, altura ÷ 720)`; em janela mais baixa que ~16:9 (ex.: 1366×600 de área
   útil) a altura lógica do palco ficava menor do que a aba pede e a área rolável (`.rolar`) rolava ~1 cm. A
   altura-base passa a ser **930** e a conta sai da tela: `escalaDoPalco` (adaptador, pura) lê `CONFIG.palco`
   (`{ largura: 1920, alturaBase: 930 }`) e devolve escala e tamanho lógico. Descrita no fim deste arquivo.
   **Só a escala muda:** altura de linha, fonte, cores, colunas, paginação (15 linhas) e layout ficam como estavam,
   e em janela com altura folgada (1920×1080, 1920×940, 1366×768, 1280×720) a escala é a mesma de antes.
+- **Etapa 4N (esta):** o **conceito do ranking do Desafio Q4** nas duas tabelas de ranking (regras v1.14, seções 5
+  e 7). A coluna **"RANK" numera todas as linhas** com a posição do ranking (`l.pos`), e não mais só a oficial com
+  "—" para quem não bateu os dois pilares; a **linha inteira fica azul** quando tem "✓ Bateu!"; quem bateu os dois
+  pilares e ficou **fora das premiadas** recebe a tag **"Bateu, fora do ranking"**, em cor própria e sem pintar a
+  linha. Descrita no fim deste arquivo. **O cálculo não muda:** o "Bateu!" continua decidido pela **posição
+  oficial** (`numerarOficial`, só de quem bateu os dois pilares) contra `REGRAS.premiadas`; no motor, só
+  `statusLinha` mudou, para devolver esse terceiro selo no lugar de "-".
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -111,8 +118,9 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
 | `gatilhoCobertura(meses, mesRef)` | `{valor, batido, parcial, indisponivel, motivo}`: novembro parcial; de dezembro em diante a média simples de nov e dez, e só com os dois; `batido` = valor bruto ≥ 100 |
 | `minimoVolume(meses, mesRef)` | **mínimo de volume de Aperitivo (v1.11, seção 2.2)**: `{valor, batido, indisponivel, motivo}` — o % do **mês vigente** (`mesRef`, o mês de referência da API) com o % do **ranking** (`percentualMes` + `aplicarTrava`), ≥ `REGRAS.minimoVolume.minimo` no valor bruto. **Sem média, sem soma e sem `parcial`**; mês vigente sem fonte → "volume indisponível"; meta nula ou ≤ 0 → "sem meta de volume" |
 | `gatilhoPilares(gSkyy, mVolume, cfg)` | **os dois pilares (v1.11, seção 5)**: `{batido, indisponivel, motivo}` — batido só com os dois (gatilho de Skyy **e** mínimo de volume); indisponível quando falta algum e nenhum falhou com valor; pilar ausente nunca conta como batido |
-| `numerarOficial(linhas, cfg)` | posição oficial (a coluna **"RANK"**) 1..k, só de quem bateu **os dois pilares**, na ordem do ranking |
-| `statusLinha(linha, nivel, cfg)` | `{status: "Bateu!" \| "-", motivo}`: dois pilares batidos **e** oficial ≤ limite; `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
+| `numerarOficial(linhas, cfg)` | posição oficial 1..k, só de quem bateu **os dois pilares**, na ordem do ranking. **Não é exibida** (etapa 4N): é ela que decide o "Bateu!" contra o limite de premiadas |
+| `statusLinha(linha, nivel, cfg)` | `{status, motivo}` com os **três** selos de `STATUS` (v1.14): `"Bateu!"` (dois pilares **e** oficial ≤ limite), `"Bateu, fora do ranking"` (dois pilares, oficial > limite) e `"-"` (o resto); `nivel` = `gc`, `svMista` ou `svSegmentada`; nível sem limite publicado é erro |
+| `STATUS` | os três textos de selo (`bateu`, `fora`, `nao`): a tela lê daqui e só acrescenta o "✓" do "✓ Bateu!" |
 | `metaDiaCobertura(meta, real, diasRestantes)` | (Meta − Real) ÷ dias restantes, travada, inteiro para cima (tolerância 1e-9); meta batida 0; 0 dias dá a diferença total |
 | `metaDiaVolume(metaDia, real, meta)` | **regra de exibição da meta dia de volume (v1.4)**: Real > Meta → 0; `meta_dia` negativa → 0; não numérica → null ("—"). Nunca recalcula: a `meta_dia` vem pronta da API |
 | `corDoPercentual(valor, cfg)` | **cor do quadradinho do % de cobertura (v1.6)**: `'verde'` com o valor **bruto** ≥ `REGRAS.gatilho.minimo`, `'vermelho'` abaixo dele, `null` sem valor (a tela não desenha quadradinho). O truncado da tela nunca decide a cor: 99,99999% mostra "99,9%" e fica vermelho |
@@ -233,7 +241,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 244 testes (75 do motor, 169 do adaptador); precisa de Node 18+
+# testes do painel — 255 testes (79 do motor, 176 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -636,3 +644,63 @@ rola **menos** (ex.: 1366×600: 161 px antes, 55 px depois). Está registrado na
 1366×768 → 0,7115 e 0,7115; 1280×720 → 0,6667 e 0,6667 (nessas quatro manda a largura, então nada muda).
 Nas janelas baixas a escala diminui, que é o efeito desejado: 1366×600 → 0,7115 antes e **0,6452** depois;
 1280×560 → 0,6667 antes e **0,6022** depois.
+
+## Etapa 4N — RANK em todas as linhas e linha azul no "Bateu!" (regras v1.14, seções 5 e 7)
+
+Decisão da Karen em 10/11/2026 (meio-dia): usar nas tabelas de ranking do Campari o **conceito do ranking do
+Desafio Q4** — todas as linhas numeradas e a **linha inteira pintada** quando bate. Isso **reverte a exibição** da
+etapa 4J/4K (só a posição oficial, com "—" para quem não bateu os dois pilares); o **cálculo fica igual**.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | A coluna **RANK** passa a mostrar `l.pos` (a posição do ranking, do motor) em **todas** as linhas das duas tabelas, em todas as páginas — o número é o da ordem **global**, não o da página. O Total Band continua sem número (identificação com `colspan="2"`) | `linhaRanking` |
+| 2 | A linha com **"✓ Bateu!"** recebe a classe `.bateu` e fica **azul de ponta a ponta**. O teste é o mesmo do selo (`bateuStatus`, que lê `motor.STATUS.bateu`), e a linha de total nunca recebe a classe | `linhaRanking`, CSS |
+| 3 | **Terceiro selo:** `statusLinha` devolve `"Bateu, fora do ranking"` quando os **dois pilares** estão batidos e a **posição oficial** passou do limite de premiadas — onde antes devolvia `"-"`. O motivo (`"suba N posições"`) e os limites não mudam. Os três textos ficam em `motor.STATUS` | `motor.js` |
+| 4 | Na tela, esse selo é a tag `.pill.fora`, em **âmbar**; ela **não pinta a linha** | `statusCel`, CSS |
+| 5 | **Rodapé** das duas tabelas: "RANK: posição no ranking (% Acum. de Aperitivo) · linha azul: ✓ Bateu! (dois pilares e dentro das premiadas) · desempate pela ordem alfabética do código". A aba **Regras** descreve a coluna RANK nova e ganha o terceiro selo | `$('rodesq')`, `viewRegras` |
+| 6 | `REGRAS.versao = '1.14'` | `motor.js` |
+| 7 | Documentação: a v1.14 em `docs/regras.md`, e `README.md`, este arquivo e `CLAUDE.md` | docs |
+
+**As cores** (variáveis nomeadas, nenhum valor solto):
+
+| Variável | Valor | Por quê |
+| --- | --- | --- |
+| `--rk-bateu` | `#114084` | o `--blue` do Q4 (`#1D7BFF`) a 40% sobre o painel, escrito **opaco**: a cor tem de cobrir o `<colgroup>` dos dois blocos (num `rgba()` o laranja do Aperitivo e o azul do Skyy apareceriam por baixo e a linha ficaria de duas cores). Medido na tela: branco **9,9:1**, Dif. negativa **5,9:1**, número da RANK **6,4:1** |
+| `--pct-ok-op` `--pct-no-op` `--hoje-ok-op` | `#104439` `#3D1D36` `#113F4F` | os quadradinhos verde/vermelho e o "Hoje" turquesa são semitransparentes e mudariam de matiz sobre o azul; estes são os **mesmos tons já achatados sobre o painel**, então na linha azul eles ficam iguais aos das outras linhas (9,7:1, 9,8:1 e 7,7:1) |
+| `--pill-fora-bg` / `--pill-fora-fg` | `#4A3500` / `#FFE29A` | o âmbar do `.pill.bat` do Desafio Q4 (**9,2:1**), diferente do azul da linha, do turquesa do "✓ Bateu!" e do cinza do "-" |
+
+> ⚠️ O enunciado desta etapa pede "o azul da linha que bateu a meta" do Desafio Q4. **No Q4 essa linha é verde**
+> (`.trow.tot{background:rgba(34,177,76,.14)}`) e o **âmbar** (`.trow.bat`) é justamente o estado "bateu os
+> gatilhos, fora das premiadas". Como o documento de regras v1.14 diz **azul** em todas as menções, a linha ficou
+> azul e só a **tag** veio do âmbar do Q4.
+
+**O que não mudou:** a ordem das linhas (% Acum. de Aperitivo, desempate pelo código), `pos`, `oficial`,
+`gatilhoPilares`, os limites de premiadas (GC 6 · SV Mista 12 · SV Segmentada 3), os motivos do status, as colunas,
+a paginação (15 linhas), a escala do palco e as demais abas.
+
+**Conferência (Playwright + Chromium, cópias de `api/v1` e de `ajustes.json` fora do repositório).**
+
+1. **4M × 4N, célula a célula, com os dados reais da API** (1920×940, todas as abas e páginas): as **únicas**
+   diferenças estão na coluna RANK, que passou de "—" a número em todas as linhas — **111 células**, nenhuma
+   outra célula e **nenhuma classe de linha** mudou (hoje ninguém bate os dois pilares, então nenhuma linha ficou
+   azul). Ordem das linhas idêntica.
+2. **Rolagem interna** (a 4M não pode regredir): em **9 janelas** — 1920×940, 1920×800, 1536×730, 1536×640,
+   1366×768, 1366×625, 1366×600, 1280×720 e 1280×560 — percorrendo as sete vistas (Ranking GC, Supervisão Mista e
+   Segmentada, Consultor, Detalhe nas duas visões e Regras) e **todas as páginas**, medindo
+   `scrollHeight − clientHeight` e `scrollWidth − clientWidth` de todo elemento rolável: **0 em tudo** (a lista
+   "Dados e alertas" da aba Regras segue como exceção conhecida). **Nenhum erro ou aviso no console.**
+3. **Os três estados, com dados simulados** (a API real não tem ninguém com os dois pilares): uma cópia da API com
+   o Aperitivo e a cobertura de Skyy inflados. No Ranking GC, as 12 linhas saíram **6 azuis com "✓ Bateu!"
+   (exatamente o limite), 3 com a tag "Bateu, fora do ranking" (RANK 7º a 9º, linha sem cor) e 3 com "-"**; na
+   Supervisão, 12 azuis na Mista (limite 12) e 3 na Segmentada (limite 3). A linha azul mede
+   `rgb(17,64,132)` tanto na primeira célula do bloco Aperitivo quanto na do Skyy — uma cor só, de ponta a ponta —,
+   e a linha da tag fica com o fundo dos blocos, sem pintura. Com a tag (o texto mais longo da coluna Status) não
+   houve rolagem horizontal nem vertical em 1920×940 nem em 1366×768.
+4. **Páginas:** na página 2 da Supervisão Mista o RANK segue a ordem global (16º a 29º), e ali aparece o caso da
+   premissa das regras — RANK 17º e 18º com a tag enquanto o 16º está em "-", porque o limite vale para a posição
+   **oficial**, que conta só quem bateu os dois pilares.
+5. **Recálculo independente** (Python, sem importar o motor nem o adaptador, a partir da cópia de `api/v1`):
+   refazendo o % de cada mês com a trava, a soma, a ordem, a posição, a posição oficial e o selo das **12 linhas
+   do Ranking GC**, nos dois cenários (dados reais e simulado): **0 divergências** contra o que a tela mostrou
+   (RANK, código, % Acum., selo e a presença da linha azul).
+
