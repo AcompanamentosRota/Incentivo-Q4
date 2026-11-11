@@ -276,6 +276,8 @@ button{background:none;border:0;cursor:pointer}
 .card .bar{width:100%;height:7px;margin:2px 0 10px}
 .card .txt{font-size:19px;font-weight:500;color:var(--muted);line-height:1.25}
 .mg{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+/* Pilar sem meta dia (Missões Guiadas): as três medidas numa linha só, sem célula vazia. */
+.mg.m3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .mg small{display:block;font-size:15px;font-weight:500;color:var(--muted)}.mg b{font-size:21px;font-weight:500}
 .dsplit{flex:1;min-height:0;display:flex}
 .dlist{width:640px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
@@ -710,6 +712,8 @@ const GCOL = { 'Volume Sabores':0, 'Volume Retornáveis':1, 'Volume Refri Single
 const grupo = (nome)=> 'g'+(GCOL[nome] ?? 5); // g5: agrupador extra incluído pelo admin
 const rotuloPilar = (nome)=> nome.replace('Volume ','').replace('Missões Guiadas','Missões').toUpperCase();
 const compacta = (pl)=> pl.tipo==='missao' && R.missaoValidadaMeses.includes(MES);
+// Missões Guiadas não tem meta dia (o adaptador devolve null): a medida sai da tela em vez de aparecer vazia
+const semMetaDia = (pl)=> !!pl && pl.tipo==='missao';
 // Missões Guiadas fora dos meses validados, sem meta configurada ou sem o arquivo: "sem dados" e não pontua
 const missaoSemDados = (pl)=> pl.tipo==='missao' && !compacta(pl) && !MISS.ok;
 // Por que o pilar ficou sem dados (texto, nunca número de regra): a razão vem do estado do adaptador
@@ -776,7 +780,8 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
     const a = ex[pl.nome], ini = cols.length;
     if(compacta(pl)){ cols.push({ textos:['%','100,0%'], extra:9 }); cols.push({ fixa:32 }); }
     else {
-      [['Meta',a.meta],['M. dia',a.mdia],['Real',a.real],['Hoje',a.hoje]].forEach(([lab,v])=> cols.push({ textos:[lab, numF(v)] }));
+      [['Meta',a.meta],['M. dia',a.mdia],['Real',a.real],['Hoje',a.hoje]].filter(([lab])=> !(semMetaDia(pl) && lab==='M. dia'))
+        .forEach(([lab,v])=> cols.push({ textos:[lab, numF(v)] }));
       cols.push({ textos:['Dif', sgn(-a.dif)] });
       cols.push({ textos:['%', M.fmtPct(a.pct || 100)], extra:9 });
       cols.push({ fixa:32 });
@@ -789,9 +794,10 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   let h = `<div class="hh" style="grid-column:1">Rank<small>Top ${lim}º</small></div><div class="hh lf" style="grid-column:2">${nomeCol}</div><div class="hh rh" style="grid-column:3">% Refri<small>mín. ${R.gatilhoVolumePct}%</small>${REFRI_CAT?'':'<small class="am">provisório</small>'}</div>`;
   let col = 4;
   pil.forEach(pl=>{
-    const g=grupo(pl.nome), comp=compacta(pl), n=comp?2:7;
+    const g=grupo(pl.nome), comp=compacta(pl);
+    const labs = comp ? ['%','Pts'] : ['Meta','M. dia','Real','Hoje','Dif','%','Pts'].filter(l=> !(semMetaDia(pl) && l==='M. dia'));
+    const n = labs.length;
     h += `<div class="gh ${g}" style="grid-column:${col} / span ${n}">${esc(rotuloPilar(pl.nome))}</div>`;
-    const labs = comp ? ['%','Pts'] : ['Meta','M. dia','Real','Hoje','Dif','%','Pts'];
     labs.forEach((l,i)=>{ const ctr = l==='Pts'; h += `<div class="sl ${g} ${ctr?'c':''} ${l==='%'?'pq':''} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
     col += n;
   });
@@ -812,7 +818,9 @@ function celulas(r){
     const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO, ok = p.pct!==null;
     const mot = missaoSemDados(pl)?'sem dados':p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dc = !ok ? '' : p.diferenca<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
-    h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div><div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div><div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
+    h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div>`
+       + (semMetaDia(pl||p) ? '' : `<div class="${g} n m">${raw[4]!=null?numF(raw[4]):'–'}</div>`)
+       + `<div class="${g} n">${p.real!=null?numF(p.real):'–'}</div><div class="${g} n m">${raw[2]!=null?numF(raw[2]):'–'}</div>`
        + `<div class="${g} n" style="${dc}">${ok?sgn(p.diferenca):'–'}</div><div class="${g} n">${ok?`<span class="pchip t${tier(p.pontos)}">${p.pctTexto}</span>`:'<span class="na">'+mot+'</span>'}</div>`
        + `<div class="${g} c">${chip(ok?p.pontos:'-', ok?tier(p.pontos):0)}</div>`;
   });
@@ -930,7 +938,7 @@ function renderDetalhe(){
     const a = mesa ? doSV(mesa.sv.pilares.find(x=>x.nome===pl.nome)) : agg(p=>p.pilares.find(x=>x.nome===pl.nome)), tt = tier(a.tf);
     const w = a.pct===null?0:Math.min(100,a.pct/105*100).toFixed(0);
     return `<div class="card"><div class="n">${esc(pl.nome.replace('Volume ',''))}<small>${sub}</small></div><div class="big">${a.pct===null?'-':M.fmtPct(a.pct)}</div><i class="bar"><b class="t${tt}" style="width:${w}%"></b></i>
-      <div class="mg"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div><div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div></div></div>`;
+      <div class="mg${semMetaDia(pl)?' m3':''}"><div><small>Meta</small><b>${numF(a.m)}</b></div><div><small>Real</small><b>${numF(a.r)}</b></div><div><small>Online</small><b>${numF(a.o)}</b></div>${semMetaDia(pl)?'':`<div><small>Meta dia</small><b>${dia(fonteDe(pl.nome))}</b></div>`}</div></div>`;
   }).join('') + cardRefri;
   if(!sc.find(p=>p.id===st.sel)) st.sel = sc.length ? sc[0].id : null;
   $('dlist').innerHTML = sc.length ? sc.map(r=>{ const s=statusDe(r), inf=INFO[r.id];
