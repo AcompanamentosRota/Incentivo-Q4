@@ -213,6 +213,20 @@ const OUT = fechadoDe('202610', [
   ['X31', 'XB', 'SV.XB.1', { aperitivos: [100, 100] }], ['X32', 'XB', 'SV.XB.1', { aperitivos: [100, 100] }],
   ['X33', 'XB', 'SV.XB.1', { aperitivos: [100, 100] }], ['X41', 'XB', 'SV.XB.2', { aperitivos: [100, 50] }],
 ], { empresa: { aperitivos: [1500, 1700] }, gerencias: { XA: { aperitivos: [1000, 1500] }, XB: { aperitivos: [500, 300] } } });
+// Cobertura no fechado (formato de 11/2026): coluna `cobertura` por rota + bloco `totais_cobertura`, nos mesmos
+// moldes do volume. `cobPorRota` = { rota: { produto: [meta, realizado] } }; rota ausente = linha sem cobertura.
+const comCobertura = (f, cobPorRota, totaisCob) => Object.assign({}, f, {
+  campos: ['rota', 'gerencia', 'supervisao', 'produtos', 'cobertura'],
+  rotas: f.rotas.map((l) => l.concat([cobPorRota[l[0]] || null])),
+  totais_cobertura: totaisCob,
+});
+// outubro com cobertura: X12 sem meta (meta null), X22 sem o produto skyy, a EV fora da lista de rotas.
+// Os totais da GC e da empresa são de propósito diferentes da soma das rotas: o nível sai SÓ dos totais.
+const OUTC = comCobertura(OUT, {
+  X11: { skyy: [10, 8] }, X12: { skyy: [null, 3] }, X13: { skyy: [5, 5] }, X21: { skyy: [10, 10] },
+  X22: { sucos: [1, 1] }, 'XA-EV': { skyy: [0, 1] },
+  X31: { skyy: [10, 2] }, X32: { skyy: [10, 2] }, X33: { skyy: [10, 2] }, X41: { skyy: [20, 5] },
+}, { empresa: { skyy: [100, 60] }, gerencias: { XA: { skyy: [40, 30] }, XB: { skyy: [50, 20] } } });
 const SEM_AJ = { canais: {}, canaisSV: {}, avisos: [] };
 const montar = (mais) => A.montarDados(Object.assign({ index: indexDe('202611', false, ['202610']), gerencias: [GER_XA, GER_XB],
   fechados: { 202610: OUT }, base: BASE, ajustes: SEM_AJ }, mais));
@@ -547,13 +561,46 @@ test('fontesDaCobertura (P1): o mês de referência vem da API mesmo em período
   assert.deepEqual(dez.map((f) => [f.mes, f.fonte]), [[10, 'fechado'], [11, 'fechado'], [12, 'api']]);
 });
 
-test('coberturaDoFechado: porta única da pendência 10 — devolve null para qualquer arquivo de hoje', () => {
-  assert.equal(A.coberturaDoFechado(OUT, '202610', 'skyy'), null);
+test('coberturaDoFechado: null quando o arquivo não traz a cobertura (nunca um valor adivinhado)', () => {
+  assert.equal(A.coberturaDoFechado(OUT, '202610', 'skyy'), null);   // arquivo sem a coluna `cobertura`
   assert.equal(A.coberturaDoFechado(undefined, '202610', 'skyy'), null);
   assert.equal(A.coberturaDoFechado(new Error('HTTP 500'), '202610', 'skyy'), null);
-  // o formato do campo novo ainda não existe: nem um arquivo que diga ter cobertura é adivinhado
-  const inventado = Object.assign({}, OUT, { campos_produto: ['meta', 'realizado', 'cobertura'] });
-  assert.equal(A.coberturaDoFechado(inventado, '202610', 'skyy'), null);
+  assert.equal(A.coberturaDoFechado(OUTC, '202611', 'skyy'), null);  // arquivo de outro mês
+  // coluna presente, mas sem os totais: o mês inteiro fica indisponível (GC e Total Band nunca somam rotas)
+  const semTotais = Object.assign({}, OUTC, { totais_cobertura: null });
+  assert.equal(A.coberturaDoFechado(semTotais, '202610', 'skyy'), null);
+  // coluna e totais presentes, mas o produto não está em lugar nenhum do arquivo
+  assert.equal(A.coberturaDoFechado(OUTC, '202610', 'inexistente'), null);
+});
+
+test('coberturaDoFechado: GC e Total Band pelos totais; SV pela soma das rotas da mesa', () => {
+  const c = A.coberturaDoFechado(OUTC, '202610', 'skyy');
+  // GC e empresa saem SÓ de totais_cobertura, nunca da soma das rotas (aqui elas dariam outro número)
+  assert.deepEqual(c.gc, { XA: { meta: 40, real: 30, online: 0 }, XB: { meta: 50, real: 20, online: 0 } });
+  assert.deepEqual(c.empresa, { meta: 100, real: 60, online: 0 });
+  // SV.XA.1 = X11 [10, 8] + X12 [null, 3] + X13 [5, 5]: a meta soma só as rotas COM meta (10 + 5), o
+  // realizado soma todas (8 + 3 + 5) — a regra da seção 4 das regras, a mesma do mês aberto
+  assert.deepEqual(c.sv['SV.XA.1'], { meta: 15, real: 16, online: 0 });
+  assert.deepEqual(c.sv['SV.XA.2'], { meta: 10, real: 10, online: 0 });   // X22 não tem o produto: fica fora
+  assert.deepEqual(c.sv['SV.XB.1'], { meta: 30, real: 6, online: 0 });
+  // no fechado não há online nem meta dia: online 0 em todos os níveis (como no volume)
+  assert.ok(Object.values(c.sv).every((v) => v === null || v.online === 0));
+  // a rota sem o produto vem com valores null (indisponível para ela), não com zeros inventados
+  const porRota = Object.fromEntries(c.rotas.map((r) => [r.rota, r.valores]));
+  assert.deepEqual(porRota.X11, { meta: 10, real: 8, online: 0 });
+  assert.deepEqual(porRota.X12, { meta: null, real: 3, online: 0 });   // sem meta de cobertura ≠ indisponível
+  assert.equal(porRota.X22, null);
+  assert.equal(porRota['XA-EV'], undefined);                           // rota EV fica fora da lista de rotas
+  assert.deepEqual(c.rotas[0], { rota: 'X11', gc: 'XA', sv: 'SV.XA.1', valores: { meta: 10, real: 8, online: 0 } });
+});
+
+test('coberturaDoFechado: a coluna é lida pelo NOME em `campos`, não por posição fixa', () => {
+  const trocado = Object.assign({}, OUTC, {
+    campos: ['cobertura', 'rota', 'gerencia', 'supervisao', 'produtos'],
+    rotas: OUTC.rotas.map((l) => [l[4], l[0], l[1], l[2], l[3]]),
+  });
+  assert.deepEqual(A.coberturaDoFechado(trocado, '202610', 'skyy'),
+                   A.coberturaDoFechado(OUTC, '202610', 'skyy'));
 });
 
 test('montarDados: cobertura do mês aberto por nível, como a API publica (sem recalcular soma de rotas)', () => {
@@ -570,8 +617,8 @@ test('montarDados: cobertura do mês aberto por nível, como a API publica (sem 
   assert.deepEqual([rt.meta, rt.real, rt.online, rt.pct, rt.metaDia, rt.dif], [50, 20, 2, 44, 3, -28]);
 });
 
-test('montarDados: Skyy de outubro fica indisponível com motivo "cobertura indisponível" (pendência 10)', () => {
-  const d = montar3();
+test('montarDados: Skyy de outubro fica indisponível quando o fechado não traz a coluna `cobertura`', () => {
+  const d = montar3();   // o OUT de montar3 é um arquivo no formato antigo, sem a coluna
   for (const l of [achar(d.gc, 'XA'), achar(d.svMista, 'SV.XA.1'), achar(d.rotas, 'X11'), d.totalBand]) {
     const out = cobDe(l, 10);
     assert.deepEqual([out.meta, out.real, out.online, out.metaDia, out.pct, out.dif], [null, null, null, null, null, null]);
@@ -610,6 +657,92 @@ test('montarDados: cobertura de um mês do gatilho indisponível gera aviso e de
   // dezembro vigente: o mínimo é só o % de dezembro (102%), com ou sem o novembro de 120% do fechado
   assert.deepEqual([xav.minimoVolume.valor, xav.minimoVolume.batido], [102, true]);
   assert.deepEqual([xav.gatilhoPilares.indisponivel, xav.oficial, xav.status.motivo], [true, null, 'cobertura indisponível']);
+});
+
+test('montarDados: com a cobertura no fechado, o Skyy de outubro sai do fechado em todos os níveis', () => {
+  const d = montar3({ fechados: { 202610: OUTC } });
+  assert.deepEqual(d.mesesCobertura.map((m) => [m.mes, m.fonte, m.estado]),
+                   [[10, 'fechado', 'previa'], [11, 'api', 'aberto'], [12, 'futuro', null]]);
+  // GC: totais_cobertura.gerencias.XA = [40, 30] -> 30 / 40 = 75%
+  const gc = cobDe(achar(d.gc, 'XA'), 10);
+  assert.deepEqual([gc.situacao, gc.meta, gc.real, gc.online, gc.pct, gc.dif], ['dado', 40, 30, 0, 75, -10]);
+  assert.deepEqual([gc.aberto, gc.metaDia, gc.motivo], [false, null, null]);   // sem M. Dia no mês fechado
+  // SV: soma das rotas da mesa (meta 10 + 5, realizado 8 + 3 + 5)
+  const sv = cobDe(achar(d.svMista, 'SV.XA.1'), 10);
+  assert.deepEqual([sv.situacao, sv.meta, sv.real, sv.pct, sv.dif], ['dado', 15, 16, (16 / 15) * 100, 1]);
+  const rt = cobDe(achar(d.rotas, 'X11'), 10);
+  assert.deepEqual([rt.situacao, rt.meta, rt.real, rt.pct, rt.dif], ['dado', 10, 8, 80, -2]);
+  // Total Band: totais_cobertura.empresa = [100, 60]
+  const tb = cobDe(d.totalBand, 10);
+  assert.deepEqual([tb.situacao, tb.meta, tb.real, tb.pct], ['dado', 100, 60, 60]);
+  // a tela lê a mesma coisa pela tabela, com M. Dia e Online em "—" (null) fora do mês aberto
+  const cel = A.valoresDoMes(achar(d.gc, 'XA').tabela, 'skyy', 10);
+  assert.deepEqual([cel.meta, cel.real, cel.pct, cel.dif, cel.online, cel.metaDiaExib, cel.aberto],
+                   [40, 30, 75, -10, null, null, false]);
+  // nenhum aviso e nenhum alerta de cobertura: o dado existe
+  assert.ok(d.avisos.every((a) => !/cobertura/i.test(a)));
+  const texto = A.alertasDaTela(d).map((a) => a.titulo + ' ' + a.texto).join(' | ');
+  assert.doesNotMatch(texto, /Cobertura de outubro/);
+  assert.doesNotMatch(texto, /não traz cobertura/);
+  // outubro continua FORA do gatilho: o % Médio de novembro não muda por causa dele
+  assert.deepEqual(achar(d.gc, 'XA').gatilho, achar(montar3().gc, 'XA').gatilho);
+});
+
+test('montarDados: no mês aberto nada muda com a cobertura no fechado (só outubro)', () => {
+  const comOut = montar3({ fechados: { 202610: OUTC } }), sem = montar3();
+  const semOutubro = (l) => Object.assign({}, l, { cobertura: l.cobertura.filter((m) => m.mes !== 10),
+    tabela: Object.assign({}, l.tabela, { skyy: Object.assign({}, l.tabela.skyy,
+      { porMes: Object.fromEntries(Object.entries(l.tabela.skyy.porMes).filter(([m]) => m !== '10')) }) }) });
+  for (const chave of ['gc', 'svMista', 'svSegmentada', 'rotas']) {
+    assert.deepEqual(comOut[chave].map(semOutubro), sem[chave].map(semOutubro), chave);
+  }
+  assert.deepEqual(semOutubro(comOut.totalBand), semOutubro(sem.totalBand));
+});
+
+test('montarDados: linha agrupada do Ranking GC soma a cobertura do fechado das gerências do grupo', () => {
+  // XA e XB numa linha só: a cobertura do grupo é a SOMA das metas e dos realizados (40 + 50 e 30 + 20),
+  // e o % é o da soma (50 / 90), nunca a média dos % das gerências
+  const cfg = Object.assign({}, A.CONFIG, { gruposGC: { XA_XB: ['XA', 'XB'] } });
+  const d = A.montarDados({ index: indexDe('202611', false, ['202610']), gerencias: [XA3, XB3], resumo: RESUMO,
+                            fechados: { 202610: OUTC }, base: BASE, ajustes: SEM_AJ }, cfg);
+  const out = cobDe(achar(d.gc, 'XA_XB'), 10);
+  assert.deepEqual([out.situacao, out.meta, out.real, out.pct], ['dado', 90, 50, (50 / 90) * 100]);
+  // gerência do grupo sem cobertura no mês deixa o mês do grupo indisponível (nunca uma soma parcial)
+  const soXA = comCobertura(OUT, { X11: { skyy: [10, 8] } }, { empresa: { skyy: [100, 60] }, gerencias: { XA: { skyy: [40, 30] } } });
+  const d2 = A.montarDados({ index: indexDe('202611', false, ['202610']), gerencias: [XA3, XB3], resumo: RESUMO,
+                             fechados: { 202610: soXA }, base: BASE, ajustes: SEM_AJ }, cfg);
+  assert.equal(cobDe(achar(d2.gc, 'XA_XB'), 10).situacao, 'indisponivel');
+  assert.equal(cobDe(achar(d2.gcApi, 'XB'), 10).situacao, 'indisponivel');
+  assert.equal(cobDe(achar(d2.gcApi, 'XA'), 10).situacao, 'dado');
+});
+
+test('montarDados: em dezembro o gatilho de Skyy usa a cobertura de novembro vinda do fechado', () => {
+  // novembro fechado COM cobertura (XA 110%) + dezembro aberto (XA 102,49...%): o gatilho é a média dos dois
+  const NOVC = comCobertura(
+    fechadoDe('202611', [['X11', 'XA', 'SV.XA.1', { aperitivos: [100, 80] }]],
+              { empresa: { aperitivos: [100, 80] }, gerencias: { XA: { aperitivos: [100, 80] } } }),
+    { X11: { skyy: [50, 55] } },
+    { empresa: { skyy: [100, 110] }, gerencias: { XA: { skyy: [100, 110] } } });
+  const d = montar3({ index: indexDe('202612', false, ['202610', '202611']),
+                      fechados: { 202610: OUTC, 202611: NOVC } });
+  assert.deepEqual(d.mesesCobertura.map((m) => [m.mes, m.fonte]), [[10, 'fechado'], [11, 'fechado'], [12, 'api']]);
+  const xa = achar(d.gc, 'XA');
+  // o motor não arredonda: a comparação usa a própria conta, como em XA_COB (truncar é papel da tela)
+  const NOV_COB = (110 / 100) * 100;
+  assert.equal(cobDe(xa, 11).pct, NOV_COB);
+  assert.equal(cobDe(xa, 12).pct, XA_COB);
+  assert.deepEqual([xa.gatilho.valor, xa.gatilho.batido, xa.gatilho.parcial, xa.gatilho.indisponivel,
+                    xa.gatilho.motivo], [(NOV_COB + XA_COB) / 2, true, false, false, null]);
+  // com o gatilho disponível, a posição oficial volta a existir (o que a 4P evita perder na virada)
+  assert.ok(typeof xa.pos === 'number');
+  assert.ok(d.avisos.every((a) => !/cobertura de novembro indisponível/.test(a)));
+  // sem a coluna no arquivo de novembro, tudo volta ao caso indisponível: gatilho sem valor e sem oficial
+  const sem = montar3({ index: indexDe('202612', false, ['202610', '202611']),
+                        fechados: { 202610: OUTC, 202611: Object.assign({}, NOVC, { totais_cobertura: null }) } });
+  const xaSem = achar(sem.gc, 'XA');
+  assert.deepEqual([xaSem.gatilho.valor, xaSem.gatilho.indisponivel, xaSem.oficial],
+                   [null, true, null]);
+  assert.ok(sem.avisos.some((a) => /cobertura de novembro indisponível/.test(a)));
 });
 
 test('montarDados: produto sem o bloco cobertura fica indisponível; cobertura.meta null é "sem meta de cobertura"', () => {

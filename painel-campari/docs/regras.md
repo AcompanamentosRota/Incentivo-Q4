@@ -1,7 +1,12 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.15 (10/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.16 (11/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.16 (11/11/2026):** **a cobertura dos meses fechados passa a vir do `fechado/AAAAMM.json`** (pendência 10 resolvida pelo Matheus antes do prazo de 01/12/2026). O arquivo ganhou a coluna
+`cobertura` em cada rota (`campos`: rota, gerencia, supervisao, produtos, **cobertura**; mesmos `campos_produto`: [meta, realizado]) e o bloco `totais_cobertura` (`empresa` e `gerencias`), igual ao volume
+(seção 8 e `API.md` → "Meses fechados"). O painel passa a ler isso: Skyy de outubro (Meta, Real e % do mês quando o seletor está em Outubro) deixa de mostrar "—", e em **dezembro** o gatilho Skyy
+usa a cobertura de novembro (mês fechado) sem ficar indisponível. Outubro continua **fora** do gatilho. Só a fonte muda; as contas e os limites são os mesmos.
 
 **v1.15 (10/11/2026, tarde):** **o fundo cobre a largura toda do palco.** Com a altura-base de 930 (v1.13), em janela baixa o palco fica mais largo que 1920 px lógicos (ex.: 1536×640 → 2232) e a arte,
 fixada em `1920px auto`, deixava uma faixa lisa nas laterais (a Karen viu as pontas da faixa vermelha cortadas num notebook ~1367×661). O fundo passa a ocupar **100% da largura do palco**
@@ -228,8 +233,8 @@ posição e o status:
 - **Seletor "Mês de referência"** (Ranking GC; vale também na Supervisão): troca **Meta, Real, Dif e o % do mês** dos
   dois blocos pelo mês escolhido. **Não muda** Out, Nov, Dez, Soma, % Nov e % Acumulado. O padrão é o mês de referência
   da API; mês sem dado fica desabilitado.
-- **M. Dia e Online** só existem no mês aberto; nos demais meses aparecem "—". Skyy de outubro: "—" (o fechado ainda
-  não traz cobertura, pendência 10).
+- **M. Dia e Online** só existem no mês aberto; nos demais meses aparecem "—". Skyy de outubro: Meta, Real, Dif e % mês do `fechado` (cobertura
+  do fechado, v1.16; sem M. Dia e sem Online); "—" só quando o arquivo do mês não traz a cobertura.
 - **Dif** = Real + Online − Meta, no mês escolhido. **Vermelha quando < 0** (decisão de 09/11/2026; substitui o laranja).
 - **Cores dos blocos (Ranking GC e Supervisão; decisão de 09/11/2026):** Aperitivo em laranja e Skyy em azul, no padrão do Q4:
   título do bloco em tom escuro (mais claro que o laranja e o azul de base) e corpo em tom bem claro.
@@ -268,7 +273,7 @@ posição e o status:
   `["Skyy"]`, o bloco de volume e o bloco `cobertura`. Conferir os ids no `index.json` antes de usar.
 - Novembro: o `cobertura.meta` do Aperitivo é `null` na empresa (sem meta de cobertura; não atrapalha, o gatilho
   é só de Skyy). O Skyy tem meta de cobertura na maior parte das rotas.
-- `fechado/202610.json` está em **prévia** (`fechamento_final: false`) e já traz os dois produtos, **sem cobertura**.
+- `fechado/202610.json` está em **prévia** (`fechamento_final: false`) e traz os dois produtos **e a cobertura** (desde 11/11/2026: coluna `cobertura` por rota e `totais_cobertura`).
 - **Meta dia de volume:** em 08/11/2026 vinha 0,0 em todas as rotas dos dois produtos, porque era domingo (dia não
   útil). Em 09/11/2026 (dia útil) a API traz valores; alguns **negativos** nas rotas com meta batida, iguais aos do
   SAC (pendência 15 resolvida). Na foto de 09/11/2026 às 10:30 havia 7 blocos com meta dia negativa e 20 com Real
@@ -285,7 +290,7 @@ previsão 12/11/2026.
 | # | Pendência | Situação em 09/11/2026 | Quem |
 | --- | --- | --- | --- |
 | 9 | Publicar `Aperitivo` e `Skyy` como agrupadores extras | **Resolvida** (seção 8) | — |
-| 10 | Incluir a cobertura no `fechado/AAAAMM.json` (campo novo). Sem isso, em dezembro não há cobertura de novembro para o gatilho | Em aberto: o Matheus vai ajustar. Prazo: 01/12/2026 | Matheus |
+| 10 | Incluir a cobertura no `fechado/AAAAMM.json` | **Resolvida** em 11/11/2026: o Matheus publicou a coluna `cobertura` por rota e o `totais_cobertura` (empresa e gerências); o painel lê isso na Etapa 4P | — |
 | 11 | % de cobertura de SV e GC | **Resolvida**: meta só das rotas com meta; realizado e online de todas as rotas (seção 4) | — |
 | 12 | Meta dia de cobertura: a "meta restante" desconta só o Real ou o Real + Online? | **Resolvida**: só o **Real**; meta dia travada (seção 7) | — |
 | 13 | Repositório público, com nomes de clientes e pessoas nos JSONs | **Confirmado** em 08/11/2026 (clone anônimo funcionou). Alta prioridade | Karen / TI |

@@ -158,12 +158,19 @@ A **etapa 4O** (regras v1.15, seção 7) fez a arte do fundo **cobrir a largura 
 janela baixa (1536×640 → 2232 px), deixando uma faixa do azul liso `#02306B` nas laterais. Agora é
 `center top / 100% auto`; com o palco em 1920 px (1920×940 e 1366×768) o resultado é idêntico ao de antes.
 Só o fundo muda: escala, layout, tabelas, cores e números ficam como estão.
+A **etapa 4P** (regras v1.16) fez o painel **ler a cobertura dos meses fechados** no `fechado/AAAAMM.json`
+(pendência 10, resolvida pelo Matheus em 11/11/2026): o arquivo ganhou a coluna `cobertura` por rota e o bloco
+`totais_cobertura`, nos mesmos moldes do volume, e `coberturaDoFechado` no adaptador deixou de devolver `null`.
+Com o seletor "Mês de referência" em **Outubro**, o bloco Skyy passa a mostrar Meta, Real, Dif e % do mês (antes
+"—"; M. Dia e Online continuam "—", porque não existem em mês fechado), e em **dezembro** o gatilho de Skyy usa a
+cobertura de novembro sem ficar indisponível. **Só a fonte muda:** o gatilho, o mínimo de volume, o ranking, o
+status, as cores e o layout ficam como estão, e outubro continua fora do gatilho.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 264 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 

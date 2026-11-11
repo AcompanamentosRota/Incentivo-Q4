@@ -21,7 +21,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.15 (10/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.16 (11/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -56,6 +56,12 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   lógicos em janela baixa (1536×640 → 2232), deixando uma faixa do azul liso nas laterais; agora é
   `center top / 100% auto`. Com o palco em 1920 px o fundo sai pixel a pixel igual; nenhum número, cor, coluna ou
   escala muda.
+  A **Etapa 4P** (regras v1.16) fez o painel **ler a cobertura dos meses fechados**: o `fechado/AAAAMM.json` ganhou a
+  coluna `cobertura` por rota e o bloco `totais_cobertura` (o Matheus publicou em 11/11/2026, resolvendo a pendência
+  10), e `coberturaDoFechado` deixou de ser um stub que devolvia `null`. Com o seletor em **Outubro** o bloco Skyy
+  mostra Meta, Real, Dif e % do mês (M. Dia e Online seguem "—", como no Aperitivo), e em **dezembro** o gatilho de
+  Skyy usa a cobertura de novembro sem ficar indisponível. Só a fonte muda: gatilho, mínimo de volume, ranking,
+  status, cores e layout ficam como estão, e outubro continua fora do gatilho.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -102,7 +108,7 @@ rotas com Real.
 # testes do painel — 171 testes (42 do motor, 129 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 258 testes (79 do motor, 179 do adaptador)
+# testes do painel Campari Club — 264 testes (79 do motor, 185 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 131 testes, sem rede (Datasphere falso e simulado)
@@ -237,7 +243,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.15 de 10/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.16 de 11/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
   status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -261,10 +267,13 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   de 08/11/2026, nunca recalcular a soma.
 - **Fonte da cobertura é diferente da do volume (premissa P1):** o mês de referência vem dos blocos `cobertura` da API
   **inclusive no período de fechamento** da API, quando o volume já vem do `fechado/`. Mês anterior vem do
-  `fechado/AAAAMM.json`, que **ainda não traz cobertura** (pendência 10 das regras; o Matheus define o campo até
-  01/12/2026): até lá o mês fica "cobertura indisponível", sem gatilho e sem posição oficial, com aviso. A porta única
-  disso é `coberturaDoFechado` no adaptador — nunca adivinhe o nome nem o formato do campo novo. Em dezembro isso vale
-  para novembro, então o gatilho de dezembro depende dessa pendência.
+  `fechado/AAAAMM.json`, que **desde 11/2026 traz a cobertura** (coluna `cobertura` por rota e bloco
+  `totais_cobertura`, nos mesmos moldes do volume; pendência 10 resolvida, etapa 4P). A porta única disso é
+  `coberturaDoFechado` no adaptador: ele lê a coluna pelo **nome** em `campos` (nunca por posição fixa), tira **GC e
+  Total Band só dos totais** (nunca da soma das rotas) e o **SV da soma das rotas da mesa** (meta só das rotas com
+  meta; realizado de todas), com online 0 e sem meta dia. Arquivo sem a coluna, sem `totais_cobertura` ou sem o
+  produto continua devolvendo `null`: o mês fica "cobertura indisponível", sem gatilho e sem posição oficial, com
+  aviso — nunca um valor adivinhado.
 - **Posições premiadas** (só para decidir o status, nunca para mostrar prêmio): `REGRAS.premiadas = { gc: 6,
   svMista: 12, svSegmentada: 3 }`, padrão do motor como o `gatilhoPontos` do Q4 — a regra em vigor não depende de
   arquivo que pode faltar. Nada fixo em lógica nem em texto. **Prêmios não aparecem em lugar nenhum do painel.**
@@ -288,7 +297,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   "Dados e alertas" da aba Regras (`alertasDaTela`) tem **só alerta de dado** — API indisponível, dados simulados,
   produtos não publicados, cobertura ou volume de um mês indisponível, mês em prévia, mês que ainda não começou,
   supervisão fora do ranking e avisos da carga. Nenhum texto dela cita "pendência" nem "premissa" (nem o motivo do
-  mês de cobertura fechado, que diz só "não traz cobertura"), e há teste varrendo a lista. As premissas a confirmar
+  mês de cobertura fechado, que diz só "não traz cobertura" quando o arquivo realmente não traz), e há teste varrendo a lista. As premissas a confirmar
   ficam na seção 10 das regras e no checklist do PR; o cálculo delas **não muda** (meta dia de volume só com o Real;
   meta de volume nula deixa o mínimo indisponível). Alerta novo: só de dado, e sempre em `alertasDaTela`.
 - **Meta dia de cobertura** (calculada no painel, ao contrário da de volume): (Meta − Real) ÷
