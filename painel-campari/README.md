@@ -6,11 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.15, 10/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+Regras: [`docs/regras.md`](docs/regras.md) (v1.16, 11/11/2026). Itens ⚠️ são interpretações a confirmar: o código
 segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
 (seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4O — o fundo cobre a largura toda do palco (v1.15)
+## Estado: etapa 4P — cobertura dos meses fechados (v1.16)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -76,12 +76,19 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   linha. Descrita no fim deste arquivo. **O cálculo não muda:** o "Bateu!" continua decidido pela **posição
   oficial** (`numerarOficial`, só de quem bateu os dois pilares) contra `REGRAS.premiadas`; no motor, só
   `statusLinha` mudou, para devolver esse terceiro selo no lugar de "-".
-- **Etapa 4O (esta):** a arte do fundo passa a **cobrir a largura toda do palco** (regras v1.15, seção 7). O
+- **Etapa 4O:** a arte do fundo passa a **cobrir a largura toda do palco** (regras v1.15, seção 7). O
   `build.py` injetava `center top / 1920px auto`, um tamanho **fixo**; desde a altura-base da 4M o palco pode ficar
   **mais largo** que 1920 px lógicos em janela baixa (1367×661 → 1923 px; 1536×640 → 2232 px) e sobrava uma faixa
   do azul liso `#02306B` nas laterais. Agora é `center top / 100% auto`. Descrita no fim deste arquivo. **Nada mais
   muda:** com o palco em 1920 px o fundo é pixel a pixel o mesmo, e escala, layout, tabelas, cores e números ficam
   como estavam.
+- **Etapa 4P (esta):** o painel passa a ler a **cobertura dos meses fechados** no `fechado/AAAAMM.json` (regras
+  v1.16; pendência 10 resolvida pelo Matheus em 11/11/2026). O arquivo ganhou a coluna `cobertura` por rota e o
+  bloco `totais_cobertura`, nos mesmos moldes do volume, e `coberturaDoFechado` deixou de ser um stub que devolvia
+  `null`. Com isso o Skyy de **outubro** mostra Meta, Real, Dif e % do mês quando o seletor está em Outubro (antes
+  "—"), e em **dezembro** o gatilho de Skyy usa a cobertura de novembro sem ficar indisponível. Descrita no fim
+  deste arquivo. **Nada mais muda:** as contas do gatilho, o mínimo de volume, o ranking, o status, as cores e o
+  layout ficam como estavam, e o mês aberto sai célula a célula igual ao da 4O.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -158,12 +165,15 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
 - **Fonte da cobertura** (`fontesDaCobertura`), de propósito diferente da do volume: o mês de referência vem dos
   blocos `cobertura` da API **mesmo em período de fechamento** (quando o volume já vem do `fechado/`), com
   `online_hoje` null e sem meta dia; mês anterior vem do `fechado/`; mês posterior é `futuro`.
-- **Cobertura do mês fechado** (`coberturaDoFechado`): **porta única da pendência 10**. O `fechado/AAAAMM.json` tem
-  `campos_produto: ["meta", "realizado"]` e nenhum campo de cobertura, e o formato do campo novo **ainda não existe** —
-  o Matheus vai incluí-lo até 01/12/2026. Até lá a função devolve `null` para qualquer arquivo, o mês fica
-  "cobertura indisponível" (sem gatilho, sem posição oficial, com aviso) e **nada é adivinhado**. Quando o campo
-  existir, é só nessa função (e nos testes dela) que ele entra. Em dezembro isso vale para novembro, então o gatilho
-  de dezembro depende dessa pendência.
+- **Cobertura do mês fechado** (`coberturaDoFechado`): **porta única** da cobertura do `fechado/AAAAMM.json`
+  (pendência 10 das regras, resolvida em 11/11/2026). Desde 11/2026 o arquivo traz a coluna `cobertura` por rota e o
+  bloco `totais_cobertura`, nos mesmos moldes do volume; a coluna é lida pelo **nome** em `campos`, nunca por posição
+  fixa. A função devolve `{ gc, empresa, sv, rotas }` com `{ meta, real, online: 0 }` por nível: **GC e Total Band só
+  pelos totais** do arquivo (nunca a soma das rotas, igual ao volume) e **SV pela soma das rotas da mesa** (a meta
+  soma só as rotas com meta; o realizado, todas). Devolve `null` — mês "cobertura indisponível", sem gatilho, sem
+  posição oficial e com aviso, **sem nada adivinhado** — quando o arquivo é ilegível, é de outro mês, não tem a coluna
+  `cobertura`, não tem `totais_cobertura` ou não traz o produto. `meta` null com realizado presente é outra coisa:
+  "sem meta de cobertura".
 - **Cobertura por nível:** os blocos `cobertura` de `produtos` (GC), `supervisoes[].produtos` (SV), `rotas[].produtos`
   (rota) e `resumo.json` → `empresa.produtos` (Total Band), **como a API publica** — a meta soma só as rotas com meta
   e o realizado e o online somam todas as rotas (decisão de 08/11/2026). Produto sem o bloco `cobertura` fica
@@ -247,7 +257,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 258 testes (79 do motor, 179 do adaptador); precisa de Node 18+
+# testes do painel — 264 testes (79 do motor, 185 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -274,12 +284,6 @@ A imagem entra em base64 no HTML, então ela pesa no arquivo publicado: a de 09/
 
 ## O que ainda depende de terceiros
 
-- **Pendência 10 (Matheus, prazo 01/12/2026): a cobertura no `fechado/AAAAMM.json`.** Sem ela, o gatilho só funciona
-  enquanto o mês do gatilho é o mês de referência. Em **novembro/2026 o gatilho é parcial e funciona** (novembro é o
-  mês aberto); em **dezembro**, novembro já será mês fechado e, sem o campo novo, o gatilho de todos fica
-  "cobertura indisponível" — ninguém recebe posição oficial nem "Bateu!". O painel avisa (faixa de aviso e a lista
-  `avisos`) e **não assume valor**. Quando o formato for definido, o único lugar a mudar é `coberturaDoFechado` no
-  adaptador (e os testes dela).
 - **Pendência 22 (Karen): a meta dia de volume compara só o Real, ou Real + Online?** A v1.4 manda mostrar 0 quando
   o Real passa da Meta, e deixa a premissa em aberto. O painel usa **só o Real** (até ontem); desde a etapa 4L
   (regras v1.12) a premissa fica registrada só aqui, no documento de regras e no checklist — **não na tela**. Se a
@@ -775,3 +779,57 @@ na 4O **nenhum** dos 31 pixels de cada coluna é o azul liso em nenhuma das sete
 - **Rolagem interna:** 0 em todas as abas das sete janelas, exceto a lista "Dados e alertas" da aba Regras
   (`.al`, +14 px em 1536×640 e +64 px em 1920×940) — a exceção conhecida da seção 7 das regras, igual na 4N.
 - **Console:** sem erro e sem aviso em todas as janelas.
+
+## Etapa 4P — cobertura dos meses fechados (regras v1.16)
+
+**O problema (Karen, 11/11/2026).** A API já publicava a cobertura dos meses fechados, mas o painel ainda não a
+lia: `coberturaDoFechado` era um stub que devolvia `null` para qualquer arquivo (pendência 10). Com isso (a) o
+bloco Skyy mostrava "—" em Meta, Real, Dif e % do mês quando o seletor estava em **Outubro**, e (b) em
+**dezembro**, com novembro já fechado, o gatilho de Skyy ficaria indisponível para todo mundo e ninguém teria
+posição oficial. Esta etapa resolve os dois.
+
+**O formato novo** (já em `api/v1/fechado/202610.json`, descrito em `API.md` → "Meses fechados"): `campos` passou a
+ser `["rota","gerencia","supervisao","produtos","cobertura"]`, com os mesmos `campos_produto` `["meta","realizado"]`;
+cada linha de `rotas` ganhou um 5º item, `{produto: [meta, realizado]}` da cobertura; e o arquivo ganhou
+`totais_cobertura` (`empresa` e `gerencias`), o equivalente do `totais` do volume. `meta` pode ser `null` (sem meta
+de cobertura, como Sucos e Aperitivos) — isso é diferente de produto ausente.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | `coberturaDoFechado(fechado, anomes, pid)` deixa de devolver `null` sempre e passa a ler o arquivo: a coluna `cobertura` pelo **nome** em `campos` (nunca por posição) e `meta`/`realizado` por `campos_produto`. Devolve `{ gc, empresa, sv, rotas }`, com `{ meta, real, online: 0 }` por nível e `metaDia` null (no mês fechado não há online nem meta dia, como no volume). A assinatura não mudou | `coberturaDoFechado` no adaptador |
+| 2 | Por nível, a mesma regra do volume: **GC** = `totais_cobertura.gerencias[GC][produto]`, **Total Band** = `totais_cobertura.empresa[produto]` (sem os totais nunca se soma rotas) e **SV** = soma das rotas da mesa pelo campo supervisão — a **meta** soma só as rotas com meta e o **realizado**, todas (seção 4 das regras) | `coberturaDoFechado` |
+| 3 | Continua devolvendo `null` — mês "cobertura indisponível", sem gatilho, sem posição oficial e com aviso, **sem nada adivinhado** — quando o arquivo é ilegível, é de outro mês, **não tem a coluna `cobertura`**, não tem `totais_cobertura` ou não traz o produto. `meta` null com realizado presente é outra coisa: "sem meta de cobertura" | `coberturaDoFechado` |
+| 4 | O bloco 2b de `montarDados` passa a **usar** o resultado (antes só perguntava se era `null`): preenche `cob` nos níveis empresa, GC, SV e rota do mês fechado, e marca o mês com o `estado` do arquivo (`previa` ou `oficial`) | `montarDados` |
+| 5 | `apurarCobertura` aceita a fonte `fechado` como mês com dado (antes só `api` valia). `aberto` continua false no mês fechado, então **M. Dia e Online seguem "—"** e o "Hoje" não colore | `montarDados` |
+| 6 | A linha agrupada do Ranking GC soma a cobertura do fechado das gerências do grupo pelo mesmo caminho de antes (`motor.somarGrupo`); gerência do grupo sem cobertura no mês deixa o mês do grupo indisponível, nunca uma soma parcial | `montarDados` (bloco 2c) |
+| 7 | Documentação: a v1.16 em `docs/regras.md`, e `README.md`, este arquivo e `CLAUDE.md` com a pendência 10 resolvida e o aviso do prazo de 01/12/2026 removido | docs |
+
+**O que não mudou:** nenhuma conta. O motor não foi tocado (`REGRAS.versao` segue em `1.14`) — o gatilho de Skyy
+continua sendo a média simples de novembro e dezembro com mínimo de 100% bruto (parcial em novembro), **outubro
+continua fora do gatilho**, o mínimo de volume, a pontuação do ranking, a posição oficial, o status, as cores, as
+colunas, a paginação e a escala ficam como estavam. A tela não ganhou texto nenhum: só passa a ter número onde
+antes havia "—". O motivo "…não traz cobertura" e o aviso "cobertura de `<mês>` indisponível" continuam existindo
+e só aparecem quando o arquivo realmente não traz a cobertura.
+
+### Conferência (11/11/2026, API publicada)
+
+- **Recálculo independente em Python**, direto de uma cópia de `api/v1/fechado/202610.json` (sem passar pelo
+  adaptador): a cobertura de Skyy de outubro bate em **todos** os níveis — as **12 linhas agrupadas** do Ranking GC,
+  as **63 supervisões** e o Total Band, nos quatro campos (Meta, Real, Dif e % do mês). Exemplos:
+
+  | Linha | Conta | Meta | Real | Dif | % |
+  | --- | --- | --- | --- | --- | --- |
+  | `AN` | `totais_cobertura.gerencias.AN.skyy` | 211 | 2 | −209 | 0,9% |
+  | `IT_MO` | soma de `IT` + `MO` nos totais | 115 | 38 | −77 | 33,0% |
+  | Total Band | `totais_cobertura.empresa.skyy` | 1.891 | 108 | −1.783 | 5,7% |
+
+- **4O × 4P, célula a célula** (despejo de todas as linhas e classes das tabelas das cinco abas, em 1920×940,
+  1366×768 e 1366×600): com o seletor em **Novembro** e em todas as outras abas as tabelas saem **idênticas**;
+  com o seletor em **Outubro** mudam só Meta, Real, Dif e % do mês do bloco Skyy. Comparando a saída completa do
+  adaptador (todas as linhas, com `pos`, `oficial`, `status`, `gatilho`, `minimoVolume`, `gatilhoPilares` e as duas
+  tabelas), a única diferença é `skyy.porMes[10]` — `online` e `metaDiaExib` continuam null — mais a fonte do mês de
+  cobertura de outubro (`indisponivel` → `fechado`, `previa`).
+- **Regras > Dados e alertas:** a nota "Cobertura de outubro indisponível" sai da lista (o dado existe); os demais
+  alertas ficam iguais.
+- **Console:** sem erro e sem aviso nas cinco abas, nas três janelas. **Rolagem interna:** nenhuma em nenhuma aba
+  (`scrollHeight − clientHeight` = 0 no palco e no documento).

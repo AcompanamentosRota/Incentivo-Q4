@@ -1228,7 +1228,7 @@ function fontesDosMeses(index, cfg) {
  *   - mês = ref, aberto OU em período de fechamento da API: os blocos `cobertura` da própria API ('api'), porque
  *     a cobertura do mês de referência continua publicada lá mesmo quando o volume já vem do fechado/;
  *     `fechamento` marca a janela em que a API devolve `online_hoje` null e não há meta dia;
- *   - mês anterior a ref: 'fechado' (o arquivo do mês), que hoje NÃO traz cobertura (pendência 10 das regras);
+ *   - mês anterior a ref: 'fechado' (o arquivo do mês), que desde 11/2026 traz a cobertura (coberturaDoFechado);
  *   - mês posterior a ref: 'futuro'.
  * Devolve [{ mes, anomes, fonte: 'api' | 'fechado' | 'futuro', arquivo, motivo, fechamento }].
  */
@@ -1247,18 +1247,51 @@ function fontesDaCobertura(index, cfg) {
 }
 
 /**
- * Cobertura de um mês fechado -> { meta, real } por nível, ou null quando o arquivo não traz cobertura.
+ * Cobertura de um mês fechado -> valores por nível, ou null quando o arquivo não traz cobertura.
  *
- * PORTA ÚNICA da pendência 10 das regras: o `fechado/AAAAMM.json` de hoje tem `campos_produto: ["meta",
- * "realizado"]` e NENHUM campo de cobertura; o formato do campo novo ainda não existe — o Matheus vai incluí-lo
- * até 01/12/2026. Até lá esta função devolve null para qualquer arquivo, e o mês de cobertura fica
- * "indisponível" (sem gatilho, sem posição oficial, com aviso). Nada é adivinhado: quando o campo existir, é
- * só aqui que ele entra, e só aqui que os testes precisam mudar.
- * Em dezembro isso significa gatilho indisponível para todos, porque novembro já será mês fechado.
+ * PORTA ÚNICA da cobertura do fechado (pendência 10 das regras, resolvida em 11/11/2026): desde 11/2026 o
+ * `fechado/AAAAMM.json` traz a coluna `cobertura` por rota e o bloco `totais_cobertura`, nos mesmos moldes do
+ * volume (`campos` e `campos_produto`; API.md -> "Meses fechados"). A coluna é lida pelo NOME em `campos`,
+ * nunca por posição fixa: arquivo gravado antes de 11/2026 não a tem.
+ *
+ * Devolve { gc: {GC: valores|null}, empresa: valores|null, sv: {SV: valores|null},
+ *           rotas: [{ rota, gc, sv, valores }] }, com `valores` = { meta, real, online: 0 } (no mês fechado não
+ * há online nem meta dia, como no volume). `valores` null = nível sem o produto naquele arquivo -> mês
+ * "indisponível" para aquela linha; `meta` null com realizado presente é outra coisa: "sem meta de cobertura".
+ *
+ * Devolve null (mês inteiro indisponível, com aviso, nunca um valor adivinhado) quando o arquivo é ilegível,
+ * é de outro mês, não tem a coluna `cobertura`, não tem `totais_cobertura` ou não traz o produto pedido.
+ * GC e Total Band saem SÓ dos totais do arquivo (nunca da soma das rotas, igual ao volume); o SV é a soma das
+ * rotas da mesa pelo campo supervisão (premissa P2) — a meta soma só as rotas com meta e o realizado, todas.
  */
-// Os três parâmetros já são os definitivos (arquivo do mês, anomes e id do produto): só o corpo muda na pendência 10.
 function coberturaDoFechado(fechado, anomes, pid) {
-  return null;
+  const f = fechado;
+  if (!ehObjeto(f) || f.anomes !== anomes) return null;
+  const col = (n) => (f.campos || []).indexOf(n), cp = (n) => (f.campos_produto || []).indexOf(n);
+  const [iRota, iGer, iSv, iCob, iMeta, iReal] =
+    [col('rota'), col('gerencia'), col('supervisao'), col('cobertura'), cp('meta'), cp('realizado')];
+  if ([iRota, iGer, iSv, iCob, iMeta, iReal].some((x) => x < 0) || !Array.isArray(f.rotas)) return null;
+  const tc = f.totais_cobertura;
+  if (!ehObjeto(tc) || !ehObjeto(tc.empresa) || !ehObjeto(tc.gerencias)) return null;
+  const daRota = (l) => (ehObjeto(l[iCob]) ? l[iCob][pid] : undefined);
+  if (tc.empresa[pid] === undefined && !f.rotas.some((l) => daRota(l) !== undefined)) return null;
+  // sem o par [meta, realizado]: null, que é "cobertura indisponível" para a linha (nunca um zero inventado)
+  const doPar = (par) => (Array.isArray(par) ? { meta: par[iMeta], real: par[iReal], online: 0 } : null);
+  const gc = Object.fromEntries(Object.keys(tc.gerencias).map((g) => [g, doPar((tc.gerencias[g] || {})[pid])]));
+  const porSv = {}, rotas = [];
+  for (const l of f.rotas) {
+    const v = doPar(daRota(l));
+    const daMesa = (porSv[l[iSv]] = porSv[l[iSv]] || []); // o SV existe mesmo sem nenhuma rota com o produto
+    if (v) daMesa.push(v);
+    if (!ehEventual(l[iRota])) rotas.push({ rota: l[iRota], gc: l[iGer], sv: l[iSv], valores: v });
+  }
+  const sv = {};
+  for (const [id, vs] of Object.entries(porSv)) {
+    sv[id] = vs.length
+      ? { meta: somaOuNull(vs.map((v) => v.meta)), real: somaOuNull(vs.map((v) => v.real)), online: 0 }
+      : null;
+  }
+  return { gc, empresa: doPar(tc.empresa[pid]), sv, rotas };
 }
 
 const VAZIO = () => ({ meta: null, real: null, online: null, metaDia: null });
@@ -1488,7 +1521,8 @@ function montarDados(entrada, cfg, motor) {
   for (const f of fontes) if (lidos[f.anomes]) for (const [s, g] of Object.entries(lidos[f.anomes].gcDoSv)) if (info.sv[s] && !info.sv[s].gc) info.sv[s].gc = g;
 
   // 2b. cobertura de Skyy por nível e mês (premissa P1): o mês de referência pelos blocos `cobertura` da API
-  // (inclusive em período de fechamento) e os meses anteriores pelo fechado, que hoje não traz cobertura.
+  // (inclusive em período de fechamento) e os meses anteriores pelo fechado, que desde 11/2026 traz a cobertura
+  // (coluna `cobertura` por rota + `totais_cobertura`); arquivo sem ela deixa o mês indisponível, com aviso.
   const fontesCob = fontesDaCobertura(index, cfg).map((f) => Object.assign({}, f));
   const cob = { gc: {}, grupo: {}, sv: {}, rota: {}, empresa: {} };
   const porCob = (nivel, anomes, cod, v) => { ((cob[nivel][cod] = cob[nivel][cod] || {}))[anomes] = v; };
@@ -1502,12 +1536,21 @@ function montarDados(entrada, cfg, motor) {
       }
       if (empresaApi) porCob('empresa', f.anomes, TOTAL_BAND, doBlocoCobertura(empresaApi[pidSkyy]));
     } else if (f.fonte === 'fechado') {
-      // porta única de `coberturaDoFechado`: hoje sempre null -> mês de cobertura indisponível, nunca um valor
-      // assumido. O motivo chega à tela (regras v1.12): diz só o fato do dado, sem citar a pendência das regras.
-      if (coberturaDoFechado((entrada.fechados || {})[f.anomes], f.anomes, pidSkyy) === null) {
+      // porta única de `coberturaDoFechado`: null -> mês de cobertura indisponível, nunca um valor assumido.
+      // O motivo chega à tela (regras v1.12): diz só o fato do dado, sem citar a pendência das regras.
+      const bruto = (entrada.fechados || {})[f.anomes];
+      const c = bruto instanceof Error ? null : coberturaDoFechado(bruto, f.anomes, pidSkyy);
+      if (c === null) {
         Object.assign(f, { fonte: 'indisponivel',
           motivo: `${f.arquivo || `fechado/${f.anomes}.json`} não traz cobertura` });
+        continue;
       }
+      // o estado do mês fechado é o do próprio arquivo (prévia até o Back Office marcar o flash)
+      f.estado = ehObjeto(bruto) && bruto.fechamento_final === true ? 'oficial' : 'previa';
+      if (c.empresa) porCob('empresa', f.anomes, TOTAL_BAND, c.empresa);
+      for (const [g, v] of Object.entries(c.gc)) if (v) porCob('gc', f.anomes, g, v);
+      for (const [sv, v] of Object.entries(c.sv)) if (v) porCob('sv', f.anomes, sv, v);
+      for (const r of c.rotas) if (r.valores) porCob('rota', f.anomes, r.rota, r.valores);
     }
   }
   // aviso só dos meses que contam no gatilho (outubro nunca conta, então o "—" do Skyy de outubro não é alarme)
@@ -1562,13 +1605,14 @@ function montarDados(entrada, cfg, motor) {
   };
 
   // 3b. meses de COBERTURA de uma linha (premissas P2 e P5): % bruto e meta dia do motor; nada recalculado da API.
-  //  - bloco `cobertura` ausente no produto (modelo sem as colunas) ou mês sem fonte: 'indisponivel';
+  //  - bloco `cobertura` ausente no produto (modelo sem as colunas, ou o fechado sem a coluna): 'indisponivel';
   //  - `cobertura.meta` null ou ≤ 0: mês com dado, mas % null e motivo "sem meta de cobertura";
   //  - meta dia só no mês aberto: em período de fechamento não há dia útil a recuperar e o online vem null.
   const diasRestantes = (index.calendario || {}).dias_uteis_restantes;
   const apurarCobertura = (nivel, cod) => fontesCob.map((f) => {
     const bruto = (cob[nivel][cod] || {})[f.anomes];
-    const s = f.fonte === 'futuro' ? 'futuro' : f.fonte !== 'api' || !bruto ? 'indisponivel' : 'dado';
+    // fonte 'api' (mês de referência) e 'fechado' (mês anterior, desde 11/2026) valem; 'indisponivel' não
+    const s = f.fonte === 'futuro' ? 'futuro' : f.fonte === 'indisponivel' || !bruto ? 'indisponivel' : 'dado';
     const aberto = f.fonte === 'api' && f.fechamento !== true;
     const v = s === 'dado' ? bruto : { meta: null, real: null, online: null };
     const pct = s === 'dado' ? motor.percentualCobertura(v.real, v.online, v.meta) : null;
