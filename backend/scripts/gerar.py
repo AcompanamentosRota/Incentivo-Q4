@@ -41,7 +41,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from gerador import api, calendario, fechado, mapeamento, saida, validacao  # noqa: E402
+from gerador import api, calendario, exclusoes, fechado, mapeamento, saida, validacao  # noqa: E402
 from odata.config import PASTA_DADOS_PADRAO, PASTA_SAIDA  # noqa: E402
 from odata.log import configurar_log  # noqa: E402
 
@@ -116,6 +116,8 @@ def _meses_fechados(destino: Path, arquivos: dict[str, dict], anterior_index: di
                     log.info("Mês em prévia regravado: %s", rel)
                 if not g and not a:
                     log.info("Mês em prévia %s: nada mudou", anomes)
+            except exclusoes.VolumeExcluidoMaior:
+                raise   # P4: reprova a rodada inteira (saída 2); nada é gravado
             except Exception as erro:  # noqa: BLE001 - a rodada normal continua
                 previas_ok = False
                 avisos.append(f"mês em prévia {anomes} não foi regravado: {erro}")
@@ -178,6 +180,7 @@ def main() -> int:
     destino = args.saida or (PASTA_SAIDA / f"rota_{args.rota}" if args.rota else _pasta(os.getenv("SAIDA_DIR")))
     # consulta de um mês já encerrado, para regravar o snapshot de um mês em prévia (--rota e --replay não regravam)
     montar_mes = None
+    avisos_exclusao: list[str] = []   # P4: "saiu menos que o declarado" nos meses em prévia (vai para o index.json)
     assinatura, incremental = None, False
     cons = None
     try:
@@ -187,7 +190,9 @@ def main() -> int:
             dados = simulado.gerar(agora)
 
             def montar_mes(anomes: str) -> dict[str, dict]:
-                return api.montar(simulado.gerar(agora, ref=_primeiro_dia(anomes)))
+                d = simulado.gerar(agora, ref=_primeiro_dia(anomes))
+                avisos_exclusao.extend(exclusoes.conferir_ou_parar(d.exclusoes, anomes, log))
+                return api.montar(d)
         else:
             from gerador import fontes
             from gerador.consulta import Consulta
@@ -204,7 +209,9 @@ def main() -> int:
                 dados = fontes.carregar(cons, agora, rota=args.rota)
 
             def montar_mes(anomes: str) -> dict[str, dict]:
-                return api.montar(fontes.carregar(cons, agora, ref=_primeiro_dia(anomes)))
+                d = fontes.carregar(cons, agora, ref=_primeiro_dia(anomes))
+                avisos_exclusao.extend(exclusoes.conferir_ou_parar(d.exclusoes, anomes, log))
+                return api.montar(d)
     except Exception as erro:  # noqa: BLE001
         log.error("Falha ao montar os dados: %s", erro)
         _github_output(mudou="false")
@@ -228,7 +235,7 @@ def main() -> int:
     elif not args.rota and (lista := saida.ler(destino / "v1/missoes.json")) is not None:   # sem consulta: mantém a anterior
         arquivos["v1/missoes.json"] = lista
     anterior = (None, None) if args.rota else (saida.ler(destino / "v1/resumo.json"), saida.ler(destino / "v1/index.json"))
-    erros, avisos = validacao.validar(arquivos, *anterior)
+    erros, avisos = validacao.validar(arquivos, *anterior, exclusoes_aplicadas=dados.exclusoes)
     for a in avisos + dados.avisos:
         log.warning("Aviso: %s", a)
     if erros:
@@ -238,9 +245,17 @@ def main() -> int:
         _github_output(mudou="false")
         return 2
 
-    fechados, previas_ok = ([], True) if args.rota else _meses_fechados(destino, arquivos, anterior[1], log, flash,
-                                                                        avisos_flash, montar_mes, agora)
+    try:
+        fechados, previas_ok = ([], True) if args.rota else _meses_fechados(destino, arquivos, anterior[1], log, flash,
+                                                                           avisos_flash, montar_mes, agora)
+    except exclusoes.VolumeExcluidoMaior as erro:
+        log.error("Reprovado: %s", erro)
+        log.error("Nada foi gravado; o site continua com a versão anterior.")
+        _github_output(mudou="false")
+        return 2
 
+    if avisos_exclusao:   # avisos da exclusão nos meses em prévia entram no registro da rodada
+        arquivos["v1/index.json"]["avisos"] = arquivos["v1/index.json"]["avisos"] + avisos_exclusao
     total = sum(len(saida.serializar(o)) for o in arquivos.values())
     log.info("%d arquivos, %.2f MB no total", len(arquivos), total / 1e6)
     gravados, apagados = saida.gravar_api(destino, arquivos)

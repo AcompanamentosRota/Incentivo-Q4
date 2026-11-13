@@ -39,6 +39,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta
 
 from . import calendario as calmod
+from . import exclusoes
 from . import mapeamento as M
 from . import modelo
 from .consulta import Consulta, e, eq, ne, ou
@@ -144,16 +145,72 @@ def _sigla_gc(valor: object) -> str | None:
     return g if g in M.GC_NOMES else None
 
 
+def _filtro_sem_as_notas(entradas: list[dict], col_rota: str, col_ag: str) -> str | None:
+    """Cláusulas que TIRAM da consulta as linhas declaradas em gerador/exclusoes.py.
+
+    É a lei de De Morgan de NOT(nota E rota E agrupador): a linha sai no servidor, então o $select (o groupby)
+    continua o mesmo de sempre e nenhum outro número se mexe — nem no último bit da soma. None sem entradas.
+    """
+    if not entradas:
+        return None
+    return e(*[f"({ne(CM.NF, x['nf'])} or {ne(col_rota, x['rota'])} or {ne(col_ag, x['agrupador'])})"
+               for x in entradas])
+
+
+def _filtro_so_as_notas(entradas: list[dict], col_rota: str, col_ag: str) -> str:
+    """Cláusula que deixa SÓ as linhas declaradas (a consulta estreita que mede quanto saiu)."""
+    return "(" + " or ".join(f"({eq(CM.NF, x['nf'])} and {eq(col_rota, x['rota'])} and {eq(col_ag, x['agrupador'])})"
+                             for x in entradas) + ")"
+
+
+def carregar_excluidas(cons: Consulta, anomes: str, entradas: list[dict], rota: str | None = None):
+    """Mede, numa consulta estreita, as linhas que o $filter do Vol Real deixou de fora.
+
+    Devolve (aplicadas, tirados): `aplicadas` é o resultado por entrada (gerador/exclusoes.aplicadas), usado pela
+    conferência de P4 e pelo bloco publicado; `tirados` é {(rota, pv, produto)} dos clientes que perderam volume,
+    para a cobertura deles cair quando não sobrar nada daquele produto no mês.
+    """
+    col_mes, col_ag, col_rota = _chaves(anomes)
+    sel = [col_rota, CM.CLIENTE, col_ag, CM.NF, CM.NF_STATUS, CM.VOL_MES]
+    filtro = e(eq(col_mes, anomes), _filtro_so_as_notas(entradas, col_rota, col_ag),
+               eq(col_rota, rota) if rota else None)
+    linhas = [l for l in cons.linhas(M.OBJ_META, sel, filtro) if M.status_nf_real(l.get(CM.NF_STATUS))]
+    achados = exclusoes.total_por_entrada(linhas, anomes, col_rota, col_ag, CM.NF, CM.VOL_MES, entradas)
+    tirados = set()
+    for l in linhas:
+        if exclusoes.entrada_da_linha(anomes, l.get(col_rota), l.get(col_ag), l.get(CM.NF), entradas) is None:
+            continue
+        r, pv, k = _rota(l.get(col_rota)), inteiro(l.get(CM.CLIENTE)), M.produto_do_agrupador(l.get(col_ag))
+        if r and pv is not None and k:
+            tirados.add((r, pv, k))
+    return exclusoes.aplicadas(achados, anomes, entradas), tirados
+
+
 def carregar_volume_real(cons: Consulta, anomes: str, gcs_originais: list[str], rota: str | None):
-    """(real {rota: {prod: v}}, real_cliente {rota: {pv: {prod: v}}}, eventuais {gc: {prod: v}}).
+    """(real {rota: {prod: v}}, real_cliente {rota: {pv: {prod: v}}}, eventuais {gc: {prod: v}},
+    exclusoes [...], sem_real {(rota, pv, prod)}).
 
     Pela chave da meta (M.real_pela_meta), a rota é a da meta: a venda vai para a rota dona da meta, como no SAC.
+
+    Exclusões (gerador/exclusoes.py): nos meses com nota declarada fora do fechamento, a linha sai no **$filter**,
+    antes de qualquer soma — rota, supervisão, gerência e empresa saem todas sem ela —, e uma consulta estreita à
+    parte mede quanto saiu. O groupby não muda, então nenhum outro número se mexe. Mês sem entrada nenhuma: a
+    consulta é exatamente a de antes. `sem_real` traz os (rota, pv, produto) que ficaram sem nenhum volume por
+    causa da exclusão, para a cobertura cair junto.
     """
     obj = M.OBJ_META
     col_mes, col_ag, col_rota = _chaves(anomes)
     sel = _colunas(cons, obj, [col_rota, CM.CLIENTE, col_ag, CM.NF_STATUS, CM.VOL_MES], [CM.GC_COMERCIAL])
-    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA),
-               M.FILTRO_PEDIDOS_ONLINE, eq(col_rota, rota) if rota else None)
+    declaradas = exclusoes.do_mes(anomes)
+    entradas = declaradas
+    # a coluna da nota não é obrigatória de propósito: se o modelo deixar de trazê-la, a rodada não cai — a
+    # exclusão simplesmente não acontece e exclusoes.conferir acusa "saiu menos que o declarado"
+    if declaradas and CM.NF not in cons.colunas(obj):
+        log.error("%s não existe no modelo: a(s) %d exclusão(ões) declarada(s) para %s NÃO foi(ram) aplicada(s).",
+                  CM.NF, len(declaradas), anomes)
+        entradas = []
+    filtro = e(eq(col_mes, anomes), ou(col_ag, M.AGRUPADORES_CONSULTA), M.FILTRO_PEDIDOS_ONLINE,
+               _filtro_sem_as_notas(entradas, col_rota, col_ag), eq(col_rota, rota) if rota else None)
     partes = _por_gerencia(obj, sel, filtro, gcs_originais, rota, outras=M.real_pela_meta(anomes))
     linhas = [l for ls in cons.em_paralelo(partes).values() for l in ls]
     real: dict = defaultdict(dict)
@@ -179,7 +236,16 @@ def carregar_volume_real(cons: Consulta, anomes: str, gcs_originais: list[str], 
              {s: round(v, 1) for s, v in status_fora.items()} or "nenhum")
     if linhas and not real:
         log.error("Nenhum NF_STATUS bateu com %s. Ajuste M.STATUS_NF_REAL.", M.STATUS_NF_REAL)
-    return dict(real), {r: dict(v) for r, v in real_cli.items()}, dict(eventuais)
+    aplicadas, tirados = [], set()
+    if declaradas:
+        aplicadas, tirados = (carregar_excluidas(cons, anomes, entradas, rota) if entradas
+                              else (exclusoes.aplicadas({}, anomes, declaradas), set()))
+        for a in aplicadas:
+            log.warning("Exclusão de volume %s/%s: %d linha(s), %.2f tiradas do Real (declarado %.2f) — %s",
+                        a["rota"], a["agrupador"], a["linhas"], a["volume"], a["esperado"], a["motivo"])
+    # cliente que ficou sem nenhum volume do produto: a cobertura dele naquele produto cai junto
+    sem_real = {(r, pv, k) for r, pv, k in tirados if real_cli.get(r, {}).get(pv, {}).get(k, 0.0) <= 0}
+    return dict(real), {r: dict(v) for r, v in real_cli.items()}, dict(eventuais), aplicadas, sem_real
 
 
 # ------------------------------------------------------------------ meta por cliente e pedidos de hoje
@@ -464,7 +530,7 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
         f_ags = None if rota else ex.submit(carregar_agrupadores_meta, cons, anomes)
         f_cob_meta = ex.submit(carregar_cobertura_meta, cons, anomes, rota)
         f_cob = ex.submit(carregar_cobertura_real, cons, anomes, gcs, rota)
-        real, real_cli, ev = f_real.result()
+        real, real_cli, ev, excl, sem_real = f_real.result()
         meta_cli, online, online_cli = f_cli.result()
         cob_hoje = None
         if f_on:
@@ -474,6 +540,8 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
         meta_dia = f_dia.result() if f_dia else None
         agrupadores_meta = f_ags.result() if f_ags else None
         cob_meta, cob = f_cob_meta.result(), f_cob.result()
+    # a exclusão derruba a cobertura só de quem ficou sem nenhum volume daquele produto no mês
+    cob = _cobertura_sem_excluidos(cob, sem_real)
 
     rotas = sorted(gc_da_rota)
     dias_restantes = cal.total_dias_uteis - cal.dia_ontem
@@ -530,10 +598,26 @@ def carregar(cons: Consulta, agora: datetime, rota: str | None = None, ref: date
                                if k in meta_cli.get(r, {}).get(pv, {}) or k in real_cli.get(r, {}).get(pv, {})}
                           for pv in pvs}
     return Dados(agora=agora, cal=cal, clientes=clientes, volume=dict(volume), volume_cliente=vol_cli,
+                 exclusoes=excl,
                  online=None if online is None else {r: v for r, v in online.items() if r in gc_da_rota},
                  online_cliente={r: v for r, v in online_cli.items() if r in gc_da_rota},
                  eventuais=eventuais, avisos=avisos, agrupadores_meta=agrupadores_meta, gcs_originais=gcs,
                  **_cobertura(cob_meta, cob, cob_hoje, set(gc_da_rota), fech))
+
+
+def _cobertura_sem_excluidos(cob: dict | None, sem_real: set) -> dict | None:
+    """Tira da cobertura os (rota, pv, produto) que ficaram sem nenhum volume por causa de uma exclusão.
+
+    Quem tem outra nota do mesmo produto no mês continua coberto: só sai quem perdeu todo o volume.
+    Função pura; `cob` é {rota: {pv: {produtos}}} de carregar_cobertura_real.
+    """
+    if not sem_real or cob is None:
+        return cob
+    novo = {}
+    for r, pvs in cob.items():
+        novo[r] = {pv: {k for k in ks if (r, pv, k) not in sem_real} for pv, ks in pvs.items()}
+        novo[r] = {pv: ks for pv, ks in novo[r].items() if ks}
+    return novo
 
 
 def _cobertura(meta: dict | None, cob: dict | None, hoje: dict | None, rotas: set[str], fechamento: bool) -> dict:

@@ -82,6 +82,9 @@ class Dados:
     agrupadores_meta: list[dict] | None = None
     # valores originais de gerência da base de clientes (dividem as consultas por gerência; fontes.carregar)
     gcs_originais: list[str] = field(default_factory=list)
+    # notas tiradas do Real no mês (gerador/exclusoes.py): [{"rota", "agrupador", "volume", "motivo",
+    # "esperado", "linhas"}]. Lista vazia = nenhuma exclusão declarada no mês (o caso de sempre)
+    exclusoes: list[dict] = field(default_factory=list)
     # cobertura (clientes que compraram); cobertura_meta None = indisponível (colunas ausentes no modelo)
     # rota -> produto -> META_COBERTURA da rota
     cobertura_meta: dict[str, dict[str, float]] | None = None
