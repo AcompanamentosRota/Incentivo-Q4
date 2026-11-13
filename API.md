@@ -30,6 +30,7 @@ quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 | `busca.json` | Todos os clientes em formato compacto, para busca por nome ou código. |
 | `agrupadores.json` | Todos os agrupadores com META_VOLUME no mês (`campos`: `[nome, meta]`), com a grafia exata do Datasphere. É a lista de sugestões da Administração do painel. |
 | `fechado/{AAAAMM}.json` | Um mês já fechado: meta e realizado de cada rota e os totais por gerência e da empresa, por produto, em prévia ou oficial (veja "Meses fechados"). A lista está em `index.json` → `fechados`. |
+| | O arquivo pode trazer `exclusoes` (opcional): notas tiradas do fechamento, já descontadas dos números. |
 | `missoes.json` | Missões Guiadas: código, nome e realizado de cada missão, no total e por rota (veja "Missões Guiadas"). |
 
 **Agrupadores extras.** Além dos 6 produtos fixos, a API inclui os agrupadores que o admin do painel publicou em
@@ -171,7 +172,9 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
     "gerencias": { "G1": { "sucos": [null, 1520], "skyy": [160.0, 9] } }
   },
   "rotas": [ ["111", "G1", "SV.G1.1", { "sucos": [100.0, 85.0], "refrigerantes": [900.0, 870.5] },
-                                      { "sucos": [null, 19], "skyy": [10.0, 0] }] ]
+                                      { "sucos": [null, 19], "skyy": [10.0, 0] }] ],
+  "exclusoes": [ { "rota": "R32", "agrupador": "Powerade", "volume": 166.9,
+                   "motivo": "Nota fiscal fora do fechamento de outubro/26 (decisão do Back Office em 13/11/2026)" } ]
 }
 ```
 
@@ -187,6 +190,7 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
 | `cobertura` | **Igual a `produtos`, para a cobertura** (desde 11/2026): `{id: [meta, realizado]}` do bloco `cobertura` de cada produto da rota, com os mesmos valores de `gerencias/{GC}.json` → `rotas[].produtos[id].cobertura`. `meta` `null` = sem meta de cobertura; `realizado` é inteiro (clientes). `null` quando a execução não trouxe cobertura. Arquivo gravado antes de 11/2026 não tem a coluna: leia pela posição em `campos`. |
 | `totais_cobertura` | Igual a `totais`, para a cobertura: `empresa` e `gerencias[GC]`, como em `resumo.json` → `empresa.produtos[id].cobertura` e `gerencias/{GC}.json` → `produtos[id].cobertura`. `null` quando a execução não trouxe cobertura; ausente em arquivo gravado antes de 11/2026. |
+| `exclusoes` | **Campo opcional** (desde 13/11/2026): notas fiscais que o Back Office tirou do fechamento daquele mês, **já descontadas** de `rotas`, `totais` e `totais_cobertura`. Uma entrada por nota: `rota`, `agrupador` (como vem do modelo), `volume` (o que saiu do Real, 1 casa) e `motivo`. **Não traz número de nota nem código de cliente.** O campo **não existe** quando o mês não teve exclusão (o caso normal), e nenhuma entrada aparece quando a nota não foi encontrada na execução. Só o Real é afetado: meta, meta de cobertura e online não mudam. |
 
 Não há online, tendência nem meta do dia: no fechamento eles não existem. O % do mês é `realizado / meta`.
 
@@ -246,6 +250,10 @@ Vem do modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` do Datasphere e é consultado em 
   "avisos": []
 }
 ```
+
+`index.json` também pode trazer **`exclusoes`** (campo opcional, desde 13/11/2026), com o mesmo formato do bloco
+dos meses fechados: as notas tiradas do Real **do mês de referência da execução**, já descontadas de todos os
+arquivos dela. O campo não existe quando não houve exclusão — o caso normal.
 
 `gerencias/G1.json`:
 

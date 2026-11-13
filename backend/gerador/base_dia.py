@@ -69,6 +69,9 @@ def para_json(dados: Dados, assinatura: dict[str, float]) -> dict:
         "cobertura_meta": dados.cobertura_meta,
         "cobertura_cliente": {r: {str(pv): sorted(ks) for pv, ks in pvs.items()}
                               for r, pvs in dados.cobertura_cliente.items()},
+        # notas tiradas do Real (gerador/exclusoes.py): o volume da base já vem sem elas, então o bloco tem de
+        # voltar junto, senão a rodada incremental publica os números certos sem o registro da exclusão
+        "exclusoes": dados.exclusoes,
     }
 
 
@@ -87,7 +90,8 @@ def de_json(obj: dict) -> Dados:
         online=None, eventuais=obj["eventuais"], avisos=obj["avisos"], agrupadores_meta=obj["agrupadores_meta"],
         gcs_originais=obj["gcs_originais"], cobertura_meta=obj["cobertura_meta"],
         cobertura_cliente={r: {int(pv): set(ks) for pv, ks in pvs.items()}
-                           for r, pvs in obj["cobertura_cliente"].items()})
+                           for r, pvs in obj["cobertura_cliente"].items()},
+        exclusoes=obj.get("exclusoes") or [])
 
 
 # ------------------------------------------------------------------ leitura e gravação
