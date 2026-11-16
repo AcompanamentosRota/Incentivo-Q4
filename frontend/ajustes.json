@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-11-08T20:37",
+  "atualizado_em": "2026-11-16T11:06",
   "regras": {},
   "pilares": {},
   "canais": {
@@ -236,5 +236,10 @@
       "pilar": "Volume Powerade"
     }
   ],
-  "flashFechado": {}
+  "flashFechado": {
+    "202610": {
+      "fechado": true,
+      "em": "2026-11-16T11:05"
+    }
+  }
 }
