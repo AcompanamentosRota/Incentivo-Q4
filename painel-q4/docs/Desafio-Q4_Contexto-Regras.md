@@ -1,4 +1,10 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.7 (10/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.8 (13/11/2026)
+
+**v3.8:** entra a **exclusão de volume de nota fiscal do fechamento** (decisão informada pela Karen em
+13/11/2026; seção 8). O Back Office pode tirar o volume de uma nota do fechamento de um mês: a primeira é a de
+**outubro/26**, na rota **R32** (gerência RV), no agrupador de **Powerade**. Nada do cálculo do incentivo muda —
+pontos, faixas, gatilhos, confrontos, ranking e status continuam como estão —, porque a R32 é rota **virtual e sem
+canal**: o volume dela entra só nos totais da gerência e, por isso, na aba **Estratégicos**.
 
 **v3.7:** **Missões Guiadas de novembro passa a pontuar com dado real** (decisão informada pela Karen em
 10/11/2026; seções 4 e 9). O realizado da rota é a soma, no mês, de **duas** missões — "Aumente A Família" e
@@ -236,6 +242,28 @@ meta dele é carregada. **Outubro e os meses anteriores** seguem pela chave do f
   oficial pelo flash: o +5 entra no primeiro e se fixa no segundo.
 - **No painel:** a consulta do mês fechado fica em Regras > Administração, só leitura, com as três visões
   (Consultor, Supervisão e Estratégicos) e exportação em `.xlsx` (PR 29, 05/11/2026).
+
+**Exclusão de volume de nota fiscal (decisão informada pela Karen em 13/11/2026):** o Back Office pode decidir que o
+volume de uma **nota fiscal** não entra no fechamento de um mês. A regra:
+
+- A exclusão vale **só para o Real**. Meta, META_NEG, meta de cobertura e os pedidos de hoje (Online) não mudam.
+- Ela é aplicada **por linha, na consulta**, antes de qualquer soma: rota, supervisão, gerência, empresa e cobertura
+  saem todas sem aquele volume de uma vez. **Nunca se subtrai de um total já montado.**
+- A nota é identificada pelo **número dela**. A chave mês + cliente + rota + data + agrupador **não serve**: em
+  13/11/2026, na R32/Powerade/31-10, o mesmo cliente tinha quatro notas do mesmo valor no mesmo dia.
+- A **cobertura** do cliente naquele produto cai **só quando ele não tem outra nota** daquele produto no mês; quem
+  tem outra continua coberto.
+- O volume que saiu é **conferido** contra o valor declarado: saiu **mais** que o declarado, a rodada é **reprovada**
+  e nada é gravado (tirar volume legítimo em silêncio é pior que não rodar); saiu **menos** (ou nada, se a nota foi
+  cancelada na origem), a rodada segue com **aviso em destaque**.
+- Mês já **selado** pelo flash não é reconsultado, então a exclusão fica inerte depois do selo. Por isso ela tem de
+  entrar **antes** de o mês ser marcado no flash.
+- **Nada do cálculo do incentivo muda** por causa dela: pontos, faixas, gatilhos, confrontos, ranking e status
+  continuam exatamente como estão. A primeira exclusão (outubro/26, rota **R32**, agrupador **Powerade**) está numa
+  rota **virtual e sem canal**, que não entra em pontos, ranking, gatilhos nem premiação — só nos totais da gerência
+  e, por isso, na aba **Estratégicos**.
+- A lista das notas excluídas fica na **configuração do gerador**, nunca no meio da lógica nem da tela, e o mês
+  fechado publica rota, agrupador, volume e motivo — **sem número de nota e sem código de cliente**.
 
 **Status (⚠️ interpretação da regra do Back Office):**
 

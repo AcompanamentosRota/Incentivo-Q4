@@ -6,19 +6,23 @@ Erros (nada é gravado; o site continua com a última versão boa):
   - nenhum produto com meta no total da empresa;
   - mesmo mês do publicado e o realizado da empresa de algum produto caiu mais de QUEDA_MAX (consulta incompleta);
   - gerência que existia no publicado sumiu (no mesmo mês).
+  - saiu mais volume de exclusão (gerador/exclusoes.py) que o declarado na lista.
 Avisos (grava, mas registra no log):
   - produto sem meta no total da empresa (agrupador com grafia errada em mapeamento.PRODUTOS?);
-  - produto com meta e realizado zero depois do 3º dia útil.
+  - produto com meta e realizado zero depois do 3º dia útil;
+  - saiu MENOS volume de exclusão que o declarado (nota cancelada na origem?).
 """
 from __future__ import annotations
 
+from . import exclusoes
 from . import mapeamento as M
 
 QUEDA_MAX = 0.30
 
 
 def validar(arquivos: dict[str, dict], anterior_resumo: dict | None = None,
-            anterior_index: dict | None = None) -> tuple[list[str], list[str]]:
+            anterior_index: dict | None = None,
+            exclusoes_aplicadas: list[dict] | None = None) -> tuple[list[str], list[str]]:
     erros: list[str] = []
     avisos: list[str] = []
     index, resumo = arquivos.get("v1/index.json"), arquivos.get("v1/resumo.json")
@@ -55,4 +59,8 @@ def validar(arquivos: dict[str, dict], anterior_resumo: dict | None = None,
         gcs_agora = {g["id"] for g in index.get("gerencias", [])}
         if gcs_antes - gcs_agora:
             erros.append(f"gerências sumiram em relação ao publicado: {', '.join(sorted(gcs_antes - gcs_agora))}")
+    # conferência do volume tirado por gerador/exclusoes.py (P4): mais que o declarado reprova a rodada
+    err_ex, avisos_ex = exclusoes.conferir(exclusoes_aplicadas, index["mes_referencia"]["anomes"])
+    erros += err_ex
+    avisos += avisos_ex
     return erros, avisos

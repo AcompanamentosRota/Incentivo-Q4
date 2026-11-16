@@ -77,6 +77,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `api/v1/` | a API publicada (JSONs) | **só o gerador**, comitado pelo Actions. Nunca à mão |
 | `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota + totais por gerência e empresa), base do acumulado do trimestre | **só o gerador**; selado quando o Back Office marca o flash, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
+| `backend/gerador/exclusoes.py` | notas fiscais tiradas do Real do fechamento (lista + funções puras) | pessoas (PR) |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
 | `backend/scripts/servir.py` | sobe o site local como no Pages | — |
@@ -111,7 +112,7 @@ node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 # testes do painel Campari Club — 264 testes (79 do motor, 185 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
-# testes do back-end — 131 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 179 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -176,7 +177,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.7, 10/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.8, 13/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -520,6 +521,24 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   (é a única situação em que um arquivo de `api/v1/` entra num commit de pessoa).
   No painel, mês em prévia deixa o acumulado do trimestre do SV marcado como **provisório** (Supervisão, Ranking, rodapé
   e Regras > Dados e alertas); o rótulo sai de `estadoFechado` no adaptador e **nenhuma regra de cálculo muda**.
+- **Exclusão de volume de nota fiscal (13/11/2026, informada pela Karen; documento de regras v3.8, seção 8):** o
+  Back Office pode tirar do fechamento de um mês o volume de uma **nota fiscal**. A lista fica em
+  `backend/gerador/exclusoes.py` — **nunca no meio da lógica** — e vale só para os meses em que está declarada
+  (lista vazia = comportamento de antes, byte a byte). Vale **só para o Real** (`FX_VOL_PADRAO_FAT`): não toca
+  Online, META, META_NEG nem meta de cobertura. A nota é identificada pelo **número** (`NF_NRONF_Nota_Fiscal`, em
+  `ColMeta.NF`): a chave mês + cliente + rota + data + agrupador **não serve** — em 13/11/2026 a R32/Powerade/31-10
+  tinha **quatro notas** do mesmo cliente, mesmo dia e mesmo valor. A linha sai no **`$filter`** da consulta do Vol
+  Real (lei de De Morgan, `_filtro_sem_as_notas`), não no groupby: assim rota, supervisão, gerência e empresa saem
+  sem ela de uma vez e **nenhum outro número se mexe** — pôr a nota no groupby fazia 291 valores publicados oscilarem
+  0,1 por ordem de soma de ponto flutuante. Uma consulta estreita à parte (`carregar_excluidas`) mede quanto saiu.
+  A **cobertura** do cliente cai só quando ele **não tem outra nota** daquele produto no mês. A conferência é
+  **assimétrica** (`exclusoes.conferir`): saiu **mais** que o declarado → a rodada é **reprovada** (saída 2, nada
+  gravado); saiu **menos** ou nada → segue com **aviso em destaque** no log e no `index.json`. Mês já selado não é
+  reconsultado, então a entrada fica inerte depois do selo — ela tem de entrar **antes** de o flash ser marcado.
+  O `fechado/AAAAMM.json` e o `index.json` ganham o bloco opcional `exclusoes` (rota, agrupador, volume e motivo,
+  **sem número de nota e sem código de cliente**; formato em `API.md`); o painel ainda não lê esse bloco.
+  **Nada do cálculo do incentivo muda:** a primeira exclusão é numa rota `virtual` e **sem canal** (R32), que não
+  entra em pontos, ranking, gatilhos nem premiação — só nos totais da gerência e na aba Estratégicos.
 - **Consulta do fechamento (04/11/2026),** no tópico "Fechamento do mês" de Regras > Administração: só leitura, em cima dos meses que o painel
   já carregou (`dados.fechados`). `consultaFechamento` no adaptador recorta os dados no mês escolhido (`dadosDoFechado`:
   o mês vira o "corrente", com `fechamento: true`, e os anteriores seguem no acumulado), chama `montarEntrada` e o
@@ -537,7 +556,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 171 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 131 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 179 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

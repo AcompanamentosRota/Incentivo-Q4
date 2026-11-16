@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 
+from . import exclusoes
 from . import mapeamento as M
 from . import modelo
 from .tipos import Cliente, Dados
@@ -186,6 +187,11 @@ def montar(d: Dados) -> dict[str, dict]:
         "fechados": [],   # preenchido por gerar.py com os arquivos de v1/fechado/ (fechado.listar)
         "avisos": d.avisos,
     }
+    # notas tiradas do Real do mês (gerador/exclusoes.py). Campo opcional: só aparece quando há alguma, então
+    # mês sem exclusão sai byte a byte igual ao de antes. É daqui que o fechado/AAAAMM.json copia o bloco.
+    bloco_exclusoes = exclusoes.publicar(d.exclusoes)
+    if bloco_exclusoes:
+        arquivos["v1/index.json"]["exclusoes"] = bloco_exclusoes
     return arquivos
 
 

@@ -121,6 +121,10 @@ class ColMeta:
     VOL_MES = "FX_VOL_PADRAO_FAT"                    # volume padrão faturado no mês
     VOL_ONLINE = "FX_VOL_PADRAO_WF_ONLINE"           # volume padrão dos pedidos de hoje
     NF_STATUS = "NF_STATUS_Nota_Fiscal"              # Vol Real só com os status de STATUS_NF_REAL
+    # Número da nota fiscal. Entra no groupby do Vol Real SÓ nos meses com exclusão declarada
+    # (gerador/exclusoes.py): é a única chave que identifica uma nota sozinha. A chave mês + cliente + rota +
+    # data + agrupador não serve — em 13/11/2026 a R32/Powerade/31-10 tinha quatro notas iguais do mesmo cliente.
+    NF = "NF_NRONF_Nota_Fiscal"
     # lado "Chave_Meta_SAP" do modelo
     META_ANOMES = "ANOMES_REF_Chave_Meta_SAP"
     META_ROTA = "CD_ROTA_Chave_Meta_SAP"

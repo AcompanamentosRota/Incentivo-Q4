@@ -79,13 +79,18 @@ def montar(arquivos: dict[str, dict], gerado_em: str) -> dict:
                           _pares(r["produtos"], cobertura=True) if cob else None])
     ref = index["mes_referencia"]
     empresa = arquivos["v1/resumo.json"]["empresa"]["produtos"]
-    return {"anomes": ref["anomes"], "rotulo": ref["rotulo"], "gerado_em": gerado_em,
+    snap = {"anomes": ref["anomes"], "rotulo": ref["rotulo"], "gerado_em": gerado_em,
             "atualizado_em": index["atualizado_em"], "simulado": index["simulado"], "fechamento_final": False,
             "oficial_em": None, "fonte_selo": None,
             "campos": CAMPOS, "campos_produto": CAMPOS_PRODUTO,
             "totais": {"empresa": _pares(empresa), "gerencias": gerencias},
             "totais_cobertura": {"empresa": _pares(empresa, cobertura=True), "gerencias": gerencias_cob} if cob else None,
             "rotas": rotas}
+    # notas tiradas do Real do mês (gerador/exclusoes.py), já descontadas nos números acima. Campo opcional:
+    # mês sem exclusão sai byte a byte igual ao de antes.
+    if index.get("exclusoes"):
+        snap["exclusoes"] = index["exclusoes"]
+    return snap
 
 
 def _conferir_totais(guardado: dict, da_rodada: dict, onde: str, cobertura: bool = False) -> list[str]:
