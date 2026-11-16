@@ -596,6 +596,9 @@ function normalizarConfrontos(lista, avisos) {
 
 const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores',
   'confrontos', 'flashFechado', 'missoes'];
+/* Chaves do ajustes.json que pertencem a OUTROS painéis (16/11/2026, etapa 4R): o Q4 não lê nem valida, e não avisa
+   delas; a Administração do Q4 as copia sem mudar nada ao publicar (`ajustesParaPublicar`). `campari` é do Campari Club. */
+const CAMPOS_OUTROS_PAINEIS = ['campari'];
 const MISSOES_MAX = 10; // missões que podem contar no mesmo mês
 const CAMPOS_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos', 'premiadas'];
 const ehObjeto = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -649,7 +652,8 @@ function normalizarAjustes(aj, avisos) {
   if (!aj || typeof aj !== 'object') return null;
   const av = (t) => { if (avisos) avisos.push(t); };
   const ok = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
-  Object.keys(aj).filter((k) => !CAMPOS_AJUSTES.includes(k)).forEach((k) => av(`campo ${JSON.stringify(k)} desconhecido: ignorado`));
+  Object.keys(aj).filter((k) => !CAMPOS_AJUSTES.includes(k) && !CAMPOS_OUTROS_PAINEIS.includes(k))
+    .forEach((k) => av(`campo ${JSON.stringify(k)} desconhecido: ignorado`));
   if (aj.regras !== undefined && !ehObjeto(aj.regras)) av('regras: precisa ser um objeto: ignorado');
   const r = ehObjeto(aj.regras) ? aj.regras : {}, regras = {}, pilares = {}, canais = {};
   Object.keys(r).filter((k) => !CAMPOS_REGRAS.includes(k)).forEach((k) => av(`regras.${k} desconhecido: ignorado`));
@@ -902,6 +906,23 @@ function semItens(salvo, chaves) {
   return Object.keys(itens).length ? Object.assign({}, salvo, { itens }) : null;
 }
 
+/*
+ * O objeto que a Administração publica (etapa 4R, 16/11/2026): parte do ajustes.json PUBLICADO que o painel leu (o
+ * objeto bruto, inteiro) e só troca as chaves que a Administração gera (`gerado`, montado pelo formulário). Toda outra
+ * chave do publicado — de outro painel (`campari`) ou que a Administração não edita (`missoes`) — vai copiada sem
+ * mudar nada, depois das gerenciadas e na ordem em que estava. O critério é "o que não está em `gerado`": nenhuma
+ * lista de chaves a preservar. Sem chave extra, devolve `gerado` como está (o mesmo arquivo de antes da etapa).
+ * `vazio` = o formulário está todo no padrão: sem chave extra, null (nada a publicar); com chave extra, o arquivo
+ * leva as gerenciadas vazias e as extras, para que publicar nunca apague o que é de outro painel.
+ */
+function ajustesParaPublicar(publicadoBruto, gerado, vazio) {
+  const extras = ehObjeto(publicadoBruto) ? Object.keys(publicadoBruto).filter((k) => !(k in gerado)) : [];
+  if (!extras.length) return vazio ? null : gerado;
+  const out = Object.assign({}, gerado);
+  extras.forEach((k) => { Object.defineProperty(out, k, { value: publicadoBruto[k], enumerable: true, writable: true, configurable: true }); });
+  return out;
+}
+
 /** Motivo curto de um ajustes.json que não é JSON válido (dois objetos seguidos é o caso de 29/10/2026). */
 function motivoJsonInvalido(e) {
   const m = String((e && e.message) || e);
@@ -923,7 +944,7 @@ function motivoJsonInvalido(e) {
  */
 async function carregarAjustes(cfg, padrao) {
   cfg = cfg || CONFIG; padrao = padrao || MotorPadrao;
-  let publicado = null, existePublicado = false, erroPublicado = null, conhecido = false, situacaoPublicado = 'sem-acesso';
+  let publicado = null, publicadoBruto = null, existePublicado = false, erroPublicado = null, conhecido = false, situacaoPublicado = 'sem-acesso';
   const avPub = [], avNav = [];
   try {
     const r = await fetch(cfg.ajustes, { cache: 'no-store' });
@@ -932,7 +953,7 @@ async function carregarAjustes(cfg, padrao) {
       let bruto;
       try { bruto = await r.json(); } catch (e) { erroPublicado = motivoJsonInvalido(e); }
       if (!erroPublicado && !ehObjeto(bruto)) erroPublicado = 'o conteúdo não é um objeto JSON';
-      if (!erroPublicado) { publicado = normalizarAjustes(bruto, avPub); conhecido = true; }
+      if (!erroPublicado) { publicado = normalizarAjustes(bruto, avPub); publicadoBruto = bruto; conhecido = true; }
     } else if (r.status === 404) conhecido = true; // ninguém publicou ajustes
     else erroPublicado = `HTTP ${r.status}`;
     situacaoPublicado = erroPublicado ? 'erro' : publicado ? 'ok' : r.ok ? 'vazio' : 'ausente';
@@ -956,7 +977,7 @@ async function carregarAjustes(cfg, padrao) {
   const pubEm = publicado && publicado.atualizado_em;
   const ativo = diferencas.length ? m.ajustes : publicado;
   return {
-    publicado, existePublicado, erroPublicado, situacaoPublicado, ativo,
+    publicado, publicadoBruto, existePublicado, erroPublicado, situacaoPublicado, ativo,
     origem: diferencas.length ? 'local' : publicado ? 'publicado' : null,
     navegador: guardar ? { atualizado_em: guardar.atualizado_em, publicado_em: guardar.publicado_em, itens: guardar.itens } : null,
     diferencas, descartados,
@@ -1963,6 +1984,7 @@ if (typeof module === 'object' && module.exports) {
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
                      diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
+                     ajustesParaPublicar, CAMPOS_AJUSTES, CAMPOS_OUTROS_PAINEIS,
                      normalizarFlash, estadoFechado, dataBr, totaisDoFechado,
                      PILAR_MISSAO, MISSOES_MAX, missoesDoMes, somaDasMissoes, fonteDasMissoes, linhaDasMissoes,
                      missoesVazias, estadoMissoes, normalizarMissoes, semFonte,

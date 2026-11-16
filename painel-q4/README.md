@@ -200,6 +200,17 @@ fechado** de cada mês, além da **consulta do fechamento do mês**, que é só 
   texto antigo.** Em *Commit changes*, escolha "Create a new branch for this commit and start a pull request": alguém
   revisa e faz o merge, e só então os ajustes valem para todos. Para voltar todos ao padrão, apague o
   `frontend/ajustes.json`, também por PR. "Baixar ajustes.json" continua disponível.
+- **Chaves que a Administração não gerencia são preservadas (16/11/2026, etapa 4R):** o arquivo publicado (e o
+  baixado) parte do `ajustes.json` **publicado que o painel leu**, inteiro, e só troca as chaves que a Administração
+  gera (`versao`, `atualizado_em`, `regras`, `pilares`, `canais`, `canaisSV`, `agrupadores`, `confrontos`,
+  `flashFechado`). Toda outra chave vai copiada sem mudar nada, depois delas e na ordem em que estava
+  (`ajustesParaPublicar` no adaptador; o critério é "o que o formulário não gera", sem lista de chaves a preservar).
+  Hoje isso cobre `campari` (do painel Campari Club) e `missoes` (Missões Guiadas, que a Administração não edita):
+  antes desta etapa, publicar apagava as duas sem aviso, e `missoes` aparecia como "alteração para publicar".
+  Sem chave extra no publicado, o arquivo sai igual ao de antes. Com o formulário todo no padrão e uma chave extra,
+  o arquivo leva as chaves gerenciadas vazias e a extra — nunca é preciso apagar o arquivo e perder a do outro painel.
+  O Q4 **não lê** a chave `campari` e **não avisa** dela (`CAMPOS_OUTROS_PAINEIS`); chave realmente desconhecida
+  continua com aviso (faixa amarela).
 - **`ajustes.json` ilegível:** o arquivo tem de ser **um único objeto JSON**. Se o publicado existe mas não pode ser
   lido (por exemplo, dois objetos seguidos, como em 29/10/2026), nenhum ajuste publicado vale e o painel mostra uma
   **faixa vermelha** abaixo das abas, com o motivo. Valor inválido dentro de um arquivo válido (ex.: mínimo de pontos
@@ -220,7 +231,7 @@ src/assets/                  fontes (fonts.json) e o logo; o resto do painel usa
 data/data.json               base embutida (10/2026): canal das rotas e plano B sem a API
 scripts/build.py             monta o HTML final; embute só as fontes da lista `manter`
 scripts/preparar_dados.py    gera data.json a partir dos dois Excel do SAP
-tests/                       42 testes do motor e 116 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
+tests/                       42 testes do motor e 133 do adaptador (fixtures/: regressão de outubro, do ajustes.json antigo e do status "Bateu!";
                              as duas de outubro foram gravadas com o mínimo do Consultor em 20 e são comparadas com esse mínimo)
 docs/                        regras do incentivo (fonte de verdade)
 ```

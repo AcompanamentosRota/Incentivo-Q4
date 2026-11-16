@@ -106,7 +106,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 171 testes (42 do motor, 129 do adaptador); precisa de Node 18+
+# testes do painel — 175 testes (42 do motor, 133 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do painel Campari Club — 264 testes (79 do motor, 185 do adaptador)
@@ -427,6 +427,13 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração). Ele não
   existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
   é esperado e inofensivo.
+- **A Administração do Q4 preserva as chaves que ela não gerencia (16/11/2026, etapa 4R).** Publicar (ou baixar)
+  parte do `ajustes.json` publicado que o painel leu (`publicadoBruto` de `carregarAjustes`) e só troca as chaves que
+  o formulário gera; toda outra chave é copiada sem mudar nada (`ajustesParaPublicar` no adaptador — sem lista de
+  chaves a preservar). A chave **`campari` é do painel Campari Club**: o Q4 não a lê e não avisa dela
+  (`CAMPOS_OUTROS_PAINEIS`); chave realmente desconhecida continua com aviso. `missoes` também não é editada pela
+  Administração e era apagada a cada publicação até esta etapa. Chave nova de outro painel no `ajustes.json`:
+  acrescente-a a `CAMPOS_OUTROS_PAINEIS` para o Q4 não acender a faixa amarela.
 - **`frontend/ajustes.json` tem de ser UM único objeto JSON.** Em 29/10/2026 ele ficou com dois e três objetos
   seguidos (texto colado depois do antigo, no editor do GitHub) e o painel ignorou o arquivo em silêncio. Hoje,
   ilegível (ou HTTP ≠ 200/404), nenhum ajuste publicado vale e o painel mostra uma **faixa vermelha** em todas as abas;
@@ -564,8 +571,8 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 171 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 passando.
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 175 passando; e
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 264 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 193 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
