@@ -124,9 +124,24 @@ class TestBaseDoDia(unittest.TestCase):
         self.assertEqual(api.montar(dados), api.montar(fontes.carregar(cenario_nov(), AGORA_NOV)))
 
     def test_mes_antes_da_chave_da_meta_nao_guarda_base(self):
-        dados, assinatura, _ = base_dia.carregar(cenario(), datetime(2026, 10, 22, 10, 0), self.caminho)
-        self.assertFalse(base_dia.salvar(self.caminho, dados, assinatura))
+        """Mecanismo, não o mês: com o corte em 202611, outubro é "antes do corte" e não vira base do dia."""
+        with mock.patch.object(M, "REAL_PELA_META_DESDE", "202611"):
+            dados, assinatura, _ = base_dia.carregar(cenario(), datetime(2026, 10, 22, 10, 0), self.caminho)
+            self.assertFalse(base_dia.salvar(self.caminho, dados, assinatura))
         self.assertFalse(self.caminho.exists())
+
+    def test_trocar_o_corte_invalida_a_base_guardada(self):
+        """A constante entra na assinatura da base: mudá-la obriga carga completa na rodada seguinte, em vez
+        de publicar um Real novo com o Online da base velha."""
+        dados = fontes.carregar(cenario_nov(), AGORA_NOV)
+        assinatura = {"Sucos": 70.0}
+        self.assertTrue(base_dia.salvar(self.caminho, dados, assinatura))
+        lida, motivo = base_dia.ler(self.caminho, dados.cal.hoje, dados.cal.anomes, assinatura)
+        self.assertIsNotNone(lida, motivo)
+        with mock.patch.object(M, "REAL_PELA_META_DESDE", "202609"):
+            lida, motivo = base_dia.ler(self.caminho, dados.cal.hoje, dados.cal.anomes, assinatura)
+        self.assertIsNone(lida)
+        self.assertIn("agrupadores ou modelo mudaram", motivo)
 
     def test_fechamento_nao_guarda_base(self):
         dados = fontes.carregar(cenario_nov(), AGORA_NOV)

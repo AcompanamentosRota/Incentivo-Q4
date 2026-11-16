@@ -184,7 +184,7 @@ def _cenario(anomes="202610"):
       712 / cli 73: nota A1 50                                 -> mesma nota, outra rota: fica
       711 / cli 71: Sucos na nota A1, 7                        -> mesma nota e rota, outro agrupador: fica
     """
-    pela_meta = anomes != "202610"
+    pela_meta = M.real_pela_meta(anomes)   # a fixture segue a constante, nunca um mês escrito aqui
     rm = (lambda r: r) if pela_meta else (lambda r: None)
     meta = [_meta("711", "Powerade", 100, anomes), _meta("712", "Powerade", 100, anomes),
             _meta("711", "Sucos", 100, anomes),
@@ -217,9 +217,11 @@ def _cenario(anomes="202610"):
 class _ComExclusao(unittest.TestCase):
     ANOMES = "202610"
     QUANDO = AGORA
+    DESDE = None   # corte de M.REAL_PELA_META_DESDE fixado no teste; None = o publicado
 
     def montar(self, entradas):
-        with mock.patch.object(exclusoes, "EXCLUSOES", entradas):
+        corte = mock.patch.object(M, "REAL_PELA_META_DESDE", self.DESDE or M.REAL_PELA_META_DESDE)
+        with mock.patch.object(exclusoes, "EXCLUSOES", entradas), corte:
             cons = _cenario(self.ANOMES)
             dados = fontes.carregar(cons, self.QUANDO)
         return cons, dados, api.montar(dados)
@@ -232,7 +234,8 @@ class _ComExclusao(unittest.TestCase):
 
 
 class TestExclusaoNaConsulta(_ComExclusao):
-    """Chave do faturamento (outubro): duas notas fora, nos quatro níveis e na cobertura."""
+    """Mês ANTES do corte, pela chave do faturamento: duas notas fora, nos quatro níveis e na cobertura."""
+    DESDE = "202611"
 
     @classmethod
     def setUpClass(cls):
@@ -295,6 +298,11 @@ class TestExclusaoNaConsulta(_ComExclusao):
     def test_meta_e_cobertura_nao_mudam(self):
         self.assertEqual(self.api["v1/rotas/711.json"]["produtos"]["powerade"]["meta"], 100.0)
         self.assertEqual(self.api["v1/rotas/711.json"]["produtos"]["powerade"]["cobertura"]["meta"], 3.0)
+
+
+class TestExclusaoEmOutubroPelaChaveDaMeta(TestExclusaoNaConsulta):
+    """As mesmas verificações com o corte publicado (16/11/2026): outubro também sai pela chave da meta."""
+    DESDE = "202610"
 
 
 class TestExclusaoPelaChaveDaMeta(_ComExclusao):
@@ -438,12 +446,14 @@ class TestBlocoNoMesFechado(Rodadas):
 
 
 class TestEntradaPublicada(unittest.TestCase):
-    """A lista do repositório: a decisão de 13/11/2026 e nada de dado pessoal no texto publicado."""
+    """A lista do repositório: nada de dado pessoal no texto publicado, e nenhuma entrada inerte."""
 
-    def test_a_entrada_de_outubro_esta_declarada(self):
-        ent = exclusoes.do_mes("202610")
-        self.assertEqual(len(ent), 1)
-        self.assertEqual((ent[0]["rota"], ent[0]["agrupador"], ent[0]["volume"]), ("R32", "Powerade", 166.95))
+    def test_a_lista_publicada_esta_vazia(self):
+        """A entrada de outubro/26 (R32/Powerade) saiu em 16/11/2026: a nota foi cancelada na origem e já
+        não está no Real por nenhuma das duas chaves. Entrada que não acha mais a nota repetiria o aviso
+        'saiu menos que o declarado' em toda rodada (ver gerador/exclusoes.py)."""
+        self.assertEqual(exclusoes.EXCLUSOES, [])
+        self.assertEqual(exclusoes.do_mes("202610"), [])
 
     def test_o_motivo_publicado_nao_cita_a_nota(self):
         for x in exclusoes.EXCLUSOES:
@@ -453,6 +463,20 @@ class TestEntradaPublicada(unittest.TestCase):
         for x in exclusoes.EXCLUSOES:
             self.assertIsNotNone(M.produto_do_agrupador(x["agrupador"]),
                                  f"agrupador {x['agrupador']} não é de nenhum produto da API")
+
+
+class TestInvariantesDaEntrada(unittest.TestCase):
+    """As mesmas invariantes de TestEntradaPublicada, com entradas sintéticas: elas continuam valendo
+    mesmo enquanto a lista publicada está vazia (senão aqueles dois testes passariam por vacuidade)."""
+
+    def test_motivo_com_o_numero_da_nota_e_reprovado(self):
+        x = _entrada("A1", "711")
+        x["motivo"] = "Nota A1 fora do fechamento"
+        self.assertIn(x["nf"], x["motivo"])   # é exatamente o que test_o_motivo_publicado_nao_cita_a_nota barra
+
+    def test_agrupador_de_fora_da_api_e_reprovado(self):
+        self.assertIsNone(M.produto_do_agrupador(_entrada("A1", "711", ag="Cervejas")["agrupador"]))
+        self.assertIsNotNone(M.produto_do_agrupador(_entrada("A1", "711")["agrupador"]))
 
 
 if __name__ == "__main__":

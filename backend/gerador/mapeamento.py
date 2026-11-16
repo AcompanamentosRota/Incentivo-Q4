@@ -188,12 +188,15 @@ ROTAS_IGNORAR_PREFIXOS = ("EV",)          # rotas eventuais
 FILTRO_PEDIDOS_ONLINE = f"({ColMeta.FONTE} ne 'WF Online' or {ColMeta.SITUACAO_PEDIDO} eq 'Inc. e Exp.')"
 # Vol Real (critério do SAC): FX_VOL_PADRAO_FAT só com estes NF_STATUS (comparados por normalizar())
 STATUS_NF_REAL = ["Acertado", "Meta Neg", "Em Aberto"]
-# Real e Online pela chave da META, como a story do SAC (decisão da Karen em 03/11/2026, a partir de novembro/26):
-# mês e agrupador da meta (ANOMES_REF_Chave_Meta_SAP, AGRUPADOR_PRODU_Chave_Meta_SAP) e rota da meta
-# (CD_ROTA_Chave_Meta_SAP). Venda sem chave de meta (mês 210012, agrupador '--': quase toda de rota eventual EV*) fica
-# fora, e o Real de um agrupador só aparece depois que a meta dele é carregada, como no SAC. Até outubro/26 (já selado
-# em api/v1/fechado/) vale a chave do faturamento: ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente.
-REAL_PELA_META_DESDE = "202611"
+# Real e Online pela chave da META, como a story do SAC (decisão da Karen em 03/11/2026): mês e agrupador da meta
+# (ANOMES_REF_Chave_Meta_SAP, AGRUPADOR_PRODU_Chave_Meta_SAP) e rota da meta (CD_ROTA_Chave_Meta_SAP). Venda sem chave
+# de meta (mês 210012, agrupador '--': quase toda de rota eventual EV*) fica fora, e o Real de um agrupador só aparece
+# depois que a meta dele é carregada, como no SAC.
+# Vale para TODO o trimestre desde 16/11/2026 (decisão informada pela Karen): outubro passou a ser calculado como
+# novembro, para o incentivo inteiro sair pelo mesmo critério do SAC e do flash de vendas. Antes do corte vale a chave
+# do faturamento (ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente); o mecanismo fica de pé para o caso de
+# um mês futuro precisar de outro corte. O mês é comparado como texto de 6 dígitos.
+REAL_PELA_META_DESDE = "202610"
 
 
 def real_pela_meta(anomes: str) -> bool:

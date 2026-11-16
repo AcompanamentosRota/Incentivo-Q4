@@ -112,7 +112,7 @@ node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 # testes do painel Campari Club — 264 testes (79 do motor, 185 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
-# testes do back-end — 179 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 193 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -177,7 +177,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.8, 13/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.9, 16/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -234,11 +234,17 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   no código. Detalhe na seção 7.
 - **Medidas:** Real = até ontem, Online = hoje, Diferença = Real + Online − Meta, % = (Real + Online) ÷ Meta.
   `meta_dia` vem pronta da API — **não recalcule**.
-- **Real e Online iguais ao SAC (03/11/2026, decisão da Karen; a partir de novembro/26):** o gerador lê o Real e o Online
-  pela chave da meta, como a story do SAC: mês, agrupador e **rota da meta** (`*_Chave_Meta_SAP`), não a rota do
-  cliente. Venda sem chave de meta (mês `210012`, agrupador `--`) fica fora, as rotas `-EV` somem, e o Real de um produto
-  só aparece depois que a meta dele é carregada. Outubro e antes seguem pela chave do faturamento (`M.real_pela_meta`,
-  `M.REAL_PELA_META_DESDE`). A META_NEG do cliente continua pela rota do cliente.
+- **Real e Online iguais ao SAC (03/11/2026, decisão da Karen; todo o trimestre desde 16/11/2026):** o gerador lê o Real
+  e o Online pela chave da meta, como a story do SAC: mês, agrupador e **rota da meta** (`*_Chave_Meta_SAP`), não a rota
+  do cliente. Venda sem chave de meta (mês `210012`, agrupador `--`) fica fora, as rotas `-EV` somem, e o Real de um
+  produto só aparece depois que a meta dele é carregada. A META_NEG do cliente continua pela rota do cliente.
+  **Outubro passou a ser calculado como novembro em 16/11/2026** (decisão informada pela Karen; documento de regras
+  v3.9, seção 8): `M.REAL_PELA_META_DESDE` passou de `"202611"` para `"202610"`, o 1º mês do trimestre, e o incentivo
+  inteiro sai pelo mesmo critério do SAC e do flash. O **mecanismo continua de pé** (`M.real_pela_meta` +
+  `M.REAL_PELA_META_DESDE`, comparação de texto de 6 dígitos): ele documenta a virada e serve se um mês futuro precisar
+  de outro corte — nada de apagar a chave do faturamento do código. A constante entra na assinatura da base do dia
+  (`base_dia._config`), então trocá-la força carga completa na rodada seguinte. Outubro estava **em prévia**, então a
+  regravação do `fechado/202610.json` entra sozinha na rodada seguinte ao merge; **mês já selado não é reconsultado**.
 - **Contrato da API estável:** os campos de `api/v1` descritos em `API.md` não mudam de forma.
 - Orçamento, custo dos prêmios e valores de premiação ficam **fora** do painel e do repositório.
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
@@ -537,6 +543,10 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   reconsultado, então a entrada fica inerte depois do selo — ela tem de entrar **antes** de o flash ser marcado.
   O `fechado/AAAAMM.json` e o `index.json` ganham o bloco opcional `exclusoes` (rota, agrupador, volume e motivo,
   **sem número de nota e sem código de cliente**; formato em `API.md`); o painel ainda não lê esse bloco.
+  **A lista está vazia desde 16/11/2026:** a nota de outubro/26 (R32/Powerade) foi **cancelada na origem** e já não
+  está no Real por nenhuma das duas chaves (NF_STATUS "Cancelada" e sem chave de meta), então a consulta estreita
+  mediu 0,00 contra as 166,95 declaradas. Entrada que não acha mais a nota repete o aviso "saiu menos que o declarado"
+  em toda rodada: por isso ela sai da lista, como o próprio `exclusoes.py` manda.
   **Nada do cálculo do incentivo muda:** a primeira exclusão é numa rota `virtual` e **sem canal** (R32), que não
   entra em pontos, ranking, gatilhos nem premiação — só nos totais da gerência e na aba Estratégicos.
 - **Consulta do fechamento (04/11/2026),** no tópico "Fechamento do mês" de Regras > Administração: só leitura, em cima dos meses que o painel
@@ -556,7 +566,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 171 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 258 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 179 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 193 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json`.
 7. Nenhum `.env`, dado gerado localmente ou segredo no diff.

@@ -63,13 +63,13 @@ produtos entre si. Cada produto traz sempre os mesmos campos:
 | Campo | Significado |
 |---|---|
 | `meta` | Meta de volume do mês (META_VOLUME da rota; nos níveis acima, a soma das rotas). Em `individuais` e `refrigerantes`, rota sem META_VOLUME vem com meta 0, como no SAC. |
-| `realizado` | Volume faturado no mês (notas com status válido, critério do SAC). Não inclui os pedidos de hoje. A partir de novembro/26, como a story do SAC: pelo mês, pelo agrupador e pela **rota da meta** (`Chave_Meta_SAP`); venda sem chave de meta fica fora, e o realizado de um produto só aparece depois que a meta dele é carregada. Até outubro/26: pelo mês e agrupador do faturamento e pela rota do cliente. |
+| `realizado` | Volume faturado no mês (notas com status válido, critério do SAC). Não inclui os pedidos de hoje. Desde 16/11/2026, em **todo o trimestre** (outubro inclusive), como a story do SAC: pelo mês, pelo agrupador e pela **rota da meta** (`Chave_Meta_SAP`); venda sem chave de meta fica fora, e o realizado de um produto só aparece depois que a meta dele é carregada. Antes do corte (`gerador/mapeamento.REAL_PELA_META_DESDE`): pelo mês e agrupador do faturamento e pela rota do cliente. |
 | `atingimento_pct` | `realizado / meta`, inteiro. |
 | `diferenca` | `realizado - meta` (negativo = quanto falta). |
 | `tendencia` | Projeção de fechamento: realizado + parte da meta ainda prevista para os dias que faltam. |
 | `tendencia_pct` | `tendencia / meta`, inteiro. |
 | `meta_dia` | Meta de hoje (o que precisa vender hoje para recuperar o ritmo). |
-| `online_hoje` | Volume dos pedidos de hoje ainda não faturados (WF Online, só pedidos válidos). A partir de novembro/26, pela mesma chave e rota da meta do `realizado`. |
+| `online_hoje` | Volume dos pedidos de hoje ainda não faturados (WF Online, só pedidos válidos). Pela mesma chave e rota da meta do `realizado`. |
 | `status` | `meta_batida`, `no_ritmo`, `abaixo_do_ritmo` ou `sem_meta` (textos em `index.json` → `status`). |
 
 Regras do `status` nos níveis rota, supervisão, gerência e empresa: `meta_batida` quando
@@ -121,7 +121,7 @@ Clientes com `"na_base": false` tiveram venda ou meta na rota, mas não estão m
 Cada rota tem `tipo`: `normal`, `neutraliza`, `virtual` ou `eventual`. Todas entram nos totais de
 supervisão e gerência, como no SAC. As `eventual` (ex.: `G1-EV`) juntam o realizado de clientes
 atendidos por rotas eventuais (EV*): não têm meta nem clientes. Sugestão: listar só as `normal` e
-`neutraliza`, e deixar as demais apenas nos totais. A partir de novembro/26 elas deixam de aparecer: pela chave da
+`neutraliza`, e deixar as demais apenas nos totais. Desde 16/11/2026 elas deixam de aparecer em todo o trimestre (de novembro/26 a 13/11/2026, só de novembro em diante): pela chave da
 meta, a venda eventual com chave de meta entra na rota dona da meta, e a sem chave fica fora, como no SAC.
 
 ## Fechamento do mês
@@ -186,7 +186,7 @@ Formato compacto (os nomes de produto, gerência e supervisor estão em `index.j
 | `oficial_em` | Data/hora do selo oficial (a que o Back Office marcou no painel) ou `null` enquanto o mês está em prévia. |
 | `fonte_selo` | Como o mês foi selado: `"flash"` (marca do flash de vendas) ou `null` em prévia. Arquivo gravado antes de 11/2026 pode vir sem estes dois campos. |
 | `totais` | Totais da execução, para a aba Estratégicos não precisar somar rotas: `empresa` e `gerencias[GC]`, cada um `{id: [meta, realizado]}`, exatamente como em `resumo.json` → `empresa.produtos` e `gerencias/{GC}.json` → `produtos`. |
-| `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. Inclui as rotas eventuais (`G1-EV`), que só têm realizado (até outubro/26). |
+| `rotas` | Uma linha por rota do mês, em todas as gerências, na ordem de `campos`. As rotas eventuais (`G1-EV`) só existem nos meses anteriores ao corte de `REAL_PELA_META_DESDE`; desde 16/11/2026 o corte é outubro/26, então nenhum mês do trimestre as tem. |
 | `produtos` | `{id: [meta, realizado]}`, com os ids de `index.json` → `produtos` daquele mês (os 6 fixos, `refrigerantes` incluído, e os agrupadores extras ativos). Mesmos valores (1 casa) de `gerencias/{GC}.json` → `rotas[].produtos`. Produto que vem `sem_meta` na rota fica fora; `meta` pode ser `0` (`individuais`/`refrigerantes` sem META_VOLUME e rotas eventuais). |
 | `cobertura` | **Igual a `produtos`, para a cobertura** (desde 11/2026): `{id: [meta, realizado]}` do bloco `cobertura` de cada produto da rota, com os mesmos valores de `gerencias/{GC}.json` → `rotas[].produtos[id].cobertura`. `meta` `null` = sem meta de cobertura; `realizado` é inteiro (clientes). `null` quando a execução não trouxe cobertura. Arquivo gravado antes de 11/2026 não tem a coluna: leia pela posição em `campos`. |
 | `totais_cobertura` | Igual a `totais`, para a cobertura: `empresa` e `gerencias[GC]`, como em `resumo.json` → `empresa.produtos[id].cobertura` e `gerencias/{GC}.json` → `produtos[id].cobertura`. `null` quando a execução não trouxe cobertura; ausente em arquivo gravado antes de 11/2026. |
