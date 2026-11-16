@@ -248,6 +248,11 @@ button{cursor:pointer}
 .pag button[aria-current="page"]{background:var(--red);color:#fff;border-color:transparent;box-shadow:0 0 14px rgba(228,0,43,.45)}
 .pag button:disabled{opacity:.35;cursor:default}
 .pag .conta{margin-left:12px;font-size:14px;font-weight:500;color:var(--muted)}
+/* Etapa 4Q: nota da troca de SV abaixo da tabela, na faixa dos botões de página (nota à esquerda, botões ao centro) */
+.pe-tb{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.pe-tb .nota-troca{font-size:13px;color:var(--muted);line-height:1.25}
+.pe-tb .pag{grid-column:2}
+.tb sup.troca{font-size:13px;font-weight:800;color:var(--ap-tit);margin-left:2px;vertical-align:super;line-height:0}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -417,10 +422,15 @@ const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
    Etapa 4F: os números saem da fonte condensada grande (.n) e ficam do tamanho dos do bloco Skyy, e a coluna do
    mês VIGENTE ganha o quadradinho. A cor vem de motor.corDoPercentualAperitivo, pelo mês (o limite é o da trava
    dele) e pelo valor BRUTO — que a tela lê para perguntar a cor e continua sem escrever. */
+/* Etapa 4Q (regras v1.17, seção 3.1): mês com troca de SV (m.troca, do motor) mostra o valor que veio da outra
+   SV com o marcador "*", explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada
+   ao motor pelo valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão. */
 const mesCel = (m, vigente)=>{
-  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+'</td>';
+  const marca = m && m.troca ? '<sup class="troca">*</sup>' : '';
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+marca+'</td>';
   const cor = vigente ? M.corDoPercentualAperitivo(m.pct, m.mes) : null;
-  return '<td><span'+(cor?' class="pchip '+cor+'"':'')+'>'+pct(m.pctTravado)+'</span></td>';
+  const corTela = vigente && m.troca ? M.corDoPercentualAperitivo(m.pctTravado, m.mes) : cor;
+  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span>'+marca+'</td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -498,12 +508,15 @@ function linhaRanking(l, opc){
 /* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava e os
    dois % acumulados ficam explicados na aba Regras, e o rodapé comum continua. */
 /* Etapa 4G: a tabela mostra uma página de linhas e a linha de total se repete em TODAS elas, fora da conta. */
-function tabelaRanking(linhas, rotuloId, comTotal){
+/* Etapa 4Q: `notas` (as da troca de SV, prontas no adaptador: `notasDasTrocas`) ficam abaixo da tabela, na
+   mesma faixa dos botões de página, para não roubar altura da tabela. Sem nota, a faixa é a de sempre. */
+function tabelaRanking(linhas, rotuloId, comTotal, notas){
   const p = fatiaDaTela(linhas);
   const corpo = p.linhas.map((l)=>linhaRanking(l)).join('') +
     (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
-  return '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>'+
-    navPaginas(p);
+  const tabela = '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
+  if(!notas || !notas.length) return tabela+navPaginas(p);
+  return tabela+'<div class="pe-tb"><div class="nota-troca">'+notas.map(esc).join('<br>')+'</div>'+navPaginas(p)+'</div>';
 }
 
 /* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
@@ -597,7 +610,7 @@ function viewSV(){
   return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
     '<div class="nota">'+linhas.length+' supervisores · '+comPilares+' com os dois pilares · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
-    (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
+    (linhas.length?tabelaRanking(linhas,'Supervisão',false,notasDasTrocas(D, st.canal, linhas)):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
     '</div>';
 }
 function viewRT(){

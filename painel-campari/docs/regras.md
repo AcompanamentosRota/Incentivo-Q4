@@ -1,7 +1,9 @@
-# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.16 (11/11/2026)
+# Campari Club 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v1.17 (16/11/2026)
 
 Fonte de verdade do painel Campari Club (`painel-campari/docs/regras.md`). Itens marcados com ⚠️ são
 interpretações a confirmar (seção 10): use-os como estão descritos e sinalize no painel; não decida.
+
+**v1.17 (16/11/2026):** **troca de supervisores em Anápolis: o % de outubro do Aperitivo troca de SV** (seção 3.1). Em novembro dois supervisores da gerência AN trocaram de mesa (SV.AN.2 e SV.AN.3). Para ninguém perder o que fez em outubro, foi autorizado que o **% de outubro do Aperitivo que entra no % Acum.** de cada um passe para a outra SV, **só em outubro**. Solicitado por e-mail pela gerência comercial de Anápolis e autorizado em 16/11/2026 (registro sugerido pela Karen; sem nomes de pessoas no repositório). Decisões da Karen: a troca vale **nos dois sentidos**; o painel pega o **% do ranking** (já com a trava de 130%); vale **só para o Aperitivo**; Meta, Real, Dif. e % do mês de outubro **não mudam**; a tela mostra o valor transferido **com aviso**. O ajuste mora no `frontend/ajustes.json` (chave `campari`), entra **só por PR** e o painel só lê. Pendências 33 (autorização, registrada) e 34 (o admin do Q4 pode apagar a chave `campari`; Etapa 4R).
 
 **v1.16 (11/11/2026):** **a cobertura dos meses fechados passa a vir do `fechado/AAAAMM.json`** (pendência 10 resolvida pelo Matheus antes do prazo de 01/12/2026). O arquivo ganhou a coluna
 `cobertura` em cada rota (`campos`: rota, gerencia, supervisao, produtos, **cobertura**; mesmos `campos_produto`: [meta, realizado]) e o bloco `totais_cobertura` (`empresa` e `gerencias`), igual ao volume
@@ -141,6 +143,15 @@ Conflito resolvido: o slide 2 mostra "Dez 130%" com um carimbo por cima. Vale a 
 - **Ranking parcial:** usa Real + Online no mês aberto. Meses fechados: só o realizado.
 - **Outubro:** vem do `fechado/202610.json` e segue a chave do faturamento (regra até out/26). Novembro e
   dezembro seguem a chave da meta. ⚠️ A soma mistura os dois critérios.
+
+### 3.1 Troca de SV em outubro (decisão de 16/11/2026)
+
+- **O que muda:** só a coluna **Out** do ranking de **Aperitivo** (o % de outubro que entra no % Acum.). Cada SV da troca passa a ter o % de outubro **da outra**; o % Acum., a posição oficial, o RANK e o status são recalculados com os valores trocados.
+- **Que valor troca:** o **% do ranking**, o mesmo que aparece na coluna Out (**já com a trava de 130%**; o painel o lê do próprio cálculo, nunca de um número digitado). Se o fechado de outubro mudar até o flash (ainda é prévia), o valor trocado muda junto. SV sem % de outubro (sem meta) leva o "—" para a outra.
+- **O que NÃO muda:** Meta, Real, Dif. e % do mês de outubro (seletor em Outubro) e os da Skyy seguem as rotas de cada SV; o gatilho de Skyy (outubro fora); o mínimo de volume (só o mês vigente); GC e Total Band; Consultor (sem ranking). Novembro e dezembro seguem a estrutura atual da API.
+- **Onde fica o ajuste:** `frontend/ajustes.json` → `campari.trocasSupervisao`, lista de objetos `{ "mes": 10, "sv_a": "SV.AN.2", "sv_b": "SV.AN.3", "autorizado_em": "2026-11-16" }` (códigos de SV como na API; sem nomes de pessoas). O painel só lê o ajuste **publicado**. O arquivo só muda por PR e continua **um único objeto JSON**.
+- **Validação (nunca adivinhar):** a troca só vale se as duas SV existem na API e estão no **mesmo canal** (Mista ou Segmentada) no mês; senão o ajuste é **ignorado**, com aviso em Regras > Dados e alertas. `mes` fora dos meses do incentivo, SV repetida ou um mesmo SV em duas trocas do mesmo mês também invalidam o item (com aviso). Chave `campari` ausente = sem ajustes, sem aviso.
+- **Tela:** nas duas linhas, a coluna Out mostra o valor trocado com o marcador `*`, e embaixo da tabela fica a nota: "* Outubro: % trocado entre SV.AN.2 e SV.AN.3 (troca de supervisores autorizada em 16/11/2026). Meta, Real, Dif. e % do mês seguem a supervisão." (códigos vêm do ajuste). Sem nomes de pessoas.
 
 ## 4. Quem soma o quê
 
@@ -313,6 +324,8 @@ previsão 12/11/2026.
 | 26 | Status com os dois pilares: premissas | (a), (c) e (d) confirmadas em 10/11/2026. (a) no mínimo de volume não há parcial: vale o mês vigente. **Em aberto só a (b)**: % de volume nulo (meta nula ou ≤ 0) deixa o mínimo indisponível | Karen |
 | 25 | Centralização total e limite de 100% em dezembro para o quadradinho do Aperitivo | **Resolvida** (confirmada em 10/11/2026) | — |
 | 24 | Ranking GC pela gerência comercial agrupada do SAC | **Resolvida** (print do SAC, 12 linhas, seção 4; premissas confirmadas em 10/11/2026) | — |
+| 33 | Autorização da troca de SV em outubro (seção 3.1) | **Resolvida** em 16/11/2026: solicitada por e-mail pela gerência comercial de Anápolis e autorizada em 16/11/2026. Texto do registro sugerido pela Karen (sem nomes) | — |
+| 34 | O botão "Publicar no GitHub (PR)" da Administração do Q4 regrava o `ajustes.json` só com as chaves que conhece e apagaria a chave `campari` | **Em aberto**: Etapa 4R (o Q4 passa a preservar chaves desconhecidas). Até o merge da 4R, ninguém publica ajustes pela Administração do Q4 | Karen / Matheus |
 
 ## 11. Intencionalmente fora deste arquivo
 

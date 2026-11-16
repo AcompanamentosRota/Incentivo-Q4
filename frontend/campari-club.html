@@ -249,6 +249,11 @@ button{cursor:pointer}
 .pag button[aria-current="page"]{background:var(--red);color:#fff;border-color:transparent;box-shadow:0 0 14px rgba(228,0,43,.45)}
 .pag button:disabled{opacity:.35;cursor:default}
 .pag .conta{margin-left:12px;font-size:14px;font-weight:500;color:var(--muted)}
+/* Etapa 4Q: nota da troca de SV abaixo da tabela, na faixa dos botões de página (nota à esquerda, botões ao centro) */
+.pe-tb{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.pe-tb .nota-troca{font-size:13px;color:var(--muted);line-height:1.25}
+.pe-tb .pag{grid-column:2}
+.tb sup.troca{font-size:13px;font-weight:800;color:var(--ap-tit);margin-left:2px;vertical-align:super;line-height:0}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -304,7 +309,7 @@ button{cursor:pointer}
 </div>
 
 <script>/*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.14 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.17 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -349,6 +354,11 @@ button{cursor:pointer}
  * não muda, e "Bateu!" e "-" não mudam de regra: quem decide continua sendo a posição OFICIAL contra
  * `REGRAS.premiadas`. A v1.14 também volta a exibir a posição do ranking (`pos`) na coluna RANK de todas as
  * linhas e pinta de azul a linha com "Bateu!", mas isso é tela: aqui `pos` e `oficial` seguem como estavam.
+ * Etapas 4O e 4P (regras v1.15 e v1.16): fundo da tela e fonte da cobertura dos meses fechados; nada mudou aqui.
+ * Etapa 4Q (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026): `trocarPercentualDeMes`, a troca do % de
+ * UM mês do Aperitivo que entra no % Acum. entre duas SVs (troca de supervisores autorizada). Troca só o valor do
+ * ranking (o % já travado) e refaz a soma; Meta, Real, Dif., % do mês, gatilho de Skyy e mínimo de volume não
+ * mudam. A ordem, a posição oficial e o status saem depois, das funções de sempre.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -359,7 +369,7 @@ button{cursor:pointer}
   'use strict';
 
   const REGRAS = {
-    versao: '1.14',
+    versao: '1.17',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -779,8 +789,50 @@ button{cursor:pointer}
     return online >= metaDia;
   }
 
+  /**
+   * Troca de SV num mês (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026): o % de Aperitivo de `mes` que
+   * ENTRA NO % ACUM. passa de uma SV para a outra, nos dois sentidos. Função pura, chamada ANTES de ordenar.
+   *
+   * linhas: as linhas de UM nível de SV (cada uma com `codigo` e o resultado de `apurarMeses`: meses, soma,
+   *         incompleta, mesesSemPct); mes: o mês da troca (10, 11 ou 12); par: { sv_a, sv_b } (códigos da API).
+   *
+   * O que troca: o `pctTravado` do mês (o valor do ranking, já com a trava de 130% em out/nov; dezembro sem trava)
+   * e o `travado` que o acompanha. Se uma das SV não tem o valor (sem meta), o "sem valor" troca também — e com
+   * ele a marca de mês sem % (`mesesSemPct`/`incompleta`), que passa a seguir o valor que entra na soma.
+   * O que NÃO troca: meta, real, online, meta dia, dif e o `pct` bruto do mês (o "% do mês" da tela), nem nada
+   * da cobertura de Skyy. Nenhum número digitado: o valor sai do próprio cálculo de cada linha.
+   * Depois a `soma` é refeita por `somaRanking`. Cada mês trocado ganha `troca: { com, pctTravadoProprio }` (a
+   * outra SV e o valor que era da própria linha), para a tela marcar a célula.
+   * Par que não acha as DUAS linhas, mês fora da vigência ou par repetido: erro (nunca troca pela metade; quem
+   * valida o ajuste é o adaptador, antes). Devolve cópias, sem alterar a entrada; linhas fora do par saem iguais.
+   */
+  function trocarPercentualDeMes(linhas, mes, par, regras) {
+    regras = regras || REGRAS;
+    if (regras.meses.indexOf(mes) < 0) throw new Error(`mês ${mes} fora da vigência do Campari Club`);
+    if (!par || typeof par.sv_a !== 'string' || typeof par.sv_b !== 'string' || par.sv_a === par.sv_b) {
+      throw new Error('troca de SV precisa de duas supervisões diferentes');
+    }
+    const lista = linhas || [];
+    const ia = lista.findIndex((l) => l && l.codigo === par.sv_a), ib = lista.findIndex((l) => l && l.codigo === par.sv_b);
+    if (ia < 0 || ib < 0) throw new Error(`troca de SV: ${ia < 0 ? par.sv_a : par.sv_b} não está nas linhas`);
+    const doMes = (l) => (l.meses || []).find((m) => m && m.mes === mes);
+    const ma = doMes(lista[ia]), mb = doMes(lista[ib]);
+    if (!ma || !mb) throw new Error(`troca de SV: ${!ma ? par.sv_a : par.sv_b} sem o mês ${mes}`);
+    const valorDe = (m) => ({ pctTravado: numero(m.pctTravado) ? m.pctTravado : null, travado: !!m.travado });
+    const recebe = (l, proprio, outro, com) => {
+      const meses = l.meses.map((m) => (m.mes !== mes ? m : Object.assign({}, m, valorDe(outro),
+        { troca: { com, pctTravadoProprio: valorDe(proprio).pctTravado } })));
+      // mês sem % passa a seguir o valor que ENTRA NA SOMA (o trocado); os outros meses seguem o próprio `pct`
+      const mesesSemPct = meses.filter((m) => m.situacao !== 'futuro' && (m.troca ? m.pctTravado === null : m.pct === null))
+        .map((m) => m.mes);
+      return Object.assign({}, l, { meses, soma: somaRanking(meses.map((m) => m.pctTravado)),
+                                    incompleta: mesesSemPct.length > 0, mesesSemPct });
+    };
+    return lista.map((l, i) => (i === ia ? recebe(l, ma, mb, par.sv_b) : i === ib ? recebe(l, mb, ma, par.sv_a) : l));
+  }
+
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, STATUS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
-           somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
+           trocarPercentualDeMes, somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, minimoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            corDoPercentualAperitivo, hojeAtingiu };
 });
@@ -1004,7 +1056,9 @@ const CONFIG = {
   ano: 2026,          // ano do incentivo
   meses: [10, 11, 12], // vigência: outubro, novembro e dezembro
   api: './api/v1/',
-  ajustes: './ajustes.json', // ajustes do admin publicados (só `canais` e `canaisSV` interessam ao Campari)
+  // ajustes do admin publicados: interessam ao Campari `canais` e `canaisSV` (canal, como no Q4) e, desde a etapa
+  // 4Q, `campari.trocasSupervisao` (troca do % de outubro entre SVs, regras v1.17, seção 3.1)
+  ajustes: './ajustes.json',
   // Papel no incentivo -> nome EXATO do agrupador do modelo SAP (maiúsculas e acentos contam).
   // O id do produto na API não é fixo: é achado em index.json -> produtos pelo campo `agrupadores`.
   agrupadores: { aperitivo: 'Aperitivo', skyy: 'Skyy' },
@@ -1180,13 +1234,65 @@ function ajustesDeCanal(aj) {
   return { canais, canaisSV, avisos };
 }
 
+/** Data AAAA-MM-DD válida (o dia existe no calendário) -> "DD/MM/AAAA"; senão null. */
+function dataDoAjuste(s) {
+  const m = typeof s === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(s) : null;
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return null;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/**
+ * `campari.trocasSupervisao` de um ajustes.json já lido -> { trocas, avisos } (etapa 4Q; regras v1.17, seção 3.1).
+ * Só a validação que não depende da API: o resto (as duas SV existem no mês e estão no mesmo canal) é de
+ * `montarDados`, que já tem a API lida. Cada item: { mes, sv_a, sv_b, autorizado_em } — `mes` um mês da vigência
+ * (`cfg.meses`), `sv_a` e `sv_b` códigos de SV como na API ("SV.AN.2"), diferentes, e `autorizado_em` uma data
+ * AAAA-MM-DD (vai para a nota da tela). Item inválido é IGNORADO, com aviso (alerta de dado, nunca adivinhado);
+ * uma SV em duas trocas do mesmo mês invalida TODOS os itens em que ela aparece. Chave `campari` ou
+ * `trocasSupervisao` ausente: nenhuma troca e nenhum aviso.
+ * Cada troca válida: { item (1, 2…: a posição na lista), mes, sv_a, sv_b, autorizado_em, autorizadoEmTela }.
+ */
+function trocasDoAjuste(aj, cfg) {
+  cfg = cfg || CONFIG;
+  const trocas = [], avisos = [];
+  if (!ehObjeto(aj) || aj.campari === undefined) return { trocas, avisos };
+  if (!ehObjeto(aj.campari)) { avisos.push('campari: precisa ser um objeto: troca de SV ignorada'); return { trocas, avisos }; }
+  const lista = aj.campari.trocasSupervisao;
+  if (lista === undefined) return { trocas, avisos };
+  if (!Array.isArray(lista)) { avisos.push('campari.trocasSupervisao: precisa ser uma lista: troca de SV ignorada'); return { trocas, avisos }; }
+  const ignorar = (i, motivo) => avisos.push(`campari.trocasSupervisao, item ${i + 1}: ${motivo}: troca de SV ignorada`);
+  const candidatas = [];
+  lista.forEach((t, i) => {
+    if (!ehObjeto(t)) return ignorar(i, 'precisa ser um objeto');
+    if (!Number.isInteger(t.mes) || cfg.meses.indexOf(t.mes) < 0) {
+      return ignorar(i, `mês ${JSON.stringify(t.mes)} fora dos meses do incentivo (${cfg.meses.join(', ')})`);
+    }
+    if (!textoOk(t.sv_a, 40) || !textoOk(t.sv_b, 40)) return ignorar(i, 'sv_a e sv_b precisam ser códigos de supervisão (texto)');
+    if (t.sv_a.trim().toLowerCase() === t.sv_b.trim().toLowerCase()) return ignorar(i, `a mesma supervisão (${t.sv_a}) nos dois lados`);
+    const data = dataDoAjuste(t.autorizado_em);
+    if (!data) return ignorar(i, `autorizado_em ${JSON.stringify(t.autorizado_em)} não é uma data AAAA-MM-DD`);
+    candidatas.push({ item: i + 1, mes: t.mes, sv_a: t.sv_a, sv_b: t.sv_b, autorizado_em: t.autorizado_em, autorizadoEmTela: data });
+  });
+  // uma SV em duas trocas do mesmo mês: os itens envolvidos caem todos (nunca escolher uma das trocas)
+  const conta = {};
+  const chave = (mes, sv) => mes + '|' + sv.trim().toLowerCase();
+  for (const t of candidatas) for (const sv of [t.sv_a, t.sv_b]) conta[chave(t.mes, sv)] = (conta[chave(t.mes, sv)] || 0) + 1;
+  for (const t of candidatas) {
+    const repetidas = [t.sv_a, t.sv_b].filter((sv) => conta[chave(t.mes, sv)] > 1);
+    if (repetidas.length) ignorar(t.item - 1, `${repetidas.join(' e ')} em mais de uma troca de ${NOMES_MES[t.mes]}`);
+    else trocas.push(t);
+  }
+  return { trocas, avisos };
+}
+
 /**
  * Lê o ajustes.json PUBLICADO (o Campari não tem Administração nem ajustes do navegador).
  * 404: ninguém publicou, vale a base. Ilegível ou HTTP ≠ 200/404: nenhum ajuste vale, com aviso (como no Q4).
  */
 async function lerAjustes(fetchFn, cfg) {
   cfg = cfg || CONFIG;
-  const vazio = (situacao, aviso) => ({ situacao, canais: {}, canaisSV: {}, avisos: aviso ? [aviso] : [] });
+  const vazio = (situacao, aviso) => ({ situacao, canais: {}, canaisSV: {}, trocas: [], avisos: aviso ? [aviso] : [] });
   let r;
   try { r = await fetchFn(cfg.ajustes, { cache: 'no-cache' }); } catch (e) {
     return vazio('sem-acesso', `ajustes.json não pôde ser lido (${e.message}): canais só da base embutida`);
@@ -1196,7 +1302,9 @@ async function lerAjustes(fetchFn, cfg) {
   let aj;
   try { aj = await r.json(); } catch (e) { return vazio('erro', `ajustes.json ilegível (${e.message}): nenhum ajuste publicado vale`); }
   if (!ehObjeto(aj)) return vazio('erro', 'ajustes.json ilegível (o conteúdo não é um objeto JSON): nenhum ajuste publicado vale');
-  return Object.assign({ situacao: 'ok' }, ajustesDeCanal(aj));
+  const canal = ajustesDeCanal(aj), troca = trocasDoAjuste(aj, cfg);
+  return { situacao: 'ok', canais: canal.canais, canaisSV: canal.canaisSV, trocas: troca.trocas,
+           avisos: canal.avisos.concat(troca.avisos) };
 }
 
 /**
@@ -1392,6 +1500,8 @@ function gruposDoRankingGC(codigos, cfg) {
  *   - Skyy traz `pctNov`, `pctDez` e `acumulado` (o valor do gatilho; em novembro, parcial), que NÃO mudam com o
  *     seletor de mês; `acumulado` é null nas linhas sem gatilho (consultor).
  *   - `hojeOk` é o "Hoje" colorido do motor (Online > 0 e Online ≥ Meta dia), já resolvido por mês e produto.
+ *   - `troca` (Aperitivo, etapa 4Q): null, ou { com, pctTravadoProprio } no mês em que o % do ranking veio da
+ *     outra SV de uma troca de supervisores (`motor.trocarPercentualDeMes`); a tela marca a célula com "*".
  */
 function tabelaDaLinha(vol, cob, extra, motor) {
   const comum = (m) => {
@@ -1409,7 +1519,7 @@ function tabelaDaLinha(vol, cob, extra, motor) {
   const doMes = (meses, mes) => meses.find((m) => m.mes === mes) || {};
   const g = (extra && extra.gatilho) || null;
   return {
-    aperitivo: Object.assign({ porMes: porMes(vol.meses, (m) => ({ pctTravado: m.pctTravado, travado: m.travado })) },
+    aperitivo: Object.assign({ porMes: porMes(vol.meses, (m) => ({ pctTravado: m.pctTravado, travado: m.travado, troca: m.troca || null })) },
                              { soma: vol.soma, incompleta: vol.incompleta, mesesSemPct: vol.mesesSemPct }),
     skyy: { porMes: porMes(cob), pctNov: doMes(cob, 11).pct === undefined ? null : doMes(cob, 11).pct,
             pctDez: doMes(cob, 12).pct === undefined ? null : doMes(cob, 12).pct,
@@ -1447,19 +1557,21 @@ function tabelaDaLinha(vol, cob, extra, motor) {
  *   totalBand:    linha da empresa (resumo.json -> empresa), com meta dia de volume da API e meta dia de
  *                 cobertura do motor; sem posição oficial e sem status (Diretoria e GP não têm apuração própria)
  *   canaisSV:     canal de cada SV (pelo código do painel, "Sv. An.1"), com origem e votos
+ *   trocas:       trocas de SV aplicadas (etapa 4Q; regras v1.17, seção 3.1): [{ mes, sv_a, sv_b, autorizado_em,
+ *                 autorizadoEmTela, canal }]; as ignoradas viram aviso e não entram aqui
  */
 function montarDados(entrada, cfg, motor) {
   cfg = cfg || CONFIG; motor = motor || MotorCampariAqui();
   const { index, gerencias } = entrada;
   const base = entrada.base || BaseCanaisAqui();
-  const ajustes = entrada.ajustes || { canais: {}, canaisSV: {}, avisos: [] };
+  const ajustes = Object.assign({ canais: {}, canaisSV: {}, trocas: [], avisos: [] }, entrada.ajustes || {});
   const produtos = localizarProdutos(index, cfg);
   const comum = { mesReferencia: index.mes_referencia || null, calendario: index.calendario || null,
                   atualizadoEm: index.atualizado_em || null, simulado: index.simulado === true, produtos };
   if (!produtos.ok) {
     return Object.assign({ ok: false, erro: 'Produtos do Campari ainda não publicados (' + produtos.motivos.join('; ') + ')',
                            avisos: [], meses: [], mesesCobertura: [], mesGatilho: null, gc: [], gcApi: [], svMista: [],
-                           svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {} }, comum);
+                           svSegmentada: [], fora: [], rotas: [], totalBand: null, canaisSV: {}, trocas: [] }, comum);
   }
   const pid = produtos.ids.aperitivo, pidSkyy = produtos.ids.skyy;
   const avisos = ajustes.avisos.slice();
@@ -1706,11 +1818,36 @@ function montarDados(entrada, cfg, motor) {
     l.tabela = tabelaDaLinha(vol, cobertura, l, motor);
     return l;
   })();
+  // 5b. troca de SV num mês (etapa 4Q; regras v1.17, seção 3.1): validada contra a API e aplicada ANTES do
+  // ranking, para a ordem, a posição oficial, o RANK e o status saírem com o % Acum. trocado. A conta é do motor.
+  const trocas = [];
+  for (const t of ajustes.trocas || []) {
+    const rotulo = `campari.trocasSupervisao, item ${t.item} (${t.sv_a} ↔ ${t.sv_b}, ${NOMES_MES[t.mes]})`;
+    const f = fontes.find((x) => x.mes === t.mes);
+    const semDado = [t.sv_a, t.sv_b].filter((sv) => !info.sv[sv] || !f || !(vals.sv[sv] || {})[f.anomes]);
+    if (f && (f.fonte === 'futuro' || f.fonte === 'indisponivel')) {
+      avisos.push(`${rotulo}: ${NOMES_MES[t.mes]} ainda sem dado de volume: troca de SV ignorada`); continue;
+    }
+    if (semDado.length) {
+      avisos.push(`${rotulo}: ${semDado.join(' e ')} não ${semDado.length > 1 ? 'existem' : 'existe'} na API de ${NOMES_MES[t.mes]}: troca de SV ignorada`); continue;
+    }
+    const canalDe = (sv) => (svs.Mista.some((l) => l.codigo === sv) ? 'Mista' : svs.Segmentada.some((l) => l.codigo === sv) ? 'Segmentada' : null);
+    const ca = canalDe(t.sv_a), cb = canalDe(t.sv_b);
+    if (!ca || !cb || ca !== cb) {
+      const desc = (sv, c) => `${sv} ${c ? 'na ' + c : 'fora do ranking'}`;
+      avisos.push(`${rotulo}: as duas supervisões precisam estar no mesmo canal (${desc(t.sv_a, ca)}, ${desc(t.sv_b, cb)}): troca de SV ignorada`);
+      continue;
+    }
+    svs[ca] = motor.trocarPercentualDeMes(svs[ca], t.mes, t);
+    for (const l of svs[ca]) if (l.codigo === t.sv_a || l.codigo === t.sv_b) l.tabela = tabelaDaLinha(l, l.cobertura, l, motor);
+    trocas.push({ mes: t.mes, sv_a: t.sv_a, sv_b: t.sv_b, autorizado_em: t.autorizado_em,
+                  autorizadoEmTela: t.autorizadoEmTela, canal: ca });
+  }
   const svMista = ranquear(svs.Mista, 'svMista'), svSegmentada = ranquear(svs.Segmentada, 'svSegmentada');
   const doMes = ({ mes, anomes, fonte, estado, motivo, arquivo }) =>
     ({ mes, anomes, fonte, estado: estado || null, motivo: motivo || null, arquivo: arquivo || null });
   return Object.assign({ ok: true, erro: null, avisos, meses: fontes.map(doMes), mesesCobertura: fontesCob.map(doMes),
-    mesGatilho, gc, gcApi, svMista, svSegmentada, fora, rotas, totalBand, canaisSV,
+    mesGatilho, gc, gcApi, svMista, svSegmentada, fora, rotas, totalBand, canaisSV, trocas,
     baseCanais: { foto: (base.meta || {}).foto || null, corteSeg: (base.meta || {}).corteSeg || null } }, comum);
 }
 
@@ -1739,7 +1876,7 @@ async function carregarRanking(base, opcoes) {
   } catch (e) {
     return { ok: false, erro: `API indisponível (${e.message})`, avisos: [], meses: [], mesesCobertura: [],
              mesGatilho: null, gc: [], gcApi: [], svMista: [], svSegmentada: [], fora: [], rotas: [], totalBand: null,
-             canaisSV: {} };
+             canaisSV: {}, trocas: [] };
   }
   let resumo = null;
   try { resumo = await ler('resumo.json'); } catch (e) { resumo = null; } // só o Total Band depende dele
@@ -1847,6 +1984,19 @@ function valoresDoMes(tabela, produto, mes) {
   const b = tabela && tabela[produto];
   const m = b && b.porMes ? b.porMes[mes] : null;
   return m || Object.assign({ mes }, SEM_MES);
+}
+
+/**
+ * Notas das trocas de SV de uma tabela de supervisão (etapa 4Q; regras v1.17, seção 3.1) -> [texto]. Só as trocas
+ * APLICADAS (`dados.trocas`) do `canal` da tabela, e só quando alguma das duas SV está em `linhas` (a lista que a
+ * tabela mostra, já filtrada): sem troca, nenhuma nota. Códigos, mês e data saem do ajuste, nunca do texto.
+ */
+function notasDasTrocas(dados, canal, linhas) {
+  const codigos = (linhas || []).map((l) => l.codigo);
+  return ((dados && dados.trocas) || [])
+    .filter((t) => t.canal === canal && (codigos.indexOf(t.sv_a) >= 0 || codigos.indexOf(t.sv_b) >= 0))
+    .map((t) => `* ${maiusc1(NOMES_MES[t.mes])}: % trocado entre ${t.sv_a} e ${t.sv_b} (troca de supervisores ` +
+      `autorizada em ${t.autorizadoEmTela}). Meta, Real, Dif. e % do mês seguem a supervisão.`);
 }
 
 /** Todas as linhas de supervisão (os dois canais e as que estão fora do ranking), em ordem de código. */
@@ -2063,12 +2213,14 @@ function alertasDaTela(dados, cfg, motor) {
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, localizarProdutos, carregarDados, fontesDosMeses, fontesDaCobertura, coberturaDoFechado,
                      lerFechado, gruposDoRankingGC, tabelaDaLinha, montarDados, carregarRanking, lerAjustes,
-                     ajustesDeCanal, mapaCanal,
+                     ajustesDeCanal, trocasDoAjuste, mapaCanal,
                      canaisDosSVs, validarCanalRota, svNome,
                      // Etapa 4 (tela): formatação e recortes, todos puros
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
                      linhasDoDetalhe, alertasDaTela,
+                     // Etapa 4Q (troca de SV em outubro): a nota da tabela, pura
+                     notasDasTrocas,
                      // Etapa 4G (navegação por páginas), também puras
                      rotasDoConsultor, fatiar,
                      // Etapa 4I (Detalhe do mês: visão Gerência sem paginação), pura
@@ -2189,10 +2341,15 @@ const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
    Etapa 4F: os números saem da fonte condensada grande (.n) e ficam do tamanho dos do bloco Skyy, e a coluna do
    mês VIGENTE ganha o quadradinho. A cor vem de motor.corDoPercentualAperitivo, pelo mês (o limite é o da trava
    dele) e pelo valor BRUTO — que a tela lê para perguntar a cor e continua sem escrever. */
+/* Etapa 4Q (regras v1.17, seção 3.1): mês com troca de SV (m.troca, do motor) mostra o valor que veio da outra
+   SV com o marcador "*", explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada
+   ao motor pelo valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão. */
 const mesCel = (m, vigente)=>{
-  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+'</td>';
+  const marca = m && m.troca ? '<sup class="troca">*</sup>' : '';
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+marca+'</td>';
   const cor = vigente ? M.corDoPercentualAperitivo(m.pct, m.mes) : null;
-  return '<td><span'+(cor?' class="pchip '+cor+'"':'')+'>'+pct(m.pctTravado)+'</span></td>';
+  const corTela = vigente && m.troca ? M.corDoPercentualAperitivo(m.pctTravado, m.mes) : cor;
+  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span>'+marca+'</td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -2270,12 +2427,15 @@ function linhaRanking(l, opc){
 /* Sem legenda nas duas tabelas de ranking (regras v1.6, seção 7; decisão de 09/11/2026): o selo, a trava e os
    dois % acumulados ficam explicados na aba Regras, e o rodapé comum continua. */
 /* Etapa 4G: a tabela mostra uma página de linhas e a linha de total se repete em TODAS elas, fora da conta. */
-function tabelaRanking(linhas, rotuloId, comTotal){
+/* Etapa 4Q: `notas` (as da troca de SV, prontas no adaptador: `notasDasTrocas`) ficam abaixo da tabela, na
+   mesma faixa dos botões de página, para não roubar altura da tabela. Sem nota, a faixa é a de sempre. */
+function tabelaRanking(linhas, rotuloId, comTotal, notas){
   const p = fatiaDaTela(linhas);
   const corpo = p.linhas.map((l)=>linhaRanking(l)).join('') +
     (comTotal && D.totalBand ? linhaRanking(D.totalBand, { total:true }) : '');
-  return '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>'+
-    navPaginas(p);
+  const tabela = '<div class="rolar"><table class="tb rk">'+cabecalhoRanking(rotuloId)+'<tbody>'+corpo+'</tbody></table></div>';
+  if(!notas || !notas.length) return tabela+navPaginas(p);
+  return tabela+'<div class="pe-tb"><div class="nota-troca">'+notas.map(esc).join('<br>')+'</div>'+navPaginas(p)+'</div>';
 }
 
 /* ─── tabela de dois grupos (Consultor e Detalhe do mês) ──────────────────────────────────────────────── */
@@ -2369,7 +2529,7 @@ function viewSV(){
   return '<div class="panel"><div class="ph"><h2>Supervisão '+esc(st.canal)+'</h2>'+
     '<div class="nota">'+linhas.length+' supervisores · '+comPilares+' com os dois pilares · ordem pelo % Acum. de Aperitivo<br>'+
     'Meta, Real, Dif. e % do mês: '+esc(rotuloMesSel(st.mes))+'</div></div>'+
-    (linhas.length?tabelaRanking(linhas,'Supervisão',false):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
+    (linhas.length?tabelaRanking(linhas,'Supervisão',false,notasDasTrocas(D, st.canal, linhas)):'<div class="vazio">Nenhuma supervisão '+esc(st.canal)+' neste filtro.</div>')+
     '</div>';
 }
 function viewRT(){

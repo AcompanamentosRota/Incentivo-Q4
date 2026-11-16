@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-11-16T11:06",
+  "atualizado_em": "2026-11-16T20:11",
   "regras": {},
   "pilares": {},
   "canais": {
@@ -241,5 +241,15 @@
       "fechado": true,
       "em": "2026-11-16T11:05"
     }
+  },
+  "campari": {
+    "trocasSupervisao": [
+      {
+        "mes": 10,
+        "sv_a": "SV.AN.2",
+        "sv_b": "SV.AN.3",
+        "autorizado_em": "2026-11-16"
+      }
+    ]
   }
 }

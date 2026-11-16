@@ -6,11 +6,11 @@ e Supervisão Segmentada; o Consultor aparece sem ranking nem premiação, e o t
 "Total Band".
 É um painel **independente** do Desafio Q4 (`painel-q4/`): copia a estrutura dele, mas não importa nada de lá.
 
-Regras: [`docs/regras.md`](docs/regras.md) (v1.16, 11/11/2026). Itens ⚠️ são interpretações a confirmar: o código
+Regras: [`docs/regras.md`](docs/regras.md) (v1.17, 16/11/2026). Itens ⚠️ são interpretações a confirmar: o código
 segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 elas ficam só no documento de regras
 (seção 10) e no checklist do PR — **a tela não mostra pendência nem premissa**, só alerta de dado.
 
-## Estado: etapa 4P — cobertura dos meses fechados (v1.16)
+## Estado: etapa 4Q — troca de SV em outubro (v1.17)
 
 - **Etapa 1 (esqueleto):** lê `./api/v1/index.json` e acha os dois produtos do incentivo pelo campo `agrupadores`
   (`"Aperitivo"` e `"Skyy"`, grafia exata, com `"extra": true`), nunca por id fixo. As abas de ranking continuam
@@ -82,13 +82,20 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   do azul liso `#02306B` nas laterais. Agora é `center top / 100% auto`. Descrita no fim deste arquivo. **Nada mais
   muda:** com o palco em 1920 px o fundo é pixel a pixel o mesmo, e escala, layout, tabelas, cores e números ficam
   como estavam.
-- **Etapa 4P (esta):** o painel passa a ler a **cobertura dos meses fechados** no `fechado/AAAAMM.json` (regras
+- **Etapa 4P:** o painel passa a ler a **cobertura dos meses fechados** no `fechado/AAAAMM.json` (regras
   v1.16; pendência 10 resolvida pelo Matheus em 11/11/2026). O arquivo ganhou a coluna `cobertura` por rota e o
   bloco `totais_cobertura`, nos mesmos moldes do volume, e `coberturaDoFechado` deixou de ser um stub que devolvia
   `null`. Com isso o Skyy de **outubro** mostra Meta, Real, Dif e % do mês quando o seletor está em Outubro (antes
   "—"), e em **dezembro** o gatilho de Skyy usa a cobertura de novembro sem ficar indisponível. Descrita no fim
   deste arquivo. **Nada mais muda:** as contas do gatilho, o mínimo de volume, o ranking, o status, as cores e o
   layout ficam como estavam, e o mês aberto sai célula a célula igual ao da 4O.
+- **Etapa 4Q (esta):** **troca de SV em outubro** (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026). Dois
+  supervisores de Anápolis trocaram de mesa em novembro, e o **% de outubro do Aperitivo que entra no % Acum.** de
+  `SV.AN.2` e `SV.AN.3` passa de uma para a outra, nos dois sentidos. O ajuste mora no `frontend/ajustes.json` →
+  `campari.trocasSupervisao` (só por PR), o adaptador o valida e o motor faz a troca (`trocarPercentualDeMes`) antes
+  do ranking; a tela marca a coluna Out com `*` e explica numa nota abaixo da tabela da Supervisão. Descrita no fim
+  deste arquivo. **Nada mais muda:** Meta, Real, Dif., % do mês, Skyy, gatilho, mínimo de volume, GC, Total Band e
+  Consultor ficam como estavam.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -123,6 +130,7 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
 | `aplicarTrava(pct, mes)` | `{valor, travado}`: min(%, limite); no limite exato não trava |
 | `somaRanking(valores)` | soma dos % travados dos meses com %; nenhum: null |
 | `apurarMeses(meses)` | % bruto, travado e marca de trava por mês, soma e `incompleta` (mês que devia contar sem %) |
+| `trocarPercentualDeMes(linhas, mes, par)` | **troca de SV num mês (v1.17, seção 3.1; etapa 4Q)**: entre as duas linhas do par (`{sv_a, sv_b}`, códigos da API), troca o **`pctTravado`** do mês (o valor que entra no % Acum., já com a trava) e o `travado`, refaz a `soma` (`somaRanking`) e marca o mês com `troca: {com, pctTravadoProprio}`. Sem % numa delas, o "sem valor" troca também (e `mesesSemPct`/`incompleta` passam a seguir o valor trocado). **Não troca** meta, real, online, dif nem o `pct` bruto do mês, nem a cobertura. Chamada **antes** de ordenar: ordem, posição oficial e status saem das funções de sempre. Par que não acha as duas linhas, mês fora da vigência ou par com a mesma SV: erro (nunca troca pela metade). Pura |
 | `somarGrupo(valores, campos)` | **soma da gerência comercial agrupada (v1.6, seção 4)**: soma `meta`, `real`, `online` e `metaDia` das gerências do grupo, para o % sair da **soma** e nunca da média dos %. Campo sem nenhum valor numérico fica null (nunca 0); `campos` permite somar o bloco de cobertura, que não tem meta dia |
 | `ordenarRanking(linhas)` | soma desc (null no fim); empate pelo código em minúsculas, texto simples (`sv.g2.10` < `sv.g2.2`) |
 | `numerarRanking(linhas)` | posição 1..n em todas as linhas (`pos`): ordena o ranking e entra no motivo do status; desde a v1.10 **não é exibida** |
@@ -182,11 +190,20 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   dia de **volume** continua vindo pronta da API; o que o adaptador acrescenta é o campo **`metaDiaExib`**, que é o
   valor da tela (`motor.metaDiaVolume`). `metaDia` guarda o número de origem, e o `hojeOk` usa o exibido.
 - Lê só o `ajustes.json` **publicado** (o Campari não tem Administração nem ajustes do navegador): 404 = sem ajustes;
-  ilegível = nenhum ajuste vale, com aviso.
+  ilegível = nenhum ajuste vale, com aviso. Interessam `canais` e `canaisSV` (canal, como no Q4) e, desde a etapa
+  4Q, **`campari.trocasSupervisao`** (`trocasDoAjuste`, validação que não depende da API; a outra parte fica em
+  `montarDados`, abaixo). Chave `campari` ausente: nenhuma troca e nenhum aviso.
+- **Troca de SV** (etapa 4Q; regras v1.17, seção 3.1): cada item `{ mes, sv_a, sv_b, autorizado_em }` só vale se
+  `mes` é um mês da vigência, `sv_a` e `sv_b` são textos diferentes, `autorizado_em` é uma data AAAA-MM-DD, nenhuma
+  das duas SV aparece em outra troca do mesmo mês (senão **todos** os itens envolvidos caem), as duas existem na API
+  daquele mês (o mês tem de ter dado de volume) e estão no **mesmo canal** do ranking (Mista ou Segmentada; SV fora do
+  ranking não troca). Item inválido é **ignorado**, com aviso em Regras > Dados e alertas (alerta de dado). A troca
+  válida roda `motor.trocarPercentualDeMes` nas linhas do canal **antes** de `ranquear`, refaz a `tabela` das duas
+  linhas e vai para `dados.trocas` (`{ mes, sv_a, sv_b, autorizado_em, autorizadoEmTela, canal }`).
 - Resultado: `meses` e `mesesCobertura` (fonte e estado de cada mês, por produto), `mesGatilho`, `gc` (as linhas
   agrupadas do Ranking GC, com `gerencias` e `agrupada`), `gcApi` (uma linha por gerência da API, **sem** ranking),
   `svMista`, `svSegmentada` (ordenadas, numeradas, com `oficial` e `status`), `fora` (com gatilho, sem posição oficial
-  nem status), `rotas` (sem gatilho nem status), `totalBand`, `canaisSV`, `avisos`. Cada linha guarda, por mês, o volume em
+  nem status), `rotas` (sem gatilho nem status), `totalBand`, `canaisSV`, `trocas` (4Q), `avisos`. Cada linha guarda, por mês, o volume em
   `meses` (`meta`, `real`, `online`, `metaDia` só no mês aberto, `dif`, `pct`, `pctTravado`, `travado`, `fonte`,
   `estado`, `situacao`, `aberto`), a cobertura em `cobertura` (os mesmos campos, mais `motivo`), e `soma`,
   `incompleta`, `pos`, `gatilho` (Skyy), `minimoVolume` (Aperitivo, 4K), `gatilhoPilares` (os dois, 4H/4K), `oficial` e
@@ -194,7 +211,8 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
 - **`tabela` (estrutura da P7, regras seção 7):** o que a tela lê sem calcular nada —
   `tabela.aperitivo.porMes[10|11|12]` e `tabela.skyy.porMes[10|11|12]` com `meta`, `real`, `online`, `metaDia`, `dif`,
   `pct` e `hojeOk`; `online` e `metaDia` só existem no **mês aberto** (nos outros, null, e a tela mostra "—").
-  `tabela.aperitivo` traz ainda `pctTravado`/`travado` por mês (as colunas Out | Nov | Dez) e `soma`;
+  `tabela.aperitivo` traz ainda `pctTravado`/`travado` por mês (as colunas Out | Nov | Dez), `troca` (4Q: null, ou
+  `{com, pctTravadoProprio}` no mês trocado) e `soma`;
   `tabela.skyy` traz `pctNov`, `pctDez` e `acumulado` (= o valor do gatilho; em novembro, parcial), que **não** mudam
   com o seletor de mês. No consultor, `soma` e `acumulado` vêm null (rota não tem pontuação nem gatilho).
 
@@ -257,7 +275,7 @@ painel-campari/
 # monta o HTML único (comite frontend/campari-club.html junto com a fonte)
 python painel-campari/scripts/build.py
 
-# testes do painel — 264 testes (79 do motor, 185 do adaptador); precisa de Node 18+
+# testes do painel — 283 testes (85 do motor, 198 do adaptador); precisa de Node 18+
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # site local, como no Pages: http://localhost:8000/campari-club.html
@@ -833,3 +851,51 @@ e só aparecem quando o arquivo realmente não traz a cobertura.
   alertas ficam iguais.
 - **Console:** sem erro e sem aviso nas cinco abas, nas três janelas. **Rolagem interna:** nenhuma em nenhuma aba
   (`scrollHeight − clientHeight` = 0 no palco e no documento).
+
+
+## Etapa 4Q — troca de SV em outubro (regras v1.17, seção 3.1)
+
+**O problema (Karen, 16/11/2026).** Em novembro dois supervisores da gerência AN trocaram de mesa (`SV.AN.2` e
+`SV.AN.3`). Para ninguém perder o que fez em outubro, foi autorizado que o **% de outubro do Aperitivo que entra no
+% Acum.** passe de uma SV para a outra, só em outubro e nos dois sentidos. Antes: `SV.AN.2` Out 130,0% (157,7% bruto,
+travado) e `SV.AN.3` Out 82,8%. Depois: `SV.AN.2` 82,8% e `SV.AN.3` 130,0%. Os valores das rotas, Meta, Real, Dif.
+e % do mês não mudam; só o valor que entra no acumulado.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | `frontend/ajustes.json` ganha a chave `campari` = `{ "trocasSupervisao": [ { "mes": 10, "sv_a": "SV.AN.2", "sv_b": "SV.AN.3", "autorizado_em": "2026-11-16" } ] }` (códigos de SV como na API; sem nome de pessoa). Só por PR, sempre um único objeto JSON | `frontend/ajustes.json` |
+| 2 | Leitura e validação: `trocasDoAjuste` (tipo, mês da vigência, SVs diferentes, data, SV em duas trocas do mesmo mês) e, em `montarDados`, as duas SV existem na API do mês e estão no mesmo canal. Item inválido é ignorado com aviso (alerta de dado) | `adapter.js` |
+| 3 | `motor.trocarPercentualDeMes` troca o `pctTravado` do mês entre as duas linhas e refaz a soma, **antes** de ordenar; ordem, posição oficial, RANK e status saem das funções de sempre. O valor sai do próprio cálculo (nenhum número digitado): se o fechado de outubro mudar, o trocado muda junto | `motor.js` (v1.17) |
+| 4 | Tela: a coluna Out das duas linhas mostra o valor trocado com `*` (`<sup class="troca">`), e a nota de `notasDasTrocas` ("* Outubro: % trocado entre SV.AN.2 e SV.AN.3 (troca de supervisores autorizada em 16/11/2026). Meta, Real, Dif. e % do mês seguem a supervisão.") fica abaixo da tabela, na faixa dos botões de página (`.pe-tb`, 13 px), só na Supervisão do canal da troca e só quando uma das duas SV está na lista filtrada. Códigos, mês e data vêm do ajuste | `app.tpl.html`, `notasDasTrocas` |
+| 5 | Documentação: a v1.17 em `docs/regras.md`; este arquivo, `CLAUDE.md` e `README.md` | docs |
+
+**O que não mudou:** Meta, Real, M. Dia, Online, Dif. e % do mês (inclusive com o seletor em Outubro), todo o bloco
+Skyy, o gatilho de Skyy (outubro fora), o mínimo de volume (só o mês vigente), o Ranking GC, o Total Band, o
+Consultor e o Detalhe do mês. A cor do quadradinho de um mês trocado (só existe se a troca for no mês vigente) é
+perguntada ao motor pelo valor que entra na soma; numa troca de outubro, com novembro vigente, nada muda.
+
+### Conferência (16/11/2026, API publicada)
+
+- **Recálculo independente em Python** (sem o adaptador), de cópias de `fechado/202610.json`, `gerencias/*.json`,
+  `data/data.json` e `ajustes.json`: Out = soma das rotas da mesa no fechado, trava de 130; Nov = (Real + Online) ÷
+  Meta do bloco da supervisão; canal pela maioria das rotas da mesa. A ordem, o Out e o % Acum. das 29 SV Mista
+  batem com o adaptador, com e sem a troca. As SV que mudaram de posição (as demais ficam iguais):
+
+  | SV | RANK sem → com | Out sem → com | Nov | % Acum. sem → com |
+  | --- | --- | --- | --- | --- |
+  | `SV.AN.3` | 10 → 4 | 82,8 → 130,0* | 63,6 | 146,4 → 193,6 |
+  | `SV.G3.1` · `SV.IT.1` · `SV.AP.3` · `SV.MO.2` | 4–7 → 5–8 | iguais | iguais | iguais |
+  | `SV.G3.2` … `SV.UR.2` (12 SV) | 11–22 → 10–21 | iguais | iguais | iguais |
+  | `SV.AN.2` | 8 → 22 | 130,0 → 82,8* | 21,4 | 151,4 → 104,2 |
+
+  Em 16/11/2026 nenhuma SV Mista bate os dois pilares (gatilho de Skyy e mínimo de volume de novembro), então
+  posição oficial e status não mudam para ninguém.
+- **4P × 4Q** (saída completa do adaptador, código da `main` × desta branch, com o mesmo `ajustes.json`): mudam só
+  `pctTravado`, `travado`, `troca`, `soma` e `pos` de `SV.AN.2` e `SV.AN.3` e o `pos` das 16 SV Mista que andaram
+  por causa delas, mais `dados.trocas`. Ranking GC, `gcApi`, Supervisão Segmentada, fora do ranking, Total Band,
+  Consultor, meses e cobertura: **idênticos**. Meta, Real, Dif., % do mês e Skyy de todas as linhas: idênticos.
+- **Ajuste inválido** (cópia local do `ajustes.json` servida só ao navegador): `SV.AN.9` → aviso "SV.AN.9 não existe
+  na API de outubro: troca de SV ignorada"; `SV.AN.1` (Segmentada) → aviso de canal diferente. Nos dois casos,
+  nenhuma troca aplicada, nenhuma nota e nenhum `*`.
+- **Console** sem erro em 1920×940, 1366×768 e 1366×600; **nenhuma rolagem interna** em nenhuma aba e página (a nota
+  divide a faixa dos botões de página, sem roubar altura da tabela).

@@ -17,9 +17,11 @@ const M = require('../src/motor.js');
 // para a v1.13 (10/11/2026): a altura-base do fit() é escala de tela (adaptador), e aqui só a versão muda. A 4N
 // sobe para a v1.14 (10/11/2026, meio-dia): `statusLinha` ganha o terceiro estado "Bateu, fora do ranking" e os
 // três textos de selo passam a sair de `STATUS` — a RANK de todas as linhas e a linha azul são tela (adaptador).
-test('motor carrega no Node e exporta versaoRegras 1.14', () => {
-  assert.equal(M.versaoRegras, '1.14');
-  assert.equal(M.REGRAS.versao, '1.14');
+// A 4O (v1.15) e a 4P (v1.16) não mexeram no motor, que ficou na v1.14. A 4Q sobe para a v1.17 (16/11/2026):
+// `trocarPercentualDeMes` (troca do % de outubro entre duas SVs, seção 3.1).
+test('motor carrega no Node e exporta versaoRegras 1.17', () => {
+  assert.equal(M.versaoRegras, '1.17');
+  assert.equal(M.REGRAS.versao, '1.17');
 });
 
 // A etapa 4B acrescentou `corDoPercentual` (cor do quadradinho do % de cobertura), a 4C `somarGrupo` (a soma da
@@ -27,15 +29,16 @@ test('motor carrega no Node e exporta versaoRegras 1.14', () => {
 // de Aperitivo, regras v1.7, seção 7): a lista exata substitui a da 4C. A 4H acrescentou `gatilhoVolume` e
 // `gatilhoPilares` (regras v1.8, seções 2 e 5), e a 4K troca o primeiro por `minimoVolume` (regras v1.11, seção
 // 2.2): a lista abaixo substitui a da 4H. A 4N acrescenta `STATUS`, os três textos de selo (regras v1.14, seção
-// 5), que a tela lê em vez de escrever. A tela não pode ganhar função nova por engano, nem levar regra para
-// dentro do HTML.
-test('etapa 4N: motor exporta o ranking, os dois pilares, o status, os três selos, as metas dia, as duas cores e a soma do grupo', () => {
+// 5), que a tela lê em vez de escrever. A 4Q acrescenta `trocarPercentualDeMes` (regras v1.17, seção 3.1). A
+// tela não pode ganhar função nova por engano, nem levar regra para dentro do HTML.
+test('etapa 4Q: motor exporta o ranking, os dois pilares, o status, os três selos, as metas dia, as duas cores, a soma do grupo e a troca de SV', () => {
   assert.deepEqual(Object.keys(M).sort(), ['MOTIVOS', 'REGRAS', 'STATUS', 'aplicarTrava', 'apurarMeses', 'chaveCodigo',
     'corDoPercentual', 'corDoPercentualAperitivo', 'diferenca', 'gatilhoCobertura', 'gatilhoPilares',
     'hojeAtingiu',
     'metaDiaCobertura', 'metaDiaVolume', 'minimoVolume', 'montarRanking', 'numerarOficial', 'numerarRanking',
     'ordenarRanking',
-    'percentualCobertura', 'percentualMes', 'somaRanking', 'somarGrupo', 'statusLinha', 'versaoRegras']);
+    'percentualCobertura', 'percentualMes', 'somaRanking', 'somarGrupo', 'statusLinha', 'trocarPercentualDeMes',
+    'versaoRegras']);
 });
 
 test('no navegador o motor fica em window.MotorCampari', () => {
@@ -43,7 +46,7 @@ test('no navegador o motor fica em window.MotorCampari', () => {
   const janela = {};
   janela.self = janela;
   vm.runInNewContext(codigo, janela);
-  assert.equal(janela.MotorCampari.versaoRegras, '1.14');
+  assert.equal(janela.MotorCampari.versaoRegras, '1.17');
   assert.equal(typeof janela.MotorCampari.percentualMes, 'function');
 });
 
@@ -777,4 +780,96 @@ test('4N: a quantidade de "Bateu!" nunca passa do limite de premiadas do nível'
     assert.equal(selos.filter((x) => x === M.STATUS.fora).length, 40 - limite);
     assert.equal(selos.filter((x) => x === M.STATUS.nao).length, 0);
   }
+});
+
+
+/* ─── Etapa 4Q: troca do % de outubro do Aperitivo entre duas SVs (regras v1.17, seção 3.1) ───────────────────
+   Fixtures sintéticas, códigos fictícios (SV.ZZ.*). A troca mexe só no valor que ENTRA NO % ACUM. (o % já
+   travado) e refaz a soma; Meta, Real, Online, Dif. e o % bruto do mês ficam com a própria supervisão. */
+
+const linhaSV = (codigo, out, nov) => Object.assign({ codigo, chave: M.chaveCodigo(codigo) }, M.apurarMeses([
+  Object.assign({ mes: 10, situacao: 'dado', online: 0 }, out),
+  Object.assign({ mes: 11, situacao: 'dado' }, nov),
+  { mes: 12, situacao: 'futuro', meta: null, real: null, online: null },
+]));
+// SV.ZZ.1: out 157,7% bruto (travado em 130) + nov 50%; SV.ZZ.2: out 82,8% + nov 70%; SV.ZZ.3: fora do par
+const Z1 = linhaSV('SV.ZZ.1', { meta: 100, real: 157.7 }, { meta: 100, real: 40, online: 10 });
+const Z2 = linhaSV('SV.ZZ.2', { meta: 1000, real: 828 }, { meta: 100, real: 70, online: 0 });
+const Z3 = linhaSV('SV.ZZ.3', { meta: 100, real: 100 }, { meta: 100, real: 60, online: 0 });
+const PAR = { sv_a: 'SV.ZZ.1', sv_b: 'SV.ZZ.2' };
+const mesL = (l, m) => l.meses.find((x) => x.mes === m);
+
+test('4Q trocarPercentualDeMes: troca nos dois sentidos o % do ranking de outubro e refaz a soma', () => {
+  const [a, b, c] = M.trocarPercentualDeMes([Z1, Z2, Z3], 10, PAR);
+  // A recebe o de B (82,8%) e B recebe o de A (130, o TRAVADO — nunca o bruto 157,7)
+  assert.equal(mesL(a, 10).pctTravado, mesL(Z2, 10).pctTravado);
+  assert.equal(mesL(b, 10).pctTravado, 130);
+  assert.equal(mesL(b, 10).travado, true);
+  assert.equal(mesL(a, 10).travado, false);
+  assert.equal(a.soma, mesL(Z2, 10).pctTravado + 50);
+  assert.equal(b.soma, 130 + 70);
+  // a marca da célula: com quem trocou e o valor que era da própria linha
+  assert.deepEqual(mesL(a, 10).troca, { com: 'SV.ZZ.2', pctTravadoProprio: 130 });
+  assert.deepEqual(mesL(b, 10).troca, { com: 'SV.ZZ.1', pctTravadoProprio: mesL(Z2, 10).pctTravado });
+  // a linha fora do par sai igual (o mesmo objeto)
+  assert.equal(c, Z3);
+});
+
+test('4Q trocarPercentualDeMes: Meta, Real, Online, Dif. e o % bruto do mês não mudam; os outros meses também não', () => {
+  const [a, b] = M.trocarPercentualDeMes([Z1, Z2], 10, PAR);
+  for (const [novo, velho] of [[a, Z1], [b, Z2]]) {
+    for (const campo of ['meta', 'real', 'online', 'pct', 'situacao']) assert.equal(mesL(novo, 10)[campo], mesL(velho, 10)[campo], campo);
+    assert.deepEqual(mesL(novo, 11), mesL(velho, 11));
+    assert.deepEqual(mesL(novo, 12), mesL(velho, 12));
+  }
+  assert.equal(mesL(b, 10).pct, mesL(Z2, 10).pct);  // o % do mês da tela continua o bruto da própria SV (82,8%)
+  assert.ok(mesL(a, 10).pct > 157);                  // e o de A continua o bruto dela (157,7%), não o travado
+});
+
+test('4Q trocarPercentualDeMes: sem % de outubro numa das SV, o "sem valor" troca também', () => {
+  const semMeta = linhaSV('SV.ZZ.2', { meta: 0, real: 50 }, { meta: 100, real: 70, online: 0 });
+  assert.deepEqual(semMeta.mesesSemPct, [10]);
+  const [a, b] = M.trocarPercentualDeMes([Z1, semMeta], 10, PAR);
+  assert.equal(mesL(a, 10).pctTravado, null);
+  assert.equal(a.soma, 50);                       // só novembro
+  assert.deepEqual([a.incompleta, a.mesesSemPct], [true, [10]]);
+  assert.equal(mesL(b, 10).pctTravado, 130);
+  assert.equal(b.soma, 200);
+  assert.deepEqual([b.incompleta, b.mesesSemPct], [false, []]);
+  assert.equal(mesL(b, 10).pct, null);            // o % do mês da própria SV continua sem valor
+});
+
+test('4Q trocarPercentualDeMes: a ordem, a posição oficial e o status saem das funções de sempre', () => {
+  const comPilares = (l) => Object.assign({}, l, { gatilho: { valor: 100, batido: true, indisponivel: false },
+                                                   minimoVolume: { valor: 100, batido: true, indisponivel: false } });
+  const cfg = Object.assign({}, M.REGRAS, { premiadas: { gc: 6, svMista: 1, svSegmentada: 3 } });
+  const apurar = (ls) => M.numerarOficial(M.montarRanking(ls), cfg).map((l) => Object.assign(l, { status: M.statusLinha(l, 'svMista', cfg) }));
+  const antes = apurar([Z1, Z2].map(comPilares));
+  assert.deepEqual(antes.map((l) => [l.codigo, l.pos, l.status.status]),
+    [['SV.ZZ.1', 1, M.STATUS.bateu], ['SV.ZZ.2', 2, M.STATUS.fora]]);
+  const depois = apurar(M.trocarPercentualDeMes([Z1, Z2].map(comPilares), 10, PAR));
+  assert.deepEqual(depois.map((l) => [l.codigo, l.pos, l.status.status]),
+    [['SV.ZZ.2', 1, M.STATUS.bateu], ['SV.ZZ.1', 2, M.STATUS.fora]]);
+});
+
+test('4Q trocarPercentualDeMes: função pura e sem troca pela metade', () => {
+  const copia = JSON.parse(JSON.stringify([Z1, Z2]));
+  M.trocarPercentualDeMes([Z1, Z2], 10, PAR);
+  assert.deepEqual(JSON.parse(JSON.stringify([Z1, Z2])), copia);           // a entrada não muda
+  // trocar duas vezes volta ao valor de origem
+  const ida = M.trocarPercentualDeMes(M.trocarPercentualDeMes([Z1, Z2], 10, PAR), 10, PAR);
+  assert.deepEqual(ida.map((l) => [mesL(l, 10).pctTravado, l.soma]), [Z1, Z2].map((l) => [mesL(l, 10).pctTravado, l.soma]));
+  assert.throws(() => M.trocarPercentualDeMes([Z1, Z2], 9, PAR), /fora da vigência/);
+  assert.throws(() => M.trocarPercentualDeMes([Z1, Z2], 10, { sv_a: 'SV.ZZ.1', sv_b: 'SV.ZZ.1' }), /diferentes/);
+  assert.throws(() => M.trocarPercentualDeMes([Z1, Z2], 10, { sv_a: 'SV.ZZ.1', sv_b: 'SV.ZZ.9' }), /SV\.ZZ\.9/);
+  assert.throws(() => M.trocarPercentualDeMes([Z1, Z2], 10, null), /diferentes/);
+});
+
+test('4Q trocarPercentualDeMes: dezembro troca o % sem trava (o próprio % do mês)', () => {
+  const d = (codigo, real) => Object.assign({ codigo }, M.apurarMeses([
+    { mes: 10, situacao: 'dado', meta: 100, real: 100, online: 0 }, { mes: 11, situacao: 'dado', meta: 100, real: 100, online: 0 },
+    { mes: 12, situacao: 'dado', meta: 100, real, online: 0 }]));
+  const [a, b] = M.trocarPercentualDeMes([d('SV.ZZ.1', 160), d('SV.ZZ.2', 90)], 12, PAR);
+  assert.deepEqual([mesL(a, 12).pctTravado, mesL(b, 12).pctTravado], [90, 160]);
+  assert.deepEqual([a.soma, b.soma], [290, 360]);
 });
