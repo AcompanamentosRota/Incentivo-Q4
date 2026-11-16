@@ -110,6 +110,8 @@ depois do texto antigo. Se o publicado não puder ser lido, o painel ignora todo
 vermelha com o motivo; valor inválido dentro de um arquivo válido é ignorado nesse item, com faixa amarela. Precedência,
 item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do admin, que guarda só o que difere do
 publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
+Ao publicar, a Administração do Q4 parte do arquivo publicado e só troca as chaves que ela gerencia: chave de outro
+painel (`campari`, do Campari Club) ou que ela não edita (`missoes`) vai copiada sem mudar nada (desde 16/11/2026).
 
 ## Painel Campari Club
 

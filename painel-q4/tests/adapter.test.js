@@ -2450,3 +2450,75 @@ test('missões: a tela não digita a meta nem o nome das missões — tudo vem d
   const cfgTexto = `contam: ['${AM.missoesDoMes(CONFIG, 11).contam.join("', '")}']`;
   assert.equal(html.split(cfgTexto).length - 1, 1, cfgTexto);
 });
+
+// ── etapa 4R (16/11/2026): a Administração preserva as chaves do ajustes.json que ela não gerencia ──
+const GERADO_4R = () => ({ versao: 1, atualizado_em: '2026-11-16T12:00', regras: {}, pilares: {},
+  canais: { Z90: { canal: 'Mista', sub: null } }, canaisSV: { 'Sv. Fx.1': 'Mista' }, agrupadores: [], confrontos: [],
+  flashFechado: { 202610: { fechado: true, em: '2026-11-12T10:00' } } });
+const CAMPARI_4R = { trocasSV: { 10: [{ de: 'Sv. Fx.1', para: 'Sv. Fx.2', rota: 'Z90' }] }, obs: ['fictício', 1, null] };
+const MISSOES_4R = { 11: { metaPorRota: 10, contam: ['Missão Fictícia A', 'Missão Fictícia B'] } };
+
+test('4R: publicar com `campari` e `missoes` no publicado preserva as duas, intactas, e troca as chaves gerenciadas', () => {
+  const publicado = { versao: 1, atualizado_em: '2026-11-10T09:00', regras: { bonusConfronto: 7 }, pilares: {},
+    canais: { Z11: { canal: 'Segmentada', sub: 'Mini' } }, missoes: MISSOES_4R, canaisSV: {}, agrupadores: [],
+    confrontos: [], flashFechado: {}, campari: CAMPARI_4R };
+  const antes = JSON.stringify(publicado);
+  const out = A.ajustesParaPublicar(publicado, GERADO_4R(), false);
+  assert.equal(JSON.stringify(publicado), antes, 'o publicado lido não pode ser alterado');
+  // gerenciadas: as do formulário, na ordem de sempre; extras depois, na ordem em que estavam
+  assert.deepEqual(Object.keys(out), ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores',
+    'confrontos', 'flashFechado', 'missoes', 'campari']);
+  assert.deepEqual(out.regras, {});
+  assert.deepEqual(out.canais, { Z90: { canal: 'Mista', sub: null } });
+  assert.equal(out.atualizado_em, '2026-11-16T12:00');
+  assert.equal(JSON.stringify(out.campari), JSON.stringify(CAMPARI_4R));
+  assert.equal(JSON.stringify(out.missoes), JSON.stringify(MISSOES_4R));
+  // o texto publicado relido dá as mesmas chaves extras, byte a byte
+  const relido = JSON.parse(JSON.stringify(out, null, 2));
+  assert.equal(JSON.stringify(relido.campari), JSON.stringify(publicado.campari));
+  // e as missões continuam valendo no Q4: nada de "alteração para publicar" nelas
+  assert.ok(!A.diferencasAjustes(normalizarAjustes(publicado), normalizarAjustes(out)).some((d) => d.chave.startsWith('missoes:')));
+});
+
+test('4R: sem chave extra no publicado, o objeto gerado é o mesmo de antes (e null quando tudo está no padrão)', () => {
+  const g = GERADO_4R();
+  const publicado = { versao: 1, atualizado_em: 'x', regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {} };
+  for (const pub of [publicado, null, undefined, 'texto', [1, 2]]) {
+    assert.equal(A.ajustesParaPublicar(pub, g, false), g);
+    assert.equal(A.ajustesParaPublicar(pub, g, true), null);
+  }
+  // publicado antigo, sem flashFechado: a chave ausente não muda nada
+  const antigo = Object.assign({}, publicado); delete antigo.flashFechado;
+  assert.equal(A.ajustesParaPublicar(antigo, g, false), g);
+});
+
+test('4R: formulário todo no padrão com `campari` no publicado ainda publica, sem apagar a chave do outro painel', () => {
+  const g = { versao: 1, atualizado_em: 'y', regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {} };
+  const out = A.ajustesParaPublicar({ versao: 1, canais: { Z11: { canal: 'Mista' } }, campari: CAMPARI_4R }, g, true);
+  assert.deepEqual(Object.keys(out), Object.keys(g).concat('campari'));
+  assert.deepEqual(out.canais, {});
+  assert.equal(JSON.stringify(out.campari), JSON.stringify(CAMPARI_4R));
+});
+
+test('4R: o adaptador não avisa de `campari` e continua avisando de chave inventada', async () => {
+  assert.deepEqual(A.CAMPOS_OUTROS_PAINEIS, ['campari']);
+  const av1 = [];
+  const aj = normalizarAjustes({ canais: { X1: { canal: 'Mista' } }, campari: CAMPARI_4R }, av1);
+  assert.deepEqual(av1, []);
+  assert.ok(!('campari' in aj), 'o Q4 não usa a chave do Campari');
+  const av2 = [];
+  normalizarAjustes({ canais: { X1: { canal: 'Mista' } }, campari: CAMPARI_4R, chaveInventada: 1 }, av2);
+  assert.deepEqual(av2, ['campo "chaveInventada" desconhecido: ignorado']);
+  // carregarAjustes: sem faixa amarela por causa de `campari`; o bruto lido fica disponível para a publicação
+  const texto = JSON.stringify({ versao: 1, atualizado_em: '2026-11-16T10:00', canais: { X1: { canal: 'Mista' } }, campari: CAMPARI_4R });
+  await comAjustes(texto, undefined, async () => {
+    const r = await carregarAjustes(CONFIG);
+    assert.deepEqual(r.avisosPublicado, []);
+    assert.equal(r.situacaoPublicado, 'ok');
+    assert.equal(JSON.stringify(r.publicadoBruto.campari), JSON.stringify(CAMPARI_4R));
+    assert.ok(!('campari' in r.publicado));
+  });
+  // ilegível ou ausente: nada a preservar
+  await comAjustes('{"a":1}{"b":2}', undefined, async () => assert.equal((await carregarAjustes(CONFIG)).publicadoBruto, null));
+  await comAjustes(null, undefined, async () => assert.equal((await carregarAjustes(CONFIG)).publicadoBruto, null));
+});
