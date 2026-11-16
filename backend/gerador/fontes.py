@@ -15,7 +15,9 @@ produtos desta API (M.PRODUTOS). Todas analíticas (o $select de dimensões é o
                                                 pela chave da meta (só nos meses de M.real_pela_meta)
 
 Chave do Real e do Online (_chaves): a partir de M.REAL_PELA_META_DESDE, mês, agrupador e rota da META, como a story
-do SAC; antes, os do faturamento (ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente).
+do SAC; antes, os do faturamento (ANOMES_REF, DS_AGRUPADOR_Agrupador_Prod e a rota do cliente). Desde 16/11/2026 a
+constante é o 1º mês do trimestre (202610), então TODO o Q4 sai pela chave da meta; o mecanismo continua aqui para o
+caso de um mês futuro precisar de outro corte.
   metas       AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_VOLUME (meta da rota)
   meta_neg    AM_FAT_BND_ANALISE_META           rota x agrupador: META_NEG do mês e da parte restante
   meta_dia    AM_FAT_BND_ANALISE_META           rota da meta x agrupador: META_RECUPERAVEL_ROTA de hoje

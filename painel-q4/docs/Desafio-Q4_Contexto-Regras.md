@@ -1,4 +1,12 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.8 (13/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.9 (16/11/2026)
+
+**v3.9:** **outubro passa a ser calculado como novembro** (decisão informada pela Karen em 16/11/2026; seção 8). O
+Real e o Online de **todo o trimestre** saem pela **chave da meta** — mês, agrupador e rota da meta —, o mesmo
+critério do SAC e do flash de vendas; até aqui outubro era o único mês pela chave do faturamento. Nenhuma regra do
+incentivo muda: faixas, pilares, gatilhos, confrontos, ranking e status continuam como estão — muda só de onde o
+volume de outubro é lido. Na medição de 16/11/2026 o Total Band de outubro caiu **846,5 caixas** (0,008% do Real),
+nenhum consultor e nenhum SV mudou de gatilho e nenhum confronto mudou de vencedor. Nessa mesma data saiu a
+**exclusão de volume de nota fiscal** de outubro (seção 8): a nota foi **cancelada na origem** e já não está no Real.
 
 **v3.8:** entra a **exclusão de volume de nota fiscal do fechamento** (decisão informada pela Karen em
 13/11/2026; seção 8). O Back Office pode tirar o volume de uma nota do fechamento de um mês: a primeira é a de
@@ -215,10 +223,23 @@ o vencedor e o motivo quando o confronto não vale.
 | **Pontos atuais** | Pontos do mês corrente: pilares. No SV, os +5 do confronto vencido só entram depois do fechamento do mês (30/10/2026); a Rota não recebe o +5 (03/11/2026) |
 | **Pontos acumulados** | SV: trimestre (meses fechados, com os +5 dos confrontos vencidos neles, + pilares do mês corrente). Consultor: não se aplica, pois zera todo mês ⚠️ |
 
-**Chave do Real e do Online (decisão da Karen em 03/11/2026; a partir de novembro/26):** o Real e o Online são lidos
-pela **chave da meta**, como a story do SAC: mês, agrupador e **rota da meta**, não a rota do cliente. A venda sem chave
-de meta fica fora, as rotas **-EV deixam de existir** na API de novembro, e o Real de um produto só aparece depois que a
-meta dele é carregada. **Outubro e os meses anteriores** seguem pela chave do faturamento.
+**Chave do Real e do Online (decisão da Karen em 03/11/2026; todo o trimestre desde 16/11/2026):** o Real e o Online
+são lidos pela **chave da meta**, como a story do SAC: mês, agrupador e **rota da meta**, não a rota do cliente. A venda
+sem chave de meta fica fora, as rotas **-EV deixam de existir** na API, e o Real de um produto só aparece depois que a
+meta dele é carregada.
+
+- **Outubro entrou nessa regra em 16/11/2026** (decisão informada pela Karen): o incentivo inteiro tem de ser calculado
+  do mesmo jeito, e o critério oficial — o do SAC e o do flash de vendas — é o da chave da meta. O alinhamento é
+  outubro virar novembro, nunca o contrário.
+- **O que isso mudou em outubro** (medido no Datasphere em 16/11/2026, comparando o mês inteiro pelas duas chaves):
+  o Real do Total Band caiu **846,5 caixas** nos 8 produtos publicados — **0,008%** —, que é exatamente o volume de
+  outubro **sem chave de meta** (mês `210012`, agrupador `--`), 99,5% dele em rotas `EV*`. As 15 rotas `-EV` saem da
+  API de outubro (3.184,8 caixas), mas só essas 846,5 somem de fato: o resto migra para a rota dona da meta.
+- **Efeito na apuração:** 18 das 203 rotas do incentivo mudam algum valor, **3** mudam de faixa em um pilar
+  (duas perdem 1 e 2 pontos, uma ganha 1), **nenhum** consultor entra ou sai do gatilho de volume ou do de pontos,
+  **1** SV muda os pontos do mês (de 3 para 5) e **nenhum** confronto de outubro muda de vencedor.
+- **No gerador**, o mês da virada é uma constante (`REAL_PELA_META_DESDE`, hoje `202610`, o 1º mês do trimestre) e o
+  mecanismo continua existindo para o caso de um mês futuro precisar de outro corte.
 
 **Fechamento do mês: prévia × oficial (decisão informada pela Karen em 04/11/2026)**
 
@@ -264,6 +285,11 @@ volume de uma **nota fiscal** não entra no fechamento de um mês. A regra:
   e, por isso, na aba **Estratégicos**.
 - A lista das notas excluídas fica na **configuração do gerador**, nunca no meio da lógica nem da tela, e o mês
   fechado publica rota, agrupador, volume e motivo — **sem número de nota e sem código de cliente**.
+- **A primeira exclusão saiu da lista em 16/11/2026:** a nota de outubro/26 (R32, Powerade) foi **cancelada na
+  origem** e já não está no Real por nenhuma das duas chaves, então a medição no Datasphere devolveu **0,00** contra
+  as 166,95 caixas declaradas. É o caso previsto na regra acima — "saiu menos (ou nada, se a nota foi cancelada na
+  origem)" —, e nele a entrada tem de sair da lista, senão o aviso se repete em toda rodada. O volume continua fora
+  do fechamento de outubro, agora porque a própria nota não existe mais. A lista está **vazia**.
 
 **Status (⚠️ interpretação da regra do Back Office):**
 
@@ -292,7 +318,7 @@ cinza. A premiação continua restrita a quem é elegível.
 
 **Resolvidos:** **Missões Guiadas de novembro** com dado real — duas missões ("Aumente A Família" e "Traga De Volta"), meta 10 por rota e, no SV, a soma das rotas da mesa (10/11/2026, seção 4); mínimo de pontos do Consultor = **17 no mês** (gerência de planejamento e IM, 29/10/2026); **+5 do confronto só para o SV vencedor**, sem extensão à mesa (03/11/2026); +5 do confronto só depois do fechamento do mês, nos pontos acumulados do SV, com o vencedor parcial durante o mês (30/10/2026), entrando no dia 1 do mês seguinte e atualizados até o fechamento do flash, quando congelam (05/11/2026);
 **Real = até ontem × faturado de hoje:** medido em 28/10/2026 com `backend/scripts/diagnosticar_real.py --datasphere`, o faturado de hoje aparece **só no Online** (conferido de novo em 05/11/2026 contra a exportação do SAC de novembro: Meta, Real, Online e meta dia batem no total da empresa e rota a rota, com diferenças de 0,1 por arredondamento de 1 casa);
-**Real e Online pela chave e pela rota da meta** a partir de novembro/26, como o SAC (03/11/2026); **Mini e Mod = Segmentada**, com o segmento como etiqueta (28/10/2026, confirmado em 30/10/2026); **Estratégicos no painel**, em aba própria, só com o volume da gerência, sem pontos e sem premiação; fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
+**Real e Online pela chave e pela rota da meta**, como o SAC (03/11/2026), em **todo o trimestre** desde 16/11/2026; **Mini e Mod = Segmentada**, com o segmento como etiqueta (28/10/2026, confirmado em 30/10/2026); **Estratégicos no painel**, em aba própria, só com o volume da gerência, sem pontos e sem premiação; fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
 cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.
 
 ## 10. Glossário

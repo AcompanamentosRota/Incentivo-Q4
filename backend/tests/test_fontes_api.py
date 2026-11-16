@@ -13,6 +13,7 @@ Cenário (22/10/2026, dia útil 15 de 21; 14 fechados; ritmo esperado 67%):
 """
 import sys
 import unittest
+from unittest import mock
 from datetime import datetime
 from pathlib import Path
 
@@ -77,9 +78,15 @@ def cenario() -> ConsultaFalsa:
 
 
 class TestCenario(unittest.TestCase):
+    """Mês ANTES do corte de M.REAL_PELA_META_DESDE: Real e Online pela chave do FATURAMENTO.
+
+    A constante é fixada aqui (em vez de depender do valor publicado) porque o que este cenário fixa é o
+    mecanismo — "antes do corte vale a chave do faturamento" —, não o mês em que o corte está hoje.
+    """
     @classmethod
     def setUpClass(cls):
-        cls.dados = fontes.carregar(cenario(), AGORA)
+        with mock.patch.object(M, "REAL_PELA_META_DESDE", "202611"):
+            cls.dados = fontes.carregar(cenario(), AGORA)
         cls.api = api.montar(cls.dados)
 
     def test_calendario(self):
@@ -181,7 +188,14 @@ class TestFechamento(unittest.TestCase):
 
 
 class TestAgrupadoresExtras(unittest.TestCase):
+    """Também em outubro pela chave do faturamento (ver TestCenario): a constante é fixada no teste."""
+
+    def setUp(self):
+        self.corte = mock.patch.object(M, "REAL_PELA_META_DESDE", "202611")
+        self.corte.start()
+
     def tearDown(self):
+        self.corte.stop()
         M.incluir_agrupadores([])
 
     def test_extra_do_painel_entra_na_api(self):
@@ -253,10 +267,18 @@ class TestRealPelaChaveDaMeta(unittest.TestCase):
         cls.dados = fontes.carregar(cls.cons, AGORA_NOV)
         cls.api = api.montar(cls.dados)
 
-    def test_so_a_partir_de_novembro(self):
-        self.assertEqual(M.REAL_PELA_META_DESDE, "202611")
-        self.assertEqual([M.real_pela_meta(m) for m in ("202609", "202610", "202611", "202701")],
-                         [False, False, True, True])
+    def test_a_chave_vira_na_constante_qualquer_que_seja_ela(self):
+        """O corte é a constante, não um mês escrito na lógica: o mecanismo vale para qualquer valor dela."""
+        for desde, esperado in (("202611", [False, False, True, True]),
+                                ("202610", [False, True, True, True]),
+                                ("202701", [False, False, False, True])):
+            with self.subTest(desde=desde), mock.patch.object(M, "REAL_PELA_META_DESDE", desde):
+                self.assertEqual([M.real_pela_meta(m) for m in ("202609", "202610", "202611", "202701")], esperado)
+
+    def test_o_corte_publicado_e_o_primeiro_mes_do_trimestre(self):
+        """Decisão informada pela Karen em 16/11/2026: outubro passa a ser calculado como novembro."""
+        self.assertEqual(M.REAL_PELA_META_DESDE, "202610")
+        self.assertTrue(M.real_pela_meta("202610"))
 
     def test_real_vai_para_a_rota_da_meta(self):
         sucos = lambda r: self.api[f"v1/rotas/{r}.json"]["produtos"]["sucos"]  # noqa: E731

@@ -45,20 +45,19 @@ TOLERANCIA = 0.05
 # Uma entrada por nota fiscal tirada do fechamento.
 #   anomes      ANOMES_REF do mês (texto de 6 dígitos)
 #   nf          número da nota (NF_NRONF_Nota_Fiscal). NUNCA vai para os JSONs publicados
-#   rota        rota da linha; pela chave da meta é a rota da meta (as duas são R32 nesta nota)
+#   rota        rota da linha; como todo o Q4 sai pela chave da meta, é a rota da meta (M.real_pela_meta)
 #   agrupador   agrupador do produto, como vem do modelo (comparado sem acento e sem caixa)
 #   volume      volume esperado da linha, conferido no modelo
 #   motivo      texto curto que VAI para o JSON publicado: sem número de nota e sem código de cliente
-EXCLUSOES: list[dict] = [
-    {
-        "anomes": "202610",
-        "nf": "867744",
-        "rota": "R32",
-        "agrupador": "Powerade",
-        "volume": 166.95,
-        "motivo": "Nota fiscal fora do fechamento de outubro/26 (decisão do Back Office em 13/11/2026)",
-    },
-]
+# Lista vazia: nenhuma nota declarada fora do fechamento neste momento.
+#
+# A primeira entrada (outubro/26, rota R32, agrupador Powerade, 166,95 caixas, decisão do Back Office em 13/11/2026)
+# SAIU em 16/11/2026: a nota foi **cancelada na origem** e já não está no Real por nenhuma das duas chaves —
+# NF_STATUS passou a "Cancelada" (fora de STATUS_NF_REAL) e a linha ficou sem chave de meta (mês 210012,
+# agrupador "--"). Medido no Datasphere em 16/11/2026: a consulta estreita devolveu 0,00 caixas tiradas contra as
+# 166,95 declaradas. É exatamente o caso descrito em "Conferência" acima: entrada que não acha mais a nota tem de
+# sair da lista, senão o aviso "saiu menos que o declarado" se repete em toda rodada, para sempre.
+EXCLUSOES: list[dict] = []
 
 
 class VolumeExcluidoMaior(ValueError):
