@@ -2644,7 +2644,8 @@ test('4Q montarDados: sem o ajuste nada muda (mesma saída de antes, célula a c
 
 test('4Q notasDasTrocas: a nota da tabela sai do ajuste, só no canal e na lista em que a troca vale', () => {
   const d = montar({ ajustes: ajTrocas(TROCA()) });
-  const nota = '* Outubro: % trocado entre SV.XA.1 e SV.XB.2 (troca de supervisores autorizada em 16/11/2026). ' +
+  // etapa 4S (regras v1.18): a nota continua, SEM o "*" na frente — a marca da troca virou a tag ao lado do nome
+  const nota = 'Outubro: % trocado entre SV.XA.1 e SV.XB.2 (troca de supervisores autorizada em 16/11/2026). ' +
     'Meta, Real, Dif. e % do mês seguem a supervisão.';
   assert.deepEqual(A.notasDasTrocas(d, 'Mista', d.svMista), [nota]);
   assert.deepEqual(A.notasDasTrocas(d, 'Segmentada', d.svSegmentada), []);
@@ -2654,15 +2655,60 @@ test('4Q notasDasTrocas: a nota da tabela sai do ajuste, só no canal e na lista
   for (const t of A.notasDasTrocas(d, 'Mista', d.svMista)) assert.doesNotMatch(t, /pendência|premissa/i);
 });
 
-test('4Q tela: o "*" e a nota vêm do motor e do adaptador; nenhum código, data ou nome digitado', () => {
+test('4S tagsDaTroca: a tag da linha sai do ajuste aplicado (mês, a outra SV e a data), nos dois sentidos', () => {
+  const d = montar({ ajustes: ajTrocas(TROCA()) });
+  assert.deepEqual(A.tagsDaTroca(d, 'SV.XA.1'),
+    [{ etiqueta: 'troca out', titulo: 'Outubro: % trocado com SV.XB.2 (troca autorizada em 16/11/2026)' }]);
+  assert.deepEqual(A.tagsDaTroca(d, 'SV.XB.2'),
+    [{ etiqueta: 'troca out', titulo: 'Outubro: % trocado com SV.XA.1 (troca autorizada em 16/11/2026)' }]);
+  // quem não está na troca, o Ranking GC e o Total Band não recebem tag
+  for (const codigo of ['SV.XA.2', 'XA', 'XA_XB', 'Total Band', '']) assert.deepEqual(A.tagsDaTroca(d, codigo), []);
+  // sem troca ativa não há tag nenhuma
+  const sem = montar();
+  for (const l of sem.svMista) assert.deepEqual(A.tagsDaTroca(sem, l.codigo), []);
+  assert.deepEqual(A.tagsDaTroca(null, 'SV.XA.1'), []);
+  assert.deepEqual(A.tagsDaTroca({}, 'SV.XA.1'), []);
+  // o texto sai do ajuste e não cita pendência nem premissa (regras v1.12, seção 10)
+  for (const tag of A.tagsDaTroca(d, 'SV.XA.1')) assert.doesNotMatch(tag.titulo, /pendência|premissa/i);
+});
+
+test('4S tagsDaTroca: troca IGNORADA na validação não vira tag nem nota, e a coluna Out fica como estava', () => {
+  const base = montar();
+  // SV inexistente e SVs de canais diferentes: os dois itens são recusados em montarDados (testes da 4Q acima)
+  for (const t of [TROCA({ sv_b: 'SV.ZZ.9' }), TROCA({ sv_b: 'SV.XB.1' })]) {
+    const d = montar({ ajustes: ajTrocas(t) });
+    assert.deepEqual(d.trocas, []);
+    for (const l of d.svMista) assert.deepEqual(A.tagsDaTroca(d, l.codigo), []);
+    assert.deepEqual(A.notasDasTrocas(d, 'Mista', d.svMista), []);
+    assert.deepEqual(d.svMista, base.svMista);                      // e o Out de ninguém mudou
+  }
+});
+
+test('4S tela: a marca da troca é a tag ao lado do código; a coluna Out mostra o valor trocado SEM marcador', () => {
+  // (1) o "*" saiu da célula do mês: nenhum <sup class="troca"> e nenhum CSS dele, no template nem no gerado
   const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
-  assert.match(cel, /m && m\.troca \? '<sup class="troca">\*<\/sup>'/);
+  assert.doesNotMatch(cel, /<sup|'\*'/);
+  assert.match(cel, /pct\(m\.pctTravado\)/);                              // o valor exibido continua o trocado
+  const html = fs.readFileSync(GERADO, 'utf8');
+  for (const texto of [TPL, html]) assert.doesNotMatch(texto, /sup\.troca|<sup class="troca">/);
+  // (2) a tag entra ao lado do código, com texto e tooltip vindos do adaptador (nada digitado na tela)
+  assert.match(SEM_CSS, /tagsDaTroca\(D, l\.codigo\)/);
+  assert.match(SEM_CSS, /<span class="sg" title="'\+esc\(t\.titulo\)\+'">'\+esc\(t\.etiqueta\)/);
+  assert.doesNotMatch(SEM_CSS, /troca out|troca nov|troca dez/);
+  assert.match(html, /function tagsDaTroca/);
+  // (3) a tag tem o formato da do Q4 (caixinha, cantos arredondados, nowrap) e cor NEUTRA, dos tokens que já existem
+  const sg = /\n\.sg\{[^}]*\}/.exec(TPL)[0];
+  assert.match(sg, /border-radius:/);
+  assert.match(sg, /white-space:nowrap/);                                 // não quebra a linha nem empurra coluna
+  assert.match(sg, /color:var\(--sk-tit-fg\)/);
+  assert.match(sg, /background:rgba\(255,255,255,\.08\)/);
+  assert.doesNotMatch(sg, /--rk-bateu|--pill-fora|--turq|--gold|--red|--ap-tit/);  // nem azul, nem âmbar, nem turquesa
+  // (4) a nota continua, sem o "*", na faixa dos botões de página e na fonte da tabela
   assert.match(SEM_CSS, /tabelaRanking\(linhas,'Supervisão',false,notasDasTrocas\(D, st\.canal, linhas\)\)/);
   assert.match(SEM_CSS, /tabelaRanking\(D\.gc,'Gerência',true\)/);           // o Ranking GC não tem troca
-  assert.doesNotMatch(TPL, /SV\.AN|Sv\. An|16\/11\/2026|2026-11-16|troca de supervisores/);
-  // nota com fonte da tabela (nada abaixo de 13 px) e na faixa dos botões de página
   assert.match(TPL, /\.pe-tb \.nota-troca\{font-size:13px/);
-  const html = fs.readFileSync(GERADO, 'utf8');
+  // (5) nenhum código, data ou nome de pessoa digitado na tela
+  assert.doesNotMatch(TPL, /SV\.AN|Sv\. An|16\/11\/2026|2026-11-16|troca de supervisores/);
   assert.match(html, /function notasDasTrocas/);
   assert.match(html, /function trocarPercentualDeMes/);
 });

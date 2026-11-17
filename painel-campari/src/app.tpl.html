@@ -252,7 +252,16 @@ button{cursor:pointer}
 .pe-tb{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
 .pe-tb .nota-troca{font-size:13px;color:var(--muted);line-height:1.25}
 .pe-tb .pag{grid-column:2}
-.tb sup.troca{font-size:13px;font-weight:800;color:var(--ap-tit);margin-left:2px;vertical-align:super;line-height:0}
+/* Etapa 4S (regras v1.18, seção 3.1, item Tela; pedido da Karen de 17/11/2026): a marca da troca de SV sai da
+   coluna Out (era um `sup` com "*") e vira uma TAG ao lado do código da SV, no formato da tag "troca out" do
+   Desafio Q4 (.sg.tr de painel-q4/src/app.tpl.html, copiado — o Campari não importa nada do Q4), sem a cor roxa
+   de lá. A cor é NEUTRA e sai dos tokens que o painel já tem, sem paleta nova: o fundo é o mesmo recipiente
+   translúcido do selo "-" (.pill.no, rgba(255,255,255,.08)), a borda é --line e o texto é --sk-tit-fg. Assim ela
+   não compete com o azul da linha que bateu (--rk-bateu), com o turquesa do selo "✓ Bateu!" e do "Hoje" nem com
+   o âmbar de "Bateu, fora do ranking" (--pill-fora-*). Contrastes medidos no pixel do print: 12,1:1 na linha
+   normal e 7,0:1 sobre a linha azul, os dois bem acima de 4,5:1. `white-space:nowrap` e `vertical-align:middle` mantêm a tag na mesma
+   linha do código (a célula já é nowrap), sem empurrar coluna nem criar rolagem. */
+.sg{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:13px;font-weight:600;line-height:1.35;vertical-align:middle;white-space:nowrap;background:rgba(255,255,255,.08);color:var(--sk-tit-fg);border:1px solid var(--line)}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -423,14 +432,15 @@ const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
    mês VIGENTE ganha o quadradinho. A cor vem de motor.corDoPercentualAperitivo, pelo mês (o limite é o da trava
    dele) e pelo valor BRUTO — que a tela lê para perguntar a cor e continua sem escrever. */
 /* Etapa 4Q (regras v1.17, seção 3.1): mês com troca de SV (m.troca, do motor) mostra o valor que veio da outra
-   SV com o marcador "*", explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada
-   ao motor pelo valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão. */
+   SV, explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada ao motor pelo
+   valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão.
+   Etapa 4S (regras v1.18): a célula fica SEM marcador — o "*" saiu daqui e a marca da troca passou a ser a tag
+   ao lado do código da SV (tagsDaTroca). O valor exibido é o mesmo de antes: o trocado. */
 const mesCel = (m, vigente)=>{
-  const marca = m && m.troca ? '<sup class="troca">*</sup>' : '';
-  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+marca+'</td>';
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+'</td>';
   const cor = vigente ? M.corDoPercentualAperitivo(m.pct, m.mes) : null;
   const corTela = vigente && m.troca ? M.corDoPercentualAperitivo(m.pctTravado, m.mes) : cor;
-  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span>'+marca+'</td>';
+  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span></td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -489,10 +499,15 @@ function linhaRanking(l, opc){
      posição OFICIAL (l.oficial) continua vindo do motor e continua decidindo o "Bateu!"; ela só não é exibida.
      A linha inteira fica azul quando tem "✓ Bateu!" (o mesmo teste do selo), e o Total Band não tem nem número
      nem cor. */
+  /* Etapa 4S (regras v1.18, seção 3.1, item Tela): a tag da troca fica ao lado do código, só nas linhas das
+     SV de uma troca APLICADA. Texto, tooltip, mês e a outra SV vêm do adaptador (tagsDaTroca), que os lê do
+     ajuste publicado: nenhum código, mês ou data digitado na tela. Linha sem troca não recebe nada, e o Ranking
+     GC também não — a troca é entre supervisões. */
   const idCels = opc.total
     ? '<td class="l" colspan="2">'+esc(l.codigo)+'</td>'
     : '<td class="l"><span class="n of">'+(l.pos?esc(l.pos)+'º':esc(TRACO))+'</span></td>'+
-      '<td class="l cod">'+esc(l.codigo)+'</td>';
+      '<td class="l cod">'+esc(l.codigo)+tagsDaTroca(D, l.codigo)
+        .map((t)=>'<span class="sg" title="'+esc(t.titulo)+'">'+esc(t.etiqueta)+'</span>').join('')+'</td>';
   const classe = opc.total ? ' class="tot"' : bateuStatus(l) ? ' class="bateu"' : '';
   return '<tr'+classe+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+

@@ -253,7 +253,16 @@ button{cursor:pointer}
 .pe-tb{flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
 .pe-tb .nota-troca{font-size:13px;color:var(--muted);line-height:1.25}
 .pe-tb .pag{grid-column:2}
-.tb sup.troca{font-size:13px;font-weight:800;color:var(--ap-tit);margin-left:2px;vertical-align:super;line-height:0}
+/* Etapa 4S (regras v1.18, seção 3.1, item Tela; pedido da Karen de 17/11/2026): a marca da troca de SV sai da
+   coluna Out (era um `sup` com "*") e vira uma TAG ao lado do código da SV, no formato da tag "troca out" do
+   Desafio Q4 (.sg.tr de painel-q4/src/app.tpl.html, copiado — o Campari não importa nada do Q4), sem a cor roxa
+   de lá. A cor é NEUTRA e sai dos tokens que o painel já tem, sem paleta nova: o fundo é o mesmo recipiente
+   translúcido do selo "-" (.pill.no, rgba(255,255,255,.08)), a borda é --line e o texto é --sk-tit-fg. Assim ela
+   não compete com o azul da linha que bateu (--rk-bateu), com o turquesa do selo "✓ Bateu!" e do "Hoje" nem com
+   o âmbar de "Bateu, fora do ranking" (--pill-fora-*). Contrastes medidos no pixel do print: 12,1:1 na linha
+   normal e 7,0:1 sobre a linha azul, os dois bem acima de 4,5:1. `white-space:nowrap` e `vertical-align:middle` mantêm a tag na mesma
+   linha do código (a célula já é nowrap), sem empurrar coluna nem criar rolagem. */
+.sg{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:13px;font-weight:600;line-height:1.35;vertical-align:middle;white-space:nowrap;background:rgba(255,255,255,.08);color:var(--sk-tit-fg);border:1px solid var(--line)}
 
 /* regras: três colunas */
 .rg{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -1501,7 +1510,8 @@ function gruposDoRankingGC(codigos, cfg) {
  *     seletor de mês; `acumulado` é null nas linhas sem gatilho (consultor).
  *   - `hojeOk` é o "Hoje" colorido do motor (Online > 0 e Online ≥ Meta dia), já resolvido por mês e produto.
  *   - `troca` (Aperitivo, etapa 4Q): null, ou { com, pctTravadoProprio } no mês em que o % do ranking veio da
- *     outra SV de uma troca de supervisores (`motor.trocarPercentualDeMes`); a tela marca a célula com "*".
+ *     outra SV de uma troca de supervisores (`motor.trocarPercentualDeMes`). A tela não marca mais a célula:
+ *     desde a etapa 4S (regras v1.18) a marca da troca é a tag ao lado do código da SV (`tagsDaTroca`).
  */
 function tabelaDaLinha(vol, cob, extra, motor) {
   const comum = (m) => {
@@ -1995,8 +2005,27 @@ function notasDasTrocas(dados, canal, linhas) {
   const codigos = (linhas || []).map((l) => l.codigo);
   return ((dados && dados.trocas) || [])
     .filter((t) => t.canal === canal && (codigos.indexOf(t.sv_a) >= 0 || codigos.indexOf(t.sv_b) >= 0))
-    .map((t) => `* ${maiusc1(NOMES_MES[t.mes])}: % trocado entre ${t.sv_a} e ${t.sv_b} (troca de supervisores ` +
+    .map((t) => `${maiusc1(NOMES_MES[t.mes])}: % trocado entre ${t.sv_a} e ${t.sv_b} (troca de supervisores ` +
       `autorizada em ${t.autorizadoEmTela}). Meta, Real, Dif. e % do mês seguem a supervisão.`);
+}
+
+/**
+ * Tags da troca de SV de uma linha das tabelas de ranking (etapa 4S; regras v1.18, seção 3.1, item Tela) ->
+ * [{ etiqueta, titulo }]. Substitui o marcador "*" que a 4Q punha na coluna Out: a marca passa a ficar ao lado do
+ * código da SV, como a tag "troca out" do Desafio Q4. Só as trocas APLICADAS (`dados.trocas`) em que este código
+ * aparece; troca ignorada na validação não está nessa lista e por isso não gera tag. Mês, códigos e data saem do
+ * AJUSTE, nunca de texto fixo na tela, e nenhum nome de pessoa entra aqui (privacidade).
+ *   etiqueta: "troca out" (o mês abreviado, como no Q4)
+ *   titulo:   "Outubro: % trocado com SV.AN.3 (troca autorizada em 16/11/2026)" — o tooltip (atributo title)
+ */
+function tagsDaTroca(dados, codigo) {
+  return ((dados && dados.trocas) || [])
+    .filter((t) => t.sv_a === codigo || t.sv_b === codigo)
+    .map((t) => ({
+      etiqueta: `troca ${(NOMES_MES[t.mes] || String(t.mes)).slice(0, 3)}`,
+      titulo: `${maiusc1(NOMES_MES[t.mes] || String(t.mes))}: % trocado com ${t.sv_a === codigo ? t.sv_b : t.sv_a} ` +
+        `(troca autorizada em ${t.autorizadoEmTela})`,
+    }));
 }
 
 /** Todas as linhas de supervisão (os dois canais e as que estão fora do ranking), em ordem de código. */
@@ -2219,8 +2248,8 @@ if (typeof module === 'object' && module.exports) {
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
                      linhasDoDetalhe, alertasDaTela,
-                     // Etapa 4Q (troca de SV em outubro): a nota da tabela, pura
-                     notasDasTrocas,
+                     // Etapa 4Q (troca de SV em outubro): a nota da tabela, pura; etapa 4S: a tag da linha
+                     notasDasTrocas, tagsDaTroca,
                      // Etapa 4G (navegação por páginas), também puras
                      rotasDoConsultor, fatiar,
                      // Etapa 4I (Detalhe do mês: visão Gerência sem paginação), pura
@@ -2342,14 +2371,15 @@ const mdiaCel = (m, f)=>'<td>'+esc(m.aberto?f(m.metaDiaExib):TRACO)+'</td>';
    mês VIGENTE ganha o quadradinho. A cor vem de motor.corDoPercentualAperitivo, pelo mês (o limite é o da trava
    dele) e pelo valor BRUTO — que a tela lê para perguntar a cor e continua sem escrever. */
 /* Etapa 4Q (regras v1.17, seção 3.1): mês com troca de SV (m.troca, do motor) mostra o valor que veio da outra
-   SV com o marcador "*", explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada
-   ao motor pelo valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão. */
+   SV, explicado na nota abaixo da tabela. No mês trocado a cor (se for o vigente) é perguntada ao motor pelo
+   valor que ENTRA NA SOMA: o % bruto do mês continua sendo o da própria supervisão.
+   Etapa 4S (regras v1.18): a célula fica SEM marcador — o "*" saiu daqui e a marca da troca passou a ser a tag
+   ao lado do código da SV (tagsDaTroca). O valor exibido é o mesmo de antes: o trocado. */
 const mesCel = (m, vigente)=>{
-  const marca = m && m.troca ? '<sup class="troca">*</sup>' : '';
-  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+marca+'</td>';
+  if(!m || m.pctTravado===null||m.pctTravado===undefined) return '<td>'+esc(TRACO)+'</td>';
   const cor = vigente ? M.corDoPercentualAperitivo(m.pct, m.mes) : null;
   const corTela = vigente && m.troca ? M.corDoPercentualAperitivo(m.pctTravado, m.mes) : cor;
-  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span>'+marca+'</td>';
+  return '<td><span'+(corTela?' class="pchip '+corTela+'"':'')+'>'+pct(m.pctTravado)+'</span></td>';
 };
 /* % de cobertura de Skyy ("% do mês" e "% Acumulado"): o quadradinho verde/vermelho. A tela NÃO compara nada com
    o mínimo do gatilho: pergunta a cor ao motor, que decide pelo valor BRUTO (99,99999% mostra 99,9% e fica
@@ -2408,10 +2438,15 @@ function linhaRanking(l, opc){
      posição OFICIAL (l.oficial) continua vindo do motor e continua decidindo o "Bateu!"; ela só não é exibida.
      A linha inteira fica azul quando tem "✓ Bateu!" (o mesmo teste do selo), e o Total Band não tem nem número
      nem cor. */
+  /* Etapa 4S (regras v1.18, seção 3.1, item Tela): a tag da troca fica ao lado do código, só nas linhas das
+     SV de uma troca APLICADA. Texto, tooltip, mês e a outra SV vêm do adaptador (tagsDaTroca), que os lê do
+     ajuste publicado: nenhum código, mês ou data digitado na tela. Linha sem troca não recebe nada, e o Ranking
+     GC também não — a troca é entre supervisões. */
   const idCels = opc.total
     ? '<td class="l" colspan="2">'+esc(l.codigo)+'</td>'
     : '<td class="l"><span class="n of">'+(l.pos?esc(l.pos)+'º':esc(TRACO))+'</span></td>'+
-      '<td class="l cod">'+esc(l.codigo)+'</td>';
+      '<td class="l cod">'+esc(l.codigo)+tagsDaTroca(D, l.codigo)
+        .map((t)=>'<span class="sg" title="'+esc(t.titulo)+'">'+esc(t.etiqueta)+'</span>').join('')+'</td>';
   const classe = opc.total ? ' class="tot"' : bateuStatus(l) ? ' class="bateu"' : '';
   return '<tr'+classe+'>'+idCels+
     '<td class="sep">'+vol(ap.meta)+'</td><td>'+vol(ap.real)+'</td>'+mdiaCel(ap, fmtVolume)+hojeCel(ap, fmtVolume)+difCel(ap.dif, fmtVolume)+
