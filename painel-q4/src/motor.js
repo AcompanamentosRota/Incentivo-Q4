@@ -166,6 +166,69 @@
     return { resultado, detalhes };
   }
 
+  // ───────────────────────── troca de apuração entre dois SVs ─────────────────────────
+  /*
+   * Troca de apuração (decisão do GC de Anápolis em 09/11/2026, autorizada pela Carol em 16/11/2026 e informada pela
+   * Karen em 17/11/2026): num mês declarado, o resultado mensal de DOIS supervisores do mesmo canal muda de dono,
+   * para que quem trocou de mesa carregue no trimestre o resultado que fez naquele mês.
+   *
+   * Quando: DEPOIS de o mês estar inteiramente apurado — com os confrontos já resolvidos pelos dados VERDADEIROS —
+   * e ANTES da soma do trimestre e do ranking. Essa ordem é a regra: trocar antes faria o motor reapurar os
+   * confrontos do mês com os números trocados e mudar o resultado de supervisões que não têm nada com a troca.
+   *
+   * O que troca: a apuração do mês (medidas, % e pontos de cada pilar, Refrigerantes do mês e o resultado do
+   * confronto daquele mês, de onde sai o +5). O que não troca: código, nome, canal, as rotas da mesa, os meses não
+   * declarados e o VENCEDOR registrado do confronto (`detalhes`), que continua o verdadeiro.
+   *
+   * Nada é calculado aqui: só se trocam as entradas de que os passos seguintes já se serviam.
+   */
+  const RECUSA_TROCA = {
+    MESMO_SV: 'os dois lados são o mesmo supervisor',
+    SV_NAO_ENCONTRADO: 'supervisor não encontrado no mês',
+    CANAIS_DIFERENTES: 'supervisores de canais diferentes',
+    SV_JA_TROCADO: 'supervisor em mais de uma troca no mesmo mês',
+    MES_SEM_DADO: 'mês sem dado para trocar',
+    MES_AINDA_NAO_APURADO: 'mês ainda não apurado',
+    MES_FORA_DO_TRIMESTRE: 'mês fora do trimestre',
+  };
+
+  /** Declaração -> detalhe da troca (os campos declarados passam adiante, para a tela e a planilha). */
+  const detalheTroca = (t) => ({ mes: t.mes, a: t.a, b: t.b, aplicada: false, recusa: null,
+    motivo: t.motivo || null, solicitado_por: t.solicitado_por || null,
+    autorizado_por: t.autorizado_por || null, em: t.em || null });
+
+  /**
+   * Aplica as trocas de um mês. Função pura no que importa: só troca, entre os dois SVs, a entrada `calc[id][mes]`
+   * (pilares + Refrigerantes do mês) e a entrada `resultado[id]` do confronto do mês (de onde vem o +5).
+   * @returns {Array} um detalhe por troca declarada naquele mês ({aplicada, recusa, ...}).
+   */
+  function trocarApuracaoDoMes(mes, trocas, svPorId, calc, resultado, semDado) {
+    const detalhes = [], usados = new Set();
+    for (const t of (trocas || []).filter((x) => x && x.mes === mes)) {
+      const det = detalheTroca(t);
+      detalhes.push(det);
+      if (t.a === t.b) { det.recusa = 'MESMO_SV'; continue; }
+      const a = svPorId[t.a], b = svPorId[t.b];
+      if (!a || !b) { det.recusa = 'SV_NAO_ENCONTRADO'; continue; }
+      if (a.canal !== b.canal) { det.recusa = 'CANAIS_DIFERENTES'; continue; }
+      if (usados.has(a.id) || usados.has(b.id)) { det.recusa = 'SV_JA_TROCADO'; continue; }
+      if (semDado) { det.recusa = 'MES_SEM_DADO'; continue; }
+      const mA = calc[a.id][mes]; calc[a.id][mes] = calc[b.id][mes]; calc[b.id][mes] = mA;
+      const rA = resultado[a.id], rB = resultado[b.id];
+      if (rB === undefined) delete resultado[a.id]; else resultado[a.id] = rB;
+      if (rA === undefined) delete resultado[b.id]; else resultado[b.id] = rA;
+      det.aplicada = true;
+      usados.add(a.id); usados.add(b.id);
+    }
+    return detalhes;
+  }
+
+  /** Trocas aplicadas que tocam um SV: [{mes, com, ...}]. `com` é o outro lado. */
+  function trocasDoSV(trocas, id) {
+    return (trocas || []).filter((t) => t.aplicada && (t.a === id || t.b === id))
+      .map((t) => Object.assign({}, t, { com: t.a === id ? t.b : t.a }));
+  }
+
   // ───────────────────────── cálculo principal ─────────────────────────
   /**
    * @param {object} e
@@ -175,6 +238,8 @@
    * @param {Array}  e.pilaresConfig          {mes,canal,pilares:[{nome,tipo:'volume'|'missao'}]}
    * @param {Array}  e.medidas                {id,mes,pilar,meta,real,online}  (inclui pilar 'Refrigerantes')
    * @param {Array}  e.confrontos             {mes,id_sv_desafiante,id_sv_desafiado,pilar,ordem_registro}
+   * @param {Array}  [e.trocasSV]            {mes,a,b,motivo,solicitado_por,autorizado_por,em}: a apuração do mês
+   *                                     muda de dono entre os dois SVs (depois dos confrontos, antes do trimestre)
    * @param {Array}  [e.mesesIncompletos]     {mes,motivo}: meses do trimestre sem dado (fechado que faltou ou falhou)
    * @param {boolean} [e.fechamento]          o mês de referência já fechou (período de fechamento da API)
    */
@@ -240,6 +305,21 @@
       confrontoMes[mes].detalhes.forEach((d) => { d.mesFechado = mesFechado(mes); });
       todosDetalhes.push(...confrontoMes[mes].detalhes);
     }
+
+    // 2.5) troca de apuração entre dois SVs, mês a mês. Vem DEPOIS dos confrontos (apurados com os dados
+    //      verdadeiros) e ANTES da soma do trimestre e do ranking: nenhum adversário de confronto muda por causa dela.
+    const trocas = [];
+    for (const mes of meses) {
+      trocas.push(...trocarApuracaoDoMes(mes, e.trocasSV, svPorId, calc, confrontoMes[mes].resultado,
+                                         incompletos.some((x) => x.mes === mes)));
+    }
+    for (const t of (e.trocasSV || []).filter((x) => x && !meses.includes(x.mes))) {
+      trocas.push(Object.assign(detalheTroca(t), {
+        recusa: REGRAS.meses.includes(t.mes) ? 'MES_AINDA_NAO_APURADO' : 'MES_FORA_DO_TRIMESTRE' }));
+    }
+    // troca declarada e não aplicada é sempre avisada; o mês do trimestre que ainda não chegou é só espera, não erro
+    trocas.filter((t) => t.recusa && t.recusa !== 'MES_AINDA_NAO_APURADO')
+      .forEach((t) => alertasGlobais.push({ codigo: 'TROCA_' + t.recusa, mes: t.mes, a: t.a, b: t.b }));
 
     // 3) pontos por mês, agregados e gatilhos
     const saida = pessoas.map((p) => {
@@ -331,6 +411,7 @@
       pessoas: saida,
       ranking,
       confrontos: todosDetalhes,
+      trocas,
       alertas: alertasGlobais,
       mesesIncompletos: incompletos,
       semVinculoSupervisor: pessoas.filter((p) => p.cargo === 'RT' && p.id_supervisor == null).length,
@@ -358,6 +439,14 @@
       if (r.cargo === 'RT' && 'pontosAcumulados' in r && r.pontosAcumulados !== undefined) falhas.push('RT_COM_ACUMULADO:' + r.id);
       if (r.cargo === 'RT' && r.porMes.some((m) => m.confrontoVencido || m.pontosConfronto || m.bonusPendente)) falhas.push('RT_COM_BONUS_CONFRONTO:' + r.id);
     }
+    const vistosTroca = new Set();
+    for (const t of (resultado.trocas || []).filter((x) => x.aplicada)) {
+      for (const id of [t.a, t.b]) {
+        const k = t.mes + '|' + id;
+        if (vistosTroca.has(k)) falhas.push('TROCA_REPETIDA:' + k);
+        vistosTroca.add(k);
+      }
+    }
     const ids = resultado.pessoas.map((r) => r.id);
     if (new Set(ids).size !== ids.length) falhas.push('PESSOA_DUPLICADA');
     if (entrada) {
@@ -369,5 +458,6 @@
     return falhas;
   }
 
-  return { REGRAS, calcular, calcPilar, faixaPontos, apurarConfrontos, conferir, truncar1, fmtPct, fmtVolume };
+  return { REGRAS, RECUSA_TROCA, calcular, calcPilar, faixaPontos, apurarConfrontos, trocarApuracaoDoMes,
+           trocasDoSV, conferir, truncar1, fmtPct, fmtVolume };
 });

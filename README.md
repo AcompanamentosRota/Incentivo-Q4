@@ -112,6 +112,13 @@ item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do
 publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
 Ao publicar, a Administração do Q4 parte do arquivo publicado e só troca as chaves que ela gerencia: chave de outro
 painel (`campari`, do Campari Club) ou que ela não edita (`missoes`) vai copiada sem mudar nada (desde 16/11/2026).
+A chave **`trocasSV`** é a **troca de apuração entre duas supervisões** (documento de regras v4.0, seções 5 e 8): num
+mês declarado, o resultado mensal de dois SVs do mesmo canal muda de dono, para que supervisores que trocaram de mesa
+carreguem no trimestre o resultado que fizeram. Cada item tem `mes`, `a`, `b` (as duas chaves de SV, no formato
+`"Sv. An.2#Mista"`), `motivo`, `solicitado_por`, `autorizado_por` e `em`. **Não há formulário para ela:** entra só por
+PR, editada à mão; publicar pela Administração não a apaga. Item inválido é ignorado, com aviso em
+Regras > Dados e alertas, onde cada troca aparece com o motivo e quem autorizou.
+
 A chave **`campari`** é do painel Campari Club, que só lê o publicado: hoje ela traz `trocasSupervisao`, a troca do %
 de outubro do Aperitivo entre duas supervisões (regras do Campari v1.17, seção 3.1). Não há formulário para ela: entra
 só por PR, editada à mão (só a chave e o `atualizado_em`). Item inválido é ignorado pelo painel, com aviso em

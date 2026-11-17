@@ -1646,10 +1646,10 @@ const API_FECH_PREVIA = { ...API_PREVIA, 'fechado/202610.json': comTotais(semSel
 const CONF_OUT = [{ mes: 10, id_sv_desafiante: 'Sv. Nv.1#Mista', id_sv_desafiado: 'Sv. Nv.2#Mista', pilar: 'Volume Sabores' }];
 
 /** Carrega os dados de novembro e devolve a consulta de um mês fechado, como a Administração faz. */
-const consultaDe = async (mes, arquivos = API_FECH, confrontos, cfg) => comApi(arquivos, async () => {
+const consultaDe = async (mes, arquivos = API_FECH, confrontos, cfg, trocas) => comApi(arquivos, async () => {
   const c = cfg || cfgNov();
   const d = await carregarDados(BASE_V, c);
-  return { d, c: consultaFechamento(d, mes, c, confrontos), cfg: c };
+  return { d, c: consultaFechamento(d, mes, c, confrontos, trocas), cfg: c };
 });
 const ROT_PILAR_T = (n) => n.replace('Volume ', '').replace('Missões Guiadas', 'Missões');
 const porCodigo = (t, cod) => t.linhas.find((l) => l.codigo === cod);
@@ -2521,4 +2521,180 @@ test('4R: o adaptador não avisa de `campari` e continua avisando de chave inven
   // ilegível ou ausente: nada a preservar
   await comAjustes('{"a":1}{"b":2}', undefined, async () => assert.equal((await carregarAjustes(CONFIG)).publicadoBruto, null));
   await comAjustes(null, undefined, async () => assert.equal((await carregarAjustes(CONFIG)).publicadoBruto, null));
+});
+
+// ── troca de apuração entre duas supervisões (17/11/2026) ─────────────────
+/*
+ * O adaptador só confere o FORMATO do ajuste e leva os textos para a tela e para a planilha; quem aplica e quem
+ * recusa (canais diferentes, SV que não existe) é o motor. Fixtures sintéticas, com códigos e nomes fictícios.
+ */
+const { normalizarTrocas, TROCAS_MAX, nomeDoSvId, etiquetaDaTroca, textoDaTroca, celulaDaTroca,
+        avisoDaMesaTrocada, linhasDasTrocas } = require('../src/adapter.js');
+
+const TROCA_NV = { mes: 10, a: 'Sv. Nv.1#Mista', b: 'Sv. Nv.2#Mista',
+                   motivo: 'troca de mesa fictícia a partir de novembro', solicitado_por: 'GC fictício',
+                   autorizado_por: 'Diretoria fictícia', em: '2026-11-16' };
+
+test('trocasSV: formato conferido item a item; o inválido é ignorado com aviso, nunca em silêncio', () => {
+  const av = [];
+  const ok = normalizarTrocas([
+    TROCA_NV,
+    { mes: 9, a: 'Sv. A#Mista', b: 'Sv. B#Mista' },                       // mês fora do trimestre
+    { mes: 11, a: 'Sv. A#Mista' },                                        // sem o outro lado
+    { mes: 11, a: 'Sv. A#Mista', b: 'Sv. A#Mista' },                      // os dois lados iguais
+    { mes: 10, a: 'Sv. Nv.1#Mista', b: 'Sv. Nv.9#Mista' },                // SV já trocado neste mês
+    { mes: 11, a: 'Sv. Nv.1#Mista', b: 'Sv. Nv.2#Mista' },                // outro mês: vale
+  ], av);
+  assert.deepEqual(ok.map((t) => [t.mes, t.a, t.b]), [[10, 'Sv. Nv.1#Mista', 'Sv. Nv.2#Mista'],
+                                                      [11, 'Sv. Nv.1#Mista', 'Sv. Nv.2#Mista']]);
+  assert.equal(av.length, 4);
+  assert.ok(av.every((t) => /ignorado/.test(t)), av.join(' | '));
+  assert.ok(av.some((t) => /mês fora do trimestre/.test(t)));
+  assert.ok(av.some((t) => /já está em outra troca de outubro/.test(t)));
+  // campos da declaração: ausentes viram null; texto inválido não derruba a troca, só o dado
+  const av2 = [];
+  const [t2] = normalizarTrocas([{ mes: 10, a: 'Sv. A#Mista', b: 'Sv. B#Mista', motivo: 42 }], av2);
+  assert.deepEqual([t2.motivo, t2.solicitado_por, t2.autorizado_por, t2.em], [null, null, null, null]);
+  assert.ok(av2.some((t) => /motivo inválido: a troca vale, sem esse dado/.test(t)));
+  // não é lista, e o limite
+  const av3 = [];
+  assert.deepEqual(normalizarTrocas({ mes: 10 }, av3), []);
+  assert.ok(av3.some((t) => /trocasSV: precisa ser uma lista/.test(t)));
+  const muitas = Array.from({ length: TROCAS_MAX + 2 }, (_, i) => ({ mes: 10, a: `Sv. A${i}#Mista`, b: `Sv. B${i}#Mista` }));
+  const av4 = [];
+  assert.equal(normalizarTrocas(muitas, av4).length, TROCAS_MAX);
+  assert.ok(av4.some((t) => new RegExp(`máximo de ${TROCAS_MAX} trocas`).test(t)));
+});
+
+test('trocasSV: entra no ajustes.json como um item só dele, com a mesma precedência dos outros ajustes', () => {
+  const aj = normalizarAjustes({ trocasSV: [TROCA_NV] }, []);
+  assert.deepEqual(aj.trocasSV, [TROCA_NV]);
+  const chave = 'trocas:10|Sv. Nv.1#Mista|Sv. Nv.2#Mista';
+  const itens = A.itensDosAjustes(aj);
+  assert.deepEqual(Object.keys(itens), [chave]);
+  assert.equal(A.rotuloItem(chave), 'Troca de apuração de outubro: Sv. Nv.1 · Mista ⇄ Sv. Nv.2 · Mista');
+  assert.equal(A.textoItem(chave, itens[chave]), TROCA_NV.motivo);
+  assert.equal(A.textoItem(chave, null), 'sem troca');
+  // ida e volta pelo objeto do arquivo
+  assert.deepEqual(A.objetoDosItens(itens).trocasSV, [TROCA_NV]);
+  // diferença publicado -> novo, como qualquer outro ajuste
+  const dif = A.diferencasAjustes(null, aj);
+  assert.deepEqual(dif.map((d) => [d.chave, d.textoPublicado, d.textoNovo]), [[chave, 'sem troca', TROCA_NV.motivo]]);
+  // arquivo só com trocasSV continua sendo um ajuste válido; sem nada, null
+  assert.ok(normalizarAjustes({ trocasSV: [TROCA_NV] }, []));
+  assert.equal(normalizarAjustes({ trocasSV: [] }, []), null);
+  // campo conhecido: não entra na lista de "campo desconhecido"
+  const av = [];
+  normalizarAjustes({ trocasSV: [TROCA_NV] }, av);
+  assert.deepEqual(av, []);
+  assert.ok(A.CAMPOS_AJUSTES.includes('trocasSV'));
+});
+
+test('trocasSV: a Administração não edita as trocas e nunca as apaga ao publicar', () => {
+  // o formulário do Q4 não gera `trocasSV`: ela tem de voltar no arquivo publicado, sem mudar nada (etapa 4R)
+  const publicado = { versao: 1, atualizado_em: '2026-11-16T20:11', regras: {}, trocasSV: [TROCA_NV] };
+  const gerado = { versao: 1, atualizado_em: '2026-11-17T09:00', regras: {}, pilares: {}, canais: {}, canaisSV: {},
+                   agrupadores: [], confrontos: [], flashFechado: {} };
+  const saida = A.ajustesParaPublicar(publicado, gerado, true);
+  assert.deepEqual(saida.trocasSV, [TROCA_NV]);
+  assert.equal(JSON.stringify(saida.trocasSV), JSON.stringify(publicado.trocasSV));
+});
+
+test('troca: montarEntrada repassa as trocas ao motor sem mexer em nada (quem aplica é o motor)', async () => {
+  await comApi(API_FECH, async () => {
+    const cfg = cfgNov();
+    const d = await carregarDados(BASE_V, cfg);
+    const sem = montarEntrada(d, cfg, CONF_OUT).entrada;
+    const com = montarEntrada(d, cfg, CONF_OUT, [TROCA_NV]).entrada;
+    assert.deepEqual(sem.trocasSV, []);
+    assert.deepEqual(com.trocasSV, [TROCA_NV]);
+    // só esse campo muda na entrada: as medidas e as pessoas são as mesmas
+    assert.deepEqual({ ...com, trocasSV: [] }, sem);
+  });
+});
+
+test('troca na consulta do fechamento: as duas supervisões trocam de resultado e as demais linhas não mudam', async () => {
+  const sem = await consultaDe(10, API_FECH, CONF_OUT);
+  const com = await consultaDe(10, API_FECH, CONF_OUT, null, [TROCA_NV]);
+  const ts = tabelaFechamento(sem.c, 'supervisao'), tc = tabelaFechamento(com.c, 'supervisao');
+  const vals = (t, cod) => ['Pontos dos pilares', 'Bônus de confronto', 'Pontos do mês', '% Refrigerantes acumulado']
+    .map((r) => celula(t, cod, r));
+  assert.deepEqual(vals(ts, 'Sv. Nv.1'), [12, 0, 12, 87.5]);
+  assert.deepEqual(vals(ts, 'Sv. Nv.2'), [17, 5, 22, 100]);
+  assert.deepEqual(vals(tc, 'Sv. Nv.1'), vals(ts, 'Sv. Nv.2'), 'a Nv.1 passa a ter o resultado da Nv.2');
+  assert.deepEqual(vals(tc, 'Sv. Nv.2'), vals(ts, 'Sv. Nv.1'), 'a Nv.2 passa a ter o resultado da Nv.1');
+  // o confronto continua decidido pelos dados verdadeiros: a Nv.2 venceu, e o vencedor registrado não muda
+  assert.equal(com.c.res.confrontos[0].vencedor, 'Sv. Nv.2#Mista');
+  assert.deepEqual(com.c.res.confrontos, sem.c.res.confrontos);
+  // Consultor e Estratégicos: idênticos, linha a linha
+  assert.deepEqual(tabelaFechamento(com.c, 'consultor'), tabelaFechamento(sem.c, 'consultor'));
+  assert.deepEqual(tabelaFechamento(com.c, 'estrategicos'), tabelaFechamento(sem.c, 'estrategicos'));
+});
+
+test('troca na exportação: a aba Supervisões marca a linha trocada e a aba Contexto registra a troca', async () => {
+  const { c } = await consultaDe(10, API_FECH, CONF_OUT, null, [TROCA_NV]);
+  const t = tabelaFechamento(c, 'supervisao');
+  assert.ok(t.colunas.some((x) => x.rotulo === 'Apuração trocada'));
+  assert.equal(celula(t, 'Sv. Nv.1', 'Apuração trocada'), 'trocada com Sv. Nv.2');
+  assert.equal(celula(t, 'Sv. Nv.2', 'Apuração trocada'), 'trocada com Sv. Nv.1');
+  // sem troca, a coluna existe e fica em "—" (a planilha nunca muda de forma entre um mês e outro)
+  const limpo = await consultaDe(10, API_FECH, CONF_OUT);
+  const t0 = tabelaFechamento(limpo.c, 'supervisao');
+  assert.equal(celula(t0, 'Sv. Nv.1', 'Apuração trocada'), '—');
+  // Contexto: uma linha por troca, com motivo, quem pediu, quem autorizou e quando
+  const ctx = contextoFechamento(c, cfgNov());
+  const linha = ctx.linhas.find((l) => /^Troca de apuração/.test(l.codigo));
+  assert.ok(linha, 'a aba Contexto tem a linha da troca');
+  assert.ok(/outubro: Sv\. Nv\.1 ⇄ Sv\. Nv\.2/.test(linha.celulas[0]));
+  for (const parte of [TROCA_NV.motivo, TROCA_NV.solicitado_por, TROCA_NV.autorizado_por, '16/11/2026']) {
+    assert.ok(linha.celulas[1].includes(parte), 'falta no Contexto: ' + parte);
+  }
+  assert.ok(/aplicada/.test(linha.celulas[1]));
+  // mês sem troca declarada: a aba Contexto não ganha linha nenhuma
+  assert.equal(contextoFechamento(limpo.c, cfgNov()).linhas.some((l) => /^Troca de apuração/.test(l.codigo)), false);
+  // e o arquivo continua abrindo, com as mesmas quatro abas
+  assert.deepEqual(abasFechamento(c, cfgNov()).map((a) => a.nome), ['Contexto', 'Consultores', 'Supervisões', 'Estratégicos']);
+});
+
+test('troca: os textos da tela e da planilha saem do adaptador (a tela não escreve nenhum)', () => {
+  const t = { mes: 10, a: 'Sv. Nv.1#Mista', b: 'Sv. Nv.2#Mista', com: 'Sv. Nv.2#Mista', aplicada: true,
+              motivo: 'troca de mesa fictícia', solicitado_por: 'GC fictício', autorizado_por: 'Diretoria fictícia', em: '2026-11-16' };
+  assert.equal(nomeDoSvId('Sv. Nv.2#Mista'), 'Sv. Nv.2');
+  assert.equal(etiquetaDaTroca(t), 'troca out');
+  assert.equal(textoDaTroca(t), 'apuração de outubro trocada com a Sv. Nv.2');
+  assert.equal(celulaDaTroca(t), 'trocada com Sv. Nv.2');
+  assert.equal(celulaDaTroca(null), '—');
+  // aviso da mesa: mês fechado fala do acumulado; mês de referência fala do total do próprio mês
+  const fechado = avisoDaMesaTrocada([t], 11);
+  assert.ok(/pontos acumulados do trimestre/.test(fechado) && /outubro da Sv\. Nv\.2/.test(fechado));
+  assert.ok(/NÃO é a soma das rotas listadas/.test(fechado));
+  const corrente = avisoDaMesaTrocada([{ ...t, mes: 11 }], 11);
+  assert.ok(/o total deste mês é a apuração da Sv\. Nv\.2/.test(corrente));
+  assert.equal(avisoDaMesaTrocada([], 11), null);
+  // linhas de Dados e alertas: sempre com motivo, quem pediu, quem autorizou e quando
+  const [l] = linhasDasTrocas([t], M.RECUSA_TROCA);
+  assert.equal(l.titulo, 'outubro: Sv. Nv.1 ⇄ Sv. Nv.2');
+  assert.equal(l.estado, 'aplicada');
+  assert.equal(l.detalhe, 'Motivo: troca de mesa fictícia · Solicitado por: GC fictício · Autorizado por: Diretoria fictícia · Em: 16/11/2026');
+  // troca recusada continua na lista, com o porquê
+  const [r] = linhasDasTrocas([{ mes: 10, a: 'Sv. A#Mista', b: 'Sv. B#Segmentada', aplicada: false, recusa: 'CANAIS_DIFERENTES' }], M.RECUSA_TROCA);
+  assert.equal(r.estado, 'NÃO aplicada (supervisores de canais diferentes)');
+});
+
+test('troca na tela: etiqueta, aviso da mesa, nota do confronto e a lista de Dados e alertas, sem nenhum SV fixo', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  for (const [onde, txt] of [['template', tpl], ['HTML gerado', html]]) {
+    assert.ok(/trocaTag\(r\)/.test(txt), 'etiqueta na linha de supervisão: ' + onde);
+    assert.ok(/avisoDaMesaTrocada\(/.test(txt), 'aviso do detalhe da mesa: ' + onde);
+    assert.ok(/linhasDasTrocas\(RES\.trocas\)/.test(txt), 'lista em Dados e alertas: ' + onde);
+    assert.ok(/Os pontos foram transferidos para a/.test(txt), 'nota do cartão de confronto: ' + onde);
+    assert.ok(/AJ\.ativo && AJ\.ativo\.trocasSV/.test(txt), 'as trocas chegam ao motor: ' + onde);
+  }
+  // o mecanismo é geral: nenhuma supervisão, gerência ou pessoa do caso real aparece na LÓGICA da tela
+  // (o HTML gerado leva a base embutida, que tem os códigos e os nomes reais das mesas: aqui só o template)
+  for (const fixo of ['An.2', 'An.3', 'Anápolis', 'Gustavo', 'Lailson']) {
+    assert.equal(tpl.includes(fixo), false, `"${fixo}" não pode estar fixo no template`);
+  }
 });

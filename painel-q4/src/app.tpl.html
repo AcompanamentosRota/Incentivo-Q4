@@ -162,6 +162,9 @@ button{background:none;border:0;cursor:pointer}
 .adm tr.mud td{background:rgba(29,123,255,.16)}
 .sg{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:.78em;font-weight:600;line-height:1.35;vertical-align:middle;white-space:nowrap;background:rgba(29,123,255,.18);color:#cfe0ff;border:1px solid rgba(29,123,255,.55)}
 .sg.sc{background:#3a2a00;color:#ffe29a;border-color:#a47500}
+/* troca de apuração entre duas supervisões (ajuste manual do Back Office): etiqueta com TEXTO, nunca só cor */
+.sg.tr{background:#2e1a44;color:#e3ccff;border-color:#7a4fb8}
+.davtroca{margin:6px 0 0;padding:6px 10px;border-radius:7px;background:#2e1a44;color:#e3ccff;border:1px solid #7a4fb8;font-size:14px;line-height:1.35}
 .adm .seg-av{background:#3a2a00;color:#ffe29a;border:1px solid #a47500;border-radius:8px;padding:6px 12px;margin:8px 0;font-size:18px}
 .adm h4{font-size:20px;margin:18px 0 6px}
 .adm td{padding:6px 14px}
@@ -491,6 +494,7 @@ button{background:none;border:0;cursor:pointer}
 
   <section class="view" id="v-detalhe" aria-label="Detalhe por pilar">
     <div class="dh"><b id="dtitulo"></b><span id="dsub"></span></div>
+    <p class="davtroca" id="davtroca" hidden></p>
     <div class="cards" id="cards"></div>
     <div class="panel">
       <div class="ptitle"><span id="dptitulo">Rotas do grupo e detalhe da rota selecionada</span><span style="font-size:18px;font-weight:600;color:var(--muted)">Real: vendido até ontem · Online: venda de hoje</span></div>
@@ -565,8 +569,8 @@ const MES = DADOS.meta.mes;            // mês de referência: o da API (ou o da
 const SEMCALC = DADOS.meta.semCalculo; // mês sem pilares, API fora do Q4 ou base de outro mês: nada é calculado
 PADRAO.coringas = coringasDe(CONFIG, MES);
 aplicarCoringas(AJ.ativo, CONFIG, MES);
-const {entrada, notasRefri} = SEMCALC ? { entrada:null, notasRefri:[] } : montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos);
-const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], alertas:[], mesesIncompletos:[] } : M.calcular(entrada);
+const {entrada, notasRefri} = SEMCALC ? { entrada:null, notasRefri:[] } : montarEntrada(DADOS, CONFIG, AJ.ativo && AJ.ativo.confrontos, AJ.ativo && AJ.ativo.trocasSV);
+const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], trocas:[], alertas:[], mesesIncompletos:[] } : M.calcular(entrada);
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
 // Missões Guiadas do mês (meta por rota, missões somadas e o que faltou): tudo vem do adaptador, nada é decidido aqui
 const MISS = estadoMissoes(DADOS, CONFIG, MES);
@@ -687,6 +691,12 @@ const numF = (n)=> M.fmtVolume(n);
 const sgn = (n)=> n===0 ? '0,0' : (n<0?'-':'+') + numF(Math.abs(n));
 const chip = (txt,t)=>`<span class="chip t${t}">${txt}</span>`;
 // etiqueta do segmento ao lado do canal (Mini/Mod na Segmentada; Neutraliza, Eventual, Coke Net ou Virtual sem canal)
+/* Troca de apuração (ajuste manual num mês oficial): a tela não escreve nenhum texto dela — etiqueta, frase da
+   linha, aviso da mesa e as linhas de Dados e alertas vêm de funções puras do adaptador, e as trocas, do motor. */
+const trocasDoSV = (id)=> M.trocasDoSV(RES.trocas||[], id);
+const trocaTxt = (r)=> r.cargo!=='SV' ? '' : trocasDoSV(r.id).map(etiquetaDaTroca).join(' ');
+const trocaTag = (r)=> r.cargo!=='SV' ? '' : trocasDoSV(r.id)
+  .map(t=>`<span class="sg tr" title="${esc(textoDaTroca(t))}">${esc(etiquetaDaTroca(t))}</span>`).join('');
 const segTag = (seg, semCanal)=> seg ? `<span class="sg${semCanal?' sc':''}" title="Segmento ${esc(seg)}">${esc(seg)}</span>` : '';
 const segsDe = (r)=> r.cargo==='RT' ? (INFO[r.id] && INFO[r.id].sub ? [INFO[r.id].sub] : []) : segmentosDaMesa(DADOS.rotas, r.id);
 const CANAIS_SV = DADOS.canaisSV || {};   // canal de cada SV: ajuste do admin ou maioria das rotas da mesa
@@ -774,7 +784,9 @@ function cabecalho(pil, lim, min, nomeCol, alvo, linhas){
   nomeCol = nomeCol||'Rota'; alvo = alvo||'thead';
   const sv = nomeCol!=='Rota', ex = extremos(linhas, pil), cols = [], grupos = [];
   cols.push({ textos:['Rank','Top '+lim+'º','999'] });
-  cols.push({ textos: [nomeCol].concat(linhas.map(r=> (sv ? r.nome : r.id) + (segTxt(r) ? '  ' + segTxt(r) : ''))), extra:18 + (linhas.some(r=>segTxt(r)) ? 16 : 0) });
+  // a etiqueta da troca mora na mesma célula do nome: ela entra na medida, senão invade a coluna do % Refri
+  cols.push({ textos: [nomeCol].concat(linhas.map(r=> (sv ? r.nome : r.id) + (segTxt(r) ? '  ' + segTxt(r) : '') + (trocaTxt(r) ? '  ' + trocaTxt(r) : ''))),
+              extra:18 + (linhas.some(r=>segTxt(r)) ? 16 : 0) + (linhas.some(r=>trocaTxt(r)) ? 16 : 0) });
   cols.push({ textos:['% Refri','mín. '+R.gatilhoVolumePct+'%','100,0%'] });
   pil.forEach(pl=>{
     const a = ex[pl.nome], ini = cols.length;
@@ -831,7 +843,7 @@ function linha(r){
   const nome = sv ? `<button class="rbtn" data-sv="${esc(r.nome)}" aria-label="Ver a mesa do ${esc(r.nome)}">${esc(r.nome)}${CHEV}</button>` : `<button class="rbtn" data-rota="${esc(r.id)}" aria-label="Ver detalhe da ${esc(r.nome)}">${esc(r.id)}${CHEV}</button>`;
   const tot = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="trow ${s.cls}" style="grid-template-columns:${GRID}"><div class="rk${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>
-    <div class="rt">${nome}${segsTag(r)}</div>
+    <div class="rt">${nome}${segsTag(r)}${trocaTag(r)}</div>
     <div class="rf ${vol?'ok':''}">${r.volume.pctTexto}</div>${celulas(r)}
     <div class="tp">${tot}${incompleto(r)?'<span class="na"> incompleto</span>':''}</div><div class="stc">${s.pill}</div></div>`;
 }
@@ -922,6 +934,10 @@ function renderDetalhe(){
   const ar = mesa ? doSV(mesa.sv.refri) : agg(p=>p.refri);
   const diaRfGrupo = (()=>{ let s=0,any=false; base.forEach(p=>{ REFRI_COMP.forEach(g=>{ const v=INFO[p.id].v[g]; if(v && v[4]!=null){ s+=v[4]; any=true; } }); }); return any?numF(s):'–'; })();
   $('dsub').innerHTML = REFRI_CAT ? '' : `Refrigerantes<span class="tag">provisório</span>`;
+  // mesa com apuração trocada: o total do SV não é a soma das rotas listadas (senão parece erro de cálculo)
+  const avTroca = mesa ? avisoDaMesaTrocada(trocasDoSV(mesa.sv.id), MES) : null;
+  $('davtroca').innerHTML = avTroca ? esc(avTroca) : '';
+  $('davtroca').hidden = !avTroca;
   const cardRefri = (()=>{
     const bate = ar.pct!==null && ar.pct>=R.gatilhoVolumePct;
     const w = ar.pct===null ? 0 : Math.min(100, ar.pct/R.gatilhoVolumePct*100).toFixed(0);
@@ -977,7 +993,7 @@ function linhaRk(r, sv){
   const s = statusDe(r), sub = sv ? esc(r.unidade) : esc(INFO[r.id].sv)+' · '+esc(r.unidade);
   const pts = sv ? r.pontosAcumuladosExibidos : r.pontosAtuaisExibidos;
   return `<div class="rkr ${s.cls}${r.elegivel?'':' fora'}"><div class="p${r.elegivel?'':' fora'}">${r.posTela||'–'}</div>`
-    + `<div class="nm">${esc(sv?r.nome:r.id)}${segsTag(r)}<small>${sub}</small></div>`
+    + `<div class="nm">${esc(sv?r.nome:r.id)}${segsTag(r)}${trocaTag(r)}<small>${sub}</small></div>`
     + `<div class="v">${r.volume.pctTexto}</div><div class="pt">${pts}</div><div>${s.pill}</div></div>`;
 }
 function listaRk(arr, lim, sv){
@@ -1141,11 +1157,15 @@ function renderConfrontos(){
   const caixa = (c, e)=>{
     if(e.caixa==='S1'){
       const nm = nomeSV(c.vencedor), des = e.desempate ? MOTIVOS.DESEMPATE_REFRI : '', fech = c.mesFechado;
+      // apuração do mês trocada: o vencedor continua sendo o verdadeiro; só os pontos foram para a outra mesa
+      const tr = trocasDoSV(c.vencedor).find(t=>t.mes===c.mes);
+      const destino = tr ? nomeDoSvId(tr.com) : null;   // nome curto do SV, o mesmo dos outros textos da troca
       const rot = (fech ? `Vencedor ${nm}: +${R.bonusConfronto} pontos só para o SV; as rotas da mesa não recebem`
-        : `Vencendo ${nm}: +${R.bonusConfronto} pontos só para o SV, no fechamento do mês; as rotas da mesa não recebem`) + (des ? `, ${des}` : '');
-      return `<div class="cfres s1" role="group" aria-label="${esc(rot)}"${des ? ` title="${esc(des)}"` : ''}>`
+        : `Vencendo ${nm}: +${R.bonusConfronto} pontos só para o SV, no fechamento do mês; as rotas da mesa não recebem`)
+        + (destino ? `. Os pontos foram transferidos para a ${destino}: a ${esc(textoDaTroca(tr))}` : '') + (des ? `, ${des}` : '');
+      return `<div class="cfres s1" role="group" aria-label="${esc(rot)}" title="${esc(destino ? textoDaTroca(tr) : des)}">`
         + `<div class="rl">${TACA}${fech ? 'Vencedor' : 'Vencendo'}</div><div class="rn">${esc(nm)}</div>`
-        + `<div class="rp">+${R.bonusConfronto} pts · ${!fech ? 'no fechamento' : des ? 'desempate' : 'SV'}</div></div>`;
+        + `<div class="rp">+${R.bonusConfronto} pts · ${destino ? 'para '+esc(destino) : !fech ? 'no fechamento' : des ? 'desempate' : 'SV'}</div></div>`;
     }
     const s3 = e.caixa==='S3', mot = s3 ? motivoConf(c) : (MOTIVOS[c.motivo] || 'sem vencedor');
     return `<div class="cfres ${s3 ? 's3' : 's2'}" role="group" aria-label="${esc((s3 ? 'Não vale: ' : 'Sem vencedor: ') + mot)}" title="${esc(mot)}">`
@@ -1272,6 +1292,9 @@ const SEC = [
     ${DADOS.meta.aviso ? `<p><b>Atenção:</b> ${esc(DADOS.meta.aviso)}${api||SEMCALC?'':'. O painel está usando a '+esc(DADOS.meta.rotuloBase)+'.'}</p>` : ''}
     ${AJ.erroPublicado ? `<p><b>O ajustes.json publicado não pôde ser lido:</b> ${esc(AJ.erroPublicado)}. Nenhum ajuste publicado está valendo. Detalhes em Regras &gt; Administração.</p>` : ''}
     ${AVISOS_AJ.length ? `<p><b>Ajustes do admin com valor inválido (ignorado):</b> ${AVISOS_AJ.map(esc).join('; ')}.</p>` : ''}
+    ${(RES.trocas||[]).length ? `<h3>Troca de apuração entre supervisões (${RES.trocas.length})</h3>
+    <p>Ajuste manual do Back Office: num mês declarado, o resultado mensal de duas supervisões do mesmo canal muda de dono. A troca é feita <b>depois</b> de o mês estar apurado — os confrontos são decididos com os dados verdadeiros, e nenhum adversário muda de resultado — e <b>antes</b> da soma do trimestre e do ranking. Os valores das rotas não mudam.</p>
+    ${T(['Troca','Estado','Motivo, quem pediu, quem autorizou e quando'], linhasDasTrocas(RES.trocas).map(t=>[esc(t.titulo), esc(t.estado), esc(t.detalhe||'—')]))}` : ''}
     ${MES>10 ? `<p><b>Acumulado do trimestre (SV):</b> ${periodoAcum}. Meses fechados usados: ${ACUM.usados.map(u=>esc(u.rotulo)+' — '+esc(estadoMes(u).longo)).join('; ')||'nenhum'}${ACUM.faltando.length?'. <b>Incompleto:</b> '+ACUM.faltando.map(f=>esc(f.motivo)).join('; '):''}. Cada mês é calculado com os pilares, o canal e os confrontos daquele mês; nos meses fechados não há Online.${PREVIA.length?' <b>O acumulado é provisório</b> enquanto '+esc(listaPrevia())+' estiver em prévia: o fechamento oficial sai depois do fechamento do flash de vendas (decisão de 04/11/2026), marcado pelo Back Office na Administração.':''}</p>` : ''}
     ${api ? T(['Medida da API','Uso no painel'],[
       ['meta (META_VOLUME da rota)','Meta do mês do pilar'],
@@ -1513,7 +1536,7 @@ const FC = { mes:null, visao:'consultor', canal:'Todos', busca:'' };
 const FC_CACHE = {};
 const FC_MAX = 50;   // linhas desenhadas na tela (tabela curta, com rolagem); a exportação leva todas
 const consultaDoMes = (mes)=>{
-  if(!(mes in FC_CACHE)) FC_CACHE[mes] = consultaFechamento(DADOS, mes, CONFIG, AJ.ativo && AJ.ativo.confrontos);
+  if(!(mes in FC_CACHE)) FC_CACHE[mes] = consultaFechamento(DADOS, mes, CONFIG, AJ.ativo && AJ.ativo.confrontos, AJ.ativo && AJ.ativo.trocasSV);
   return FC_CACHE[mes];
 };
 /* meses que a consulta oferece: os fechados que o painel carregou (ACUM.usados) e, desabilitados, os do trimestre

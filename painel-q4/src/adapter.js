@@ -544,6 +544,7 @@ const AJUSTES_LOCAL = 'q4_ajustes';
 const PILARES_CORINGA = ['Volume Sabores', 'Volume Retornáveis', 'Volume Refri Single', 'Volume Powerade', 'Volume Sucos', 'Missões Guiadas'];
 const EXTRAS_MAX = 10;
 const CONFRONTOS_MAX = 60;
+const TROCAS_MAX = 20;   // trocas de apuração entre supervisões no trimestre inteiro
 const MESES_Q4 = [10, 11, 12];
 const IDS_FIXOS = Object.values(CONFIG.produtoDaApi), AGRUPADORES_FIXOS = Object.keys(CONFIG.produtoDaApi);
 /** Mesma chave de comparação do gerador (texto.normalizar): sem acento, espaços simples, maiúsculas. */
@@ -594,8 +595,98 @@ function normalizarConfrontos(lista, avisos) {
   return out;
 }
 
+/*
+ * Trocas de apuração entre duas supervisões (decisão informada pela Karen em 17/11/2026): num mês declarado, o
+ * resultado mensal de dois SVs muda de dono. Aqui só se confere o FORMATO; quem aplica, e quem recusa troca entre
+ * canais diferentes ou com SV que não existe, é o motor (`trocarApuracaoDoMes`) — como nos confrontos.
+ * Campo opcional e retrocompatível: arquivo sem ele continua válido e o painel sai idêntico ao de hoje.
+ * Item inválido é ignorado com aviso (nunca cálculo pela metade, nunca em silêncio).
+ */
+function normalizarTrocas(lista, avisos) {
+  const out = [], vistos = new Set();
+  const av = (t) => { if (avisos) avisos.push(t); };
+  if (lista !== undefined && lista !== null && !Array.isArray(lista)) av('trocasSV: precisa ser uma lista: ignorado');
+  (Array.isArray(lista) ? lista : []).forEach((x, i) => {
+    const qual = `troca de apuração ${i + 1} da lista`;
+    if (out.length >= TROCAS_MAX) return av(`${qual}: passa do máximo de ${TROCAS_MAX} trocas: ignorado`);
+    if (!x || !MESES_Q4.includes(x.mes)) return av(`${qual}: mês fora do trimestre do painel: ignorado`);
+    if (!textoOk(x.a, 120) || !textoOk(x.b, 120)) return av(`${qual}: precisa de "a" e "b" com a chave das duas supervisões: ignorado`);
+    const t = { mes: x.mes, a: x.a.trim(), b: x.b.trim() };
+    if (t.a === t.b) return av(`${qual}: os dois lados são a mesma supervisão: ignorado`);
+    for (const id of [t.a, t.b]) {
+      if (vistos.has(t.mes + '|' + id)) return av(`${qual}: ${id} já está em outra troca de ${NOMES_MES[t.mes]}: ignorado`);
+    }
+    for (const campo of ['motivo', 'solicitado_por', 'autorizado_por', 'em']) {
+      const v = x[campo];
+      if (v === undefined || v === null) { t[campo] = null; continue; }
+      if (!textoOk(v, 200)) { av(`${qual}: ${campo} inválido: a troca vale, sem esse dado`); t[campo] = null; continue; }
+      t[campo] = v.trim();
+    }
+    vistos.add(t.mes + '|' + t.a); vistos.add(t.mes + '|' + t.b);
+    out.push(t);
+  });
+  return out;
+}
+
+/*
+ * ─────────────── Textos da troca de apuração (tela e planilha, um lugar só) ───────────────
+ * A troca é um ajuste MANUAL num mês oficial: ela nunca pode aparecer só como cor ou como número diferente.
+ * Todo texto sai daqui (funções puras), e tanto a tela quanto a planilha usam os mesmos.
+ */
+/** "Sv. An.3#Mista" -> "Sv. An.3" (o canal não muda na troca: as duas são do mesmo canal). */
+const nomeDoSvId = (id) => String(id || '').split('#')[0];
+
+/** Marca curta da linha de supervisão: "troca out". */
+const etiquetaDaTroca = (t) => `troca ${(NOMES_MES[t.mes] || String(t.mes)).slice(0, 3)}`;
+
+/** Frase da linha de supervisão: "apuração de outubro trocada com a Sv. An.3". */
+const textoDaTroca = (t) => `apuração de ${NOMES_MES[t.mes] || t.mes} trocada com a ${nomeDoSvId(t.com || t.b)}`;
+
+/** Célula da planilha e da consulta: "trocada com Sv. An.3" (sem troca, "—"). */
+const celulaDaTroca = (t) => (t ? `trocada com ${nomeDoSvId(t.com || t.b)}` : '—');
+
+/**
+ * Aviso do detalhe da mesa: o total exibido não é a soma das rotas listadas. Separa o mês de referência (o total do
+ * próprio mês é de outra mesa) do mês fechado (só o acumulado do trimestre carrega a troca).
+ * @param {Array} trocas trocas APLICADAS que tocam este SV (motor.trocasDoSV)
+ */
+function avisoDaMesaTrocada(trocas, mesRef) {
+  const lista = (trocas || []).slice().sort((a, b) => a.mes - b.mes);
+  if (!lista.length) return null;
+  const doMes = lista.filter((t) => t.mes === mesRef), antes = lista.filter((t) => t.mes !== mesRef);
+  const partes = [];
+  if (doMes.length) {
+    partes.push(`o total deste mês é a apuração da ${doMes.map((t) => nomeDoSvId(t.com)).join(' e ')}`);
+  }
+  if (antes.length) {
+    partes.push(`os pontos acumulados do trimestre e o % de Refrigerantes acumulado levam a apuração de `
+      + antes.map((t) => `${NOMES_MES[t.mes]} da ${nomeDoSvId(t.com)}`).join(' e '));
+  }
+  return `Apuração trocada: ${partes.join('; ')}. Por isso o total exibido NÃO é a soma das rotas listadas.`;
+}
+
+/**
+ * Uma linha por troca declarada, para Regras > Dados e alertas (e para a aba Contexto da planilha): sempre com o
+ * motivo, quem solicitou, quem autorizou e quando. Troca recusada entra com o porquê, nunca some da lista.
+ */
+function linhasDasTrocas(trocas, recusas) {
+  const nomes = recusas || (typeof MotorQ4 !== 'undefined' ? MotorQ4.RECUSA_TROCA : {});
+  return (trocas || []).map((t) => {
+    const campos = [
+      ['Motivo', t.motivo], ['Solicitado por', t.solicitado_por],
+      ['Autorizado por', t.autorizado_por], ['Em', dataBr(t.em) || t.em],
+    ].filter((c) => c[1]).map((c) => `${c[0]}: ${c[1]}`);
+    return {
+      mes: t.mes, a: t.a, b: t.b, aplicada: !!t.aplicada,
+      titulo: `${NOMES_MES[t.mes] || t.mes}: ${nomeDoSvId(t.a)} ⇄ ${nomeDoSvId(t.b)}`,
+      estado: t.aplicada ? 'aplicada' : `NÃO aplicada (${(nomes || {})[t.recusa] || t.recusa || 'sem motivo'})`,
+      detalhe: campos.join(' · '),
+    };
+  });
+}
+
 const CAMPOS_AJUSTES = ['versao', 'atualizado_em', 'regras', 'pilares', 'canais', 'canaisSV', 'agrupadores',
-  'confrontos', 'flashFechado', 'missoes'];
+  'confrontos', 'flashFechado', 'missoes', 'trocasSV'];
 /* Chaves do ajustes.json que pertencem a OUTROS painéis (16/11/2026, etapa 4R): o Q4 não lê nem valida, e não avisa
    delas; a Administração do Q4 as copia sem mudar nada ao publicar (`ajustesParaPublicar`). `campari` é do Campari Club. */
 const CAMPOS_OUTROS_PAINEIS = ['campari'];
@@ -694,9 +785,11 @@ function normalizarAjustes(aj, avisos) {
   }
   const flashFechado = normalizarFlash(aj.flashFechado, CONFIG.ano, avisos);
   const missoes = normalizarMissoes(aj.missoes, avisos);
+  const trocasSV = normalizarTrocas(aj.trocasSV, avisos);
   if (!Object.keys(regras).length && !Object.keys(pilares).length && !Object.keys(canais).length && !Object.keys(canaisSV).length
-      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length && !Object.keys(missoes).length) return null;
-  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado, missoes };
+      && !agrupadores.length && !confrontos.length && !Object.keys(flashFechado).length && !Object.keys(missoes).length
+      && !trocasSV.length) return null;
+  return { atualizado_em: typeof aj.atualizado_em === 'string' ? aj.atualizado_em : null, regras, pilares, canais, canaisSV, agrupadores, confrontos, flashFechado, missoes, trocasSV };
 }
 
 /** Aplica os agrupadores extras (em cfg) e as regras (no REGRAS do motor); com `mes`, também os pilares coringa.
@@ -736,7 +829,7 @@ function aplicarCoringas(aj, cfg, mes) {
 const MotorPadrao = JSON.parse(JSON.stringify(MotorRegras())); // REGRAS do motor antes de qualquer ajuste
 const CHAVES_REGRAS = ['faixas', 'gatilhoVolumePct', 'bonusConfronto', 'gatilhoPontos.RT', 'gatilhoPontos.SV',
   'premiadas.RT.Mista', 'premiadas.RT.Segmentada', 'premiadas.SV.Mista', 'premiadas.SV.Segmentada'].map((k) => 'regras:' + k);
-const ORDEM_TIPOS = ['regras', 'pilares', 'missoes', 'canaisSV', 'canais', 'agrupadores', 'confrontos', 'flash'];
+const ORDEM_TIPOS = ['regras', 'pilares', 'missoes', 'canaisSV', 'canais', 'agrupadores', 'confrontos', 'trocas', 'flash'];
 const ROTULOS_REGRAS = {
   faixas: 'Faixas de pontos', gatilhoVolumePct: 'Gatilho de Refrigerantes (%)', bonusConfronto: 'Bônus do confronto (pontos)',
   'gatilhoPontos.RT': 'Mínimo da Rota (pontos no mês)', 'gatilhoPontos.SV': 'Mínimo do SV (pontos no trimestre)',
@@ -767,19 +860,23 @@ function itensDosAjustes(aj) {
     { mes: c.mes, id_sv_desafiante: c.id_sv_desafiante, id_sv_desafiado: c.id_sv_desafiado, pilar: c.pilar };
   for (const [mes, v] of Object.entries(aj.flashFechado || {})) out['flash:' + mes] = { fechado: true, em: v.em || null };
   for (const [mes, v] of Object.entries(aj.missoes || {})) out['missoes:' + mes] = { metaPorRota: v.metaPorRota, contam: v.contam.slice() };
+  for (const t of aj.trocasSV || []) out[`trocas:${t.mes}|${t.a}|${t.b}`] =
+    { mes: t.mes, a: t.a, b: t.b, motivo: t.motivo || null, solicitado_por: t.solicitado_por || null,
+      autorizado_por: t.autorizado_por || null, em: t.em || null };
   return out;
 }
 
 /** {chave: valor} -> objeto no formato do ajustes.json (mínimo de pontos e premiadas completos com o padrão). */
 function objetoDosItens(itens, padrao) {
   padrao = padrao || MotorPadrao;
-  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {}, missoes: {} }, r = {};
+  const aj = { regras: {}, pilares: {}, canais: {}, canaisSV: {}, agrupadores: [], confrontos: [], flashFechado: {}, missoes: {}, trocasSV: [] }, r = {};
   for (const [chave, v] of Object.entries(itens || {})) {
     if (v === null || v === undefined) continue;
     const [tipo, id] = partesChave(chave);
     if (tipo === 'regras') r[id] = v;
     else if (tipo === 'pilares' || tipo === 'canais' || tipo === 'canaisSV' || tipo === 'missoes') aj[tipo][id] = v;
     else if (tipo === 'agrupadores' || tipo === 'confrontos') aj[tipo].push(v);
+    else if (tipo === 'trocas') aj.trocasSV.push(v);
     else if (tipo === 'flash') aj.flashFechado[id] = v;
   }
   const de = (id) => (id in r ? r[id] : regraPadrao(id, padrao));
@@ -804,12 +901,16 @@ function rotuloItem(chave) {
     const [mes, a, b] = id.split('|');
     return `Confronto de ${NOMES_MES[Number(mes)] || mes}: ${String(a).replace('#', ' · ')} × ${String(b).replace('#', ' · ')}`;
   }
+  if (tipo === 'trocas') {
+    const [mes, a, b] = id.split('|');
+    return `Troca de apuração de ${NOMES_MES[Number(mes)] || mes}: ${String(a).replace('#', ' · ')} ⇄ ${String(b).replace('#', ' · ')}`;
+  }
   return chave;
 }
 /** Valor do ajuste para a tela; null = ausente (padrão, ou não existe). */
 function textoItem(chave, v) {
   const [tipo, id] = partesChave(chave);
-  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês', flash: 'ainda não fechou', missoes: 'padrão do mês' })[tipo] || 'não existe';
+  if (v === null || v === undefined) return ({ canais: 'padrão da base', canaisSV: 'maioria das rotas', pilares: 'padrão do mês', flash: 'ainda não fechou', missoes: 'padrão do mês', trocas: 'sem troca' })[tipo] || 'não existe';
   if (tipo === 'missoes') return `meta ${String(v.metaPorRota).replace('.', ',')} por rota · ${v.contam.join(', ')}`;
   if (tipo === 'regras' && id === 'faixas') return v.map((f) => `${String(f.min).replace('.', ',')}%: ${f.pontos} pts`).join(' · ');
   if (tipo === 'regras') return String(v).replace('.', ',');
@@ -817,6 +918,7 @@ function textoItem(chave, v) {
   if (tipo === 'canais') return rotuloSeg(valorSeg(v.canal, v.sub));
   if (tipo === 'agrupadores') return `${v.nome} (${v.agrupador})`;
   if (tipo === 'confrontos') return 'pilar ' + String(v.pilar).replace('Volume ', '');
+  if (tipo === 'trocas') return v.motivo || 'apuração trocada entre as duas supervisões';
   if (tipo === 'flash') return 'fechado' + (dataBr(v.em) ? ' em ' + dataBr(v.em) : '');
   return String(v);
 }
@@ -1436,8 +1538,10 @@ function montarEstrat(dados, itens, cfg) {
  * Dados do painel -> entrada do motor, com todos os meses do trimestre até o de referência: os fechados
  * (dados.fechados, online = 0) e o corrente (dados.rotas). Cada mês usa os pilares daquele mês; a mesa do SV em
  * cada mês é a supervisão da rota naquele mês. Pessoas = rotas e supervisões do mês corrente.
+ * `trocas` (ajustes.json -> trocasSV) vai inteiro para o motor, que aplica cada uma no mês dela depois de apurar os
+ * confrontos daquele mês; aqui só se repassa, nada é trocado nem calculado.
  */
-function montarEntrada(dados, cfg, confrontos) {
+function montarEntrada(dados, cfg, confrontos, trocas) {
   if (!dados.canaisSV) dados = aplicarCanalSV(dados, null); // chamada direta (testes): canal do SV pela maioria
   const I = cfg.idx;
   const compRefri = componentesRefri(dados, cfg);
@@ -1500,7 +1604,8 @@ function montarEntrada(dados, cfg, confrontos) {
   const mesesIncompletos = ((dados.meta.acumulado && dados.meta.acumulado.faltando) || []).map((x) => ({ mes: x.mes, motivo: x.motivo }));
   // fechamento: o mês de referência já fechou (a API mostra o mês anterior fechado); só então o +5 do confronto dele entra
   return { entrada: { mesRef, dataCorte: dados.meta.corte, pessoas, pilaresConfig: cfg.pilaresConfig, medidas,
-                      confrontos: confrontos || [], mesesIncompletos, fechamento: !!dados.meta.fechamento }, notasRefri };
+                      confrontos: confrontos || [], trocasSV: trocas || [], mesesIncompletos,
+                      fechamento: !!dados.meta.fechamento }, notasRefri };
 }
 
 /*
@@ -1583,7 +1688,7 @@ const pctConsulta = (v) => (typeof v === 'number' && Number.isFinite(v) ? Motor(
  * Consulta de um mês fechado: devolve o cabeçalho de corte, o estado (prévia ou oficial) e as três visões.
  * `confrontos` são os do ajustes.json em uso (o motor apura o do mês consultado com os dados dele).
  */
-function consultaFechamento(dados, mes, cfg, confrontos) {
+function consultaFechamento(dados, mes, cfg, confrontos, trocas) {
   cfg = cfg || CONFIG;
   const d = dadosDoFechado(dados, mes, cfg);
   if (!d) return { mes, disponivel: false, motivo: `fechamento de ${NOMES_MES[mes]} indisponível` };
@@ -1595,9 +1700,9 @@ function consultaFechamento(dados, mes, cfg, confrontos) {
   // mês sem os 5 pilares na configuração: nada é calculado (nunca com parte dos pilares), nem na consulta
   if (d.meta.semCalculo) {
     return Object.assign(base, { semPilares: d.meta.semCalculo, pilares: [], consultor: [], supervisao: [],
-                                 estrat: null, motivoEstrat: d.meta.semCalculo, mesesIncompletos: [] });
+                                 estrat: null, motivoEstrat: d.meta.semCalculo, mesesIncompletos: [], trocas: [] });
   }
-  const { entrada } = montarEntrada(d, cfg, confrontos);
+  const { entrada } = montarEntrada(d, cfg, confrontos, trocas);
   const res = Motor().calcular(entrada);
   const pilares = pilaresDaConsulta(cfg, mes);
   const posTela = posicoesDeTela(res.pessoas);
@@ -1621,9 +1726,11 @@ function consultaFechamento(dados, mes, cfg, confrontos) {
   });
   const supervisao = res.pessoas.filter((p) => p.cargo === 'SV').sort(ordemPainel).map((p) => Object.assign(
     { tipo: 'SV', codigo: p.nome, id: p.id, canal: p.canal, gerencia: p.unidade, rotas: nRotas[p.id] || 0,
-      acumulado: p.pontosAcumulados, acumuladoIncompleto: (p.acumuladoIncompleto || []).slice() }, comum(p)));
+      acumulado: p.pontosAcumulados, acumuladoIncompleto: (p.acumuladoIncompleto || []).slice(),
+      // apuração trocada NESTE mês: a linha inteira é a do outro SV (a planilha e a tela precisam dizer isso)
+      troca: Motor().trocasDoSV(res.trocas, p.id).find((t) => t.mes === mes) || null }, comum(p)));
   const estrat = estratDoFechado(d, cfg);
-  return Object.assign(base, { semPilares: null, pilares, res, consultor, supervisao, estrat,
+  return Object.assign(base, { semPilares: null, pilares, res, consultor, supervisao, estrat, trocas: res.trocas || [],
     motivoEstrat: estrat ? null : `Estratégicos indisponível para este mês: o fechado/${f.anomes}.json não traz os totais por gerência`,
     mesesIncompletos: res.mesesIncompletos || [] });
 }
@@ -1705,6 +1812,8 @@ function colunasSupervisao(c) {
     { rotulo: 'Status', tipo: 'status', largura: 26 },
     { rotulo: 'Posição', tipo: 'inteiro', largura: 9 },
     { rotulo: 'Posição oficial', tipo: 'simnao', largura: 12 },
+    // ajuste manual: a linha é a apuração do OUTRO SV naquele mês (nunca só no texto da aba Contexto)
+    { rotulo: 'Apuração trocada', tipo: 'texto', largura: 22 },
   ]);
 }
 
@@ -1745,7 +1854,8 @@ function tabelaFechamento(c, visao) {
       canal: l.canal, codigo: l.codigo, total: false,
       celulas: [l.codigo, l.canal, l.gerencia, l.rotas].concat(pilarCelulas(l)).concat([
         l.pontosPilares, l.pontosMes, l.bonus, l.acumulado, l.refriPct,
-        SIM_NAO(l.volumeOk), SIM_NAO(l.pontosOk), l.status, l.posicao, SIM_NAO(l.posicaoOficial)]),
+        SIM_NAO(l.volumeOk), SIM_NAO(l.pontosOk), l.status, l.posicao, SIM_NAO(l.posicaoOficial),
+        celulaDaTroca(l.troca)]),
     })) };
   }
   return { colunas: colunasConsultor(c), linhas: c.consultor.map((l) => ({
@@ -1795,6 +1905,12 @@ function contextoFechamento(c, cfg) {
   if ((c.pilares || []).some((p) => p.tipo === 'missao') && R.missaoValidadaMeses.includes(c.mes)) {
     linhas.push(['Missões Guiadas', `em ${NOMES_MES[c.mes]} entra validada em 100% para todos os cargos que a têm `
       + `(${Motor().faixaPontos(R.missaoValidadaPct, 100)} pontos): por isso a meta e o real do pilar ficam vazios`]);
+  }
+  for (const t of linhasDasTrocas((c.trocas || []).filter((x) => x.mes === c.mes))) {
+    linhas.push([`Troca de apuração · ${t.titulo}`,
+      `${t.estado}. A apuração mensal das duas supervisões mudou de dono depois de o mês estar apurado (os confrontos `
+      + `foram decididos com os dados verdadeiros, e nenhum adversário mudou de resultado).`
+      + (t.detalhe ? ' ' + t.detalhe : '')]);
   }
   if (c.simulado) linhas.push(['ATENÇÃO', 'DADOS SIMULADOS: este fechamento não é real']);
   if (c.semPilares) linhas.push(['ATENÇÃO', `${c.semPilares}: nada foi calculado neste mês`]);
@@ -1985,6 +2101,8 @@ if (typeof module === 'object' && module.exports) {
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
                      diferencasAjustes, mesclarAjustes, itensDoNavegador, navegadorParaSalvar, semItens, motivoJsonInvalido,
                      ajustesParaPublicar, CAMPOS_AJUSTES, CAMPOS_OUTROS_PAINEIS,
+                     TROCAS_MAX, normalizarTrocas, nomeDoSvId, etiquetaDaTroca, textoDaTroca, celulaDaTroca,
+                     avisoDaMesaTrocada, linhasDasTrocas,
                      normalizarFlash, estadoFechado, dataBr, totaisDoFechado,
                      PILAR_MISSAO, MISSOES_MAX, missoesDoMes, somaDasMissoes, fonteDasMissoes, linhaDasMissoes,
                      missoesVazias, estadoMissoes, normalizarMissoes, semFonte,

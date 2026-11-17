@@ -551,3 +551,167 @@ test('regressão (31/10/2026): pontos, posições e quem está em cada status ig
 // ── helpers de cenário ───────────────────────────────────
 function base10(pessoas, medidas) { return { mesRef: 10, dataCorte: '25/10/2026 14:00', pessoas, pilaresConfig: CFG_OUT, medidas, confrontos: [] }; }
 function base11(pessoas, medidas) { return { mesRef: 11, pessoas, pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas: medidas.concat([]), confrontos: [] }; }
+
+// ── 12. troca de apuração entre duas supervisões (17/11/2026) ──────────────
+/*
+ * Cenário sintético que repete a forma do caso real: duas SVs trocam a apuração de outubro e cada uma delas tem um
+ * confronto com uma TERCEIRA SV, de fora da troca. A ordem (confrontos primeiro, troca depois) é o que mantém os
+ * adversários intactos. Códigos e nomes fictícios.
+ */
+const TR_PESSOAS = [
+  pessoa('SV.AA#Mista', 'SV', 'Mista'), pessoa('SV.BB#Mista', 'SV', 'Mista'),
+  pessoa('SV.CC#Mista', 'SV', 'Mista'), pessoa('SV.DD#Mista', 'SV', 'Mista'),
+  pessoa('SV.EE#Segmentada', 'SV', 'Segmentada'),
+  pessoa('RT.1', 'RT', 'Mista', 'SV.AA#Mista'), pessoa('RT.2', 'RT', 'Mista', 'SV.BB#Mista'),
+];
+// AA: Sabores 150% (vence a CC, de 95%). BB: Sabores 92% (perde para a DD, de 101%).
+const TR_MED = [].concat(
+  med('SV.AA#Mista', 10, CFG_OUT, 'Mista', 150, 88), med('SV.AA#Mista', 11, CFG_NOV, 'Mista', 80, 80),
+  med('SV.BB#Mista', 10, CFG_OUT, 'Mista', 92, 97), med('SV.BB#Mista', 11, CFG_NOV, 'Mista', 80, 80),
+  med('SV.CC#Mista', 10, CFG_OUT, 'Mista', 95, 93), med('SV.CC#Mista', 11, CFG_NOV, 'Mista', 80, 80),
+  med('SV.DD#Mista', 10, CFG_OUT, 'Mista', 101, 99), med('SV.DD#Mista', 11, CFG_NOV, 'Mista', 80, 80),
+  med('SV.EE#Segmentada', 10, CFG_OUT, 'Segmentada', 100), med('SV.EE#Segmentada', 11, CFG_NOV, 'Segmentada', 100),
+  med('RT.1', 10, CFG_OUT, 'Mista', 110), med('RT.1', 11, CFG_NOV, 'Mista', 110),
+  med('RT.2', 10, CFG_OUT, 'Mista', 70), med('RT.2', 11, CFG_NOV, 'Mista', 70),
+);
+const TR_CONFRONTOS = [
+  { mes: 10, id_sv_desafiante: 'SV.AA#Mista', id_sv_desafiado: 'SV.CC#Mista', pilar: 'Volume Sabores', ordem_registro: 1 },
+  { mes: 10, id_sv_desafiante: 'SV.BB#Mista', id_sv_desafiado: 'SV.DD#Mista', pilar: 'Volume Sabores', ordem_registro: 2 },
+];
+const TROCA_OUT = { mes: 10, a: 'SV.AA#Mista', b: 'SV.BB#Mista', motivo: 'troca de mesa fictícia',
+                    solicitado_por: 'GC fictício', autorizado_por: 'Diretoria fictícia', em: '2026-11-16' };
+const trRodar = (trocasSV, mesRef = 11) => calcular({ mesRef, pessoas: TR_PESSOAS,
+  pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas: TR_MED, confrontos: TR_CONFRONTOS, trocasSV, fechamento: mesRef === 10 });
+const trMes = (res, id, mes) => res.pessoas.find((p) => p.id === id).porMes.find((m) => m.mes === mes);
+const trPessoa = (res, id) => res.pessoas.find((p) => p.id === id);
+
+test('troca: no mês declarado, pilares, bônus, pontos do mês e as medidas de volume passam de uma SV para a outra', () => {
+  const sem = trRodar([]), com = trRodar([TROCA_OUT]);
+  const a0 = trMes(sem, 'SV.AA#Mista', 10), b0 = trMes(sem, 'SV.BB#Mista', 10);
+  const a1 = trMes(com, 'SV.AA#Mista', 10), b1 = trMes(com, 'SV.BB#Mista', 10);
+  assert.deepEqual(a1, b0, 'a AA passa a ter o mês da BB, inteiro');
+  assert.deepEqual(b1, a0, 'a BB passa a ter o mês da AA, inteiro');
+  assert.equal(a0.pontosConfronto, 5); assert.equal(a1.pontosConfronto, 0); // o +5 foi junto
+  assert.equal(b1.pontosConfronto, 5);
+  // medidas e pontos de cada pilar: aparecem quando o mês trocado é o de referência (consulta do fechamento)
+  const semOut = trRodar([], 10), comOut = trRodar([TROCA_OUT], 10);
+  const pil = (res, id) => trPessoa(res, id).pilares.map((p) => [p.nome, p.meta, p.real, p.pct, p.pontos]);
+  assert.deepEqual(pil(comOut, 'SV.AA#Mista'), pil(semOut, 'SV.BB#Mista'));
+  assert.deepEqual(pil(comOut, 'SV.BB#Mista'), pil(semOut, 'SV.AA#Mista'));
+  const refri = (res, id) => { const r = trPessoa(res, id).refri; return [r.meta, r.real, r.pct]; };
+  assert.deepEqual(refri(comOut, 'SV.AA#Mista'), refri(semOut, 'SV.BB#Mista'));
+  assert.deepEqual(refri(comOut, 'SV.BB#Mista'), refri(semOut, 'SV.AA#Mista'));
+});
+
+test('troca: o confronto é resolvido com os dados VERDADEIROS — os adversários de fora não mudam em nada', () => {
+  const sem = trRodar([]), com = trRodar([TROCA_OUT]);
+  // o vencedor registrado continua o verdadeiro: a AA venceu a CC, a BB perdeu para a DD
+  assert.deepEqual(sem.confrontos, com.confrontos);
+  assert.equal(com.confrontos.find((c) => c.desafiado === 'SV.CC#Mista').vencedor, 'SV.AA#Mista');
+  assert.equal(com.confrontos.find((c) => c.desafiado === 'SV.DD#Mista').vencedor, 'SV.DD#Mista');
+  // e as SVs de fora saem idênticas, bit a bit, com e sem troca
+  for (const id of ['SV.CC#Mista', 'SV.DD#Mista', 'SV.EE#Segmentada']) {
+    assert.deepEqual(trPessoa(com, id), trPessoa(sem, id), id + ' não pode mudar');
+  }
+  assert.equal(trMes(com, 'SV.DD#Mista', 10).pontosConfronto, 5, 'a DD mantém o +5 que ganhou de verdade');
+});
+
+test('troca: rotas e consultores ficam idênticos (a troca é só do resultado das duas supervisões)', () => {
+  const sem = trRodar([]), com = trRodar([TROCA_OUT]);
+  for (const id of ['RT.1', 'RT.2']) assert.deepEqual(trPessoa(com, id), trPessoa(sem, id), id + ' não pode mudar');
+  assert.equal(com.pessoas.length, sem.pessoas.length);
+  // cadastro das duas trocadas: código, nome, canal e unidade continuam os delas
+  for (const id of ['SV.AA#Mista', 'SV.BB#Mista']) {
+    const a = trPessoa(sem, id), b = trPessoa(com, id);
+    assert.deepEqual([b.id, b.nome, b.cargo, b.canal, b.unidade], [a.id, a.nome, a.cargo, a.canal, a.unidade]);
+  }
+});
+
+test('troca: o acumulado do trimestre usa o valor trocado; o mês não declarado não muda', () => {
+  const sem = trRodar([]), com = trRodar([TROCA_OUT]);
+  const a0 = trPessoa(sem, 'SV.AA#Mista'), b0 = trPessoa(sem, 'SV.BB#Mista');
+  const a1 = trPessoa(com, 'SV.AA#Mista'), b1 = trPessoa(com, 'SV.BB#Mista');
+  const outA = trMes(sem, 'SV.AA#Mista', 10).pontosMes, outB = trMes(sem, 'SV.BB#Mista', 10).pontosMes;
+  assert.equal(a1.pontosAcumulados, a0.pontosAcumulados - outA + outB);
+  assert.equal(b1.pontosAcumulados, b0.pontosAcumulados - outB + outA);
+  // novembro (não declarado) continua igual nas duas
+  assert.deepEqual(trMes(com, 'SV.AA#Mista', 11), trMes(sem, 'SV.AA#Mista', 11));
+  assert.deepEqual(trMes(com, 'SV.BB#Mista', 11), trMes(sem, 'SV.BB#Mista', 11));
+  // o % acumulado de Refrigerantes do trimestre também anda com a troca
+  assert.notEqual(a1.volume.pct, a0.volume.pct);
+  assert.equal(a1.volume.pct, ((vol(97) + vol(80)) / (2 * META)) * 100, 'a AA passa a acumular o Refri de outubro da BB');
+  assert.equal(b1.volume.pct, ((vol(88) + vol(80)) / (2 * META)) * 100, 'a BB passa a acumular o Refri de outubro da AA');
+});
+
+test('troca: no ranking do mês trocado só as duas mudam de lugar', () => {
+  const ordem = (res) => res.pessoas.filter((p) => p.cargo === 'SV' && p.canal === 'Mista')
+    .slice().sort((x, y) => y.pontosMes - x.pontosMes || y.refri.pct - x.refri.pct || (x.id < y.id ? -1 : 1)).map((p) => p.id);
+  const sem = ordem(trRodar([], 10)), com = ordem(trRodar([TROCA_OUT], 10));
+  const trocadas = new Set(['SV.AA#Mista', 'SV.BB#Mista']);
+  // quem está fora da troca fica exatamente na mesma posição
+  sem.forEach((id, i) => { if (!trocadas.has(id)) assert.equal(com[i], id, id + ' não pode mudar de lugar'); });
+  // e as duas trocaram de posição entre si
+  assert.equal(com[sem.indexOf('SV.AA#Mista')], 'SV.BB#Mista');
+  assert.equal(com[sem.indexOf('SV.BB#Mista')], 'SV.AA#Mista');
+});
+
+test('troca: sem trocasSV (ausente ou vazio) o resultado é idêntico ao de antes da etapa', () => {
+  const nada = trRodar(undefined), vazio = trRodar([]);
+  assert.deepEqual(nada.pessoas, vazio.pessoas);
+  assert.deepEqual(nada.trocas, []);
+  assert.deepEqual(vazio.trocas, []);
+  assert.deepEqual(nada.alertas.filter((a) => String(a.codigo).startsWith('TROCA_')), []);
+});
+
+test('troca recusada: canais diferentes, SV inexistente, o mesmo SV nos dois lados e mês ainda não apurado', () => {
+  const casos = [
+    [{ mes: 10, a: 'SV.AA#Mista', b: 'SV.EE#Segmentada' }, 'CANAIS_DIFERENTES'],
+    [{ mes: 10, a: 'SV.AA#Mista', b: 'SV.ZZ#Mista' }, 'SV_NAO_ENCONTRADO'],
+    [{ mes: 10, a: 'SV.AA#Mista', b: 'SV.AA#Mista' }, 'MESMO_SV'],
+    [{ mes: 12, a: 'SV.AA#Mista', b: 'SV.BB#Mista' }, 'MES_AINDA_NAO_APURADO'],
+  ];
+  const sem = trRodar([]);
+  for (const [troca, recusa] of casos) {
+    const res = trRodar([troca]);
+    assert.equal(res.trocas.length, 1);
+    assert.equal(res.trocas[0].aplicada, false, recusa);
+    assert.equal(res.trocas[0].recusa, recusa);
+    assert.deepEqual(res.pessoas, sem.pessoas, 'troca recusada não muda nenhum número: ' + recusa);
+    const avisada = res.alertas.some((x) => x.codigo === 'TROCA_' + recusa);
+    assert.equal(avisada, recusa !== 'MES_AINDA_NAO_APURADO', 'aviso de ' + recusa);
+    assert.ok(M.RECUSA_TROCA[recusa], 'o motivo tem texto no motor: ' + recusa);
+  }
+  // a mesma SV em duas trocas do mesmo mês: vale a primeira, a segunda é recusada com aviso
+  const duas = trRodar([TROCA_OUT, { mes: 10, a: 'SV.AA#Mista', b: 'SV.CC#Mista' }]);
+  assert.deepEqual(duas.trocas.map((t) => [t.aplicada, t.recusa]), [[true, null], [false, 'SV_JA_TROCADO']]);
+  assert.ok(duas.alertas.some((x) => x.codigo === 'TROCA_SV_JA_TROCADO'));
+  assert.deepEqual(trPessoa(duas, 'SV.CC#Mista'), trPessoa(sem, 'SV.CC#Mista'));
+  assert.deepEqual(conferir(duas), []);
+});
+
+test('troca: mês do trimestre sem dado não é trocado (nunca se troca o que não foi apurado)', () => {
+  const res = calcular({ mesRef: 11, pessoas: TR_PESSOAS, pilaresConfig: [...CFG_OUT, ...CFG_NOV], medidas: TR_MED,
+    confrontos: TR_CONFRONTOS, trocasSV: [TROCA_OUT], mesesIncompletos: [{ mes: 10, motivo: 'outubro não carregou' }] });
+  assert.equal(res.trocas[0].aplicada, false);
+  assert.equal(res.trocas[0].recusa, 'MES_SEM_DADO');
+  assert.ok(res.alertas.some((x) => x.codigo === 'TROCA_MES_SEM_DADO'));
+});
+
+test('troca: a declaração (motivo, quem pediu, quem autorizou e quando) chega inteira no resultado', () => {
+  const t = trRodar([TROCA_OUT]).trocas[0];
+  assert.deepEqual([t.mes, t.a, t.b, t.aplicada, t.recusa], [10, 'SV.AA#Mista', 'SV.BB#Mista', true, null]);
+  for (const campo of ['motivo', 'solicitado_por', 'autorizado_por', 'em']) assert.equal(t[campo], TROCA_OUT[campo]);
+  // trocasDoSV: o outro lado de cada troca aplicada
+  assert.deepEqual(M.trocasDoSV([t], 'SV.AA#Mista').map((x) => x.com), ['SV.BB#Mista']);
+  assert.deepEqual(M.trocasDoSV([t], 'SV.BB#Mista').map((x) => x.com), ['SV.AA#Mista']);
+  assert.deepEqual(M.trocasDoSV([t], 'SV.CC#Mista'), []);
+  assert.deepEqual(M.trocasDoSV([Object.assign({}, t, { aplicada: false })], 'SV.AA#Mista'), []);
+});
+
+test('troca: conferir() não acusa nada e os pontos do mês continuam fechando com os pilares + bônus', () => {
+  const res = trRodar([TROCA_OUT]);
+  assert.deepEqual(conferir(res, { pessoas: TR_PESSOAS }), []);
+  for (const p of res.pessoas) {
+    for (const m of p.porMes) assert.equal(m.pontosMes, m.pontosPilares + m.pontosConfronto, p.id + ' mês ' + m.mes);
+  }
+});
