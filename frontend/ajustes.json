@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-11-16T20:11",
+  "atualizado_em": "2026-11-17T10:30",
   "regras": {},
   "pilares": {},
   "canais": {
@@ -242,6 +242,17 @@
       "em": "2026-11-16T11:05"
     }
   },
+  "trocasSV": [
+    {
+      "mes": 10,
+      "a": "Sv. An.2#Mista",
+      "b": "Sv. An.3#Mista",
+      "motivo": "os dois supervisores trocaram de mesa a partir de novembro/26: a apuração de outubro acompanha cada um",
+      "solicitado_por": "GC de Anápolis",
+      "autorizado_por": "Carol",
+      "em": "2026-11-16"
+    }
+  ],
   "campari": {
     "trocasSupervisao": [
       {
