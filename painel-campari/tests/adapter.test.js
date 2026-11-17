@@ -2054,7 +2054,7 @@ test('4K tela: a coluna RANK e a contagem seguem os dois pilares do motor; nada 
   assert.doesNotMatch(html, /gatilhoVolume: \{|R\.gatilhoVolume|motor\.gatilhoVolume|function gatilhoVolume/);
   // a versão aqui acompanha o motor embutido (a 4K subiu para a v1.11; a 4M, para a v1.13)
   assert.match(html, new RegExp("versao: '" + Motor.REGRAS.versao.replace('.', '\\.') + "'"));
-  assert.equal(Motor.REGRAS.versao, '1.14');
+  assert.equal(Motor.REGRAS.versao, '1.17'); // 4Q: v1.17 (troca de SV em outubro)
 });
 
 // ===============================================================================================================
@@ -2479,4 +2479,201 @@ test('4O: só o fundo mudou — a escala do palco segue a da etapa 4M (altura-ba
   // a tela não escreve número de escala nenhum: a conta é do adaptador
   assert.doesNotMatch(SEM_CSS, /\b930\b/);
   assert.match(TPL, /escalaDoPalco\(innerWidth, innerHeight\)/);
+});
+
+
+/* ─── Etapa 4Q: troca do % de outubro do Aperitivo entre duas SVs (regras v1.17, seção 3.1) ───────────────────
+   Fixtures da etapa 2 (códigos fictícios). Mista: SV.XA.1 (out 120%: 300 ÷ 250) e SV.XB.2 (out 50%: 50 ÷ 100);
+   Segmentada: SV.XB.1; fora do ranking (empate): SV.XA.2. O ajuste vem do ajustes.json publicado
+   (`campari.trocasSupervisao`); `trocasDoAjuste` faz a validação que não depende da API e `montarDados` a outra. */
+
+const TROCA = (mais) => Object.assign({ mes: 10, sv_a: 'SV.XA.1', sv_b: 'SV.XB.2', autorizado_em: '2026-11-16' }, mais);
+const ajTrocas = (...itens) => Object.assign({}, SEM_AJ, A.trocasDoAjuste({ campari: { trocasSupervisao: itens } }));
+const outDe = (l) => l.meses.find((x) => x.mes === 10);
+/** tudo que a troca NÃO pode mexer numa linha: meta, real, online, dif e % bruto de cada mês, e a Skyy inteira */
+const intocado = (l) => ({ meses: l.meses.map((m) => [m.mes, m.meta, m.real, m.online, m.dif, m.pct, m.metaDiaExib]),
+  cobertura: l.cobertura, gatilho: l.gatilho, minimoVolume: l.minimoVolume, skyy: l.tabela.skyy,
+  porMes: Object.values(l.tabela.aperitivo.porMes).map((m) => [m.meta, m.real, m.online, m.dif, m.pct]) });
+
+test('4Q trocasDoAjuste: item válido; chave ausente = nada e sem aviso', () => {
+  assert.deepEqual(A.trocasDoAjuste({ campari: { trocasSupervisao: [TROCA()] } }), { avisos: [], trocas: [
+    { item: 1, mes: 10, sv_a: 'SV.XA.1', sv_b: 'SV.XB.2', autorizado_em: '2026-11-16', autorizadoEmTela: '16/11/2026' }] });
+  for (const aj of [{}, { campari: {} }, { canais: {} }, null]) assert.deepEqual(A.trocasDoAjuste(aj), { trocas: [], avisos: [] });
+});
+
+test('4Q trocasDoAjuste: tipo errado, mês fora do incentivo, mesma SV e data inválida são ignorados com aviso', () => {
+  const casos = [
+    [{ campari: [] }, /campari: precisa ser um objeto/],
+    [{ campari: { trocasSupervisao: {} } }, /precisa ser uma lista/],
+    [{ campari: { trocasSupervisao: ['x'] } }, /item 1: precisa ser um objeto/],
+    [{ campari: { trocasSupervisao: [TROCA({ mes: 9 })] } }, /mês 9 fora dos meses do incentivo/],
+    [{ campari: { trocasSupervisao: [TROCA({ mes: '10' })] } }, /mês "10" fora/],
+    [{ campari: { trocasSupervisao: [TROCA({ sv_b: 2 })] } }, /códigos de supervisão/],
+    [{ campari: { trocasSupervisao: [TROCA({ sv_a: '' })] } }, /códigos de supervisão/],
+    [{ campari: { trocasSupervisao: [TROCA({ sv_b: 'sv.xa.1' })] } }, /a mesma supervisão/],
+    [{ campari: { trocasSupervisao: [TROCA({ autorizado_em: '16/11/2026' })] } }, /autorizado_em/],
+    [{ campari: { trocasSupervisao: [TROCA({ autorizado_em: '2026-02-30' })] } }, /autorizado_em/],
+  ];
+  for (const [aj, re] of casos) {
+    const r = A.trocasDoAjuste(aj);
+    assert.deepEqual(r.trocas, [], JSON.stringify(aj));
+    assert.equal(r.avisos.length, 1);
+    assert.match(r.avisos[0], re);
+    assert.match(r.avisos[0], /troca de SV ignorada/);
+  }
+});
+
+test('4Q trocasDoAjuste: SV em duas trocas do mesmo mês invalida os itens envolvidos (só eles)', () => {
+  const r = A.trocasDoAjuste({ campari: { trocasSupervisao: [
+    TROCA(), TROCA({ sv_a: 'SV.XB.2', sv_b: 'SV.XB.1' }), TROCA({ sv_a: 'SV.YY.1', sv_b: 'SV.YY.2' }),
+    TROCA({ mes: 11 }) ] } });
+  assert.deepEqual(r.trocas.map((t) => t.item), [3, 4]);          // em novembro SV.XA.1 está numa troca só
+  assert.equal(r.avisos.length, 2);
+  for (const a of r.avisos) assert.match(a, /SV\.XB\.2 em mais de uma troca de outubro/);
+});
+
+test('4Q lerAjustes: lê campari.trocasSupervisao do publicado; sem a chave, nenhuma troca e nenhum aviso', async () => {
+  const com = await A.lerAjustes(async () => resposta(200, { canaisSV: {}, campari: { trocasSupervisao: [TROCA({ mes: 99 })] } }));
+  assert.deepEqual(com.trocas, []);
+  assert.match(com.avisos[0], /mês 99/);
+  const sem = await A.lerAjustes(async () => resposta(200, { canaisSV: { 'Sv. Xa.2': 'Mista' } }));
+  assert.deepEqual([sem.trocas, sem.avisos], [[], []]);
+  const ausente = await A.lerAjustes(async () => resposta(404, null));
+  assert.deepEqual(ausente.trocas, []);
+});
+
+test('4Q montarDados: troca nos dois sentidos — Out, % Acum. e posição; Meta, Real, Dif., % do mês e Skyy iguais', () => {
+  const antes = montar(), depois = montar({ ajustes: ajTrocas(TROCA()) });
+  const [a0, b0, a1, b1] = [achar(antes.svMista, 'SV.XA.1'), achar(antes.svMista, 'SV.XB.2'),
+                            achar(depois.svMista, 'SV.XA.1'), achar(depois.svMista, 'SV.XB.2')];
+  assert.equal(outDe(a0).pctTravado, 120);
+  assert.equal(outDe(b0).pctTravado, 50);
+  assert.equal(outDe(a1).pctTravado, 50);
+  assert.equal(outDe(b1).pctTravado, 120);
+  assert.equal(a1.tabela.aperitivo.porMes[10].pctTravado, 50);     // a tabela da tela acompanha
+  assert.deepEqual(a1.tabela.aperitivo.porMes[10].troca, { com: 'SV.XB.2', pctTravadoProprio: 120 });
+  assert.equal(a1.soma, a0.soma - 120 + 50);
+  assert.equal(b1.soma, b0.soma - 50 + 120);
+  assert.equal(a1.tabela.aperitivo.soma, a1.soma);
+  assert.deepEqual(intocado(a1), intocado(a0));
+  assert.deepEqual(intocado(b1), intocado(b0));
+  // a ordem segue o % Acum. novo (aqui SV.XA.1 continua na frente: 127,5 contra 120; o caso em que a ordem
+  // inverte está no teste do "Bateu!" abaixo)
+  assert.deepEqual(depois.svMista.map((l) => [l.codigo, l.pos, l.soma]), [['SV.XA.1', 1, 50 + 77.5], ['SV.XB.2', 2, 120]]);
+  assert.deepEqual(depois.trocas, [{ mes: 10, sv_a: 'SV.XA.1', sv_b: 'SV.XB.2', autorizado_em: '2026-11-16',
+                                     autorizadoEmTela: '16/11/2026', canal: 'Mista' }]);
+  assert.deepEqual(depois.avisos, antes.avisos);                    // troca válida não gera aviso
+});
+
+test('4Q montarDados: a trava vale — a SV com 157,7% bruto em outubro passa 130,0%, nunca o bruto', () => {
+  const out = JSON.parse(JSON.stringify(OUT));
+  // SV.XA.1 em outubro: meta 100, real 157,7 (X12 e X13 sem meta e sem real)
+  out.rotas.forEach((l) => { if (l[2] === 'SV.XA.1') l[3].aperitivos = l[0] === 'X11' ? [100, 157.7] : [null, null]; });
+  const d = montar({ fechados: { 202610: out }, ajustes: ajTrocas(TROCA()) });
+  const a = achar(d.svMista, 'SV.XA.1'), b = achar(d.svMista, 'SV.XB.2');
+  assert.ok(outDe(a).pct > 157 && outDe(a).pct < 158);              // o % do mês da própria SV continua o bruto
+  assert.equal(outDe(b).pctTravado, 130);
+  assert.equal(outDe(b).travado, true);
+  assert.equal(outDe(a).pctTravado, 50);
+});
+
+test('4Q montarDados: sem % de outubro numa das SV, o "sem valor" troca também', () => {
+  const out = JSON.parse(JSON.stringify(OUT));
+  out.rotas.forEach((l) => { if (l[0] === 'X41') l[3].aperitivos = [0, 50]; });   // SV.XB.2 sem meta em outubro
+  const antes = montar({ fechados: { 202610: out } }), d = montar({ fechados: { 202610: out }, ajustes: ajTrocas(TROCA()) });
+  const a = achar(d.svMista, 'SV.XA.1'), b = achar(d.svMista, 'SV.XB.2');
+  assert.equal(outDe(achar(antes.svMista, 'SV.XB.2')).pctTravado, null);
+  assert.equal(outDe(a).pctTravado, null);
+  assert.ok(a.incompleta && a.mesesSemPct.includes(10));
+  assert.equal(outDe(b).pctTravado, 120);
+  assert.ok(!b.mesesSemPct.includes(10));
+  assert.equal(outDe(b).pct, null);                                 // o % do mês da própria SV segue sem valor
+});
+
+test('4Q montarDados: troca inválida contra a API é ignorada com aviso e nada muda', () => {
+  const base = montar();
+  const casos = [
+    [TROCA({ sv_b: 'SV.XX.9' }), /SV\.XX\.9 não existe na API de outubro/],
+    [TROCA({ sv_b: 'SV.XB.1' }), /mesmo canal \(SV\.XA\.1 na Mista, SV\.XB\.1 na Segmentada\)/],
+    [TROCA({ sv_b: 'SV.XA.2' }), /SV\.XA\.2 fora do ranking/],
+    [TROCA({ mes: 12 }), /dezembro ainda sem dado de volume/],
+  ];
+  for (const [t, re] of casos) {
+    const d = montar({ ajustes: ajTrocas(t) });
+    assert.deepEqual(d.trocas, []);
+    const novos = d.avisos.filter((a) => base.avisos.indexOf(a) < 0);
+    assert.equal(novos.length, 1, JSON.stringify(t));
+    assert.match(novos[0], re);
+    assert.match(novos[0], /troca de SV ignorada/);
+    assert.doesNotMatch(novos[0], /pendência|premissa/i);
+    assert.deepEqual(d.svMista, base.svMista);
+    assert.deepEqual(d.svSegmentada, base.svSegmentada);
+    // o aviso chega a Regras > Dados e alertas como alerta de dado
+    assert.ok(A.alertasDaTela(d).some((x) => x.tipo === 'aviso' && re.test(x.texto)));
+  }
+});
+
+test('4Q montarDados: uma troca que muda quem fica dentro das premiadas muda o "Bateu!" (e a linha azul)', () => {
+  // as duas Mista batem os dois pilares em novembro (SV.XB.2 com volume 10 ÷ 10 e Skyy 100 ÷ 100); com 1 premiada
+  // na Mista, o "Bateu!" é de quem tem o maior % Acum.
+  const XB = comAperitivo(XB3V, null, [null, bl(10, 10, 0, 1)]);
+  XB.supervisoes[1].produtos.skyy = cbl(bl(10, 5, 0, 1), 100, 100, 0);
+  const regras = Object.assign({}, Motor.REGRAS, { premiadas: { gc: 6, svMista: 1, svSegmentada: 3 } });
+  const motor = Object.assign({}, Motor, { statusLinha: (l, n) => Motor.statusLinha(l, n, regras) });
+  const m = (ajustes) => A.montarDados({ index: indexDe('202611', false, ['202610']), gerencias: [XA3V, XB], resumo: RESUMO,
+    fechados: { 202610: OUT }, base: BASE, ajustes }, undefined, motor);
+  const ver = (d) => d.svMista.map((l) => [l.codigo, l.pos, l.oficial, l.status.status]);
+  assert.deepEqual(ver(m(SEM_AJ)), [['SV.XA.1', 1, 1, Motor.STATUS.bateu], ['SV.XB.2', 2, 2, Motor.STATUS.fora]]);
+  assert.deepEqual(ver(m(ajTrocas(TROCA()))), [['SV.XB.2', 1, 1, Motor.STATUS.bateu], ['SV.XA.1', 2, 2, Motor.STATUS.fora]]);
+});
+
+test('4Q montarDados: sem o ajuste nada muda (mesma saída de antes, célula a célula)', () => {
+  const semChave = montar3({ ajustes: SEM_AJ });                   // ajustes sem a lista de trocas (formato da 4P)
+  const vazia = montar3({ ajustes: Object.assign({}, SEM_AJ, { trocas: [] }) });
+  assert.deepEqual(vazia, semChave);
+  assert.deepEqual(semChave.trocas, []);
+  for (const l of [].concat(semChave.svMista, semChave.svSegmentada)) {
+    for (const m of Object.values(l.tabela.aperitivo.porMes)) assert.equal(m.troca, null);
+  }
+  // com a troca, só as duas SV e a ordem da Mista mudam: GC, Total Band, Consultor, Segmentada e fora iguais
+  const com = montar3({ ajustes: ajTrocas(TROCA()) });
+  for (const k of ['gc', 'gcApi', 'rotas', 'totalBand', 'svSegmentada', 'fora', 'meses', 'mesesCobertura', 'mesGatilho']) {
+    assert.deepEqual(com[k], semChave[k], k);
+  }
+});
+
+test('4Q notasDasTrocas: a nota da tabela sai do ajuste, só no canal e na lista em que a troca vale', () => {
+  const d = montar({ ajustes: ajTrocas(TROCA()) });
+  const nota = '* Outubro: % trocado entre SV.XA.1 e SV.XB.2 (troca de supervisores autorizada em 16/11/2026). ' +
+    'Meta, Real, Dif. e % do mês seguem a supervisão.';
+  assert.deepEqual(A.notasDasTrocas(d, 'Mista', d.svMista), [nota]);
+  assert.deepEqual(A.notasDasTrocas(d, 'Segmentada', d.svSegmentada), []);
+  assert.deepEqual(A.notasDasTrocas(d, 'Mista', d.svMista.filter((l) => l.gc === 'XB')), [nota]); // uma das duas na lista
+  assert.deepEqual(A.notasDasTrocas(d, 'Mista', []), []);
+  assert.deepEqual(A.notasDasTrocas(montar(), 'Mista', montar().svMista), []);                     // sem troca, sem nota
+  for (const t of A.notasDasTrocas(d, 'Mista', d.svMista)) assert.doesNotMatch(t, /pendência|premissa/i);
+});
+
+test('4Q tela: o "*" e a nota vêm do motor e do adaptador; nenhum código, data ou nome digitado', () => {
+  const cel = /const mesCel = \(m, vigente\)=>\{[\s\S]*?\n\};/.exec(SEM_CSS)[0];
+  assert.match(cel, /m && m\.troca \? '<sup class="troca">\*<\/sup>'/);
+  assert.match(SEM_CSS, /tabelaRanking\(linhas,'Supervisão',false,notasDasTrocas\(D, st\.canal, linhas\)\)/);
+  assert.match(SEM_CSS, /tabelaRanking\(D\.gc,'Gerência',true\)/);           // o Ranking GC não tem troca
+  assert.doesNotMatch(TPL, /SV\.AN|Sv\. An|16\/11\/2026|2026-11-16|troca de supervisores/);
+  // nota com fonte da tabela (nada abaixo de 13 px) e na faixa dos botões de página
+  assert.match(TPL, /\.pe-tb \.nota-troca\{font-size:13px/);
+  const html = fs.readFileSync(GERADO, 'utf8');
+  assert.match(html, /function notasDasTrocas/);
+  assert.match(html, /function trocarPercentualDeMes/);
+});
+
+test('4Q ajustes.json publicado: um único objeto, com a troca de outubro e sem nome de pessoa', () => {
+  const texto = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'ajustes.json'), 'utf8');
+  const aj = JSON.parse(texto);                                     // um único objeto JSON
+  assert.ok(aj && typeof aj === 'object' && !Array.isArray(aj));
+  const r = A.trocasDoAjuste(aj);
+  assert.deepEqual(r.avisos, []);
+  assert.deepEqual(r.trocas.map((t) => [t.mes, t.sv_a, t.sv_b, t.autorizado_em]), [[10, 'SV.AN.2', 'SV.AN.3', '2026-11-16']]);
+  assert.deepEqual(Object.keys(aj.campari), ['trocasSupervisao']);
+  assert.deepEqual(Object.keys(aj.campari.trocasSupervisao[0]).sort(), ['autorizado_em', 'mes', 'sv_a', 'sv_b']);
 });

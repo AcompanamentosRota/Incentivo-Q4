@@ -1,5 +1,5 @@
 /*
- * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.14 (docs/regras.md)
+ * Motor de cálculo — Campari Club 2026 (Coca-Cola Bandeirantes) — regras v1.17 (docs/regras.md)
  * Roda em Node (testes) e no navegador (painel HTML): window.MotorCampari.
  *
  * Toda regra de cálculo do painel fica só aqui: nenhuma fórmula no adaptador nem na tela.
@@ -44,6 +44,11 @@
  * não muda, e "Bateu!" e "-" não mudam de regra: quem decide continua sendo a posição OFICIAL contra
  * `REGRAS.premiadas`. A v1.14 também volta a exibir a posição do ranking (`pos`) na coluna RANK de todas as
  * linhas e pinta de azul a linha com "Bateu!", mas isso é tela: aqui `pos` e `oficial` seguem como estavam.
+ * Etapas 4O e 4P (regras v1.15 e v1.16): fundo da tela e fonte da cobertura dos meses fechados; nada mudou aqui.
+ * Etapa 4Q (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026): `trocarPercentualDeMes`, a troca do % de
+ * UM mês do Aperitivo que entra no % Acum. entre duas SVs (troca de supervisores autorizada). Troca só o valor do
+ * ranking (o % já travado) e refaz a soma; Meta, Real, Dif., % do mês, gatilho de Skyy e mínimo de volume não
+ * mudam. A ordem, a posição oficial e o status saem depois, das funções de sempre.
  *
  * Escala: % em pontos percentuais, SEM arredondar (142.2631… = 142,26…%); a tela trunca depois (regras, seção 7).
  */
@@ -54,7 +59,7 @@
   'use strict';
 
   const REGRAS = {
-    versao: '1.14',
+    versao: '1.17',
     meses: [10, 11, 12], // vigência: outubro, novembro e dezembro de 2026
     // Trava do % do mês de Aperitivo (regras, seção 3): 130% em outubro e novembro; dezembro sem trava (null).
     trava: { 10: 130, 11: 130, 12: null },
@@ -474,8 +479,50 @@
     return online >= metaDia;
   }
 
+  /**
+   * Troca de SV num mês (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026): o % de Aperitivo de `mes` que
+   * ENTRA NO % ACUM. passa de uma SV para a outra, nos dois sentidos. Função pura, chamada ANTES de ordenar.
+   *
+   * linhas: as linhas de UM nível de SV (cada uma com `codigo` e o resultado de `apurarMeses`: meses, soma,
+   *         incompleta, mesesSemPct); mes: o mês da troca (10, 11 ou 12); par: { sv_a, sv_b } (códigos da API).
+   *
+   * O que troca: o `pctTravado` do mês (o valor do ranking, já com a trava de 130% em out/nov; dezembro sem trava)
+   * e o `travado` que o acompanha. Se uma das SV não tem o valor (sem meta), o "sem valor" troca também — e com
+   * ele a marca de mês sem % (`mesesSemPct`/`incompleta`), que passa a seguir o valor que entra na soma.
+   * O que NÃO troca: meta, real, online, meta dia, dif e o `pct` bruto do mês (o "% do mês" da tela), nem nada
+   * da cobertura de Skyy. Nenhum número digitado: o valor sai do próprio cálculo de cada linha.
+   * Depois a `soma` é refeita por `somaRanking`. Cada mês trocado ganha `troca: { com, pctTravadoProprio }` (a
+   * outra SV e o valor que era da própria linha), para a tela marcar a célula.
+   * Par que não acha as DUAS linhas, mês fora da vigência ou par repetido: erro (nunca troca pela metade; quem
+   * valida o ajuste é o adaptador, antes). Devolve cópias, sem alterar a entrada; linhas fora do par saem iguais.
+   */
+  function trocarPercentualDeMes(linhas, mes, par, regras) {
+    regras = regras || REGRAS;
+    if (regras.meses.indexOf(mes) < 0) throw new Error(`mês ${mes} fora da vigência do Campari Club`);
+    if (!par || typeof par.sv_a !== 'string' || typeof par.sv_b !== 'string' || par.sv_a === par.sv_b) {
+      throw new Error('troca de SV precisa de duas supervisões diferentes');
+    }
+    const lista = linhas || [];
+    const ia = lista.findIndex((l) => l && l.codigo === par.sv_a), ib = lista.findIndex((l) => l && l.codigo === par.sv_b);
+    if (ia < 0 || ib < 0) throw new Error(`troca de SV: ${ia < 0 ? par.sv_a : par.sv_b} não está nas linhas`);
+    const doMes = (l) => (l.meses || []).find((m) => m && m.mes === mes);
+    const ma = doMes(lista[ia]), mb = doMes(lista[ib]);
+    if (!ma || !mb) throw new Error(`troca de SV: ${!ma ? par.sv_a : par.sv_b} sem o mês ${mes}`);
+    const valorDe = (m) => ({ pctTravado: numero(m.pctTravado) ? m.pctTravado : null, travado: !!m.travado });
+    const recebe = (l, proprio, outro, com) => {
+      const meses = l.meses.map((m) => (m.mes !== mes ? m : Object.assign({}, m, valorDe(outro),
+        { troca: { com, pctTravadoProprio: valorDe(proprio).pctTravado } })));
+      // mês sem % passa a seguir o valor que ENTRA NA SOMA (o trocado); os outros meses seguem o próprio `pct`
+      const mesesSemPct = meses.filter((m) => m.situacao !== 'futuro' && (m.troca ? m.pctTravado === null : m.pct === null))
+        .map((m) => m.mes);
+      return Object.assign({}, l, { meses, soma: somaRanking(meses.map((m) => m.pctTravado)),
+                                    incompleta: mesesSemPct.length > 0, mesesSemPct });
+    };
+    return lista.map((l, i) => (i === ia ? recebe(l, ma, mb, par.sv_b) : i === ib ? recebe(l, mb, ma, par.sv_a) : l));
+  }
+
   return { versaoRegras: REGRAS.versao, REGRAS, MOTIVOS, STATUS, percentualMes, aplicarTrava, somaRanking, apurarMeses,
-           somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
+           trocarPercentualDeMes, somarGrupo, ordenarRanking, numerarRanking, montarRanking, chaveCodigo, percentualCobertura, diferenca,
            gatilhoCobertura, minimoVolume, gatilhoPilares, numerarOficial, statusLinha, metaDiaCobertura, metaDiaVolume, corDoPercentual,
            corDoPercentualAperitivo, hojeAtingiu };
 });

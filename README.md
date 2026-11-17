@@ -112,6 +112,10 @@ item a item: padrão < `ajustes.json` publicado < ajustes salvos no navegador do
 publicado (o que ficar igual sai sozinho; para limpar: Administração > "Descartar todos os do navegador").
 Ao publicar, a Administração do Q4 parte do arquivo publicado e só troca as chaves que ela gerencia: chave de outro
 painel (`campari`, do Campari Club) ou que ela não edita (`missoes`) vai copiada sem mudar nada (desde 16/11/2026).
+A chave **`campari`** é do painel Campari Club, que só lê o publicado: hoje ela traz `trocasSupervisao`, a troca do %
+de outubro do Aperitivo entre duas supervisões (regras do Campari v1.17, seção 3.1). Não há formulário para ela: entra
+só por PR, editada à mão (só a chave e o `atualizado_em`). Item inválido é ignorado pelo painel, com aviso em
+Regras > Dados e alertas.
 
 ## Painel Campari Club
 
@@ -167,12 +171,16 @@ Com o seletor "Mês de referência" em **Outubro**, o bloco Skyy passa a mostrar
 "—"; M. Dia e Online continuam "—", porque não existem em mês fechado), e em **dezembro** o gatilho de Skyy usa a
 cobertura de novembro sem ficar indisponível. **Só a fonte muda:** o gatilho, o mínimo de volume, o ranking, o
 status, as cores e o layout ficam como estão, e outubro continua fora do gatilho.
+A **etapa 4Q** (regras v1.17, seção 3.1) fez a **troca de SV em outubro**: o % de outubro do Aperitivo que entra no
+% Acum. de `SV.AN.2` e `SV.AN.3` (troca de supervisores autorizada em 16/11/2026) passa de uma para a outra, nos dois
+sentidos, pelo `frontend/ajustes.json` → `campari.trocasSupervisao`. A coluna Out das duas mostra o valor trocado com
+`*` e uma nota abaixo da tabela da Supervisão; Meta, Real, Dif., % do mês e Skyy seguem a supervisão.
 O canal Mista/Segmentada é uma cópia da base do Desafio Q4 em `painel-campari/data/data.json`.
 
 Mudou algo em `painel-campari/src/` ou `painel-campari/data/`: rode `python painel-campari/scripts/build.py` e envie também o
 `frontend/campari-club.html` gerado (o build embute a fonte Barlow Condensed 800 e a arte de fundo
 `painel-campari/src/assets/campari-fundo.jpg`). Testes:
-`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 264 testes.
+`node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 283 testes.
 
 ## Antes de ligar: confirmar os agrupadores
 
