@@ -21,7 +21,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
   out–dez/2026: dois pilares (gatilho de cobertura de Skyy e mínimo de volume de Aperitivo) e ranking por volume de
   aperitivo (agrupadores extras `Aperitivo` e `Skyy` da API). É independente do Desafio Q4 (nada importado de lá).
-  Regras v1.17 (16/11/2026). **Etapa 4: a tela**, nas
+  Regras v1.18 (17/11/2026). **Etapa 4: a tela**, nas
   cinco abas do mockup aprovado em 08/11/2026 (Ranking GC · Supervisão · Consultor · Detalhe do mês · Regras), em
   cima da Etapa 3 (gatilho de cobertura de Skyy, posição oficial, status "Bateu!" e meta dia de cobertura) e da
   Etapa 2 (% do mês de volume, trava 130% out/nov, soma, ordem e posição). A **Etapa 4B** (regras v1.6, seções 5 e 7)
@@ -66,8 +66,15 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
   de mesa em novembro, e o % de outubro do Aperitivo que entra no % Acum. de `SV.AN.2` e `SV.AN.3` passa de uma para
   a outra, nos dois sentidos. O ajuste é o `frontend/ajustes.json` → `campari.trocasSupervisao` (só por PR), o
   adaptador valida (`trocasDoAjuste` + `montarDados`), o motor troca (`trocarPercentualDeMes`, antes do ranking) e a
-  tela marca a coluna Out com `*` e uma nota (`notasDasTrocas`). Meta, Real, Dif., % do mês, Skyy, gatilho, mínimo
-  de volume, GC, Total Band e Consultor não mudam.
+  tela explica a troca numa nota (`notasDasTrocas`) abaixo da tabela da Supervisão. Meta, Real, Dif., % do mês,
+  Skyy, gatilho, mínimo de volume, GC, Total Band e Consultor não mudam.
+  A **Etapa 4S** (regras v1.18, seção 3.1, item Tela) trocou a **marca da troca na tela**: o `*` que a 4Q punha na
+  coluna Out saiu, e as duas linhas da troca ganharam ao lado do código da SV a **tag "troca out"** — caixinha
+  pequena em cor neutra (fundo do `.pill.no`, texto `--sk-tit-fg` e borda `--line`, sem paleta nova), com tooltip
+  de mês, outra SV e data. Etiqueta e tooltip saem do adaptador (`tagsDaTroca`, pura, lida do ajuste publicado):
+  **nenhum código, mês ou data digitado na tela**. A coluna Out mostra o mesmo valor trocado, sem marcador, e a
+  nota continua, sem o `*` na frente. **É só tela:** motor, leitura e validação do ajuste, números, RANK, status,
+  % Acum. e ordem ficam idênticos aos da 4Q.
   A tela **não calcula nada**: lê o que o motor e o adaptador entregam. Toda regra só em `painel-campari/src/motor.js`.
   O canal das rotas e do SV é uma **cópia** do Q4 (funções de `painel-q4/src/adapter.js` e `painel-campari/data/data.json`,
   foto de 09/11/2026 da base embutida, regerada por `painel-campari/scripts/copiar_canais.py`): mudou a base de canais do
@@ -95,7 +102,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
 | `frontend/desafio-q4.html` | painel pronto | **gerado** por `painel-q4/scripts/build.py` |
-| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, troca de SV num mês (`trocarPercentualDeMes`), gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status com os **três selos** de `STATUS` (`statusLinha`), meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `trocasDoAjuste` (troca de SV do `ajustes.json` → `campari`), `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`, `notasDasTrocas`, `escalaDoPalco` (escala do palco, com `CONFIG.palco`); canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
+| `painel-campari/src/` | `motor.js` (cálculo: % do mês, trava, soma do grupo (`somarGrupo`), soma, ordem, posição, troca de SV num mês (`trocarPercentualDeMes`), gatilho de cobertura, mínimo de volume (`minimoVolume`), dois pilares (`gatilhoPilares`), posição oficial, status com os **três selos** de `STATUS` (`statusLinha`), meta dia de cobertura, exibição da meta dia de volume e cor do quadradinho do % (`corDoPercentual`)), `adapter.js` (`CONFIG` (com `gruposGC`), `localizarProdutos`, `carregarDados`, `trocasDoAjuste` (troca de SV do `ajustes.json` → `campari`), `fontesDosMeses`, `fontesDaCobertura`, `coberturaDoFechado`, `gruposDoRankingGC`, `tabelaDaLinha`, `montarDados`, `carregarRanking`, mais a formatação e os recortes da tela: `fmtVolume`, `fmtCobertura`, `fmtPct`, `mesesDoSeletor`, `valoresDoMes`, `filtrosDoPainel`, `rotasDaMesa`, `rotasDoConsultor`, `fatiar`, `linhasDoDetalhe`, `alertasDaTela`, `notasDasTrocas`, `tagsDaTroca`, `escalaDoPalco` (escala do palco, com `CONFIG.palco`); canal copiado do Q4), `app.tpl.html` (tela, cinco abas) | pessoas (PR) |
 | `painel-campari/src/assets/` | `fonts.json` (só Barlow Condensed 800) e `campari-fundo.jpg` (arte do palco), embutidos pelo build | pessoas (PR) |
 | `painel-campari/data/data.json` | canal de cada rota: foto da base embutida do Q4 | `painel-campari/scripts/copiar_canais.py` |
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
@@ -115,7 +122,7 @@ rotas com Real.
 # testes do painel — 193 testes (52 do motor, 141 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
-# testes do painel Campari Club — 283 testes (85 do motor, 198 do adaptador)
+# testes do painel Campari Club — 285 testes (85 do motor, 200 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
 # testes do back-end — 193 testes, sem rede (Datasphere falso e simulado)
@@ -282,7 +289,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
 
-### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.17 de 16/11/2026)
+### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.18 de 17/11/2026)
 
 - **Motor único, como no Q4:** % do mês, trava, soma, ordem, posição, gatilho, mínimo de volume, posição oficial,
   status e meta dia de cobertura só em `painel-campari/src/motor.js`. O adaptador lê a API e entrega; a tela só lê o resultado.
@@ -324,7 +331,9 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   Consultor. Validação (nunca adivinhar): mês da vigência, SVs diferentes, data AAAA-MM-DD, SV em duas trocas do
   mesmo mês derruba **todos** os itens envolvidos, as duas SV existem na API do mês e estão no **mesmo canal** do
   ranking; item inválido é ignorado com aviso em Regras > Dados e alertas; chave ausente, nada e sem aviso. Na tela,
-  a coluna Out marcada com `*` e a nota de `notasDasTrocas` abaixo da tabela da Supervisão do canal da troca.
+  a **tag "troca out"** ao lado do código das duas SV (etapa 4S, regras v1.18: `tagsDaTroca` no adaptador dá a
+  etiqueta e o tooltip, do ajuste; a coluna Out fica **sem marcador**) e a nota de `notasDasTrocas` abaixo da
+  tabela da Supervisão do canal da troca.
 - **Posições premiadas** (só para decidir o status, nunca para mostrar prêmio): `REGRAS.premiadas = { gc: 6,
   svMista: 12, svSegmentada: 3 }`, padrão do motor como o `gatilhoPontos` do Q4 — a regra em vigor não depende de
   arquivo que pode faltar. Nada fixo em lógica nem em texto. **Prêmios não aparecem em lugar nenhum do painel.**
@@ -620,7 +629,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 193 passando; e
-   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 283 passando.
+   `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 285 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 193 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json` (exceção: PR que muda de propósito a chave `campari`,

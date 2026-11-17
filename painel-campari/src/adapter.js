@@ -456,7 +456,8 @@ function gruposDoRankingGC(codigos, cfg) {
  *     seletor de mês; `acumulado` é null nas linhas sem gatilho (consultor).
  *   - `hojeOk` é o "Hoje" colorido do motor (Online > 0 e Online ≥ Meta dia), já resolvido por mês e produto.
  *   - `troca` (Aperitivo, etapa 4Q): null, ou { com, pctTravadoProprio } no mês em que o % do ranking veio da
- *     outra SV de uma troca de supervisores (`motor.trocarPercentualDeMes`); a tela marca a célula com "*".
+ *     outra SV de uma troca de supervisores (`motor.trocarPercentualDeMes`). A tela não marca mais a célula:
+ *     desde a etapa 4S (regras v1.18) a marca da troca é a tag ao lado do código da SV (`tagsDaTroca`).
  */
 function tabelaDaLinha(vol, cob, extra, motor) {
   const comum = (m) => {
@@ -950,8 +951,27 @@ function notasDasTrocas(dados, canal, linhas) {
   const codigos = (linhas || []).map((l) => l.codigo);
   return ((dados && dados.trocas) || [])
     .filter((t) => t.canal === canal && (codigos.indexOf(t.sv_a) >= 0 || codigos.indexOf(t.sv_b) >= 0))
-    .map((t) => `* ${maiusc1(NOMES_MES[t.mes])}: % trocado entre ${t.sv_a} e ${t.sv_b} (troca de supervisores ` +
+    .map((t) => `${maiusc1(NOMES_MES[t.mes])}: % trocado entre ${t.sv_a} e ${t.sv_b} (troca de supervisores ` +
       `autorizada em ${t.autorizadoEmTela}). Meta, Real, Dif. e % do mês seguem a supervisão.`);
+}
+
+/**
+ * Tags da troca de SV de uma linha das tabelas de ranking (etapa 4S; regras v1.18, seção 3.1, item Tela) ->
+ * [{ etiqueta, titulo }]. Substitui o marcador "*" que a 4Q punha na coluna Out: a marca passa a ficar ao lado do
+ * código da SV, como a tag "troca out" do Desafio Q4. Só as trocas APLICADAS (`dados.trocas`) em que este código
+ * aparece; troca ignorada na validação não está nessa lista e por isso não gera tag. Mês, códigos e data saem do
+ * AJUSTE, nunca de texto fixo na tela, e nenhum nome de pessoa entra aqui (privacidade).
+ *   etiqueta: "troca out" (o mês abreviado, como no Q4)
+ *   titulo:   "Outubro: % trocado com SV.AN.3 (troca autorizada em 16/11/2026)" — o tooltip (atributo title)
+ */
+function tagsDaTroca(dados, codigo) {
+  return ((dados && dados.trocas) || [])
+    .filter((t) => t.sv_a === codigo || t.sv_b === codigo)
+    .map((t) => ({
+      etiqueta: `troca ${(NOMES_MES[t.mes] || String(t.mes)).slice(0, 3)}`,
+      titulo: `${maiusc1(NOMES_MES[t.mes] || String(t.mes))}: % trocado com ${t.sv_a === codigo ? t.sv_b : t.sv_a} ` +
+        `(troca autorizada em ${t.autorizadoEmTela})`,
+    }));
 }
 
 /** Todas as linhas de supervisão (os dois canais e as que estão fora do ranking), em ordem de código. */
@@ -1174,8 +1194,8 @@ if (typeof module === 'object' && module.exports) {
                      TRACO, TIPOS_CONSULTOR, fmtVolume, fmtCobertura, fmtPct, fmtDataHora, rotuloDiaUtil,
                      rotuloDoMes, mesesDoSeletor, valoresDoMes, filtrosDoPainel, rotasDaMesa, textoDasOcultas,
                      linhasDoDetalhe, alertasDaTela,
-                     // Etapa 4Q (troca de SV em outubro): a nota da tabela, pura
-                     notasDasTrocas,
+                     // Etapa 4Q (troca de SV em outubro): a nota da tabela, pura; etapa 4S: a tag da linha
+                     notasDasTrocas, tagsDaTroca,
                      // Etapa 4G (navegação por páginas), também puras
                      rotasDoConsultor, fatiar,
                      // Etapa 4I (Detalhe do mês: visão Gerência sem paginação), pura

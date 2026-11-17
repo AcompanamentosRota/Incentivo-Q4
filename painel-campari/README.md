@@ -89,13 +89,19 @@ segue o que elas descrevem e **não decide** por conta própria. Desde a v1.12 e
   "—"), e em **dezembro** o gatilho de Skyy usa a cobertura de novembro sem ficar indisponível. Descrita no fim
   deste arquivo. **Nada mais muda:** as contas do gatilho, o mínimo de volume, o ranking, o status, as cores e o
   layout ficam como estavam, e o mês aberto sai célula a célula igual ao da 4O.
-- **Etapa 4Q (esta):** **troca de SV em outubro** (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026). Dois
+- **Etapa 4Q:** **troca de SV em outubro** (regras v1.17, seção 3.1; decisão da Karen de 16/11/2026). Dois
   supervisores de Anápolis trocaram de mesa em novembro, e o **% de outubro do Aperitivo que entra no % Acum.** de
   `SV.AN.2` e `SV.AN.3` passa de uma para a outra, nos dois sentidos. O ajuste mora no `frontend/ajustes.json` →
   `campari.trocasSupervisao` (só por PR), o adaptador o valida e o motor faz a troca (`trocarPercentualDeMes`) antes
-  do ranking; a tela marca a coluna Out com `*` e explica numa nota abaixo da tabela da Supervisão. Descrita no fim
+  do ranking; a tela explica a troca numa nota abaixo da tabela da Supervisão. Descrita no fim
   deste arquivo. **Nada mais muda:** Meta, Real, Dif., % do mês, Skyy, gatilho, mínimo de volume, GC, Total Band e
   Consultor ficam como estavam.
+- **Etapa 4S (esta):** **a marca da troca de SV vira uma tag ao lado do nome** (regras v1.18, seção 3.1, item Tela;
+  pedido da Karen de 17/11/2026). O `*` que a 4Q punha na coluna Out sai, e as duas linhas da troca ganham ao lado do
+  código da SV a tag **"troca out"** (cor neutra, tooltip com o mês, a outra SV e a data, tudo vindo do ajuste). A
+  coluna Out mostra o mesmo valor trocado, agora sem marcador, e a nota abaixo da tabela continua, sem o `*` na
+  frente. Descrita no fim deste arquivo. **É só tela:** o motor, a leitura e a validação do ajuste, os números, o
+  RANK, o status, o % Acum. e a ordem ficam idênticos aos da 4Q.
 
 ### Decisões desta etapa (premissas P1 a P6 do enunciado, e as da Karen em 09/11/2026)
 
@@ -866,7 +872,7 @@ e % do mês não mudam; só o valor que entra no acumulado.
 | 1 | `frontend/ajustes.json` ganha a chave `campari` = `{ "trocasSupervisao": [ { "mes": 10, "sv_a": "SV.AN.2", "sv_b": "SV.AN.3", "autorizado_em": "2026-11-16" } ] }` (códigos de SV como na API; sem nome de pessoa). Só por PR, sempre um único objeto JSON | `frontend/ajustes.json` |
 | 2 | Leitura e validação: `trocasDoAjuste` (tipo, mês da vigência, SVs diferentes, data, SV em duas trocas do mesmo mês) e, em `montarDados`, as duas SV existem na API do mês e estão no mesmo canal. Item inválido é ignorado com aviso (alerta de dado) | `adapter.js` |
 | 3 | `motor.trocarPercentualDeMes` troca o `pctTravado` do mês entre as duas linhas e refaz a soma, **antes** de ordenar; ordem, posição oficial, RANK e status saem das funções de sempre. O valor sai do próprio cálculo (nenhum número digitado): se o fechado de outubro mudar, o trocado muda junto | `motor.js` (v1.17) |
-| 4 | Tela: a coluna Out das duas linhas mostra o valor trocado com `*` (`<sup class="troca">`), e a nota de `notasDasTrocas` ("* Outubro: % trocado entre SV.AN.2 e SV.AN.3 (troca de supervisores autorizada em 16/11/2026). Meta, Real, Dif. e % do mês seguem a supervisão.") fica abaixo da tabela, na faixa dos botões de página (`.pe-tb`, 13 px), só na Supervisão do canal da troca e só quando uma das duas SV está na lista filtrada. Códigos, mês e data vêm do ajuste | `app.tpl.html`, `notasDasTrocas` |
+| 4 | Tela: a coluna Out das duas linhas mostra o valor trocado — com o marcador `*` (`<sup class="troca">`) até a 4Q, **sem marcador** desde a 4S —, e a nota de `notasDasTrocas` ("Outubro: % trocado entre SV.AN.2 e SV.AN.3 (troca de supervisores autorizada em 16/11/2026). Meta, Real, Dif. e % do mês seguem a supervisão.") fica abaixo da tabela, na faixa dos botões de página (`.pe-tb`, 13 px), só na Supervisão do canal da troca e só quando uma das duas SV está na lista filtrada. Códigos, mês e data vêm do ajuste | `app.tpl.html`, `notasDasTrocas` |
 | 5 | Documentação: a v1.17 em `docs/regras.md`; este arquivo, `CLAUDE.md` e `README.md` | docs |
 
 **O que não mudou:** Meta, Real, M. Dia, Online, Dif. e % do mês (inclusive com o seletor em Outubro), todo o bloco
@@ -899,3 +905,49 @@ perguntada ao motor pelo valor que entra na soma; numa troca de outubro, com nov
   nenhuma troca aplicada, nenhuma nota e nenhum `*`.
 - **Console** sem erro em 1920×940, 1366×768 e 1366×600; **nenhuma rolagem interna** em nenhuma aba e página (a nota
   divide a faixa dos botões de página, sem roubar altura da tabela).
+
+## Etapa 4S — a marca da troca de SV vira uma tag ao lado do nome (regras v1.18, seção 3.1, item Tela)
+
+**O pedido (Karen, 17/11/2026).** O `*` que a 4Q punha na coluna Out é discreto demais e fica longe de quem ele
+descreve. No lugar dele, as duas linhas da troca ganham ao lado do código da SV uma **tag "troca out"**, no formato
+da tag do Desafio Q4, em **cor neutra**. Só tela: nenhuma conta muda.
+
+| # | O que mudou | Onde |
+| --- | --- | --- |
+| 1 | `tagsDaTroca(dados, codigo)`: função **pura** nova, que devolve `[{ etiqueta, titulo }]` das trocas **aplicadas** (`dados.trocas`) em que aquele código aparece. `etiqueta` = `troca out` (o mês abreviado); `titulo` = `Outubro: % trocado com SV.AN.3 (troca autorizada em 16/11/2026)` — mês, outra SV e data vêm do **ajuste**. Sem troca aplicada (nem chave, nem item válido): lista vazia | `adapter.js` |
+| 2 | A tag entra ao lado do código, na coluna de identificação das tabelas de ranking (`<span class="sg tr" title=…>`). Só linhas de supervisão recebem: a troca é entre SVs, então o Ranking GC e o Total Band ficam sem nada | `app.tpl.html`, `linhaRanking` |
+| 3 | `mesCel` perde o `marca`: a coluna Out mostra o **mesmo valor trocado**, sem `*`. O `<sup class="troca">` e o CSS dele saíram | `app.tpl.html` |
+| 4 | `notasDasTrocas` perde o `*` da frente; o resto do texto, o lugar (`.pe-tb`, 13 px) e as condições não mudam | `adapter.js` |
+| 5 | CSS `.sg`: caixinha de cantos arredondados, `white-space:nowrap`, **cor neutra dos tokens que já existem** — fundo `rgba(255,255,255,.08)` (o mesmo do selo `-`, `.pill.no`), texto `--sk-tit-fg` e borda `--line`. Nenhuma cor nova e nenhum token novo | `app.tpl.html` |
+| 6 | Documentação: a v1.18 em `docs/regras.md`; este arquivo e o `CLAUDE.md` | docs |
+
+**O que não mudou:** o `motor.js` (nem a linha de versão: como nas etapas 4O e 4P, etapa que não mexe no motor o
+deixa na versão dele, e o rodapé segue mostrando "Regras v1.17"), a leitura e a validação do ajuste
+(`trocasDoAjuste` + `montarDados`), o `frontend/ajustes.json`, os números, o RANK, o status, o % Acum. e a ordem.
+
+### Conferência (17/11/2026, API publicada de 17/11 10:30)
+
+- **4Q × 4S, aba por aba e mês a mês** (Chrome headless, painel num `iframe`, 14 recortes: Ranking GC out e nov;
+  Supervisão Mista e Segmentada, out e nov, todas as páginas; Consultor páginas 1 e 2; Detalhe nas duas visões;
+  Regras). Diferenças, **só nos 4 recortes da Supervisão Mista** e **só nestes três pontos**:
+
+  | Campo | 4Q | 4S |
+  | --- | --- | --- |
+  | Coluna de identificação, `SV.AN.3` (RANK 4) | `SV.AN.3` | `SV.AN.3` + tag `troca out` |
+  | Coluna de identificação, `SV.AN.2` (RANK 22) | `SV.AN.2` | `SV.AN.2` + tag `troca out` |
+  | Coluna Out das duas | `130,0%*` e `82,8%*` | `130,0%` e `82,8%` |
+  | Nota abaixo da tabela | `* Outubro: % trocado…` | `Outubro: % trocado…` |
+
+  Todo o resto — Meta, Real, M. Dia, Online, Dif., % do mês, Out, Nov, % Acum., Skyy, RANK, status, ordem das 29 SV
+  Mista, Ranking GC, Consultor, Detalhe do mês e Regras — saiu **caractere a caractere igual** nas duas versões.
+- **Tooltip:** `SV.AN.3` → "Outubro: % trocado com SV.AN.2 (troca autorizada em 16/11/2026)"; `SV.AN.2` → o mesmo
+  texto com `SV.AN.3`. Sem nome de pessoa.
+- **Largura:** a tabela de ranking continua com **1259 px** e **18 colunas** em todas as abas e nos dois tamanhos;
+  a coluna SUPERVISÃO vai de 108 para 165 px (1366×600) dentro da mesma largura total. **Nenhuma rolagem**, nem
+  vertical nem horizontal, nos 14 recortes × **1920×940, 1366×768 e 1366×600**.
+- **Cor, medida no pixel do print** (PNG decodificado, não estimativa): tag sobre a linha normal = fundo
+  `rgb(27,44,70)` e texto `rgb(232,238,251)`, **12,07:1**; sobre a linha azul do "✓ Bateu!" (forçada no print de
+  conferência, porque hoje nenhuma SV Mista bate os dois pilares) = fundo `rgb(35,79,141)` sobre
+  `rgb(17,64,132)`, **7,01:1**. Os dois bem acima de 4,5:1, e o tom é neutro: nem o azul da linha, nem o turquesa
+  do "Hoje" e do selo, nem o âmbar de "Bateu, fora do ranking".
+- **Console** sem erro e sem aviso nas duas versões, nos três tamanhos.
