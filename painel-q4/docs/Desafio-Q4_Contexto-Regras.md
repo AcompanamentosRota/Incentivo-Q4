@@ -1,4 +1,11 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v3.9 (16/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v4.0 (17/11/2026)
+
+**v4.0:** entra a **troca de apuração entre duas supervisões** (solicitada pelo GC de Anápolis em 09/11/2026,
+autorizada pela Carol em 16/11/2026 e informada pela Karen em 17/11/2026; seções 5 e 8). Quando dois supervisores
+trocam de mesa no meio do trimestre, a apuração de um mês já encerrado pode **mudar de dono** entre as duas
+supervisões, para que cada pessoa carregue no acumulado do trimestre o resultado que ela mesma fez naquele mês.
+A troca vale **só nos meses declarados** e **só entre supervisões do mesmo canal**; os valores das **rotas não mudam**.
+Nenhuma outra regra muda: faixas, pilares, gatilhos, confrontos e ranking continuam como estão.
 
 **v3.9:** **outubro passa a ser calculado como novembro** (decisão informada pela Karen em 16/11/2026; seção 8). O
 Real e o Online de **todo o trimestre** saem pela **chave da meta** — mês, agrupador e rota da meta —, o mesmo
@@ -172,6 +179,13 @@ outubro**, informado pela Karen em 04/11/2026):
 **dia 1 do mês seguinte** e são **atualizados a cada rodada** até o fechamento do **flash de vendas** — o vencedor é
 reapurado com os números daquele momento e **pode mudar**. Quando o Back Office marca o flash, o mês sela e o resultado
 do confronto **congela** junto (seção 8).
+**Troca de apuração (v4.0, 17/11/2026): o +5 vai junto, e o vencedor registrado não muda.** Quando a apuração de um
+mês é trocada entre duas supervisões (seção 8), o confronto daquele mês é apurado **antes**, com os números
+verdadeiros de cada mesa: o vencedor registrado continua sendo o verdadeiro e **nenhum adversário muda de resultado**.
+Só depois a apuração do mês inteiro — pontos dos pilares, os +5 do confronto e o volume que alimenta os gatilhos —
+passa de uma supervisão para a outra. Na tela Confrontos o cartão continua mostrando o vencedor verdadeiro, com a nota
+de que os pontos foram transferidos para a outra mesa.
+
 **Desempate (confronto e ranking):** vence o maior % de volume de Refrigerantes.
 **No painel:** os confrontos do mês são cadastrados na aba Regras > Administração (mês, SV desafiante, SV desafiado e pilar),
 publicados por PR no `frontend/ajustes.json` e apurados na tela **Confrontos** (botão ao lado das abas), com o % de cada lado,
@@ -291,6 +305,33 @@ volume de uma **nota fiscal** não entra no fechamento de um mês. A regra:
   origem)" —, e nele a entrada tem de sair da lista, senão o aviso se repete em toda rodada. O volume continua fora
   do fechamento de outubro, agora porque a própria nota não existe mais. A lista está **vazia**.
 
+**Troca de apuração entre duas supervisões (decisão do GC de Anápolis em 09/11/2026, autorizada pela Carol em
+16/11/2026 e informada pela Karen em 17/11/2026)**
+
+Quando dois supervisores **trocam de mesa** no meio do trimestre, o resultado que cada um fez num mês já encerrado
+fica na mesa antiga. Para que ninguém seja prejudicado, a apuração daquele mês pode ser **trocada entre as duas
+supervisões**: cada pessoa carrega no acumulado do trimestre o resultado que ela mesma fez.
+
+| Item | Regra |
+|---|---|
+| **O que troca** | O resultado mensal: as medidas (meta, real, %) e os pontos de cada pilar, os pontos dos pilares, o **+5 do confronto**, os pontos do mês e o volume que alimenta os gatilhos — o **Refrigerantes** do mês, e com ele o acumulado do trimestre |
+| **O que não troca** | Código, nome, canal, as rotas da mesa e a contagem de rotas. **Os valores das rotas não mudam**: muda só o resultado final das duas supervisões |
+| **Quando vale** | Só nos **meses declarados**. Os outros meses de cada mesa ficam como estão |
+| **Entre quem** | Só entre supervisões do **mesmo canal**. Canais diferentes: a troca é recusada, com aviso, e nada é calculado pela metade |
+| **Ordem** | A troca acontece **depois** de o mês estar inteiramente apurado — com os **confrontos já decididos pelos dados verdadeiros** — e **antes** da soma do trimestre e do ranking. Assim o resultado de quem está fora da troca não muda (seção 5) |
+| **Quem declara** | O Back Office, no `frontend/ajustes.json` (`trocasSV`), por PR, com o motivo, quem solicitou, quem autorizou e a data. Nunca no código, nunca por supervisão fixa |
+| **Mês selado** | A troca é um **ajuste aplicado na leitura**: o `fechado/AAAAMM.json` não é tocado. Mês oficial continua oficial, byte a byte |
+
+**Transparência (obrigatória, porque é um ajuste manual num mês oficial):** a troca aparece com **texto**, nunca só
+como número diferente — uma etiqueta nas duas linhas de supervisão, o aviso no detalhe da mesa de que o total exibido
+não é a soma das rotas listadas, a nota no cartão do confronto e, em **Regras > Dados e alertas**, uma linha por troca
+com motivo, quem solicitou, quem autorizou e quando. Na exportação do fechamento, a aba Supervisões ganha a coluna
+**"Apuração trocada"** e a aba Contexto, a linha da troca.
+
+**Caso em vigor (outubro/26, gerência de Anápolis):** a `Sv. An.2#Mista` e a `Sv. An.3#Mista` trocam a apuração de
+**outubro** entre si, porque os dois supervisores trocaram de mesa a partir de **novembro/26**. Vale só para outubro e
+só para essas duas.
+
 **Status (⚠️ interpretação da regra do Back Office):**
 
 | Situação | Status |
@@ -314,6 +355,7 @@ cinza. A premiação continua restrita a quem é elegível.
 6. **Fechamento oficial pelo flash de vendas (04/11/2026):** quem marca que o flash de um mês fechou é o Back Office, no painel, e é isso que congela o mês. Falta definir o prazo combinado para essa marcação depois de cada flash.
 7. **Canal do SV (29/10/2026):** "um canal só por SV, o do admin ou o da maioria das rotas da mesa" (seção 1) é a leitura adotada e já está no painel; falta a confirmação do Back Office/IM.
 8. **Canal das rotas e mesas de novembro:** falta confirmar se o canal das rotas e a composição das mesas mudam no mês. O canal ainda vem da base embutida e dos ajustes do admin, não da API.
+9. **Troca de apuração (17/11/2026):** a troca leva **tudo** do mês, inclusive o +5 do confronto e o volume dos gatilhos (confirmado pela Karen em 17/11/2026). ⚠️ Em aberto: no **ranking do trimestre** (aba Supervisão e aba Ranking, do mês de referência) uma **terceira** supervisão pode subir ou descer uma posição, porque as duas trocadas passam a ter outro total de pontos e outro % acumulado de Refrigerantes, que é o desempate — os números dela não mudam, só o lugar na lista. No ranking do **mês trocado** isso não acontece: as duas apenas trocam de posição entre si.
 9. **Soma do SV com as rotas Sem canal (30/10/2026):** está decidido que o volume e a meta dessas rotas contam para o SV (seção 1); a implementação no painel está pendente.
 
 **Resolvidos:** **Missões Guiadas de novembro** com dado real — duas missões ("Aumente A Família" e "Traga De Volta"), meta 10 por rota e, no SV, a soma das rotas da mesa (10/11/2026, seção 4); mínimo de pontos do Consultor = **17 no mês** (gerência de planejamento e IM, 29/10/2026); **+5 do confronto só para o SV vencedor**, sem extensão à mesa (03/11/2026); +5 do confronto só depois do fechamento do mês, nos pontos acumulados do SV, com o vencedor parcial durante o mês (30/10/2026), entrando no dia 1 do mês seguinte e atualizados até o fechamento do flash, quando congelam (05/11/2026);

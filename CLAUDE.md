@@ -90,7 +90,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
 | `backend/scripts/reabrir_fechado.py` | volta um mês fechado de oficial para prévia (ajuste único) | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
-| `painel-q4/src/` | `motor.js` (cálculo), `adapter.js` (API→motor, `CONFIG` com `pilaresConfig` e `missoesConfig`, Missões Guiadas (`missoesDoMes`, `somaDasMissoes`, `fonteDasMissoes`, `estadoMissoes`), consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-q4/src/` | `motor.js` (cálculo, com a troca de apuração `trocarApuracaoDoMes`), `adapter.js` (API→motor, `CONFIG` com `pilaresConfig` e `missoesConfig`, Missões Guiadas (`missoesDoMes`, `somaDasMissoes`, `fonteDasMissoes`, `estadoMissoes`), consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
@@ -101,7 +101,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `painel-campari/docs/regras.md` | **fonte de verdade das regras do Campari Club** | pessoas (PR) |
 | `painel-campari/tests/` | testes do motor e do adaptador do Campari Club | pessoas (PR) |
 | `frontend/campari-club.html` | painel Campari Club pronto | **gerado** por `painel-campari/scripts/build.py` |
-| `frontend/ajustes.json` | ajustes do admin (pilares, missões do mês, canais, confrontos, agrupadores, flash de vendas fechado) e a chave `campari` do Campari Club (troca de SV) | só por **PR**: do botão da Administração do Q4; a chave `campari`, editada à mão no PR |
+| `frontend/ajustes.json` | ajustes do admin (pilares, missões do mês, canais, confrontos, agrupadores, flash de vendas fechado, **`trocasSV`**: trocas de apuração entre supervisões) e a chave `campari` do Campari Club (troca de SV) | só por **PR**: do botão da Administração do Q4; `trocasSV` e a chave `campari`, editadas à mão no PR |
 | `.github/workflows/` | `atualizar-dados.yml`, `deploy-pages.yml`, `testes.yml` | pessoas (PR) |
 
 Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida e entram nas abas do
@@ -112,7 +112,7 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 175 testes (42 do motor, 133 do adaptador); precisa de Node 18+
+# testes do painel — 193 testes (52 do motor, 141 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do painel Campari Club — 283 testes (85 do motor, 198 do adaptador)
@@ -183,7 +183,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v3.9, 16/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v4.0, 17/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -234,6 +234,32 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   aí o mês sela e o resultado do confronto congela. É o que o código já faz: `mesFechado` no motor vale para todo mês
   anterior ao de referência, e o gerador regrava os meses em prévia (`fechado.em_previa` + `fechado.regravar`).
   Desempate (confronto e ranking): maior % de Refrigerantes.
+- **Troca de apuração entre duas supervisões (17/11/2026; documento de regras v4.0, seções 5 e 8):** quando dois
+  supervisores trocam de mesa no meio do trimestre, a apuração de um mês já encerrado pode **mudar de dono** entre as
+  duas supervisões. Troca **tudo do mês**: medidas e pontos de cada pilar, pontos dos pilares, o **+5 do confronto**, os
+  pontos do mês e o **Refrigerantes** que alimenta os gatilhos (e com ele o acumulado do trimestre). **Não** troca
+  código, nome, canal, as rotas da mesa nem os **valores das rotas**. Vale só nos meses declarados e só entre SVs do
+  **mesmo canal**.
+  **A ordem é a regra:** a troca é aplicada no motor (`trocarApuracaoDoMes`) **depois** de os confrontos do mês serem
+  decididos com os dados **verdadeiros** e **antes** da soma do trimestre e do ranking. Trocar antes faria o motor
+  reapurar os confrontos com os números trocados e mudar o resultado de quem não tem nada com a troca — medido em
+  17/11/2026 nos dados reais: a `Sv. Pa.2#Mista` perderia o +5 que ganhou (24 → 19 pontos em outubro). O vencedor
+  registrado do confronto **não muda**; o que muda de dono é o +5.
+  Declaração: `frontend/ajustes.json` → **`trocasSV`** (`mes`, `a`, `b`, `motivo`, `solicitado_por`, `autorizado_por`,
+  `em`), lida e conferida no formato por `normalizarTrocas` (adaptador); quem recusa canal diferente, SV inexistente,
+  SV em duas trocas no mesmo mês e mês sem dado é o **motor** (`RECUSA_TROCA`), sempre com aviso. **Nada fixo no código
+  nem na tela:** há teste varrendo o template atrás de SV, gerência ou pessoa do caso real.
+  **Transparência obrigatória** (é ajuste manual num mês oficial), sempre com texto e nunca só cor: etiqueta nas duas
+  linhas de supervisão (abas Supervisão e Ranking), aviso no detalhe da mesa de que o total exibido não é a soma das
+  rotas listadas, nota no cartão do confronto ("+5 pts · para <SV>") e uma linha por troca em Regras > Dados e alertas,
+  com motivo, quem solicitou, quem autorizou e quando. Na exportação do fechamento: coluna **"Apuração trocada"** na aba
+  Supervisões e a linha da troca na aba Contexto. Os textos saem todos de funções puras do adaptador
+  (`etiquetaDaTroca`, `textoDaTroca`, `celulaDaTroca`, `avisoDaMesaTrocada`, `linhasDasTrocas`).
+  **Caso em vigor:** `Sv. An.2#Mista` ⇄ `Sv. An.3#Mista` em **outubro/26** — os dois supervisores trocaram de mesa a
+  partir de novembro/26. Solicitado pelo **GC de Anápolis em 09/11/2026**, autorizado pela **Carol em 16/11/2026**,
+  informado pela **Karen em 17/11/2026**. O `fechado/202610.json` **não é tocado**: outubro continua selado e a troca é
+  um ajuste aplicado na leitura. ⚠️ No ranking do **trimestre** uma terceira supervisão pode subir ou descer uma
+  posição (os números dela não mudam, só o lugar): pendência 9 do documento de regras.
 - **Fechamento oficial só depois do flash de vendas (04/11/2026, informada pela Karen; ⚠️ item 6 das pendências do
   documento de regras):** o mês fechado fica em **prévia** (números ainda mudam, acumulado do SV marcado como provisório)
   até o Back Office marcar, no painel, que o flash daquele mês fechou; só então o resultado congela. Nunca sele por data
@@ -442,6 +468,9 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   com 200+ JSONs sem perceber. O mesmo vale para `gerar.py` rodado sem `--saida`.
 - **O id do SV leva o canal do SV** (`svKey`: "Sv. An.1#Mista"). Ajuste que muda o canal do SV (escolha do admin ou
   nova maioria das rotas) faz o confronto cadastrado com o id antigo não valer: a tela mostra "canal ajustado" (`confrontoInvalidadoPorAjuste`), sem apagar.
+- **`trocasSV` não tem formulário na Administração.** Ela entra à mão no `frontend/ajustes.json`, por PR. Publicar pelo
+  botão da Administração **não a apaga**: o Q4 copia sem mudar as chaves que não gera (`ajustesParaPublicar`, etapa 4R).
+  Mexer nisso sem o teste "a Administração não edita as trocas e nunca as apaga ao publicar" quebra em silêncio.
 - **`frontend/ajustes.json` só entra por PR** (botão "Publicar no GitHub (PR)" da Administração; a chave `campari`,
   do Campari Club, não tem formulário e é editada à mão no PR, só ela e o `atualizado_em`). Ele não
   existe no repositório enquanto ninguém publicou ajustes, e o painel registra um 404 dele no console —
@@ -590,7 +619,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 175 passando; e
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 193 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 283 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 193 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.

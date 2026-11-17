@@ -88,6 +88,38 @@ do painel e o cartão (`.panel`) são os mesmos das outras abas; no rodapé, a l
   **Barlow Condensed 800**, embutida (subset latino, licença OFL, do pacote npm `@fontsource/barlow-condensed`, +28 KB no
   HTML). O "×" usa a Barlow 800 itálico do letreiro. Nenhuma fonte vem de site externo.
 
+## Troca de apuração entre duas supervisões (17/11/2026)
+
+Quando dois supervisores **trocam de mesa** no meio do trimestre, o resultado que cada um fez num mês já encerrado fica
+na mesa antiga. O `frontend/ajustes.json` pode então declarar, em **`trocasSV`**, que a apuração daquele mês **muda de
+dono** entre as duas supervisões:
+
+```json
+"trocasSV": [
+  { "mes": 10, "a": "Sv. An.2#Mista", "b": "Sv. An.3#Mista",
+    "motivo": "os dois supervisores trocaram de mesa a partir de novembro/26",
+    "solicitado_por": "GC de Anápolis", "autorizado_por": "Carol", "em": "2026-11-16" }
+]
+```
+
+- **Troca tudo do mês:** medidas e pontos de cada pilar, pontos dos pilares, o **+5 do confronto**, os pontos do mês e o
+  **Refrigerantes** que alimenta os gatilhos (e, com ele, o acumulado do trimestre).
+- **Não troca** código, nome, canal, as rotas da mesa nem os **valores das rotas**: muda só o resultado final das duas.
+- **Ordem (é a regra):** a troca acontece no motor, **depois** de os confrontos do mês serem decididos com os dados
+  **verdadeiros** e **antes** da soma do trimestre e do ranking. Por isso nenhum adversário de confronto muda de
+  resultado, e o cartão da aba Confrontos continua mostrando o vencedor verdadeiro — com a nota de que os pontos foram
+  transferidos.
+- **Recusa, sempre com aviso:** canais diferentes, SV que não existe no mês, o mesmo SV em duas trocas do mesmo mês, os
+  dois lados iguais e mês do trimestre sem dado. Nada é calculado pela metade.
+- **Mês selado continua selado:** a troca é um ajuste aplicado **na leitura**; o `api/v1/fechado/AAAAMM.json` não é
+  tocado.
+- **Onde aparece na tela:** etiqueta "troca &lt;mês&gt;" nas duas linhas de supervisão (abas Supervisão e Ranking), aviso no
+  detalhe da mesa de que o total não é a soma das rotas listadas, a nota no cartão do confronto e, em
+  **Regras > Dados e alertas**, uma linha por troca com motivo, quem solicitou, quem autorizou e quando. Na exportação
+  do fechamento: coluna **"Apuração trocada"** na aba Supervisões e a linha da troca na aba Contexto.
+- **Nada fixo:** a troca é declarada em configuração, nunca no código ou na tela; vale para qualquer par de SVs e
+  qualquer mês do trimestre. Um teste varre o template atrás de supervisão, gerência ou pessoa do caso real.
+
 ## Administração (aba Regras)
 Protegida por senha (fale com o Back Office). Permite ajustar, sem mexer no código: faixas de pontos, gatilho de
 Refrigerantes, mínimos de pontos, bônus do confronto, posições premiadas, pilares coringa do mês, o **canal das rotas**
