@@ -20,6 +20,7 @@ Incentivo-Q4/
 ├── painel-q4/               fontes do painel Desafio Q4 (motor, adaptador, tela, regras, testes)
 ├── painel-campari/          fontes do painel Campari Club (motor, adaptador, tela, regras, testes)
 ├── backend/
+│   ├── dados/missoes/       base de elegíveis das Missões Guiadas, por mês (montada à mão, PR)
 │   ├── odata/               cliente OData (copiado do projeto da TI)
 │   ├── gerador/
 │   │   ├── mapeamento.py    produtos, colunas e filtros (o único arquivo a ajustar no dia a dia)
@@ -28,6 +29,7 @@ Incentivo-Q4/
 │   │   ├── api.py           montagem dos JSONs
 │   │   ├── validacao.py     conferência antes de publicar
 │   │   ├── fechado.py       snapshot do mês fechado, em prévia ou oficial (api/v1/fechado/AAAAMM.json)
+│   │   ├── missoes.py      Missões Guiadas: base de elegíveis + cruzamento com a cobertura (api/v1/missoes.json)
 │   │   └── simulado.py      dados fictícios no mesmo formato
 │   ├── scripts/gerar.py     gera a API
 │   ├── scripts/servir.py    serve frontend/ e api/ como no deploy, para ver na sua máquina
@@ -46,10 +48,15 @@ Incentivo-Q4/
 1. O workflow **Atualizar dados** roda a cada 15 minutos em dias úteis.
 2. `backend/scripts/gerar.py` pede um token OAuth, consulta o modelo `AM_FAT_BND_ANALISE_META`, a base
    de clientes e o calendário, calcula meta x realizado por rota e cliente, soma em supervisão, gerência
-   e empresa, e **valida** o resultado. À parte, consulta o modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` e grava o
-   realizado das **Missões Guiadas** em `missoes.json`. Se essa consulta falhar, o arquivo anterior fica e o resto segue.
+   e empresa, e **valida** o resultado. À parte, grava o realizado das **Missões Guiadas** em `missoes.json`.
    Desde 10/11/2026 o painel Desafio Q4 lê esse arquivo: o pilar Missões Guiadas de novembro soma as duas missões que
-   contam no mês, com meta 10 por rota (regras, seção 4).
+   contam no mês, com meta 10 por rota (regras, seção 4). **Desde 18/11/2026 o realizado vem do cruzamento entre a
+   base de clientes elegíveis do mês e a cobertura por cliente × produto** do mesmo `AM_FAT_BND_ANALISE_META`
+   (decisão informada pela Karen em 17/11/2026), e não mais do `AM_FAT_BND_GM_PROGRESSO_TAREFA`: a primeira compra do
+   produto pelo cliente no mês marca a missão, o resultado é idêntico ao da fonte anterior e o pilar **ganha Online
+   (hoje)**. A base de elegíveis é **montada à mão todo mês** e publicada por PR em
+   `backend/dados/missoes/AAAAMM.csv`, fora da API (ela tem código de cliente); sem ela o pilar fica "sem dados" e
+   não pontua. O modelo antigo continua sendo consultado só como rede de segurança, para comparar rota a rota.
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
 4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também

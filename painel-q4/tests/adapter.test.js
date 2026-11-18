@@ -1339,7 +1339,10 @@ test('mínimo do Consultor: sem nenhum ajuste (ajustes.json ausente ou ilegível
 test('mínimo de pontos: o texto exibido não tem 17, 20 nem 60 fixos (usa R.gatilhoPontos)', () => {
   const fs = require('fs'), path = require('path');
   const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8').replace(/<style>[\s\S]*?<\/style>/g, '');
-  const achados = tpl.split('\n').filter((l) => /(^|[^\w.,#-])(17|20|60)(?![\w%])/.test(l)).map((l) => l.trim());
+  // datas dd/mm/aaaa saem da varredura: um mínimo de pontos nunca é escrito como data, e o texto da tela cita
+  // as datas das decisões. O resto da linha continua sendo varrido normalmente.
+  const semDatas = tpl.replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, '<data>');
+  const achados = semDatas.split('\n').filter((l) => /(^|[^\w.,#-])(17|20|60)(?![\w%])/.test(l)).map((l) => l.trim());
   assert.deepEqual(achados, ['let PAGE = 17;']); // tamanho inicial da página da tabela, não é ponto
   assert.match(tpl, /R\.gatilhoPontos\.RT/);
   assert.match(tpl, /R\.gatilhoPontos\.SV/);
@@ -2697,4 +2700,118 @@ test('troca na tela: etiqueta, aviso da mesa, nota do confronto e a lista de Dad
   for (const fixo of ['An.2', 'An.3', 'Anápolis', 'Gustavo', 'Lailson']) {
     assert.equal(tpl.includes(fixo), false, `"${fixo}" não pode estar fixo no template`);
   }
+});
+
+// ─── Missões Guiadas pelo cruzamento cobertura × base de elegíveis (etapa 29; decisão da Karen, 17/11/2026) ───
+// O arquivo passa a trazer `rotas_online` (cobertura de hoje), `elegiveis_rota_cliente` (contados pela rota do
+// CLIENTE, nunca denominador de nada) e os blocos `base`, `comparacao` e `acima_dos_elegiveis`. O painel só lê:
+// nenhuma conta nova aqui, e o arquivo antigo continua valendo. Fixtures sintéticas.
+const MISSOES_COB = { anomes: '202611', fonte: 'cobertura',
+  base: { arquivo: '202611.csv', anomes: '202611', linhas: 9, pares: 8, ignoradas: 1,
+          motivos: { 'chave repetida': 1 }, erro: null },
+  missoes: [
+    { codigo: '901', nome: 'Missão Família', realizado: 21, rotas: { P1: 6, P2: 12, P3: 3 },
+      realizado_online: 3, rotas_online: { P1: 2, P3: 1 }, elegiveis: 60,
+      elegiveis_rota_cliente: { P1: 20, P2: 20, P3: 20 } },
+    { codigo: '902', nome: 'Traga Alguém', realizado: 4, rotas: { P1: 4, P2: 0, P3: 0 },
+      realizado_online: 0, rotas_online: {}, elegiveis: 30,
+      elegiveis_rota_cliente: { P1: 10, P2: 10, P3: 10 } },
+  ],
+  comparacao: { fonte: 'AM_FAT_BND_GM_PROGRESSO_TAREFA', rotas_diferentes: 0, missoes: [
+    { nome: 'Missão Família', codigo: '901', encontrada: true, total: 21, total_anterior: 21, rotas_diferentes: 0, rotas: {} },
+    { nome: 'Traga Alguém', codigo: '902', encontrada: true, total: 4, total_anterior: 4, rotas_diferentes: 0, rotas: {} }] } };
+
+test('missões por cobertura: o online entra no pilar e o % é (real + online) ÷ meta, pelo motor', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { res } = await calcularPx(cfg, apiMissoesPx(MISSOES_COB));
+  const mg = (id) => pessoaDe(res, id).pilares.find((p) => p.nome === 'Missões Guiadas');
+  // P1: real 6 + 4 = 10, online 2 + 0 = 2 -> 12 de meta 10 = 120% (5 pontos)
+  assert.deepEqual([mg('P1').meta, mg('P1').real, mg('P1').online, mg('P1').pctTexto, mg('P1').pontos],
+    [10, 10, 2, '120,0%', 5]);
+  assert.equal(mg('P1').diferenca, 2);
+  // P3: real 3 + 0 = 3, online 1 -> 4 de meta 10
+  assert.deepEqual([mg('P3').real, mg('P3').online, mg('P3').pctTexto], [3, 1, '40,0%']);
+  // o SV soma as rotas da mesa dos dois lados, inclusive o online
+  assert.deepEqual([mg('Sv. Px.2#Segmentada').meta, mg('Sv. Px.2#Segmentada').real, mg('Sv. Px.2#Segmentada').online],
+    [20, 15, 1]);
+  assert.deepEqual(M.conferir(res), []);
+});
+
+test('missões por cobertura: rota coberta só hoje vai para o online e fica com realizado 0, nunca "sem dados"', () => {
+  const arq = { anomes: '202611', fonte: 'cobertura', missoes: [
+    { codigo: '901', nome: 'Missão Família', realizado: 0, rotas: { P1: 0 }, rotas_online: { P1: 2 },
+      elegiveis_rota_cliente: { P1: 20 } }] };
+  const umaMissao = () => cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)), 10, ['Missão Família']);
+  const fonte = AM.fonteDasMissoes(umaMissao(), 11, { arquivo: arq });
+  assert.equal(fonte.temOnline, true);
+  const I = CONFIG.idx;
+  assert.deepEqual([AM.linhaDasMissoes(fonte, 'P1', I)[I.real], AM.linhaDasMissoes(fonte, 'P1', I)[I.online]], [0, 2]);
+  // rota que não aparece continua "sem dados" nos dois: nunca vira zero
+  assert.deepEqual([AM.linhaDasMissoes(fonte, 'P9', I)[I.real], AM.linhaDasMissoes(fonte, 'P9', I)[I.online]], [null, null]);
+  // rota com elegível e sem cobertura de hoje fica com online 0, não nulo (o arquivo tem a medida)
+  const semHoje = AM.fonteDasMissoes(umaMissao(), 11,
+    { arquivo: { missoes: [{ nome: 'Missão Família', rotas: { P1: 5 }, rotas_online: {} }] } });
+  assert.equal(AM.linhaDasMissoes(semHoje, 'P1', I)[I.online], 0);
+});
+
+test('missões por cobertura: o missoes.json antigo (sem os campos novos) continua sendo lido, com online nulo', async () => {
+  const s = AM.somaDasMissoes(ARQ_MIS, ['Missão Família', 'Traga Alguém']);
+  assert.equal(s.temOnline, false);
+  assert.deepEqual([s.porRotaOnline, s.elegiveis], [{}, {}]);
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { d, res } = await calcularPx(cfg, apiMissoesPx());           // MISSOES_PX: formato de antes
+  const mg = pessoaDe(res, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mg.meta, mg.real, mg.online, mg.pctTexto, mg.pontos], [10, 10, 0, '100,0%', 3]);
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual([est.ok, est.temOnline, est.fonte, est.anomes, est.baseDeElegiveis, est.comparacao, est.acimaDosElegiveis],
+    [true, false, null, null, null, null, []]);
+});
+
+test('missões por cobertura: estadoMissoes entrega base, comparação e rotas acima dos elegíveis — só apresentação', async () => {
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const comAlerta = Object.assign({}, MISSOES_COB, { acima_dos_elegiveis: [
+    { missao: 'Missão Família', rota: 'P2', elegiveis: 20, realizado: 21, online: 0,
+      origens: [{ rota_cliente: 'P1', pares: 1 }] }] });
+  const { d } = await calcularPx(cfg, apiMissoesPx(comAlerta));
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual([est.fonte, est.anomes, est.temOnline], ['cobertura', '202611', true]);
+  assert.deepEqual([est.baseDeElegiveis.pares, est.baseDeElegiveis.ignoradas, est.baseDeElegiveis.arquivo],
+    [8, 1, '202611.csv']);
+  assert.equal(est.comparacao.rotas_diferentes, 0);
+  assert.deepEqual(est.acimaDosElegiveis[0].origens, [{ rota_cliente: 'P1', pares: 1 }]);
+  // os elegíveis NÃO são denominador: a meta do pilar continua vindo da configuração
+  assert.equal(est.metaPorRota, 10);
+});
+
+test('missões por cobertura: sem a base do mês o pilar fica "sem dados" — nunca 100%, nunca zero, nunca o mês anterior', async () => {
+  const semBase = { anomes: '202611', fonte: 'cobertura', missoes: [],
+    base: { arquivo: '202611.csv', anomes: '202611', linhas: 0, pares: 0, ignoradas: 0, motivos: {},
+            erro: 'base de elegíveis do mês não publicada' } };
+  const cfg = cfgMissoesPx(JSON.parse(JSON.stringify(CONFIG)));
+  const { d, res } = await calcularPx(cfg, apiMissoesPx(semBase));
+  const mg = pessoaDe(res, 'P1').pilares.find((p) => p.nome === 'Missões Guiadas');
+  assert.deepEqual([mg.meta, mg.real, mg.online, mg.pontos, mg.validada], [null, null, 0, 0, false]);
+  assert.ok(mg.alertas.includes('META_AUSENTE'));
+  assert.ok(pessoaDe(res, 'P1').pontosMes > 0);        // os outros pilares seguem
+  const est = AM.estadoMissoes(d, cfg, 11);
+  assert.deepEqual([est.ok, est.configurado, est.comDado], [false, true, 0]);
+  assert.match(est.baseDeElegiveis.erro, /não publicada/);
+  assert.deepEqual(M.conferir(res), []);
+});
+
+test('missões por cobertura: a tela mostra base, divergência e rotas acima dos elegíveis, sem número fixo', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  for (const [onde, txt] of [['template', tpl], ['HTML gerado', html]]) {
+    assert.ok(/MISS\.baseDeElegiveis/.test(txt), 'base de elegíveis em Dados e alertas: ' + onde);
+    assert.ok(/MISS\.acimaDosElegiveis/.test(txt), 'rotas acima dos elegíveis: ' + onde);
+    assert.ok(/MISS\.comparacao/.test(txt), 'conferência com a fonte anterior: ' + onde);
+    assert.ok(/rota_cliente/.test(txt), 'o alerta nomeia a rota do cliente: ' + onde);
+    // a célula "Hoje" das Missões lê a linha do adaptador (o pilar não está em fonteDoPilar), nunca um valor da tela
+    assert.ok(/function rawDe\(r, p, inf\)/.test(txt), 'rawDe: ' + onde);
+    assert.ok(/linhaDasMissoes\(FONTE_MIS/.test(txt), 'a tela lê a linha das missões do adaptador: ' + onde);
+  }
+  // a meta do pilar continua saindo da configuração: nenhum "10" de meta escrito na tela
+  assert.ok(/MISS\.metaPorRota/.test(tpl));
 });

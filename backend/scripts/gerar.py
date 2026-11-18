@@ -42,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from gerador import api, calendario, exclusoes, fechado, mapeamento, saida, validacao  # noqa: E402
+from gerador import missoes as gm  # noqa: E402
 from odata.config import PASTA_DADOS_PADRAO, PASTA_SAIDA  # noqa: E402
 from odata.log import configurar_log  # noqa: E402
 
@@ -140,6 +141,56 @@ def _meses_fechados(destino: Path, arquivos: dict[str, dict], anterior_index: di
     return gravados, previas_ok
 
 
+def _missoes_do_mes(ajustes, anomes: str) -> list[str] | None:
+    """Missões que contam no mês, do frontend/ajustes.json -> missoes["11"].contam (mesmo formato do painel).
+
+    None = o arquivo não declara nada para o mês: o gerador NÃO filtra e publica o que a base traz — escolher as
+    missões de cada mês continua sendo de quem consome (contrato do missoes.json). Nunca se inventa uma lista.
+    """
+    bloco = ajustes.get("missoes") if isinstance(ajustes, dict) else None
+    entrada = bloco.get(str(int(anomes[4:]))) if isinstance(bloco, dict) else None
+    contam = entrada.get("contam") if isinstance(entrada, dict) else None
+    return [c for c in contam if isinstance(c, str) and c.strip()] if isinstance(contam, list) and contam else None
+
+
+def _missoes(cons, dados, ajustes, rota: str | None, log, pasta_base=None) -> tuple[dict | None, list[str]]:
+    """v1/missoes.json pelo CRUZAMENTO entre a base de elegíveis e a cobertura por cliente x produto
+    (gerador/missoes.py; decisão informada pela Karen em 17/11/2026), mais a rede de segurança da transição.
+
+    Devolve (documento, avisos). Documento None = a rodada segue com o missoes.json anterior (falha de consulta).
+    Base do mês ausente ou ilegível: documento SEM missões, com a razão — o pilar fica "sem dados" no painel e
+    nunca herda o número do mês anterior (P6).
+    """
+    from gerador import fontes
+    anomes = dados.cal.anomes
+    base = gm.carregar_base(anomes, pasta=pasta_base, contam=_missoes_do_mes(ajustes, anomes))
+    progresso, avisos = None, []
+    if gm.COMPARAR_COM_PROGRESSO_TAREFA:
+        try:
+            progresso = fontes.carregar_missoes(cons, rota)
+        except Exception as erro:  # noqa: BLE001 - a rede de segurança nunca derruba a rodada
+            avisos.append(f"Missões Guiadas: fonte antiga não consultada ({erro}); sem comparação nesta rodada")
+    if not base.ok:
+        avisos.append(f"Missões Guiadas sem dados: {base.erro} ({base.arquivo}). O pilar não pontua neste mês.")
+        return api.montar_missoes([], anomes, "cobertura", gm.bloco_base(base)), avisos
+    cobertura = fontes.carregar_cobertura_missoes(cons, anomes, base.produtos, rota)
+    if cobertura is None:
+        avisos.append("Missões Guiadas: cobertura por cliente x produto indisponível no modelo; "
+                      "fica o missoes.json anterior")
+        return None, avisos
+    missoes, avisos_cruz, acima = gm.cruzar(base, cobertura, {c.pv: c.rota for c in dados.clientes})
+    avisos += avisos_cruz + gm.conferir_invariante(missoes, base, cobertura)
+    comparacao = gm.comparar(missoes, progresso, mapeamento.OBJ_MISSOES)
+    avisos += gm.avisos_da_comparacao(comparacao)
+    log.info("Missões Guiadas (cruzamento): base %s com %d par(es) em %d produto(s); %d missão(ões), "
+             "%d realização(ões) e %d online", base.arquivo, len(base.pares), len(base.produtos), len(missoes),
+             sum(m["realizado"] for m in missoes), sum(m["realizado_online"] for m in missoes))
+    if base.ignoradas:
+        log.warning("Aviso: Missões Guiadas: %d linha(s) da base ignorada(s): %s", base.total_ignoradas,
+                    ", ".join(f"{k} ({v})" for k, v in sorted(base.ignoradas.items())))
+    return api.montar_missoes(missoes, anomes, "cobertura", gm.bloco_base(base), comparacao, acima), avisos
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--saida", type=Path, help="pasta de destino (padrão: SAIDA_DIR ou ../api)")
@@ -151,6 +202,8 @@ def main() -> int:
     ap.add_argument("--replay", type=Path, help="usa respostas salvas (sem rede)")
     ap.add_argument("--ajustes", type=Path, default=AJUSTES_PAINEL,
                     help="ajustes do painel com os agrupadores extras (padrão: frontend/ajustes.json)")
+    ap.add_argument("--base-missoes", type=Path,
+                    help="pasta da base de elegíveis das Missões Guiadas (padrão: backend/dados/missoes)")
     ap.add_argument("--base-dia", type=Path,
                     help="arquivo da base do dia: depois da 1ª carga do dia, consulta só o Online (gerador/base_dia.py)")
     ap.add_argument("--completa", action="store_true", help="com --base-dia: carga completa mesmo com a base válida")
@@ -219,19 +272,23 @@ def main() -> int:
     if args.rota or args.replay or incremental:
         montar_mes = None
     # Missões Guiadas: consulta à parte, em toda rodada (também na incremental). Falhou: a rodada segue sem elas.
-    missoes = None
+    doc_missoes, avisos_missoes = None, []
     if cons is not None:
         try:
-            missoes = fontes.carregar_missoes(cons, args.rota)
+            doc_missoes, avisos_missoes = _missoes(cons, dados, ajustes, args.rota, log, args.base_missoes)
         except Exception as erro:  # noqa: BLE001
             log.warning("Aviso: Missões Guiadas não consultadas (%s); fica o missoes.json anterior.", erro)
 
     arquivos = api.montar(dados)
+    if avisos_missoes:   # avisos das Missões Guiadas (base, cruzamento e rede de segurança) entram no registro
+        arquivos["v1/index.json"]["avisos"] = arquivos["v1/index.json"]["avisos"] + avisos_missoes
+        for a in avisos_missoes:
+            log.warning("Aviso: %s", a)
     if "v1/agrupadores.json" not in arquivos and not args.rota:   # lista de sugestões sem atualizar: mantém a anterior
         if (lista := saida.ler(destino / "v1/agrupadores.json")) is not None:
             arquivos["v1/agrupadores.json"] = lista
-    if missoes is not None:
-        arquivos["v1/missoes.json"] = api.montar_missoes(missoes)
+    if doc_missoes is not None:
+        arquivos["v1/missoes.json"] = doc_missoes
     elif not args.rota and (lista := saida.ler(destino / "v1/missoes.json")) is not None:   # sem consulta: mantém a anterior
         arquivos["v1/missoes.json"] = lista
     anterior = (None, None) if args.rota else (saida.ler(destino / "v1/resumo.json"), saida.ler(destino / "v1/index.json"))

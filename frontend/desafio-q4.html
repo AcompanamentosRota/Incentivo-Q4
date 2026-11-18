@@ -1133,28 +1133,44 @@ function missoesDoMes(cfg, mes) {
   return { mes, metaPorRota: c.metaPorRota, contam: c.contam.slice() };
 }
 
+/** Soma `campo` (mapa rota -> número) de uma missão dentro de `destino`. Valor não numérico é ignorado. */
+function somarPorRota(destino, m, campo) {
+  const bruto = m && m[campo];
+  if (!bruto || typeof bruto !== 'object') return false;
+  for (const [rota, v] of Object.entries(bruto)) {
+    const n = Number(v);
+    if (Number.isFinite(n)) destino[rota] = (destino[rota] || 0) + n;
+  }
+  return true;
+}
+
 /**
  * Soma, por rota, das missões que contam. O nome é comparado exato depois de normalizar acento e caixa
  * (`normalizarTexto`, a mesma chave do gerador): "Aumente A Família" bate com "AUMENTE A FAMILIA".
  * Rota que não aparece em nenhuma das missões fica FORA do mapa (realizado nulo, "sem dados" para ela): nunca vira
  * zero. Rota que aparece com 0 participa com zero. Devolve também as missões encontradas e as que faltaram.
+ *
+ * Desde 17/11/2026 (decisão informada pela Karen) o arquivo vem do CRUZAMENTO cobertura x base de elegíveis e
+ * traz também `rotas_online` (a cobertura de hoje) e `elegiveis_rota_cliente` (quantos pares elegíveis a rota
+ * tem, contados pela rota do CLIENTE — nunca denominador: a meta é a de `missoesConfig`). Arquivo antigo, sem
+ * esses campos, continua sendo lido: `temOnline` fica false e o pilar segue sem Online, como antes.
  */
 function somaDasMissoes(arquivo, nomes) {
   const alvo = new Map((nomes || []).map((n) => [normalizarTexto(n), n]));
-  const porRota = {}, encontradas = [], achadas = new Set();
+  const porRota = {}, porRotaOnline = {}, elegiveis = {}, encontradas = [], achadas = new Set();
+  let temOnline = false;
   for (const m of (arquivo && Array.isArray(arquivo.missoes) ? arquivo.missoes : [])) {
     if (!m || typeof m.nome !== 'string') continue;
     const k = normalizarTexto(m.nome);
     if (!alvo.has(k) || achadas.has(k)) continue; // missão repetida no arquivo: vale a primeira
     achadas.add(k);
     encontradas.push({ codigo: m.codigo === undefined || m.codigo === null ? null : String(m.codigo), nome: m.nome });
-    for (const [rota, v] of Object.entries(m.rotas && typeof m.rotas === 'object' ? m.rotas : {})) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) continue;
-      porRota[rota] = (porRota[rota] || 0) + n;
-    }
+    somarPorRota(porRota, m, 'rotas');
+    if (somarPorRota(porRotaOnline, m, 'rotas_online')) temOnline = true;
+    somarPorRota(elegiveis, m, 'elegiveis_rota_cliente');
   }
-  return { porRota, encontradas, naoEncontradas: [...alvo.keys()].filter((k) => !achadas.has(k)).map((k) => alvo.get(k)) };
+  return { porRota, porRotaOnline, elegiveis, temOnline, encontradas,
+           naoEncontradas: [...alvo.keys()].filter((k) => !achadas.has(k)).map((k) => alvo.get(k)) };
 }
 
 /**
@@ -1169,13 +1185,18 @@ function fonteDasMissoes(cfg, mes, missoes) {
   return s.encontradas.length ? Object.assign({}, c, s) : null;
 }
 
-/** Valor do pilar Missões Guiadas de uma rota: [meta, real, online, hoje, meta dia] (cfg.idx). A missão não tem
- *  online, hoje nem meta dia; rota fora do arquivo fica com real nulo ("sem dados" para ela, nunca zero). */
+/** Valor do pilar Missões Guiadas de uma rota: [meta, real, online, hoje, meta dia] (cfg.idx).
+ *  Rota fora do arquivo fica com real nulo ("sem dados" para ela, nunca zero).
+ *  Desde a fonte por cobertura (17/11/2026) o pilar TEM Online: a rota com dado recebe o online do arquivo (0
+ *  quando não houve cobertura hoje). Arquivo antigo, sem `rotas_online`, mantém o online nulo, como antes.
+ *  **Meta dia continua fora das Missões** (decisão anterior): a fonte não a traz e nada é suposto aqui. */
 function linhaDasMissoes(fonte, rota, I) {
   const l = [null, null, null, null, null];
   if (!fonte) return l;
   l[I.meta] = fonte.metaPorRota;
-  l[I.real] = rota in fonte.porRota ? fonte.porRota[rota] : null;
+  if (!(rota in fonte.porRota)) return l;
+  l[I.real] = fonte.porRota[rota];
+  if (fonte.temOnline) l[I.online] = fonte.porRotaOnline[rota] || 0;
   return l;
 }
 
@@ -1193,16 +1214,23 @@ function estadoMissoes(dados, cfg, mes, validadas) {
   cfg = cfg || CONFIG;
   const val = validadas || MotorRegras().missaoValidadaMeses;
   const c = missoesDoMes(cfg, mes), m = dados.missoes || missoesVazias(null);
+  const arq = m.arquivo && typeof m.arquivo === 'object' ? m.arquivo : null;
   const base = { mes, validada: val.includes(mes), configurado: !!c, metaPorRota: c ? c.metaPorRota : null,
                  contam: c ? c.contam : [], arquivo: m.caminho || null, erro: m.erro || null,
                  encontradas: [], naoEncontradas: c ? c.contam.slice() : [], comDado: 0, semDado: [],
-                 foraDoCadastro: [], ok: false };
-  if (!c || !m.arquivo) return base;
-  const s = somaDasMissoes(m.arquivo, c.contam);
+                 foraDoCadastro: [], ok: false, temOnline: false,
+                 fonte: arq && typeof arq.fonte === 'string' ? arq.fonte : null,
+                 anomes: arq && typeof arq.anomes === 'string' ? arq.anomes : null,
+                 baseDeElegiveis: arq && arq.base && typeof arq.base === 'object' ? arq.base : null,
+                 comparacao: arq && arq.comparacao && typeof arq.comparacao === 'object' ? arq.comparacao : null,
+                 acimaDosElegiveis: arq && Array.isArray(arq.acima_dos_elegiveis) ? arq.acima_dos_elegiveis : [] };
+  if (!c || !arq) return base;
+  const s = somaDasMissoes(arq, c.contam);
   const rotas = (dados.rotas || []).map((r) => r.rota);
   const cadastro = new Set(rotas.concat((dados.semCanal || []).map((r) => r.rota)));
   return Object.assign(base, {
     encontradas: s.encontradas, naoEncontradas: s.naoEncontradas, ok: s.encontradas.length > 0,
+    temOnline: s.temOnline,
     comDado: rotas.filter((r) => r in s.porRota).length,
     semDado: rotas.filter((r) => !(r in s.porRota)).sort(),
     foraDoCadastro: Object.keys(s.porRota).filter((r) => !cadastro.has(r)).sort(),
@@ -3161,6 +3189,10 @@ const RES = SEMCALC ? { pessoas:[], ranking:{}, confrontos:[], trocas:[], alerta
 const REFRI_CAT = !!DADOS.meta.refriCategoria, REFRI_COMP = componentesRefri(DADOS, CONFIG); // categoria do SAC ou soma provisória
 // Missões Guiadas do mês (meta por rota, missões somadas e o que faltou): tudo vem do adaptador, nada é decidido aqui
 const MISS = estadoMissoes(DADOS, CONFIG, MES);
+/* A linha de medidas das Missões por rota, a MESMA que o adaptador entrega ao motor (nenhuma conta aqui). A tela
+   precisa dela porque as células "Hoje" e "M. dia" leem a medida crua, e Missões Guiadas não está em
+   fonteDoPilar: a fonte dela é o missoes.json. Calculada uma vez. */
+const FONTE_MIS = fonteDasMissoes(CONFIG, MES, DADOS.missoes);
 if (REFRI_CAT) document.querySelectorAll('.refri-prov').forEach((e)=>e.remove());
 let PAGE = 17;
 const ALT_LINHA = 32;
@@ -3359,7 +3391,7 @@ function extremos(linhas, pil){
     const inf = r.cargo==='RT' ? INFO[r.id] : null;
     r.pilares.forEach(p=>{
       const a = m[p.nome]; if(!a) return;
-      const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO;
+      const raw = rawDe(r, p, inf);
       const up = (k,v)=>{ if(v!=null) a[k] = Math.max(a[k], Math.abs(v)); };
       up('meta', p.meta); up('real', p.real); up('mdia', raw[4]); up('hoje', raw[2]);
       if(p.pct!==null){ up('dif', p.diferenca); a.pct = Math.max(a.pct, p.pct); }
@@ -3409,12 +3441,23 @@ function rawMesa(r, fonte){
   (MESA[r.id]||[]).forEach(x=>{ const v=x.v[fonte]; if(!v) return; [2,4].forEach(i=>{ if(v[i]!=null) out[i]=(out[i]||0)+v[i]; }); });
   return out;
 }
+/* Medidas cruas da célula ("M. dia" e "Hoje"). Pilar de volume: a linha da API, por fonteDoPilar. Missões Guiadas
+   tem fonte própria (missoes.json) e não está em fonteDoPilar, então a linha vem de linhaDasMissoes — a mesma do
+   motor. Sem online no arquivo (formato anterior) ela devolve null e a célula continua "–", como antes. */
+function rawDe(r, p, inf){
+  if(p.tipo!=='missao') return (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO;
+  if(inf) return linhaDasMissoes(FONTE_MIS, r.id, CONFIG.idx);
+  const out=[null,null,null,null,null];
+  (MESA[r.id]||[]).forEach(x=>{ const v=linhaDasMissoes(FONTE_MIS, x.rota, CONFIG.idx);
+    [2,4].forEach(i=>{ if(v[i]!=null) out[i]=(out[i]||0)+v[i]; }); });
+  return out;
+}
 function celulas(r){
   const inf = r.cargo==='RT' ? INFO[r.id] : null, pil = pilaresDo(r.canal); let h='';
   ordemTela(r.pilares).forEach(p=>{
     const g=grupo(p.nome), pl = pil.find(x=>x.nome===p.nome);
     if(compacta(pl)){ h += `<div class="${g} n gs"><span class="pchip t${tier(p.pontos)}">100,0%</span></div><div class="${g} c">${chip(p.pontos, tier(p.pontos))}</div>`; return; }
-    const raw = (inf ? inf.v[fonteDe(p.nome)] : rawMesa(r, fonteDe(p.nome))) || VAZIO, ok = p.pct!==null;
+    const raw = rawDe(r, p, inf), ok = p.pct!==null;
     const mot = missaoSemDados(pl)?'sem dados':p.alertas.includes('REAL_AUSENTE')?'sem real':p.alertas.includes('META_ZERO')?'meta zero':'sem meta';
     const dc = !ok ? '' : p.diferenca<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
     h += `<div class="${g} n gs">${p.meta!=null?numF(p.meta):'–'}</div>`
@@ -3831,7 +3874,7 @@ const SEC = [
     [`${pctTxt(f[2].min)}% até ${pctTxt(f[1].min-0.00001)}%`,chip(f[2].pontos,2)],[`${pctTxt(f[1].min)}% até ${pctTxt(f[0].min-0.00001)}%`,chip(f[1].pontos,3)],
     [`${pctTxt(f[0].min)}% ou mais`,chip(f[0].pontos,5)]])}
   <p>O cálculo usa o valor sem arredondar, com limites de 5 casas decimais. Na tela o % aparece <b>truncado</b> (99,96% aparece como 99,9%), para nunca parecer que bateu uma faixa que não bateu.</p>
-  <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Desde novembro ela tem <b>meta e realizado</b> e pontua nas mesmas faixas: o realizado da rota é a soma, no arquivo das missões, das missões que contam no mês, e a meta por rota vem da configuração (decisão informada pela Karen em 10/11/2026). No Supervisor valem a soma das rotas da mesa e a meta correspondente. O mês sem meta configurada aparece "sem dados" e não pontua: nunca se assume 100%. O que o mês tem está em <b>Dados e alertas</b>.</p>
+  <p><b>Missões Guiadas</b> entra validada em 100% em outubro (${M.faixaPontos(R.missaoValidadaPct,100)} pontos). Desde novembro ela tem <b>meta e realizado</b> e pontua nas mesmas faixas: o realizado da rota é a soma, no arquivo das missões, das missões que contam no mês, e a meta por rota vem da configuração (decisão informada pela Karen em 10/11/2026). Desde 17/11/2026 esse realizado sai do <b>cruzamento entre a base de elegíveis e a cobertura por cliente × produto</b> — a primeira compra do produto no mês marca a missão —, e com ele o pilar passa a ter <b>Online (hoje)</b>, como os demais. No Supervisor valem a soma das rotas da mesa e a meta correspondente. O mês sem meta configurada aparece "sem dados" e não pontua: nunca se assume 100%. O que o mês tem está em <b>Dados e alertas</b>.</p>
   <p><b>Pilares 4 e 5 são coringa</b> e mudam de mês para mês. O painel lê a configuração do mês, sem pilares fixos no código.</p>
   <p>Confronto entre Supervisores: o +${R.bonusConfronto} vale só para o supervisor vencedor; as rotas da mesa não recebem (decisão de 03/11/2026). Ele entra <b>só depois do fechamento do mês</b> (decisão de 30/10/2026), nos pontos acumulados do trimestre do SV. Durante o mês o vencedor é parcial e o +${R.bonusConfronto} não entra nos pontos, no gatilho, no status nem no ranking. O +${R.bonusConfronto} entra no dia 1 do mês seguinte, com o fechamento do mês na API, e é reapurado a cada rodada enquanto o mês está em prévia: o vencedor pode mudar até o Back Office marcar o flash de vendas, quando o resultado congela (decisão de 05/11/2026; documento de regras v3.6, seções 5 e 8). Quem perde não perde pontos. Teto mensal da rota: ${5*f[0].pontos} pontos, só dos pilares.</p>
   <p>Os confrontos do mês são cadastrados na <b>Administração</b> e apurados na tela <b>Confrontos</b>, com o % de cada lado e o motivo quando o confronto não vale.</p>`; } },
@@ -3915,14 +3958,35 @@ const SEC = [
     <p>Esses pilares ficam com 0 ponto e sem % na tela; nada é preenchido por suposição.</p>
     ${MISS.validada ? '' : `<h3>Missões Guiadas</h3>
     ${MISS.configurado
-      ? `<p><b>Meta por rota:</b> ${esc(String(MISS.metaPorRota).replace('.',','))} no mês. <b>Missões somadas:</b> ${MISS.encontradas.length ? MISS.encontradas.map(m=>esc(m.nome)+(m.codigo?` (${esc(m.codigo)})`:'')).join(' · ') : 'nenhuma'}. O realizado da rota é a soma dessas missões em <code>${esc(MISS.arquivo||'missoes.json')}</code>; no Supervisor, a soma das rotas da mesa, com a meta acompanhando o mesmo conjunto de rotas (decisão informada pela Karen em 10/11/2026). As outras missões do arquivo não contam.</p>`
+      ? `<p><b>Meta por rota:</b> ${esc(String(MISS.metaPorRota).replace('.',','))} no mês. <b>Missões somadas:</b> ${MISS.encontradas.length ? MISS.encontradas.map(m=>esc(m.nome)+(m.codigo?` (${esc(m.codigo)})`:'')).join(' · ') : 'nenhuma'}. O realizado da rota é a soma dessas missões em <code>${esc(MISS.arquivo||'missoes.json')}</code>${MISS.fonte==='cobertura'?', que vem do cruzamento com a cobertura por cliente × produto':''}; no Supervisor, a soma das rotas da mesa, com a meta acompanhando o mesmo conjunto de rotas (decisão informada pela Karen em 10/11/2026). As outras missões do arquivo não contam.${MISS.temOnline?' O pilar tem <b>Online (hoje)</b>: a cobertura de hoje de quem ainda não estava coberto no mês.':' O pilar ainda não tem Online nesta fonte.'}</p>`
       : `<p>O mês ainda não tem meta configurada para o pilar: ele aparece "sem dados" e não pontua — nunca se assume 100%.</p>`}
     ${MISS.erro ? `<p><b>Sem dados de Missões Guiadas:</b> ${esc(MISS.erro)}. O pilar não pontua neste mês.</p>` : ''}
     ${MISS.naoEncontradas.length ? `<p><b>Missão que não está no arquivo:</b> ${MISS.naoEncontradas.map(esc).join(', ')}. ${MISS.ok?'As demais foram somadas.':'Nenhuma das missões do mês foi encontrada: o pilar fica sem dados.'}</p>` : ''}
     ${MISS.configurado && !MISS.erro ? T(['Item','Qtde'],[
       ['Rotas do painel com realizado de missão', MISS.comDado],
       ['Rotas do painel sem dado de missão (o pilar fica "sem dados" para elas)', MISS.semDado.length ? MISS.semDado.map(esc).join(', ') : '0'],
-      ['Rotas do arquivo que não existem no cadastro da API (ignoradas)', MISS.foraDoCadastro.length ? MISS.foraDoCadastro.map(esc).join(', ') : '0']]) : ''}`}
+      ['Rotas do arquivo que não existem no cadastro da API (ignoradas)', MISS.foraDoCadastro.length ? MISS.foraDoCadastro.map(esc).join(', ') : '0']]) : ''}
+    ${(()=>{ const b = MISS.baseDeElegiveis; if(!b) return '';
+      const mot = b.motivos && Object.keys(b.motivos).length ? Object.entries(b.motivos).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ') : 'nenhuma';
+      return `<h3>Base de elegíveis do mês</h3>
+      <p>O realizado vem do <b>cruzamento entre a base de elegíveis e a cobertura por cliente × produto</b> (decisão informada pela Karen em 17/11/2026): a primeira compra do produto pelo cliente no mês marca a missão, e por isso o pilar passa a ter <b>Online (hoje)</b>. A base é montada à mão e publicada por PR a cada virada de mês; sem ela o pilar fica "sem dados" e não pontua.</p>
+      ${b.erro ? `<p><b>Sem base de elegíveis:</b> ${esc(b.erro)} (<code>${esc(b.arquivo||'')}</code>). O pilar não pontua neste mês — nunca se assume 100% nem zero.</p>`
+        : T(['Item','Qtde'],[
+          ['Arquivo lido', `<code>${esc(b.arquivo||'')}</code>`],
+          ['Pares elegíveis que entraram (missão × produto × cliente)', b.pares],
+          ['Linhas lidas do arquivo', b.linhas],
+          ['Linhas ignoradas', `${b.ignoradas} (${mot})`]])}`; })()}
+    ${MISS.acimaDosElegiveis.length ? `<h3>Rotas acima dos próprios elegíveis (${MISS.acimaDosElegiveis.length})</h3>
+    <p>A realização conta na <b>rota da chave da meta</b> e o elegível, na <b>rota do cliente</b>. Quando as duas diferem, a rota que recebeu pode passar o número de elegíveis dela. Não é erro e nada é recalculado: a meta do pilar é a da configuração, não os elegíveis.</p>
+    ${T(['Missão','Rota que recebeu','Feito','Elegíveis próprios','Veio da rota do cliente'],
+      MISS.acimaDosElegiveis.map(a=>[esc(a.missao),esc(a.rota),(a.realizado||0)+(a.online||0),a.elegiveis,
+        (a.origens||[]).map(o=>`${esc(o.rota_cliente)} (${o.pares})`).join(' · ')||'—']))}` : ''}
+    ${(()=>{ const c = MISS.comparacao; if(!c) return '';
+      return `<h3>Conferência com a fonte anterior</h3>
+      <p>Enquanto durar a transição, cada rodada compara o realizado por rota com o da fonte antiga (<code>${esc(c.fonte||'')}</code>). Divergência é <b>aviso</b>, nunca muda número.</p>
+      ${T(['Missão','Realizado (cruzamento)','Realizado (fonte antiga)','Rotas diferentes'],
+        (c.missoes||[]).map(m=>[esc(m.nome), m.encontrada?m.total:'—', m.encontrada?m.total_anterior:'não existe na fonte antiga',
+          m.encontrada?(m.rotas_diferentes||0):'—']))}`; })()}`}
     <h3>Gatilho de Refrigerantes: componentes fora da soma (${notasRefri.length} rotas)</h3>
     <p>${Object.keys(exc).map(k=>`${esc(k)} sem meta ou meta zero: ${exc[k]} rotas`).join(' · ')||'Nenhum'}. Componente sem meta sai da soma, para não inflar o %.</p>`; } },
  { id:'pend', t:'Pendências', html:()=>{

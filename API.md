@@ -31,7 +31,7 @@ quando `atualizado_em` mudar, releia os arquivos que estiverem na tela.
 | `agrupadores.json` | Todos os agrupadores com META_VOLUME no mês (`campos`: `[nome, meta]`), com a grafia exata do Datasphere. É a lista de sugestões da Administração do painel. |
 | `fechado/{AAAAMM}.json` | Um mês já fechado: meta e realizado de cada rota e os totais por gerência e da empresa, por produto, em prévia ou oficial (veja "Meses fechados"). A lista está em `index.json` → `fechados`. |
 | | O arquivo pode trazer `exclusoes` (opcional): notas tiradas do fechamento, já descontadas dos números. |
-| `missoes.json` | Missões Guiadas: código, nome e realizado de cada missão, no total e por rota (veja "Missões Guiadas"). |
+| `missoes.json` | Missões Guiadas do mês: nome, realizado (até ontem) e online (hoje) de cada missão, por rota, mais as contagens da base de elegíveis (veja "Missões Guiadas"). |
 
 **Agrupadores extras.** Além dos 6 produtos fixos, a API inclui os agrupadores que o admin do painel publicou em
 `frontend/ajustes.json` (campo `agrupadores`: `{id, nome, agrupador}`). Eles aparecem em `index.json` → `produtos`
@@ -206,27 +206,76 @@ Não há online, tendência nem meta do dia: no fechamento eles não existem. O 
 
 ## Missões Guiadas (`missoes.json`, desde 11/2026)
 
-Vem do modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA` do Datasphere e é consultado em toda execução.
+**Desde 18/11/2026 o realizado vem do CRUZAMENTO** entre a base de elegíveis do mês e a **cobertura por cliente ×
+produto** do modelo `AM_FAT_BND_ANALISE_META` (decisão informada pela Karen em 17/11/2026) — não mais do
+`AM_FAT_BND_GM_PROGRESSO_TAREFA`. A regra de contagem é a da cobertura: a **primeira compra do produto pelo cliente
+no mês marca a missão**; compras seguintes não contam de novo. Com isso o arquivo passa a ter **Online (hoje)**, que
+a fonte anterior não enxergava. É consultado em toda execução.
+
+O contrato **só ganhou campos**: `missoes[].codigo`, `nome`, `realizado` e `rotas` continuam no mesmo lugar e com o
+mesmo significado.
+
+```json
+{ "anomes": "202611", "fonte": "cobertura",
+  "base": { "arquivo": "202611.csv", "anomes": "202611", "linhas": 4019, "pares": 4019,
+            "ignoradas": 0, "motivos": {}, "erro": null },
+  "missoes": [ { "codigo": "241", "nome": "Traga de volta", "realizado": 1069,
+                 "rotas": { "111": 6, "112": 0, "...": 0 },
+                 "realizado_online": 4, "rotas_online": { "G17": 2, "...": 1 },
+                 "elegiveis": 2001, "elegiveis_rota_cliente": { "111": 20, "...": 19 } } ],
+  "acima_dos_elegiveis": [ { "missao": "Traga de volta", "rota": "111", "elegiveis": 20,
+                             "realizado": 21, "online": 0,
+                             "origens": [ { "rota_cliente": "112", "pares": 1 } ] } ],
+  "comparacao": { "fonte": "AM_FAT_BND_GM_PROGRESSO_TAREFA", "rotas_diferentes": 0,
+                  "missoes": [ { "nome": "Traga de volta", "codigo": "241", "encontrada": true,
+                                 "total": 1069, "total_anterior": 1069,
+                                 "rotas_diferentes": 0, "rotas": {} } ] } }
+```
+
+- `anomes` (novo): o mês a que o arquivo se refere — o mês de referência da API. Ao contrário da fonte anterior, que
+  não filtrava por data, **este arquivo é de um mês só**.
+- `fonte` (novo): `"cobertura"` no cruzamento. Arquivo gerado antes de 18/11/2026 não tem o campo.
+- `realizado` = quantos pares elegíveis (cliente × produto) da missão já estão **cobertos até ontem**. É uma
+  **contagem** (inteiro quando inteiro), não volume, e é a soma das `rotas`.
+- `rotas`: **rota da chave da meta** (`CD_ROTA_Chave_Meta_SAP`) → realizado, o mesmo critério do Real desde o PR 63.
+  Rota que aparece com `0` participa da missão sem nada realizado; rota que não aparece não participa.
+- `realizado_online` e `rotas_online` (novos): a cobertura **de hoje** de quem ainda não estava coberto no mês, na
+  mesma rota da meta. Um par conta **uma vez só**: se está no realizado, não aparece no online.
+- `elegiveis` e `elegiveis_rota_cliente` (novos): quantos pares elegíveis a missão tem, no total e **por rota do
+  CLIENTE** (o cadastro da base de clientes) — um par elegível sem venda nenhuma não tem chave de meta, logo não
+  teria rota da meta. **Não é denominador de nada:** a meta do pilar é 10 por rota, fixa, e vem da configuração de
+  quem consome. Por isso o campo traz a rota no nome.
+- `acima_dos_elegiveis` (novo, opcional — só aparece quando acontece): as duas rotas podem divergir, então uma rota
+  pode receber mais realizações do que tem elegíveis próprios. O bloco nomeia **as duas rotas**: a que recebeu
+  (`rota`, pela meta) e a de origem (`origens[].rota_cliente`, pelo cliente). Não é erro e nada é recalculado. O
+  invariante que vale sempre é outro: `realizado` + `realizado_online` somados em **todas** as rotas = pares
+  elegíveis cobertos no mês.
+- `base` (novo): contagens da base de elegíveis do mês — nome do arquivo, linhas lidas, pares que entraram, linhas
+  ignoradas e os motivos. `erro` preenchido = a base do mês **não foi publicada** ou não pôde ser lida; nesse caso
+  `missoes` vem **vazio** e quem consome trata o pilar como "sem dados" — nunca 100%, nunca zero e nunca o número do
+  mês anterior. **Nada do conteúdo da base é publicado:** nem código de cliente, nem código de produto, nem caminho
+  de arquivo.
+- `comparacao` (novo, temporário): rede de segurança da transição. Cada execução consulta também a fonte anterior e
+  compara o realizado rota a rota; divergência é **aviso**, nunca muda número. `codigo` da missão vem daqui (a base
+  de elegíveis não traz código). Isso será desligado depois de novembro e dezembro/2026, e então `comparacao` deixa
+  de existir e `codigo` passa a ser `null`.
+- **Quais missões aparecem:** as que estão na base de elegíveis do mês (duas em novembro/26). Escolher quais contam
+  continua sendo de quem consome: o painel Desafio Q4 faz essa escolha em `CONFIG.missoesConfig`, por nome
+  (em novembro/26, **"Aumente A Família"** e **"Traga De Volta"**, com meta 10 por rota; decisão de 10/11/2026).
+- Comparação de nome: exata depois de normalizar acento e caixa (`Aumente A Família` = `AUMENTE A FAMILIA`).
+- O arquivo pode trazer códigos de rota que **não existem** em `rotas/` nem no cadastro. Quem consome deve ignorá-los.
+- Ainda não traz meta nem percentual da missão.
+- Se a consulta falhar, o arquivo anterior é mantido e o volume segue atualizando. Se o arquivo nunca foi gerado, ele
+  não existe: trate o 404 como "sem dados de missões".
+
+**Formato anterior (até 18/11/2026), ainda aceito por quem consome:** sem `anomes`, `fonte`, `base`, `comparacao` e
+sem os campos de online e de elegíveis; `rotas` era pela **rota atual do cliente** (`CD_ROTA_Clien`) e o arquivo
+trazia **todas** as missões do modelo, de qualquer mês, em ordem de código.
 
 ```json
 { "missoes": [ { "codigo": "241", "nome": "Traga De Volta", "realizado": 593,
                  "rotas": { "111": 6, "112": 0, "...": 0 } } ] }
 ```
-
-- `realizado` = soma de `VL_REALIZADO` de todas as tarefas e clientes da missão. É uma **contagem** (inteiro quando
-  inteiro), não volume. O `realizado` da missão é a soma das `rotas`, mais os registros sem rota.
-- `rotas`: rota atual do cliente (`CD_ROTA_Clien`, a mesma do volume) → realizado. Uma rota que aparece com `0`
-  participa da missão sem nada realizado. Uma rota que não aparece não participa.
-- **Sem filtro de data:** traz todas as missões do modelo (ativas, pausadas e finalizadas, de qualquer mês), em ordem
-  de código. Escolher quais missões contam em cada mês fica com quem consome. O painel Desafio Q4 faz essa escolha
-  na configuração do mês (`CONFIG.missoesConfig`): em novembro/26 somam **"Aumente A Família"** e **"Traga De Volta"**,
-  com meta 10 por rota (decisão de 10/11/2026). O contrato deste arquivo **não muda** por causa disso.
-- Comparação de nome: exata depois de normalizar acento e caixa (`Aumente A Família` = `AUMENTE A FAMILIA`).
-- O arquivo pode trazer códigos de rota que **não existem** em `rotas/` nem no cadastro (em 10/11/2026: `EVI`, `EVM`
-  e `EVS`). Quem consome deve ignorá-los.
-- Ainda não traz meta, percentual nem online da missão.
-- Se a consulta falhar, o arquivo anterior é mantido e o volume segue atualizando. Se o arquivo nunca foi gerado, ele
-  não existe: trate o 404 como "sem dados de missões".
 
 ## Exemplos de estrutura
 
