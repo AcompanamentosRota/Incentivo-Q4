@@ -321,8 +321,16 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   Mês fechado que falte ou falhe: aviso, acumulado do SV marcado "incompleto" (o mês não soma nada) e SV sem posição
   oficial até o dado chegar.
 - **Missões Guiadas:** em outubro, validada em 100% (3 pontos). Em novembro e dezembro pontua com meta, real e online
-  quando houver fonte (`CONFIG.fonteDoPilar['Missões Guiadas']` + `produtoDaApi`); sem fonte, aparece "sem dados" e
-  não pontua.
+  quando houver fonte (`CONFIG.missoesConfig` + `api/v1/missoes.json`); sem fonte, aparece "sem dados" e não pontua.
+  **Desde 18/11/2026 o arquivo vem do cruzamento entre a base de clientes elegíveis e a cobertura por cliente ×
+  produto** (decisão informada pela Karen em 17/11/2026): com isso o pilar **tem Online (hoje)**, e o adaptador
+  (`linhaDasMissoes`) passa a preencher a medida — o % é (Real + Online) ÷ Meta, pelo motor, como em qualquer pilar.
+  A **meta dia continua fora** do pilar. O arquivo antigo, sem `rotas_online`, continua sendo lido: `somaDasMissoes`
+  devolve `temOnline: false` e o Online fica nulo, como antes. `estadoMissoes` entrega para a tela, só como
+  apresentação, qual base foi carregada (`baseDeElegiveis`: arquivo, pares, linhas ignoradas e o motivo), o resultado
+  da conferência com a fonte anterior (`comparacao`) e as rotas que receberam mais realizações do que têm elegíveis
+  próprios (`acimaDosElegiveis`, que nomeia a rota da meta **e** a rota do cliente). Os elegíveis **não são
+  denominador**: a meta continua vindo de `missoesConfig`.
 - **Confrontos:** cada um é apurado com os dados do mês dele (fechado ou corrente); a tela Confrontos tem a escolha do mês.
   **O +5 só entra com o mês fechado (30/10/2026):** os meses anteriores do trimestre e, no período de fechamento da API
   (`meta.fechamento`), o próprio mês de referência. O SV soma o +5 no acumulado. **As rotas da mesa não recebem o +5

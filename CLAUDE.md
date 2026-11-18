@@ -12,10 +12,19 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 - A API cobre 6 produtos de volume (Sucos, Powerade, Sabores, Retornáveis, Individuais e Refrigerantes) nos
   níveis cliente, rota, supervisão, gerência e empresa, com a **cobertura** (clientes que compraram: meta, realizado e
   online de hoje) em cada produto. Contrato em `API.md`.
-- `missoes.json` traz o realizado das **Missões Guiadas** (modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA`), por missão e por
-  rota, sem filtro de data e sem meta. O modelo tem dados pessoais (CPF, telefone, endereço): só as colunas de
-  `mapeamento.ColMissao` vão no `$select`. Desde 10/11/2026 (etapa 22) o **painel Desafio Q4 lê esse arquivo**: o
-  pilar Missões Guiadas de novembro soma as missões que contam no mês (seção 5). O painel Campari não o usa.
+- `missoes.json` traz o realizado das **Missões Guiadas** do mês. **Desde 18/11/2026 ele sai do cruzamento entre a
+  base de clientes elegíveis e a cobertura por cliente × produto** do `AM_FAT_BND_ANALISE_META` (decisão informada
+  pela Karen em 17/11/2026), e não mais do `AM_FAT_BND_GM_PROGRESSO_TAREFA`: a **primeira compra do produto pelo
+  cliente no mês marca a missão**, e com isso o pilar **ganha Online (hoje)**. O resultado é o mesmo da fonte
+  anterior (conferência da IM em 17/11/2026 e medição do gerador em 18/11/2026: **zero divergências** em 201 rotas).
+  Toda a lógica fica em `backend/gerador/missoes.py`; a consulta, em `fontes.carregar_cobertura_missoes`.
+  A **base de elegíveis é montada à mão todo mês** e mora em `backend/dados/missoes/AAAAMM.csv` (CSV `;`, UTF-8,
+  colunas `missao;cod_produto;cod_cliente`), dentro do repositório e **fora** de `frontend/` e de `api/v1/`, porque
+  tem código de cliente: **nada do conteúdo dela é publicado**, só contagens por rota. Sem a base do mês o pilar fica
+  "sem dados", não pontua e o painel avisa — nunca 100%, nunca zero, nunca o número do mês anterior (seção 7).
+  O modelo antigo continua sendo consultado como **rede de segurança** da transição
+  (`missoes.COMPARAR_COM_PROGRESSO_TAREFA`), só para comparar rota a rota; divergência é aviso. O painel Campari
+  não usa este arquivo.
 - O painel Desafio Q4 (`frontend/desafio-q4.html`) acompanha o incentivo do trimestre: pontos por pilar,
   gatilhos, confrontos entre supervisores e ranking.
 - O painel **Campari Club** (`frontend/campari-club.html`, fontes em `painel-campari/`) acompanha o incentivo de
@@ -91,6 +100,8 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `api/v1/fechado/` | um JSON por mês fechado (meta e realizado por rota + totais por gerência e empresa), base do acumulado do trimestre | **só o gerador**; selado quando o Back Office marca o flash, nunca apagado |
 | `backend/gerador/` | consultas, contas e montagem dos JSONs | pessoas (PR) |
 | `backend/gerador/exclusoes.py` | notas fiscais tiradas do Real do fechamento (lista + funções puras) | pessoas (PR) |
+| `backend/gerador/missoes.py` | Missões Guiadas: carga e validação da base de elegíveis, cruzamento com a cobertura, invariante e rede de segurança (funções puras) | pessoas (PR) |
+| `backend/dados/missoes/AAAAMM.csv` | base de clientes elegíveis do mês, **montada à mão**: `missao;cod_produto;cod_cliente`. Tem código de cliente: nunca vai para a API | pessoas (PR), antes do dia 1 |
 | `backend/odata/` | cliente OData, copiado do projeto da TI | pessoas (PR), replicando a TI |
 | `backend/scripts/gerar.py` | gera a API | — |
 | `backend/scripts/servir.py` | sobe o site local como no Pages | — |
@@ -119,13 +130,13 @@ rotas com Real.
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 193 testes (52 do motor, 141 do adaptador); precisa de Node 18+
+# testes do painel — 199 testes (52 do motor, 147 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do painel Campari Club — 285 testes (85 do motor, 200 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
-# testes do back-end — 193 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 227 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -199,11 +210,20 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   é **truncado**, nunca arredondado (99,96% não pode virar "100,0%").
 - **Pilares nunca fixos no código:** vêm de `CONFIG.pilaresConfig` e dos ajustes do admin. Pilares de volume
   são todos, menos Missões Guiadas.
-- **Missões Guiadas (10/11/2026, informada pela Karen; documento de regras v3.7, seção 4):** em outubro entra
-  validada em 100% (3 pontos). Em **novembro** pontua com dado real: o realizado da rota é a soma, no
-  `api/v1/missoes.json`, de **duas** missões ("Aumente A Família" e "Traga De Volta"; as outras 24 entradas do
+- **Missões Guiadas (10/11/2026, informada pela Karen; fonte trocada em 17/11/2026; documento de regras v4.1,
+  seção 4):** em outubro entra validada em 100% (3 pontos). Em **novembro** pontua com dado real: o realizado da rota
+  é a soma, no `api/v1/missoes.json`, de **duas** missões ("Aumente A Família" e "Traga De Volta"; as demais do
   arquivo não contam), a **meta da rota é 10**, e o SV soma as rotas da mesa dos dois lados (realizado somado e meta
-  de 10 por rota que entra na soma — nunca 10 fixo). A meta e a lista de missões ficam em `CONFIG.missoesConfig`
+  de 10 por rota que entra na soma — nunca 10 fixo).
+  **O realizado vem do cruzamento cobertura × base de elegíveis (17/11/2026):** a primeira compra do produto pelo
+  cliente no mês marca a missão, e o pilar **tem Online (hoje)** — o % é (Real + Online) ÷ Meta, como em qualquer
+  pilar. A **meta dia continua fora** das Missões. Duas rotas, de propósito: a **realização** conta na **rota da
+  chave da meta** (como o Real desde o PR 63) e o **elegível**, na **rota do cliente** (par elegível sem venda não
+  tem chave de meta). Em novembro/26 as duas coincidem em 100% dos casos, mas isso não é garantia: quando
+  divergirem, a rota que recebeu pode ficar acima dos elegíveis dela, e isso é **alerta nomeando as duas rotas**
+  (`acima_dos_elegiveis`), nunca erro — nada é recalculado, porque a meta é 10 e **os elegíveis não são denominador**
+  (é por isso que o campo publicado se chama `elegiveis_rota_cliente`). O invariante que vale sempre, e que o
+  gerador confere: realizado + online somados em **todas** as rotas = pares elegíveis cobertos no mês. A meta e a lista de missões ficam em `CONFIG.missoesConfig`
   (adaptador), trocáveis pelo `ajustes.json` → `missoes`: **nada fixo na lógica nem na tela**. O pilar continua
   `tipo: 'missao'` e o cálculo é o do motor, como em qualquer pilar. **Dezembro** ainda não tem meta: sem meta
   configurada, sem o arquivo ou sem nenhuma das missões nele, o pilar fica "sem dados", não pontua e o painel avisa
@@ -557,6 +577,13 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   decididos**: quando forem, acrescente-os na entrada do mês (os dois canais), rode o `build.py` e comite o HTML
   gerado. Os coringas do admin (`ajustes.json` → `pilares`, sem mês) só **trocam** os 4 e 5 do mês de referência
   quando ele já tem os 5 no `CONFIG`; nunca completam um mês sozinhos.
+- **Missões Guiadas: publique a base de elegíveis ANTES DO DIA 1** (passo manual, 18/11/2026). Ela é montada à mão,
+  não existe em modelo nenhum do Datasphere e entra por PR em `backend/dados/missoes/AAAAMM.csv` (CSV `;`, UTF-8,
+  cabeçalho `missao;cod_produto;cod_cliente`, uma linha por par elegível). Enquanto ela não estiver na `main`, o
+  gerador grava um `missoes.json` **sem missões**, com a razão, e o pilar fica "sem dados" para todo mundo: não
+  pontua, não vira zero e **nunca herda o número do mês anterior**. Conferir depois do merge: o log da rodada diz
+  quantos pares entraram e quantas linhas foram ignoradas, e o painel repete isso em Regras > Dados e alertas.
+  Para testar sem pôr o arquivo no repositório: `python scripts/gerar.py --base-missoes <pasta> --saida <fora>`.
 - **Missões Guiadas** deixa de ser validada em 100% a partir de novembro. A fonte de **novembro** está definida
   desde 10/11/2026 (`CONFIG.missoesConfig` + `api/v1/missoes.json`; seção 5), então o mês volta a ter os 5 pilares
   valendo. **Dezembro** ainda não tem meta nem lista de missões: acrescente a entrada do mês em `missoesConfig`
@@ -628,9 +655,9 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 193 passando; e
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 199 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 285 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 193 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 227 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json` (exceção: PR que muda de propósito a chave `campari`,
    e só ela mais o `atualizado_em`).

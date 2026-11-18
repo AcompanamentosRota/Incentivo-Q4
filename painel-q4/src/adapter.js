@@ -113,28 +113,44 @@ function missoesDoMes(cfg, mes) {
   return { mes, metaPorRota: c.metaPorRota, contam: c.contam.slice() };
 }
 
+/** Soma `campo` (mapa rota -> número) de uma missão dentro de `destino`. Valor não numérico é ignorado. */
+function somarPorRota(destino, m, campo) {
+  const bruto = m && m[campo];
+  if (!bruto || typeof bruto !== 'object') return false;
+  for (const [rota, v] of Object.entries(bruto)) {
+    const n = Number(v);
+    if (Number.isFinite(n)) destino[rota] = (destino[rota] || 0) + n;
+  }
+  return true;
+}
+
 /**
  * Soma, por rota, das missões que contam. O nome é comparado exato depois de normalizar acento e caixa
  * (`normalizarTexto`, a mesma chave do gerador): "Aumente A Família" bate com "AUMENTE A FAMILIA".
  * Rota que não aparece em nenhuma das missões fica FORA do mapa (realizado nulo, "sem dados" para ela): nunca vira
  * zero. Rota que aparece com 0 participa com zero. Devolve também as missões encontradas e as que faltaram.
+ *
+ * Desde 17/11/2026 (decisão informada pela Karen) o arquivo vem do CRUZAMENTO cobertura x base de elegíveis e
+ * traz também `rotas_online` (a cobertura de hoje) e `elegiveis_rota_cliente` (quantos pares elegíveis a rota
+ * tem, contados pela rota do CLIENTE — nunca denominador: a meta é a de `missoesConfig`). Arquivo antigo, sem
+ * esses campos, continua sendo lido: `temOnline` fica false e o pilar segue sem Online, como antes.
  */
 function somaDasMissoes(arquivo, nomes) {
   const alvo = new Map((nomes || []).map((n) => [normalizarTexto(n), n]));
-  const porRota = {}, encontradas = [], achadas = new Set();
+  const porRota = {}, porRotaOnline = {}, elegiveis = {}, encontradas = [], achadas = new Set();
+  let temOnline = false;
   for (const m of (arquivo && Array.isArray(arquivo.missoes) ? arquivo.missoes : [])) {
     if (!m || typeof m.nome !== 'string') continue;
     const k = normalizarTexto(m.nome);
     if (!alvo.has(k) || achadas.has(k)) continue; // missão repetida no arquivo: vale a primeira
     achadas.add(k);
     encontradas.push({ codigo: m.codigo === undefined || m.codigo === null ? null : String(m.codigo), nome: m.nome });
-    for (const [rota, v] of Object.entries(m.rotas && typeof m.rotas === 'object' ? m.rotas : {})) {
-      const n = Number(v);
-      if (!Number.isFinite(n)) continue;
-      porRota[rota] = (porRota[rota] || 0) + n;
-    }
+    somarPorRota(porRota, m, 'rotas');
+    if (somarPorRota(porRotaOnline, m, 'rotas_online')) temOnline = true;
+    somarPorRota(elegiveis, m, 'elegiveis_rota_cliente');
   }
-  return { porRota, encontradas, naoEncontradas: [...alvo.keys()].filter((k) => !achadas.has(k)).map((k) => alvo.get(k)) };
+  return { porRota, porRotaOnline, elegiveis, temOnline, encontradas,
+           naoEncontradas: [...alvo.keys()].filter((k) => !achadas.has(k)).map((k) => alvo.get(k)) };
 }
 
 /**
@@ -149,13 +165,18 @@ function fonteDasMissoes(cfg, mes, missoes) {
   return s.encontradas.length ? Object.assign({}, c, s) : null;
 }
 
-/** Valor do pilar Missões Guiadas de uma rota: [meta, real, online, hoje, meta dia] (cfg.idx). A missão não tem
- *  online, hoje nem meta dia; rota fora do arquivo fica com real nulo ("sem dados" para ela, nunca zero). */
+/** Valor do pilar Missões Guiadas de uma rota: [meta, real, online, hoje, meta dia] (cfg.idx).
+ *  Rota fora do arquivo fica com real nulo ("sem dados" para ela, nunca zero).
+ *  Desde a fonte por cobertura (17/11/2026) o pilar TEM Online: a rota com dado recebe o online do arquivo (0
+ *  quando não houve cobertura hoje). Arquivo antigo, sem `rotas_online`, mantém o online nulo, como antes.
+ *  **Meta dia continua fora das Missões** (decisão anterior): a fonte não a traz e nada é suposto aqui. */
 function linhaDasMissoes(fonte, rota, I) {
   const l = [null, null, null, null, null];
   if (!fonte) return l;
   l[I.meta] = fonte.metaPorRota;
-  l[I.real] = rota in fonte.porRota ? fonte.porRota[rota] : null;
+  if (!(rota in fonte.porRota)) return l;
+  l[I.real] = fonte.porRota[rota];
+  if (fonte.temOnline) l[I.online] = fonte.porRotaOnline[rota] || 0;
   return l;
 }
 
@@ -173,16 +194,23 @@ function estadoMissoes(dados, cfg, mes, validadas) {
   cfg = cfg || CONFIG;
   const val = validadas || MotorRegras().missaoValidadaMeses;
   const c = missoesDoMes(cfg, mes), m = dados.missoes || missoesVazias(null);
+  const arq = m.arquivo && typeof m.arquivo === 'object' ? m.arquivo : null;
   const base = { mes, validada: val.includes(mes), configurado: !!c, metaPorRota: c ? c.metaPorRota : null,
                  contam: c ? c.contam : [], arquivo: m.caminho || null, erro: m.erro || null,
                  encontradas: [], naoEncontradas: c ? c.contam.slice() : [], comDado: 0, semDado: [],
-                 foraDoCadastro: [], ok: false };
-  if (!c || !m.arquivo) return base;
-  const s = somaDasMissoes(m.arquivo, c.contam);
+                 foraDoCadastro: [], ok: false, temOnline: false,
+                 fonte: arq && typeof arq.fonte === 'string' ? arq.fonte : null,
+                 anomes: arq && typeof arq.anomes === 'string' ? arq.anomes : null,
+                 baseDeElegiveis: arq && arq.base && typeof arq.base === 'object' ? arq.base : null,
+                 comparacao: arq && arq.comparacao && typeof arq.comparacao === 'object' ? arq.comparacao : null,
+                 acimaDosElegiveis: arq && Array.isArray(arq.acima_dos_elegiveis) ? arq.acima_dos_elegiveis : [] };
+  if (!c || !arq) return base;
+  const s = somaDasMissoes(arq, c.contam);
   const rotas = (dados.rotas || []).map((r) => r.rota);
   const cadastro = new Set(rotas.concat((dados.semCanal || []).map((r) => r.rota)));
   return Object.assign(base, {
     encontradas: s.encontradas, naoEncontradas: s.naoEncontradas, ok: s.encontradas.length > 0,
+    temOnline: s.temOnline,
     comDado: rotas.filter((r) => r in s.porRota).length,
     semDado: rotas.filter((r) => !(r in s.porRota)).sort(),
     foraDoCadastro: Object.keys(s.porRota).filter((r) => !cadastro.has(r)).sort(),

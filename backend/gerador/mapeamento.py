@@ -115,6 +115,12 @@ class ColMeta:
     GC_COMERCIAL = "DS_GERENCIA_COMERCIAL_AT_Clien"  # gerência comercial do cliente (Real de rotas EV*)
     CLIENTE = "CD_CLIENTE"
     AGRUPADOR = "DS_AGRUPADOR_Agrupador_Prod"
+    # Código do produto ("Cód. Produto" nas stories do SAC). Entra no groupby SÓ na consulta das Missões
+    # Guiadas (gerador/missoes.py), que precisa da cobertura por cliente x PRODUTO, não por agrupador.
+    # Conferido no $metadata em 18/11/2026: o modelo tem 274 colunas e esta é a do código (Edm.String, '1002').
+    # Atenção: um mesmo produto aparece em mais de um agrupador da meta (216 de 242 em nov/26), então o
+    # agrupador NÃO pode entrar na chave dessa consulta — ele multiplicaria o par (cliente, produto).
+    PRODUTO = "CD_PRODUTO_Produto"
     DATA = "DATA_MOVIMENTO"
     FONTE = "FONTE"                                  # 'Basis', 'WF Online', 'Meta NEG'
     SITUACAO_PEDIDO = "SITUACAO_Pedido"              # 'Inc. e Exp.', 'Cancelado', 'Reprovado', 'Meta NEG'

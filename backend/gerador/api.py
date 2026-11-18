@@ -201,8 +201,38 @@ def _contagem(valor: float) -> int | float:
     return int(v) if v == int(v) else v
 
 
-def montar_missoes(missoes: list[dict]) -> dict:
-    """Conteúdo de v1/missoes.json a partir de fontes.carregar_missoes (sem a data/hora: só muda quando o dado muda)."""
-    return {"missoes": [{"codigo": m["codigo"], "nome": m["nome"], "realizado": _contagem(m["realizado"]),
-                         "rotas": {r: _contagem(v) for r, v in sorted(m["rotas"].items(), key=lambda i: _chave_natural(i[0]))}}
-                        for m in missoes]}
+def _por_rota(d: dict) -> dict:
+    return {r: _contagem(v) for r, v in sorted((d or {}).items(), key=lambda i: _chave_natural(i[0]))}
+
+
+def montar_missoes(missoes: list[dict], anomes: str | None = None, fonte: str | None = None,
+                   base: dict | None = None, comparacao: dict | None = None,
+                   acima_dos_elegiveis: list[dict] | None = None) -> dict:
+    """Conteúdo de v1/missoes.json (sem a data/hora: só muda quando o dado muda).
+
+    Sem os opcionais sai no formato de sempre (fonte antiga, gerador/fontes.carregar_missoes). Com eles sai o
+    cruzamento de gerador/missoes.py, que ACRESCENTA campos e não tira nenhum (contrato estável):
+      anomes, fonte, base (contagens da base de elegíveis), comparacao (rede de segurança da transição),
+      acima_dos_elegiveis, e, em cada missão, rotas_online, elegiveis_rota_cliente e realizado_online.
+    Nada da base de elegíveis é publicado além de contagens: nunca código de cliente ou de produto.
+    """
+    doc: dict = {}
+    if anomes:
+        doc["anomes"] = anomes
+    if fonte:
+        doc["fonte"] = fonte
+    if base is not None:
+        doc["base"] = base
+    doc["missoes"] = [{"codigo": m["codigo"], "nome": m["nome"], "realizado": _contagem(m["realizado"]),
+                       "rotas": _por_rota(m["rotas"]),
+                       **({"realizado_online": _contagem(m["realizado_online"]),
+                           "rotas_online": _por_rota(m["rotas_online"]),
+                           "elegiveis": _contagem(m["elegiveis"]),
+                           "elegiveis_rota_cliente": _por_rota(m["elegiveis_rota_cliente"])}
+                          if "rotas_online" in m else {})}
+                      for m in missoes]
+    if acima_dos_elegiveis:
+        doc["acima_dos_elegiveis"] = acima_dos_elegiveis
+    if comparacao is not None:
+        doc["comparacao"] = comparacao
+    return doc

@@ -1,4 +1,13 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v4.0 (17/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v4.1 (18/11/2026)
+
+**v4.1:** o realizado das **Missões Guiadas** passa a sair do **cruzamento entre a base de clientes elegíveis e a
+cobertura por cliente × produto** (decisão informada pela Karen em 17/11/2026; seção 4), no lugar do relatório de
+progresso de tarefa. A regra de contagem é a da cobertura — a primeira compra do produto pelo cliente no mês marca a
+missão — e o resultado é **idêntico** ao da fonte anterior (conferência da IM em 17/11/2026 e medição do gerador em
+18/11/2026: zero divergências). Com a troca o pilar **ganha Online (hoje)**, que a fonte antiga não enxergava. A base
+de elegíveis é **montada à mão todo mês** e publicada por PR antes do dia 1; sem ela o pilar fica "sem dados" e não
+pontua. Nenhuma outra regra muda: faixas, pilares, meta de 10 por rota, gatilhos, confrontos e ranking continuam
+como estão.
 
 **v4.0:** entra a **troca de apuração entre duas supervisões** (solicitada pelo GC de Anápolis em 09/11/2026,
 autorizada pela Carol em 16/11/2026 e informada pela Karen em 17/11/2026; seções 5 e 8). Quando dois supervisores
@@ -140,24 +149,48 @@ outubro**, informado pela Karen em 04/11/2026):
 - **Pilares de volume** (os únicos válidos em confronto): todos, exceto Missões Guiadas.
 - **Missões Guiadas:** em **outubro** entra **validada em 100%** para todos os cargos que a têm, o que vale **3 pontos**. De **novembro** em diante o pilar tem meta e realizado e pontua nas mesmas faixas dos demais.
 
-**Missões Guiadas de novembro (decisão informada pela Karen em 10/11/2026):**
+**Missões Guiadas de novembro (decisão informada pela Karen em 10/11/2026; fonte trocada em 17/11/2026):**
 
 | Medida | Regra |
 |---|---|
-| **Realizado da rota** | A soma, no mês, de **duas** missões: **"Aumente A Família"** e **"Traga De Volta"**. As demais missões do arquivo (Combo Especial Da Semana, Positivar Itens do Combo, Combo Fitness, Desafio Da Semana) **não contam**. |
+| **Realizado da rota** | A soma, no mês, de **duas** missões: **"Aumente A Família"** e **"Traga De Volta"**. As demais missões **não contam**. |
 | **Meta da rota** | **10**, igual para todas as rotas. |
 | **Supervisor** | A soma das rotas da mesa nos **dois lados**: realizado somado e meta de **10 por rota que entra na soma do SV** (nunca 10 fixo para o SV). |
-| **Online / meta dia** | Não existem para o pilar: a fonte não traz nem um nem outro. |
+| **Online / meta dia** | O **Online existe** desde 17/11/2026 (veja abaixo). A **meta dia** continua não existindo para o pilar: a fonte não a traz e nada é suposto. |
 
-- A fonte é o `missoes.json` da API (modelo `AM_FAT_BND_GM_PROGRESSO_TAREFA`), que traz o realizado por missão e por
-  rota. O arquivo **não filtra por data**: escolher quais missões contam em cada mês é o que define o mês (⚠️ se uma
-  dessas missões atravessar mais de um mês, o número inclui o que veio de fora de novembro).
-- **Rota que não aparece no arquivo** fica com realizado nulo: o pilar é "sem dados" para ela, não pontua e entra nos
-  alertas do painel. Nunca vira zero. O mesmo vale quando o arquivo falta ou nenhuma das missões é encontrada.
-- Códigos de rota que existem só no arquivo e não no cadastro da API (`EVI`, `EVM`, `EVS`) são **ignorados** e
-  aparecem nos alertas.
+**De onde vem o realizado (decisão informada pela Karen em 17/11/2026):** do **cruzamento entre a base de clientes
+elegíveis do mês e a cobertura por cliente × produto**, e não mais do relatório de progresso de tarefa. A regra de
+contagem é a da cobertura: **a primeira compra do produto pelo cliente no mês marca a missão; compras seguintes não
+contam de novo**.
+
+- **Não é aproximação, é a mesma conta por outro caminho.** A conferência da IM em 17/11/2026, com a base de novembro
+  e uma exportação do SAC, reproduziu o resultado da fonte anterior **exatamente**: 1.127 realizações em 209 rotas,
+  **zero divergências**. A medição de 18/11/2026, já com o gerador, repetiu: **201 rotas, zero divergências**,
+  1.321 × 1.321.
+- **O pilar ganha Online (hoje):** a cobertura de hoje de quem ainda não estava coberto no mês. O % passa a ser
+  (Real + Online) ÷ Meta, como em qualquer pilar. A fonte anterior não enxergava o dia corrente.
+- **A base de elegíveis é montada à mão todo mês** (informado pela Karen em 18/11/2026): ela não existe em modelo
+  nenhum. Entra no repositório por PR, fora da API, antes do dia 1 de cada mês. Como ela tem código de cliente,
+  **nada do conteúdo dela é publicado** — da API saem apenas contagens por rota.
+- **Sem a base do mês o pilar fica "sem dados":** não pontua, não vira zero, não assume 100% e **nunca herda o
+  número do mês anterior**. O painel avisa em Dados e alertas.
+- **Duas rotas, de propósito.** A **realização** conta na **rota da chave da meta**, o mesmo critério do Real desde
+  16/11/2026 (seção 8). O **elegível** conta na **rota do cliente**, porque um par elegível sem venda nenhuma não
+  tem chave de meta e, portanto, não teria rota. Em novembro/26 as duas coincidem em **100%** dos casos (medido em
+  18/11/2026: zero realizações em rota diferente), mas isso não é garantia: quando divergirem, a rota que recebeu
+  pode ficar acima dos elegíveis dela. Isso é **alerta com as duas rotas nomeadas**, nunca erro, e **nada é
+  recalculado** — a meta do pilar é 10, não os elegíveis. O invariante que vale sempre é outro: realizado + online
+  somados em **todas** as rotas = pares elegíveis cobertos no mês.
+- **Os elegíveis não são denominador.** Em novembro/26 há entre 18 e 22 pares elegíveis por rota (mediana 20) em 201
+  rotas: com meta 10, a missão pede cerca de metade dos elegíveis e é atingível em todas.
+- **Rede de segurança da transição:** enquanto durar novembro e dezembro/2026, cada rodada consulta também a fonte
+  anterior e compara rota a rota. Divergência vira **aviso** em Dados e alertas, com a contagem, e nunca muda número
+  nem derruba a rodada. Fica ligada por configuração, para ser desligada depois.
+- **Rota que não aparece** no arquivo fica com realizado nulo: o pilar é "sem dados" para ela, não pontua e entra nos
+  alertas. Nunca vira zero. Rota com elegíveis e nenhuma compra fica com **0**, que é o número certo dela.
+- **Cliente da base que não está no cadastro** é ignorado, com aviso (13 linhas de 4.019 em 18/11/2026).
 - **Dezembro** ainda não tem meta nem lista de missões decididas: enquanto não tiver, o pilar aparece "sem dados" e
-  **não pontua** — nunca se assume 100%.
+  **não pontua** — nunca se assume 100%. A base de dezembro também precisa ser publicada antes do dia 1.
 - A meta e a lista de missões ficam na **configuração** do painel (e podem ser trocadas pelo admin), nunca fixas no
   código ou na tela.
 
@@ -351,14 +384,14 @@ cinza. A premiação continua restrita a quem é elegível.
 2. **Pontos acumulados da Rota:** assumido como não aplicável (zera todo mês).
 3. **Confrontos:** prazo de registro em cada mês.
 4. **Coringas 4 e 5 de dezembro:** ainda não decididos. Até entrarem na configuração do painel, dezembro não calcula pontos nem ranking.
-5. **Fonte de Missões Guiadas de dezembro:** a de **novembro** está definida (duas missões e meta 10, decisão de 10/11/2026, seção 4); a de **dezembro** ainda não. Enquanto não houver meta e lista de missões do mês, o pilar aparece "sem dados" e não pontua. ⚠️ Em aberto também: quando novembro fechar, o `fechado/AAAAMM.json` **não** guarda missões, então o realizado do pilar continua vindo do `missoes.json` do momento — ele não congela junto com o mês.
+5. **Fonte de Missões Guiadas de dezembro:** a de **novembro** está definida (duas missões e meta 10, decisão de 10/11/2026, seção 4); a de **dezembro** ainda não. Enquanto não houver meta e lista de missões do mês, o pilar aparece "sem dados" e não pontua. ⚠️ Em aberto também: quando novembro fechar, o `fechado/AAAAMM.json` **não** guarda missões, então o realizado do pilar continua vindo do `missoes.json` do momento — ele não congela junto com o mês. ⚠️ **Passo manual da virada (18/11/2026):** a base de clientes elegíveis é montada à mão e publicada por PR em `backend/dados/missoes/AAAAMM.csv`. Falta combinar **quem publica e até quando**: enquanto a base do mês não chegar, o pilar fica "sem dados" para todo mundo. ⚠️ Em aberto também: o `missoes.json` passa a ser **de um mês só**, então um mês cujo arquivo foi gerado antes da troca de fonte não tem o Online — isso não muda nenhum número já apurado, só o que a tela mostra como Online.
 6. **Fechamento oficial pelo flash de vendas (04/11/2026):** quem marca que o flash de um mês fechou é o Back Office, no painel, e é isso que congela o mês. Falta definir o prazo combinado para essa marcação depois de cada flash.
 7. **Canal do SV (29/10/2026):** "um canal só por SV, o do admin ou o da maioria das rotas da mesa" (seção 1) é a leitura adotada e já está no painel; falta a confirmação do Back Office/IM.
 8. **Canal das rotas e mesas de novembro:** falta confirmar se o canal das rotas e a composição das mesas mudam no mês. O canal ainda vem da base embutida e dos ajustes do admin, não da API.
 9. **Troca de apuração (17/11/2026):** a troca leva **tudo** do mês, inclusive o +5 do confronto e o volume dos gatilhos (confirmado pela Karen em 17/11/2026). ⚠️ Em aberto: no **ranking do trimestre** (aba Supervisão e aba Ranking, do mês de referência) uma **terceira** supervisão pode subir ou descer uma posição, porque as duas trocadas passam a ter outro total de pontos e outro % acumulado de Refrigerantes, que é o desempate — os números dela não mudam, só o lugar na lista. No ranking do **mês trocado** isso não acontece: as duas apenas trocam de posição entre si.
 9. **Soma do SV com as rotas Sem canal (30/10/2026):** está decidido que o volume e a meta dessas rotas contam para o SV (seção 1); a implementação no painel está pendente.
 
-**Resolvidos:** **Missões Guiadas de novembro** com dado real — duas missões ("Aumente A Família" e "Traga De Volta"), meta 10 por rota e, no SV, a soma das rotas da mesa (10/11/2026, seção 4); mínimo de pontos do Consultor = **17 no mês** (gerência de planejamento e IM, 29/10/2026); **+5 do confronto só para o SV vencedor**, sem extensão à mesa (03/11/2026); +5 do confronto só depois do fechamento do mês, nos pontos acumulados do SV, com o vencedor parcial durante o mês (30/10/2026), entrando no dia 1 do mês seguinte e atualizados até o fechamento do flash, quando congelam (05/11/2026);
+**Resolvidos:** **fonte das Missões Guiadas pelo cruzamento cobertura × base de elegíveis**, com Online (hoje) e resultado idêntico ao da fonte anterior (17/11/2026, seção 4); **Missões Guiadas de novembro** com dado real — duas missões ("Aumente A Família" e "Traga De Volta"), meta 10 por rota e, no SV, a soma das rotas da mesa (10/11/2026, seção 4); mínimo de pontos do Consultor = **17 no mês** (gerência de planejamento e IM, 29/10/2026); **+5 do confronto só para o SV vencedor**, sem extensão à mesa (03/11/2026); +5 do confronto só depois do fechamento do mês, nos pontos acumulados do SV, com o vencedor parcial durante o mês (30/10/2026), entrando no dia 1 do mês seguinte e atualizados até o fechamento do flash, quando congelam (05/11/2026);
 **Real = até ontem × faturado de hoje:** medido em 28/10/2026 com `backend/scripts/diagnosticar_real.py --datasphere`, o faturado de hoje aparece **só no Online** (conferido de novo em 05/11/2026 contra a exportação do SAC de novembro: Meta, Real, Online e meta dia batem no total da empresa e rota a rota, com diferenças de 0,1 por arredondamento de 1 casa);
 **Real e Online pela chave e pela rota da meta**, como o SAC (03/11/2026), em **todo o trimestre** desde 16/11/2026; **Mini e Mod = Segmentada**, com o segmento como etiqueta (28/10/2026, confirmado em 30/10/2026); **Estratégicos no painel**, em aba própria, só com o volume da gerência, sem pontos e sem premiação; fechamento oficial só depois do fechamento do flash de vendas, marcado pelo Back Office no painel, com o mês em prévia até lá (04/11/2026); numeração do ranking em todas as linhas, com a posição oficial só para os elegíveis (27/10/2026);
 cadastro dos confrontos na Administração do painel (27/10/2026); limites de faixa; Missões Guiadas (outubro validada em 100%; novembro e dezembro com meta); pontos aparecem mesmo antes do gatilho de volume, só o status fica "-" (26/10/2026); desempate pelo maior % de Refrigerantes para todos; coringa mensal (coringas 4 e 5 de novembro iguais aos de outubro, 04/11/2026); itens "Cob. Sprite SS" e "Cob. KS CCTM" (ignorar, resquício da planilha); volume de Refrigerantes = categoria do SAC; Meta dia vinda da API; Mista só contra Mista; quem perde não perde pontos.

@@ -633,6 +633,40 @@ def _cobertura(meta: dict | None, cob: dict | None, hoje: dict | None, rotas: se
 
 
 # ------------------------------------------------------------------ Missões Guiadas
+def carregar_cobertura_missoes(cons: Consulta, anomes: str, produtos: list[str],
+                               rota: str | None = None) -> dict[tuple[int, str], tuple[str, bool]] | None:
+    """Cobertura por cliente x CÓDIGO DE PRODUTO no mês, para o cruzamento das Missões Guiadas.
+
+    {(cliente, código do produto): (rota da META, coberto só hoje?)}. Uma linha por par (medido em 18/11/2026:
+    sem o agrupador no groupby, cada par sai exatamente uma vez e numa rota da meta só), e os dois lados são
+    disjuntos no próprio modelo — FX_COBERTURA_WF_ONLINE só marca quem ainda não estava coberto no mês. É a
+    regra P4 ("um par conta uma vez só") vinda pronta da fonte, não imposta aqui.
+
+    `produtos`: os códigos da base de elegíveis do mês — a consulta é restrita a eles (43 códigos e ~26,7 mil
+    linhas em nov/26). Só as colunas necessárias no $select: o modelo tem dado pessoal.
+    None quando a coluna do código do produto não existe no modelo (a API segue sem as missões).
+    """
+    if not produtos:
+        return {}
+    if faltam := _sem_colunas(cons, [CM.PRODUTO, CM.COB_REAL]):
+        log.warning("%s não existe no $metadata: Missões Guiadas pelo cruzamento indisponíveis.", ", ".join(faltam))
+        return None
+    sel = _colunas(cons, M.OBJ_META, [CM.META_ROTA, CM.CLIENTE, CM.PRODUTO, CM.COB_REAL], [CM.COB_ONLINE])
+    filtro = e(eq(CM.META_ANOMES, anomes), ou(CM.PRODUTO, produtos), M.FILTRO_PEDIDOS_ONLINE,
+               eq(CM.META_ROTA, rota) if rota else None)
+    cob: dict[tuple[int, str], tuple[str, bool]] = {}
+    for l in cons.linhas(M.OBJ_META, sel, filtro):
+        r, pv, prod = _rota(l.get(CM.META_ROTA)), inteiro(l.get(CM.CLIENTE)), limpar(l.get(CM.PRODUTO))
+        if not r or pv is None or not prod:
+            continue
+        if numero(l.get(CM.COB_REAL)) > 0:
+            cob[(pv, prod)] = (r, False)
+        elif CM.COB_ONLINE in sel and numero(l.get(CM.COB_ONLINE)) > 0:
+            cob.setdefault((pv, prod), (r, True))   # o realizado tem precedência: nunca conta duas vezes
+    log.info("Cobertura das missões: %d pares (cliente x produto) em %d produtos", len(cob), len(produtos))
+    return cob
+
+
 def carregar_missoes(cons: Consulta, rota: str | None = None) -> list[dict] | None:
     """Realizado de cada missão (AM_FAT_BND_GM_PROGRESSO_TAREFA), no total e por rota; sem filtro de data.
 
