@@ -108,7 +108,7 @@ publicada como JSONs estáticos no GitHub Pages, mais o **painel Desafio Q4**, q
 | `backend/scripts/diagnosticar_real.py` | compara o Real da API com o Real do SAC; só leitura | pessoas (PR) |
 | `backend/scripts/reabrir_fechado.py` | volta um mês fechado de oficial para prévia (ajuste único) | pessoas (PR) |
 | `backend/tests/` | testes do back-end, sem rede | pessoas (PR) |
-| `painel-q4/src/` | `motor.js` (cálculo, com a troca de apuração `trocarApuracaoDoMes`), `adapter.js` (API→motor, `CONFIG` com `pilaresConfig` e `missoesConfig`, Missões Guiadas (`missoesDoMes`, `somaDasMissoes`, `fonteDasMissoes`, `estadoMissoes`), consulta do fechamento e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
+| `painel-q4/src/` | `motor.js` (cálculo, com a troca de apuração `trocarApuracaoDoMes`), `adapter.js` (API→motor, `CONFIG` com `pilaresConfig` e `missoesConfig`, Missões Guiadas (`missoesDoMes`, `somaDasMissoes`, `fonteDasMissoes`, `estadoMissoes`), consulta do fechamento, pontos da Band da aba Estratégicos (`pontosBand`) e gerador de `.xlsx`), `app.tpl.html` (tela) | pessoas (PR) |
 | `painel-q4/data/data.json` | base embutida: canal de cada rota e plano B sem API | `painel-q4/scripts/preparar_dados.py` |
 | `painel-q4/docs/` | **fonte de verdade das regras do incentivo** | pessoas (PR) |
 | `painel-q4/tests/` | testes do motor e do adaptador | pessoas (PR) |
@@ -126,11 +126,13 @@ Hoje a API tem 16 gerências e 247 rotas; 201 delas têm canal na base embutida 
 incentivo (Rota, Supervisão, Ranking, Detalhe, Confrontos). A aba Estratégicos é a exceção: ela mostra a
 gerência inteira, somando os totais da API (`gerencias/{GC}.json` e `resumo.json`), que incluem todas as
 rotas com Real.
+Desde 23/11/2026 ela traz também o **quadro de pontuação da Band** (faixas no % da linha TOTAL; leitura de volume,
+não vale premiação — seção 5).
 
 ## 3. Comandos (todos verificados nesta máquina)
 
 ```bash
-# testes do painel — 199 testes (52 do motor, 147 do adaptador); precisa de Node 18+
+# testes do painel — 207 testes (52 do motor, 155 do adaptador); precisa de Node 18+
 node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 
 # testes do painel Campari Club — 285 testes (85 do motor, 200 do adaptador)
@@ -308,6 +310,21 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 - Orçamento, custo dos prêmios e valores de premiação ficam **fora** do painel e do repositório.
   Os **volumes** dos estratégicos têm aba própria, sem pontos e sem premiação (documento de regras v3.6, seção 1: a
   redação antiga "fora do escopo do painel" foi corrigida nessa versão).
+- **Quadro de pontuação da Band (23/11/2026, etapa 30, pedido da Karen; só tela):** a aba Estratégicos passou a ter,
+  acima da tabela, uma caixa por mês do trimestre já iniciado (os fechados e o vigente) mais o **acumulado**, e o
+  detalhe por pilar **só do mês vigente**. São as **faixas do incentivo aplicadas ao % de cada pilar da linha TOTAL da
+  própria aba** (a empresa inteira, todas as rotas com Real): é **leitura de volume da Band, não pontuação de pessoa**
+  — os Estratégicos continuam **sem pontos, sem gatilho e sem premiação** no regulamento, e a tela diz isso em texto,
+  sempre visível (a aba é feita para print). **Nenhuma regra nova:** o cálculo é `pontosBand` no adaptador, que só
+  chama `motor.calcPilar` e lê `motor.REGRAS.faixas`; o máximo do mês é nº de pilares × a maior faixa (hoje 4 × 5 = 20)
+  e nada disso é digitado na tela. Pilar **sem meta** não pontua, vira "–" e deixa o mês **incompleto** (nunca zero);
+  mês fechado ausente, com falha ou sem `totais` no snapshot fica **indisponível** e o acumulado, incompleto — nunca se
+  soma rota por rota. O selo do mês fechado é o `estadoFechado` da tela (prévia × oficial); o vigente é parcial.
+  Na mesma etapa a tabela foi para **13 px** (rótulos de coluna 12 px, linhas de 27 px, altura total 515 px, sem
+  rolagem em 1920×1080, 1920×940 e 1366×768), os **rótulos das colunas ficaram centralizados** (`.sl.c`, que já
+  existia) e a tabela passou a usar as classes e cores da **aba Supervisão**, inclusive o **quadradinho `.pchip`**
+  atrás do %, com o tier vindo de `motor.faixaPontos` (o `% Refri` continua sem quadradinho). A linha TOTAL deixou de
+  ter paleta própria e usa a `.trow.gtot` compartilhada. Nenhum número da tabela mudou.
 
 ### Campari Club (fonte de verdade: `painel-campari/docs/regras.md`, v1.18 de 17/11/2026)
 
@@ -655,7 +672,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
 1. `git fetch origin` e branch atualizada com a `main`.
 2. `python painel-q4/scripts/build.py` e `python painel-campari/scripts/build.py` rodados, e `git diff --stat` mostra só a
    mudança esperada.
-3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 199 passando; e
+3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 207 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 285 passando.
 4. `cd backend && python -m unittest discover -s tests -t .` — 227 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.

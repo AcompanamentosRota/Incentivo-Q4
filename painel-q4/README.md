@@ -28,6 +28,12 @@ Confrontos, a legenda dos cartões fica no lugar do texto da esquerda.
   totais que a própria API já traz (`gerencias/{GC}.json` → `produtos` e `resumo.json` → `empresa.produtos`), com
   **todas as rotas que têm Real** — também as de fora do incentivo (sem canal, Neutraliza, virtuais e eventuais) e os
   itens sem meta na rota. É o mesmo corte dos cards de Diretoria e de Gerência do Desempenho de Rotas. A nota abaixo
+  Desde 23/11/2026 (etapa 30) o **corpo da tabela é de 13 px** (cabeçalho de grupo e rótulo de coluna em 12 px,
+  linhas de 27 px): as 16 gerências e o TOTAL cabem **sem rolagem** em 1920×1080, em 1920×940 e em 1366×768.
+  Os **rótulos das colunas são centralizados** e a tabela usa as mesmas classes e cores da aba Supervisão,
+  inclusive o **quadradinho (`.pchip`) atrás do %**, cuja faixa sai de `motor.faixaPontos` — em Estratégicos
+  ele diz em que faixa o % da **gerência** caiu, e é leitura de volume, não pontuação de pessoa.
+  Acima da tabela fica o **quadro de pontuação da Band** (ver abaixo).
   da tabela concilia os dois recortes: quanto do Refrigerantes da empresa está nas rotas do incentivo (em 28/10/2026,
   2.723.545,6 de 4.698.930,3 cx, 57,9%). Sem a API, a aba volta a somar só as rotas do incentivo e avisa na nota;
   as duas origens nunca se misturam na mesma tabela.
@@ -340,6 +346,17 @@ Barlow para o texto custaria cerca de +115 KB. Nunca carregue fonte de site exte
   `totalEmpresa` (de `resumo.json` → `empresa.produtos`); se o `resumo.json` falhar, o total vira a soma das
   gerências e o painel registra o motivo em `meta.aviso`. A montagem das linhas fica em `montarEstrat()`, no
   adaptador — é só soma de volume: pontos, gatilhos e ranking continuam só no motor.
+- **Quadro de pontuação da Band (23/11/2026, etapa 30):** acima da tabela da aba Estratégicos, mostra uma caixa por
+  mês do trimestre já iniciado (os fechados e o vigente) mais o **acumulado**, e, à direita, o detalhe por pilar **só do
+  mês vigente**. São as **faixas do incentivo aplicadas ao % de cada pilar da linha TOTAL da própria aba** — a empresa
+  inteira, com todas as rotas que tiveram Real. É **leitura de volume, não pontuação de pessoa**: os Estratégicos não
+  têm pontos, gatilho nem premiação no regulamento (documento de regras, seção 1), e o quadro diz isso em texto, na
+  tela. O cálculo é de `pontosBand()` no adaptador, que só chama `motor.calcPilar` e lê `motor.REGRAS.faixas`:
+  **nenhuma faixa nova e nenhuma conta na tela**. O máximo do mês é nº de pilares × a maior faixa (hoje 4 × 5 = 20).
+  Pilar **sem meta** no mês não pontua, aparece como "–" e deixa o mês **incompleto** (nunca somado como zero); mês
+  fechado que falte, não carregue ou não traga `totais` no snapshot fica **indisponível** (nunca se soma rota por
+  rota) e o acumulado sai incompleto. O selo de cada mês fechado é o mesmo da tela (prévia × oficial,
+  `estadoFechado`); o mês vigente é **parcial** e muda até o fechamento.
 
 ## Comandos
 ```

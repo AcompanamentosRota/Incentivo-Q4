@@ -2815,3 +2815,190 @@ test('missões por cobertura: a tela mostra base, divergência e rotas acima dos
   // a meta do pilar continua saindo da configuração: nenhum "10" de meta escrito na tela
   assert.ok(/MISS\.metaPorRota/.test(tpl));
 });
+
+// ── etapa 30: quadro de pontos da Band na aba Estratégicos (pedido da Karen de 23/11/2026) ──
+// Fixtures sintéticas (nomes fictícios): a empresa inteira com 4 pilares de volume, outubro fechado e novembro
+// corrente. Nenhum número vem da API publicada.
+const { pontosBand, estadoFechado: estFech } = require('../src/adapter.js');
+
+const ITENS_BAND = ['Sabores Tt', 'Refrigerantes Retornavel', 'Sucos', 'Powerade'];
+/** [meta, real, online] no layout de CONFIG.idx (o resto da linha fica nulo, como no resto do painel). */
+const vBand = (meta, real, online = 0) => {
+  const l = [null, null, null, null, null];
+  l[CONFIG.idx.meta] = meta; l[CONFIG.idx.real] = real; l[CONFIG.idx.online] = online;
+  return l;
+};
+/** Produtos da empresa a partir de uma lista [meta, real, online] por pilar, na ordem de ITENS_BAND. */
+const empresaBand = (vals) => Object.fromEntries(ITENS_BAND.map((k, i) => [k, vBand(...vals[i])]));
+const fechadoBand = (mes, produtos, final = true) => ({
+  mes, anomes: '2026' + String(mes).padStart(2, '0'), rotulo: 'Outubro/26', final,
+  oficialEm: final ? '2026-11-16T11:05' : null, fonteSelo: final ? 'flash' : null,
+  rotas: [], atualizadoEm: '2026-11-01T08:00:00',
+  totais: produtos ? { empresa: produtos, gerencias: [{ id: 'G1', gc: 'G1', v: produtos }] } : null,
+});
+const usadoBand = (mes, final = true) => {
+  const u = { mes, anomes: '2026' + String(mes).padStart(2, '0'), rotulo: 'Outubro/26', final,
+              oficialEm: final ? '2026-11-16T11:05' : null, fonteSelo: final ? 'flash' : null };
+  u.estado = estFech(u, null);
+  return u;
+};
+/** Dados do painel só com o que o quadro usa: o total da empresa do mês corrente e os meses fechados. */
+const dadosBand = (produtosNov, fechados = [], faltando = []) => ({
+  meta: { origem: 'api', mes: 11, ano: 2026, rotulo: 'Novembro/26', corte: '23/11/2026 15:30', refriCategoria: true,
+          acumulado: { meses: [10, 11], usados: fechados.filter((f) => f.totais).map((f) => usadoBand(f.mes, f.final)),
+                       faltando, previa: [] } },
+  rotas: [], fechados,
+  totaisGerencia: [{ id: 'G1', gc: 'G1', nome: 'Gerência Um', v: produtosNov }],
+  totalEmpresa: produtosNov,
+});
+
+test('pontos da Band: as faixas nos limites de 5 casas saem do motor, nunca de uma segunda tabela na tela', () => {
+  // meta 100.000 e total = pct × 1.000: o % cai exatamente em cada borda da tabela de faixas
+  const casos = [[89.99, 0], [89.99999, 0], [90, 2], [99.99, 2], [99.99999, 2],
+                 [100, 3], [104.99, 3], [104.99999, 3], [105, 5], [130, 5]];
+  for (const [pct, esperado] of casos) {
+    const total = pct * 1000;
+    // o pilar entra com Real + Online: a conta do quadro é a mesma soma que a tabela mostra
+    const q = pontosBand(dadosBand(empresaBand([[100000, total - 10, 10], [100000, total, 0],
+                                                [100000, total, 0], [100000, total, 0]])), ITENS_BAND, CONFIG);
+    const mes = q.meses.find((m) => m.corrente);
+    assert.equal(mes.pilares[0].pontos, esperado, pct + '% deveria valer ' + esperado + ' pontos');
+    // e é exatamente o que o motor devolve para o mesmo par (total, meta): nenhuma faixa nova no caminho
+    assert.equal(mes.pilares[0].pontos, M.faixaPontos(total, 100000), pct + '%: fora do motor');
+    assert.equal(mes.pilares[0].pctTexto, M.fmtPct((total / 100000) * 100), pct + '%: o % exibido não é o truncado do motor');
+  }
+  // o máximo do mês vem das faixas do motor × número de pilares (nunca "20" escrito)
+  const q = pontosBand(dadosBand(empresaBand([[100, 100, 0], [100, 100, 0], [100, 100, 0], [100, 100, 0]])), ITENS_BAND, CONFIG);
+  assert.equal(q.maxPilar, Math.max.apply(null, M.REGRAS.faixas.map((f) => f.pontos)));
+  const vigente = q.meses.find((m) => m.corrente);
+  assert.equal(vigente.maximo, ITENS_BAND.length * q.maxPilar);
+  assert.equal(vigente.pontos, 4 * M.faixaPontos(100, 100));
+});
+
+test('pontos da Band: outubro do mês fechado, mês vigente de hoje e o acumulado = a soma dos dois', () => {
+  // outubro: 91,6% (2) · 88,9% (0) · 108,1% (5) · 100% (3) = 10 pontos
+  const out = empresaBand([[1000, 916, 0], [1000, 889, 0], [1000, 1081, 0], [1000, 1000, 0]]);
+  // novembro (parcial): 50,0% (0) · 95,0% (2) · 105,0% (5) · 40,0% (0) = 7 pontos
+  const nov = empresaBand([[1000, 480, 20], [1000, 950, 0], [1000, 1050, 0], [1000, 400, 0]]);
+  const q = pontosBand(dadosBand(nov, [fechadoBand(10, out)]), ITENS_BAND, CONFIG);
+  assert.deepEqual(q.meses.map((m) => m.mes), [10, 11]);
+  const o = q.meses[0], n = q.meses[1];
+  assert.deepEqual([o.pontos, o.maximo, o.corrente, o.indisponivel, o.incompleto], [10, 20, false, false, false]);
+  assert.deepEqual([n.pontos, n.maximo, n.corrente, n.incompleto], [7, 20, true, false]);
+  assert.deepEqual(q.acumulado, { pontos: 17, maximo: 40, incompleto: false });
+  // o selo de outubro é o da tela (estadoFechado), não um "oficial" escrito aqui
+  assert.deepEqual([o.estado.curto, o.estado.previa], ['oficial', false]);
+  assert.equal(n.estado, null); // o mês corrente não tem selo de fechamento: é parcial
+  // o % de cada pilar é o truncado do motor, e os pontos batem com faixaPontos no mesmo par
+  assert.deepEqual(o.pilares.map((p) => p.pctTexto), ['91,6%', '88,9%', '108,1%', '100,0%']);
+  assert.deepEqual(o.pilares.map((p) => p.pontos), [2, 0, 5, 3]);
+  assert.deepEqual(n.pilares.map((p) => p.pontos), ITENS_BAND.map((k) => M.faixaPontos(nov[k][1] + nov[k][2], nov[k][0])));
+});
+
+test('pontos da Band: outubro em prévia continua contando, com o selo de prévia (nenhum número muda)', () => {
+  const out = empresaBand([[1000, 916, 0], [1000, 889, 0], [1000, 1081, 0], [1000, 1000, 0]]);
+  const nov = empresaBand([[1000, 500, 0], [1000, 500, 0], [1000, 500, 0], [1000, 500, 0]]);
+  const oficial = pontosBand(dadosBand(nov, [fechadoBand(10, out, true)]), ITENS_BAND, CONFIG);
+  const previa = pontosBand(dadosBand(nov, [fechadoBand(10, out, false)]), ITENS_BAND, CONFIG);
+  assert.deepEqual(previa.meses.map((m) => m.pontos), oficial.meses.map((m) => m.pontos));
+  assert.deepEqual([previa.meses[0].estado.curto, previa.meses[0].estado.previa], ['prévia', true]);
+});
+
+test('pontos da Band: pilar sem meta no mês não pontua, aparece como "–" e deixa o mês incompleto', () => {
+  // o 2º pilar vem sem meta (a API não publicou o item); os outros três pontuam normalmente
+  const nov = empresaBand([[1000, 1100, 0], [0, 500, 0], [1000, 1000, 0], [1000, 950, 0]]);
+  const q = pontosBand(dadosBand(nov), ITENS_BAND, CONFIG);
+  const m = q.meses.find((x) => x.corrente);
+  assert.deepEqual(m.pilares.map((p) => p.semMeta), [false, true, false, false]);
+  assert.deepEqual(m.pilares.map((p) => p.pontos), [5, null, 3, 2]);
+  assert.deepEqual([m.pilares[1].pct, m.pilares[1].pctTexto], [null, '-']); // "–" na tela, nunca 0% nem 100%
+  // o mês soma só o que tem meta e fica marcado como incompleto: o pilar sem meta NÃO vira zero
+  assert.deepEqual([m.pontos, m.incompleto], [10, true]);
+  assert.equal(m.motivo, '1 pilar sem meta no mês');
+  assert.equal(q.acumulado.incompleto, true);
+  // meta nula tem o mesmo tratamento de meta zero
+  const nula = empresaBand([[1000, 1100, 0], [null, 500, 0], [1000, 1000, 0], [1000, 950, 0]]);
+  assert.equal(pontosBand(dadosBand(nula), ITENS_BAND, CONFIG).meses.find((x) => x.corrente).pilares[1].pontos, null);
+});
+
+test('pontos da Band: mês fechado ausente ou sem os totais deixa outubro indisponível e o acumulado incompleto', () => {
+  const nov = empresaBand([[1000, 1100, 0], [1000, 1100, 0], [1000, 1100, 0], [1000, 1100, 0]]);
+  // (a) o mês nem está em fechados
+  const semArquivo = pontosBand(dadosBand(nov, [], [{ mes: 10, motivo: 'outubro não está nos meses fechados da API' }]),
+                                ITENS_BAND, CONFIG);
+  const o1 = semArquivo.meses[0];
+  assert.deepEqual([o1.mes, o1.indisponivel, o1.pontos, o1.incompleto], [10, true, null, true]);
+  assert.equal(o1.motivo, 'outubro não está nos meses fechados da API');
+  assert.deepEqual(o1.pilares.map((p) => p.pontos), [null, null, null, null]);
+  // o acumulado NUNCA se apresenta como completo: traz só o que foi apurado, marcado como incompleto
+  assert.deepEqual(semArquivo.acumulado, { pontos: 20, maximo: 40, incompleto: true });
+  // (b) o arquivo existe mas não traz os totais do snapshot: nunca se soma rota por rota
+  const semTotais = pontosBand(dadosBand(nov, [fechadoBand(10, null)]), ITENS_BAND, CONFIG);
+  assert.equal(semTotais.meses[0].indisponivel, true);
+  assert.match(semTotais.meses[0].motivo, /fechado\/202610\.json não traz os totais da empresa/);
+  assert.equal(semTotais.acumulado.incompleto, true);
+});
+
+test('pontos da Band: o % de cada mês é o mesmo da linha TOTAL da tabela (uma fonte só)', () => {
+  const out = empresaBand([[1000, 916, 0], [1000, 889, 0], [1000, 1081, 0], [1000, 1000, 0]]);
+  const nov = empresaBand([[1000, 480, 20], [1000, 950, 0], [1000, 1050, 0], [1000, 400, 0]]);
+  const d = dadosBand(nov, [fechadoBand(10, out)]);
+  const q = pontosBand(d, ITENS_BAND, CONFIG);
+  const tot = montarEstrat(d, ITENS_BAND, CONFIG).total.v;
+  q.meses.find((m) => m.corrente).pilares.forEach((p) => {
+    assert.equal(p.pctTexto, M.fmtPct(((tot[p.chave].real + tot[p.chave].online) / tot[p.chave].meta) * 100), p.chave);
+  });
+});
+
+test('pontos da Band na tela: o detalhe por pilar é só do mês vigente e a frase "não vale premiação" aparece', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  const corpo = (t) => { const i = t.indexOf('function renderPontosBand('); const j = t.indexOf('\n}', i); return t.slice(i, j); };
+  for (const par of [['template', tpl], ['HTML gerado', html]]) {
+    const onde = par[0], f = corpo(par[1]);
+    assert.ok(f.length > 100, 'renderPontosBand existe: ' + onde);
+    // o detalhe lê SÓ o mês corrente (vig): nenhum outro mês entra na lista por pilar
+    assert.match(f, /const vig = q\.meses\.find\(m=>m\.corrente\)/, onde);
+    assert.match(f, /const porPilar = !vig \? '' : blocos\.map\(\(b,i\)=>\{[\s\S]*?vig\.pilares\[i\]/, onde);
+    assert.doesNotMatch(f, /outubro|Outubro|mes===10|mes==10/, 'nenhum mês escrito na tela: ' + onde);
+    // os números e as faixas vêm do adaptador/motor: a tela não soma nem compara com limite nenhum
+    assert.match(f, /pontosBand\(DADOS, blocos\.map\(b=>b\.chave\), CONFIG\)/, onde);
+    assert.doesNotMatch(f, />=\s*(90|100|105)\b/, 'faixa escrita na tela: ' + onde);
+    // a advertência fica visível, sem depender do mouse
+    assert.match(f, /não vale premiação/, onde);
+    assert.match(f, /Estratégicos não tem pontos, gatilho nem prêmio no regulamento/, onde);
+    assert.doesNotMatch(f, /title=/, 'a tela é feita para print: nada escondido no tooltip: ' + onde);
+  }
+  // o quadradinho do % da tabela usa a faixa do motor, nunca um segundo cálculo
+  assert.match(tpl, /pchip t\$\{tier\(M\.faixaPontos\(x\.real \+ x\.online, x\.meta\)\)\}/);
+  // nenhuma tabela de faixas escrita na tela (nem os limites de 5 casas)
+  const semEstilo = tpl.replace(/<style>[\s\S]*?<\/style>/g, '');
+  assert.doesNotMatch(semEstilo, /89[,.]9|104[,.]9/);
+});
+
+test('etapa 30: a aba Estratégicos usa as classes e os tokens da Supervisão, e a tabela cabe em 13px', () => {
+  const fs = require('fs'), path = require('path');
+  const tpl = fs.readFileSync(path.join(__dirname, '../src/app.tpl.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../../frontend/desafio-q4.html'), 'utf8');
+  for (const par of [['template', tpl], ['HTML gerado', html]]) {
+    const onde = par[0], txt = par[1];
+    // corpo em 13px: o teto passado a ajustarGrid (o piso de 9 continua protegendo contra estouro)
+    assert.match(txt, /ajustarGrid\(cols, 'ethead', 'estrat', grupos, 9, 13\)/, onde);
+    // alturas só da aba, nunca na regra global de .th/.trow (compartilhada com Rota e Supervisão)
+    assert.match(txt, /#v-estrat \.th\{grid-template-rows:30px 24px\}/, onde);
+    assert.match(txt, /#v-estrat \.trow\{height:27px\}/, onde);
+    // rótulos das colunas centralizados pela classe .sl.c que já existia
+    assert.match(txt, /<div class="sl c \$\{b\.g\} \$\{i===0\?'gs':''\}"/, onde);
+    assert.doesNotMatch(txt, /<div class="hh rh" style="grid-column:\$\{col\}">% Refri/, 'o % Refri segue o critério das demais: ' + onde);
+    // a linha TOTAL deixou de ter paleta própria: usa a .trow.gtot compartilhada
+    assert.doesNotMatch(txt, /\.trow\.gtot\{background:rgba\(255,255,255,\.10\)/, onde);
+    assert.equal((txt.match(/\.trow\.gtot\{/g) || []).length, 1, 'uma definição só de .trow.gtot: ' + onde);
+  }
+  // nenhuma cor NOVA no quadro: toda tinta dele já existia no painel (tokens --* ou um valor já usado em outra aba)
+  const ini = tpl.indexOf('.etpts{'), fim = tpl.indexOf('/* realce em cruz');
+  const bloco = tpl.slice(ini, fim), resto = tpl.slice(0, ini) + tpl.slice(fim);
+  for (const cor of new Set(bloco.match(/#[0-9a-fA-F]{3,6}/g) || [])) {
+    assert.ok(resto.includes(cor), 'cor nova inventada no quadro: ' + cor);
+  }
+});

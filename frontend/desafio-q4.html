@@ -370,14 +370,46 @@ button{background:none;border:0;cursor:pointer}
 .rkcorte{height:24px;display:flex;align-items:center;padding:0 14px;font-size:14px;font-weight:600;letter-spacing:.04em;color:#ffd978;background:rgba(255,200,74,.10);border-top:1px solid rgba(255,200,74,.6);border-bottom:1px solid rgba(255,200,74,.6)}
 .rkvazio{padding:28px 14px;color:var(--muted);font-size:18px}
 
-/* estrategicos: linha de total da empresa */
-.trow.gtot{background:rgba(255,255,255,.10);font-weight:600;border-top:2px solid rgba(255,255,255,.3)}
-.trow.gtot .rt{font-weight:700}
+/* estrategicos: a linha de total da empresa usa a mesma .trow.gtot das outras tabelas (sem paleta propria) */
 .etnota{font-size:15px;font-weight:500;color:var(--muted);line-height:1.35}
 .etfoot{flex:none;display:flex;align-items:center;gap:12px;padding:9px 24px;border-top:1px solid var(--line)}
 .etfoot .tag{font-size:15px;padding:1px 10px;white-space:nowrap}
 #etrows{flex:0 1 auto;overflow-y:auto}   /* encolhe até o conteúdo: a linha TOTAL fica colada na última gerência */
 .ettot{flex:none}
+/* Estrategicos (etapa 30, 23/11/2026): corpo da tabela em 13px (o teto passado a ajustarGrid), com as linhas e o cabecalho
+   mais baixos na mesma proporcao, para as 16 gerencias e o TOTAL cabarem sem rolagem. Tudo sob #v-estrat: .th,
+   .trow e .hh sao compartilhados com as abas Rota e Supervisao e nao podem mudar. */
+#v-estrat .th{grid-template-rows:30px 24px}
+#v-estrat .trow{height:27px}
+#v-estrat .hh small{font-size:calc(var(--tf) - 2px)}
+
+/* Estrategicos: quadro de pontos da Band, acima da tabela (item 3 da etapa 30). Os numeros, as faixas e o selo de
+   cada mes vem do motor e do adaptador (pontosBand); aqui so a apresentacao. */
+.etpts{flex:none;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:24px;row-gap:3px;
+  align-items:start;padding:6px 24px 7px;border-bottom:1px solid var(--line)}
+.etpts-cab{grid-column:1 / -1;display:flex;align-items:baseline;gap:10px;min-width:0}
+.etpts-cab>b{font-size:13px;font-weight:700;letter-spacing:.07em;color:#d8dbe2;white-space:nowrap}
+.etpts-cab>i{font-style:normal;font-size:12px;font-weight:500;color:var(--muted);line-height:1.25;min-width:0}
+.etpts-cab>i b{font-weight:700;color:#ffd978}
+.etpts-cxs{display:flex;gap:8px}
+.etpcx{min-width:108px;padding:2px 10px 3px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.04)}
+.etpcx.ac{background:rgba(29,123,255,.14);border-color:rgba(29,123,255,.45)}
+.etpcx>small{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);line-height:1.25}
+.etpcx .vl{display:flex;align-items:baseline;gap:5px;line-height:1.1}
+.etpcx .vl b{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.etpcx .vl b.na{font-size:15px;color:#9aa0ad}
+.etpcx .vl span{font-size:12px;font-weight:600;color:var(--muted)}
+.etpcx .se{display:inline-block;margin-top:1px;font-size:11px;font-weight:600;line-height:14px;color:var(--muted)}
+.etpcx .se.of{color:#7dffa0}.etpcx .se.pc{color:#ffd978}.etpcx .se.nd{color:#ffb3bd}
+.etpdet{min-width:0}
+.etpdet>small{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);line-height:14px}
+.etppl{display:grid;grid-template-columns:minmax(0,320px)}
+.etppl>div{display:flex;align-items:center;gap:7px;height:17px;font-size:12px;font-weight:600;min-width:0}
+.etpsw{flex:none;width:9px;height:9px;border-radius:2px;background:var(--gc)}
+.etppl .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.04em;color:#d8dbe2}
+.etppl .pc{flex:none}
+.etppl .pt{flex:none;min-width:22px;text-align:right}
+.etppl .pt.dash{color:#9aa0ad}
 /* realce em cruz: a linha sai do :hover, a coluna da classe .cl posta pelo mouse */
 .trow>div.cl{background:rgba(255,255,255,.09)}
 .rows .trow:hover>div,.ettot .trow:hover>div{background:rgba(255,255,255,.09)}
@@ -526,6 +558,7 @@ button{background:none;border:0;cursor:pointer}
   <section class="view wide" id="v-estrat" aria-label="Estratégicos: gerências por item">
     <div class="panel">
       <div class="tt"><span id="ettitulo"></span><span class="kp" id="etsub"></span></div>
+      <div class="etpts" id="etpts"></div>
       <div class="th" id="ethead"></div>
       <div class="rows" id="etrows"></div>
       <div class="ettot" id="ettot"></div>
@@ -2583,6 +2616,67 @@ function montarEstrat(dados, itens, cfg) {
 }
 
 /*
+ * ─────────────── Quadro de pontos da Band (aba Estratégicos, pedido da Karen de 23/11/2026) ───────────────
+ * As faixas do incentivo aplicadas ao % de cada pilar da linha TOTAL da aba Estratégicos — a empresa inteira, com
+ * todas as rotas que tiveram Real, exatamente os números que a tabela mostra.
+ * É LEITURA DE VOLUME DA BAND, não pontuação de pessoa: os Estratégicos não têm pontos, gatilho nem premiação no
+ * regulamento (documento de regras v4.0, seção 1), e a tela diz isso em texto.
+ * Nada é calculado aqui: o %, o % truncado e os pontos de cada pilar saem de `motor.calcPilar` — a mesma função que
+ * pontua qualquer pilar do painel — e o máximo por pilar sai de `motor.REGRAS.faixas`. Nenhuma faixa nova, nenhuma
+ * tabela de faixas copiada.
+ * Uma entrada por mês do trimestre até o de referência (os fechados e o corrente) mais o acumulado. Os meses usam as
+ * MESMAS colunas da tabela (`itens`), para o quadro nunca mostrar um % que a tabela não mostra.
+ * Mês fechado que falte, não tenha carregado ou não traga os totais do snapshot fica `indisponivel`: nunca se soma
+ * rota por rota (seria outra base) nem se supõe zero, e o acumulado sai `incompleto`.
+ */
+function pontosBand(dados, itens, cfg) {
+  cfg = cfg || CONFIG;
+  const M = Motor();
+  const maxPilar = M.REGRAS.faixas.reduce((m, f) => Math.max(m, f.pontos), 0);
+  const maximo = itens.length * maxPilar;
+  const mesRef = dados.meta.mes;
+  const acum = dados.meta.acumulado || { usados: [], faltando: [] };
+  const anomes = (mes) => anomesDe(dados.meta.ano, mes);
+  // Total da empresa no mês: o corrente vem da própria aba; o fechado, dos totais do snapshot (nunca das rotas).
+  const totalDoMes = (mes) => {
+    if (mes === mesRef) return { total: montarEstrat(dados, itens, cfg).total.v, motivo: null };
+    const falta = (acum.faltando || []).find((x) => x.mes === mes);
+    const d = dadosDoFechado(dados, mes, cfg);
+    if (!d) return { total: null, motivo: (falta && falta.motivo) || `${NOMES_MES[mes]} não está nos meses fechados da API` };
+    if (!d.totalEmpresa) return { total: null, motivo: `o fechado/${anomes(mes)}.json não traz os totais da empresa` };
+    return { total: montarEstrat(d, itens, cfg).total.v, motivo: null };
+  };
+  const meses = MESES_Q4.filter((m) => m <= mesRef).map((mes) => {
+    const r = totalDoMes(mes), u = (acum.usados || []).find((x) => x.mes === mes) || null;
+    const pilares = itens.map((chave) => {
+      const x = r.total ? r.total[chave] : null;
+      // pilar sem meta no mês não pontua e não vira zero: pontos null, e o mês fica incompleto
+      const p = x && x.meta > 0 ? M.calcPilar({ meta: x.meta, real: x.real, online: x.online }) : null;
+      return { chave, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : null,
+               pct: p ? p.pct : null, pctTexto: p ? p.pctTexto : '-', pontos: p ? p.pontos : null, semMeta: !p };
+    });
+    const faltam = pilares.filter((p) => p.semMeta).length;
+    return {
+      mes, rotulo: mes === mesRef ? dados.meta.rotulo : (u && u.rotulo) || NOMES_MES[mes], anomes: anomes(mes),
+      corrente: mes === mesRef, indisponivel: r.total === null,
+      // o selo do mês fechado é o mesmo da tela (prévia x oficial, decisão de 04/11/2026): nunca "oficial" fixo aqui
+      estado: r.total === null ? null : mes === mesRef ? null : (u && u.estado) || null,
+      pilares, maximo,
+      pontos: r.total === null ? null : pilares.reduce((s, p) => s + (p.pontos || 0), 0),
+      incompleto: r.total === null || faltam > 0,
+      motivo: r.motivo || (faltam ? `${faltam} ${faltam === 1 ? 'pilar' : 'pilares'} sem meta no mês` : null),
+    };
+  });
+  const comPontos = meses.filter((m) => m.pontos !== null);
+  return {
+    itens: itens.slice(), maxPilar, maximo, meses,
+    acumulado: { pontos: comPontos.reduce((s, m) => s + m.pontos, 0),
+                 maximo: meses.reduce((s, m) => s + m.maximo, 0),
+                 incompleto: meses.some((m) => m.incompleto) },
+  };
+}
+
+/*
  * Dados do painel -> entrada do motor, com todos os meses do trimestre até o de referência: os fechados
  * (dados.fechados, online = 0) e o corrente (dados.rotas). Cada mês usa os pilares daquele mês; a mesa do SV em
  * cada mês é a supervisão da rota naquele mês. Pessoas = rotas e supervisões do mês corrente.
@@ -3143,7 +3237,7 @@ function planilhaXlsx(abas) {
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
                      fechadoDaApi, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
-                     montarEstrat, CHAVE_REFRI,
+                     montarEstrat, pontosBand, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
@@ -3359,12 +3453,13 @@ REG.style.fontFamily = getComputedStyle(document.body).fontFamily;
 document.body.appendChild(REG);
 const larg = (txt, peso, px)=>{ REG.style.fontWeight=peso; REG.style.fontSize=px+'px'; REG.textContent=txt; return REG.offsetWidth; };
 const largMax = (textos, peso, px)=> textos.reduce((m,s)=> Math.max(m, larg(s, peso, px)), 0);
-/* Escolhe o maior corpo de fonte (16 a 10 px) em que todas as colunas ainda cabem na largura do painel:
-   com 1 casa decimal os números ficaram mais largos, e assim nada é cortado nem sobra espaço vazio. */
+/* Escolhe o maior corpo de fonte (do teto, 16 px por padrão, até o piso) em que todas as colunas ainda cabem na
+   largura do painel: com 1 casa decimal os números ficaram mais largos, e assim nada é cortado nem sobra espaço
+   vazio. `teto` é para a tabela que precisa de um corpo menor que o máximo (Estratégicos, com 26 colunas). */
 const GRIDS = {};
-function ajustarGrid(cols, alvo, chave, grupos, piso){
+function ajustarGrid(cols, alvo, chave, grupos, piso, teto){
   const el = $(alvo), painel = el.closest('.panel'), disp = (el.clientWidth || 1890) - 2;
-  const k = chave + '|' + disp;
+  const k = chave + '|' + disp + '|' + (teto||16);
   if(!GRIDS[k]){
     const calc = (px)=>{
       const l = cols.map(c=> c.fixa || Math.ceil(largMax(c.textos, c.peso||600, px)) + (c.extra||0) + 8);
@@ -3375,7 +3470,7 @@ function ajustarGrid(cols, alvo, chave, grupos, piso){
       });
       return l;
     };
-    let px = 16, l = calc(px);
+    let px = teto || 16, l = calc(px);
     while(px > (piso||10) && l.reduce((s,x)=>s+x,0) > disp){ px--; l = calc(px); }
     const base = l.reduce((s,x,i)=> s + (cols[i].fixa ? 0 : x), 0), sobra = disp - l.reduce((s,x)=>s+x,0);
     if(sobra > 0 && base > 0) l = l.map((w,i)=> cols[i].fixa ? w : w + Math.floor(sobra * w / base));
@@ -3672,6 +3767,7 @@ function renderEstrat(){
      Real); sem ela, a soma das rotas do incentivo. A tela só formata. */
   const est = montarEstrat(DADOS, blocos.map(b=>b.chave), CONFIG);
   const linhas = est.linhas, tot = est.total.v;
+  renderPontosBand(blocos);
   const pctDe = (x)=> x.meta>0 ? (x.real + x.online)/x.meta*100 : null;
   const difDe = (x)=> x.real + x.online - x.meta;
   const celulas = (d, b)=>{
@@ -3688,24 +3784,26 @@ function renderEstrat(){
     grupos.push({ ini, fim: cols.length-1, textos:[b.rot] });
   });
   cols.push({ textos:['% Refri','gatilho '+R.gatilhoVolumePct+'%','100,0%'] });
-  GRID = ajustarGrid(cols, 'ethead', 'estrat', grupos, 9);
+  GRID = ajustarGrid(cols, 'ethead', 'estrat', grupos, 9, 13);   /* corpo em 13px, decidido em 23/11/2026 */
   let h = `<div class="hh lf" style="grid-column:1">Gerência</div>`, col = 2;
   blocos.forEach(b=>{
     h += `<div class="gh ${b.g}" style="grid-column:${col} / span ${COLS_EST.length}">${esc(b.rot)}</div>`;
-    COLS_EST.forEach((l,i)=>{ h += `<div class="sl ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
+    COLS_EST.forEach((l,i)=>{ h += `<div class="sl c ${b.g} ${i===0?'gs':''}" style="grid-column:${col+i}">${l}</div>`; });
     col += COLS_EST.length;
   });
-  h += `<div class="hh rh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
+  h += `<div class="hh" style="grid-column:${col}">% Refri<small>gatilho ${R.gatilhoVolumePct}%</small></div>`;
   $('ethead').style.gridTemplateColumns = GRID;
   $('ethead').innerHTML = h;
   const linhaEst = (nome, d, cls)=>{
     let c = `<div class="rt">${esc(nome)}</div>`;
     blocos.forEach(b=>{
-      const v = celulas(d, b), dif = difDe(d[b.chave]);
-      const cor = pctDe(d[b.chave])===null ? '' : dif<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
+      const x = d[b.chave], v = celulas(d, b), dif = difDe(x), pct = pctDe(x);
+      const cor = pct===null ? '' : dif<0 ? 'color:#ffb3bd' : 'color:#7dffa0';
+      /* o quadradinho do % usa a faixa do motor (M.faixaPontos): a tela não tem segunda tabela de faixas */
+      const pc = pct===null ? v[5] : `<span class="pchip t${tier(M.faixaPontos(x.real + x.online, x.meta))}">${v[5]}</span>`;
       c += `<div class="${b.g} n gs">${v[0]}</div><div class="${b.g} n m">${v[1]}</div><div class="${b.g} n">${v[2]}</div>`
          + `<div class="${b.g} n m">${v[3]}</div><div class="${b.g} n" style="${cor}">${v[4]}</div>`
-         + `<div class="${b.g} n b">${v[5]}</div>`;
+         + `<div class="${b.g} n b">${pc}</div>`;
     });
     const rp = pctDe(d[CHAVE_REFRI]);
     c += `<div class="n b${rp!==null && rp>=R.gatilhoVolumePct?' ok':''}">${rp===null?'–':M.fmtPct(rp)}</div>`;
@@ -3726,6 +3824,43 @@ function renderEstrat(){
       + `(${cc.pct===null?'–':M.fmtPct(cc.pct)}).`
     : `<span class="tag">base embutida: só rotas do incentivo</span>`
       + ` Sem a API, a aba soma apenas as ${est.nRotas} rotas de canal Mista ou Segmentada: não é a gerência inteira.`;
+}
+
+/* Quadro de pontos da Band (etapa 30, pedido da Karen de 23/11/2026): as faixas do incentivo aplicadas ao % de cada
+   pilar da linha TOTAL desta aba. Os números, o % truncado, os pontos, o máximo e o selo de cada mês vêm todos de
+   `pontosBand` (adaptador) + `motor.calcPilar`: aqui não se calcula nem se soma nada, e nenhuma faixa é escrita.
+   É leitura do volume da Band, não pontuação de pessoa — a tela diz isso, porque Estratégicos não tem pontos,
+   gatilho nem premiação no regulamento (documento de regras, seção 1).
+   O detalhe por pilar mostra SÓ o mês vigente; os meses fechados aparecem apenas como o número da caixa. */
+function renderPontosBand(blocos){
+  const q = pontosBand(DADOS, blocos.map(b=>b.chave), CONFIG);
+  const vig = q.meses.find(m=>m.corrente) || null;
+  const valor = (pts, max, na)=> `<div class="vl">`
+    + (pts===null ? `<b class="na">${na}</b>` : `<b>${pts}</b><span>de ${max}</span>`) + `</div>`;
+  const selo = (cls, txt)=> `<span class="se ${cls}">${esc(txt)}</span>`;
+  const caixaMes = (m)=>{
+    const sl = m.indisponivel ? selo('nd','indisponível')
+      : m.corrente ? selo('pc','parcial · muda até o fechamento')
+      : m.estado ? selo(m.estado.previa?'pc':'of', m.estado.curto) : selo('','');
+    return `<div class="etpcx"><small>${esc(m.rotulo)}</small>${valor(m.pontos, m.maximo, '–')}`
+      + sl + (m.pontos!==null && m.incompleto ? selo('nd','incompleto') : '') + `</div>`;
+  };
+  const ac = q.acumulado;
+  const caixaAc = `<div class="etpcx ac"><small>Acumulado</small>`
+    + `<div class="vl"><b>${ac.pontos}</b><span>de ${ac.maximo}</span></div>`
+    + (ac.incompleto ? selo('nd','incompleto') : selo('of','completo')) + `</div>`;
+  const porPilar = !vig ? '' : blocos.map((b,i)=>{
+    const p = vig.pilares[i];
+    return `<div><span class="etpsw ${b.g}"></span><span class="nm">${esc(b.rot)}</span>`
+      + `<span class="pc">${p.pct===null?'–':esc(p.pctTexto)}</span>`
+      + `<span class="pt${p.pontos===null?' dash':''}">${p.pontos===null?'–':p.pontos} pts</span></div>`;
+  }).join('');
+  $('etpts').innerHTML = `<div class="etpts-cab"><b>PONTUAÇÃO DA BAND</b>`
+    + `<i>as faixas do incentivo no % de volume da empresa, por pilar. É leitura de desempenho: <b>não vale premiação</b>`
+    + ` — Estratégicos não tem pontos, gatilho nem prêmio no regulamento.</i></div>`
+    + `<div class="etpts-cxs">${q.meses.map(caixaMes).join('')}${caixaAc}</div>`
+    + `<div class="etpdet"><small>Por pilar · ${vig?esc(vig.rotulo):'—'} (mês vigente)</small>`
+    + `<div class="etppl">${porPilar}</div></div>`;
 }
 
 /* ---------- confrontos entre supervisores ---------- */

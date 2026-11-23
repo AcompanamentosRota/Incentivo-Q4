@@ -1563,6 +1563,67 @@ function montarEstrat(dados, itens, cfg) {
 }
 
 /*
+ * ─────────────── Quadro de pontos da Band (aba Estratégicos, pedido da Karen de 23/11/2026) ───────────────
+ * As faixas do incentivo aplicadas ao % de cada pilar da linha TOTAL da aba Estratégicos — a empresa inteira, com
+ * todas as rotas que tiveram Real, exatamente os números que a tabela mostra.
+ * É LEITURA DE VOLUME DA BAND, não pontuação de pessoa: os Estratégicos não têm pontos, gatilho nem premiação no
+ * regulamento (documento de regras v4.0, seção 1), e a tela diz isso em texto.
+ * Nada é calculado aqui: o %, o % truncado e os pontos de cada pilar saem de `motor.calcPilar` — a mesma função que
+ * pontua qualquer pilar do painel — e o máximo por pilar sai de `motor.REGRAS.faixas`. Nenhuma faixa nova, nenhuma
+ * tabela de faixas copiada.
+ * Uma entrada por mês do trimestre até o de referência (os fechados e o corrente) mais o acumulado. Os meses usam as
+ * MESMAS colunas da tabela (`itens`), para o quadro nunca mostrar um % que a tabela não mostra.
+ * Mês fechado que falte, não tenha carregado ou não traga os totais do snapshot fica `indisponivel`: nunca se soma
+ * rota por rota (seria outra base) nem se supõe zero, e o acumulado sai `incompleto`.
+ */
+function pontosBand(dados, itens, cfg) {
+  cfg = cfg || CONFIG;
+  const M = Motor();
+  const maxPilar = M.REGRAS.faixas.reduce((m, f) => Math.max(m, f.pontos), 0);
+  const maximo = itens.length * maxPilar;
+  const mesRef = dados.meta.mes;
+  const acum = dados.meta.acumulado || { usados: [], faltando: [] };
+  const anomes = (mes) => anomesDe(dados.meta.ano, mes);
+  // Total da empresa no mês: o corrente vem da própria aba; o fechado, dos totais do snapshot (nunca das rotas).
+  const totalDoMes = (mes) => {
+    if (mes === mesRef) return { total: montarEstrat(dados, itens, cfg).total.v, motivo: null };
+    const falta = (acum.faltando || []).find((x) => x.mes === mes);
+    const d = dadosDoFechado(dados, mes, cfg);
+    if (!d) return { total: null, motivo: (falta && falta.motivo) || `${NOMES_MES[mes]} não está nos meses fechados da API` };
+    if (!d.totalEmpresa) return { total: null, motivo: `o fechado/${anomes(mes)}.json não traz os totais da empresa` };
+    return { total: montarEstrat(d, itens, cfg).total.v, motivo: null };
+  };
+  const meses = MESES_Q4.filter((m) => m <= mesRef).map((mes) => {
+    const r = totalDoMes(mes), u = (acum.usados || []).find((x) => x.mes === mes) || null;
+    const pilares = itens.map((chave) => {
+      const x = r.total ? r.total[chave] : null;
+      // pilar sem meta no mês não pontua e não vira zero: pontos null, e o mês fica incompleto
+      const p = x && x.meta > 0 ? M.calcPilar({ meta: x.meta, real: x.real, online: x.online }) : null;
+      return { chave, meta: x ? x.meta : null, real: x ? x.real : null, online: x ? x.online : null,
+               pct: p ? p.pct : null, pctTexto: p ? p.pctTexto : '-', pontos: p ? p.pontos : null, semMeta: !p };
+    });
+    const faltam = pilares.filter((p) => p.semMeta).length;
+    return {
+      mes, rotulo: mes === mesRef ? dados.meta.rotulo : (u && u.rotulo) || NOMES_MES[mes], anomes: anomes(mes),
+      corrente: mes === mesRef, indisponivel: r.total === null,
+      // o selo do mês fechado é o mesmo da tela (prévia x oficial, decisão de 04/11/2026): nunca "oficial" fixo aqui
+      estado: r.total === null ? null : mes === mesRef ? null : (u && u.estado) || null,
+      pilares, maximo,
+      pontos: r.total === null ? null : pilares.reduce((s, p) => s + (p.pontos || 0), 0),
+      incompleto: r.total === null || faltam > 0,
+      motivo: r.motivo || (faltam ? `${faltam} ${faltam === 1 ? 'pilar' : 'pilares'} sem meta no mês` : null),
+    };
+  });
+  const comPontos = meses.filter((m) => m.pontos !== null);
+  return {
+    itens: itens.slice(), maxPilar, maximo, meses,
+    acumulado: { pontos: comPontos.reduce((s, m) => s + m.pontos, 0),
+                 maximo: meses.reduce((s, m) => s + m.maximo, 0),
+                 incompleto: meses.some((m) => m.incompleto) },
+  };
+}
+
+/*
  * Dados do painel -> entrada do motor, com todos os meses do trimestre até o de referência: os fechados
  * (dados.fechados, online = 0) e o corrente (dados.rotas). Cada mês usa os pilares daquele mês; a mesa do SV em
  * cada mês é a supervisão da rota naquele mês. Pessoas = rotas e supervisões do mês corrente.
@@ -2123,7 +2184,7 @@ function planilhaXlsx(abas) {
 if (typeof module === 'object' && module.exports) {
   module.exports = { CONFIG, montarEntrada, svKey, dadosDaApi, carregarDados, componentesRefri, comCanais,
                      fechadoDaApi, pilaresDoMes, pilaresDefinidos, PILARES_NO_MES, mesConfigurado, aplicarCoringas, NOMES_MES,
-                     montarEstrat, CHAVE_REFRI,
+                     montarEstrat, pontosBand, CHAVE_REFRI,
                      AJUSTES_LOCAL, PILARES_CORINGA, EXTRAS_MAX, CONFRONTOS_MAX, MESES_Q4, IDS_FIXOS, AGRUPADORES_FIXOS,
                      normalizarTexto, pilarDoExtra, normalizarExtras, normalizarConfrontos, normalizarAjustes, aplicarAjustes,
                      carregarAjustes, urlPublicacao, MotorPadrao, itensDosAjustes, objetoDosItens, rotuloItem, textoItem,
