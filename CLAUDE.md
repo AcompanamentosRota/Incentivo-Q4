@@ -578,6 +578,15 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   confronto vêm de funções puras do adaptador (`distribuirConfrontos`, `resumoConfrontos`, `estadoConfronto`,
   `larguraBarra`, `lugarEtiquetas`), e o CSS dela fica todo sob `#v-confrontos` e classes `cf*`. Detalhes no
   `painel-q4/README.md`.
+- **A publicação no Pages tem três tentativas (24/11/2026).** O `actions/deploy-pages` consulta a lista de artefatos
+  da própria rodada **uma vez só** (`src/internal/api-client.js` → `getArtifactMetadata`) e falha na hora se o
+  `github-pages` recém-enviado ainda não aparecer nela; **nenhuma versão da action repete essa busca**, nem a v5 (lá o
+  backoff é do acompanhamento do deploy já criado, e as entradas `timeout` e `error_count` também valem só para ele).
+  Desde 16/11/2026 essa listagem passou a vir atrasada e em 24/11/2026 derrubou 66% das publicações — dados commitados
+  em `api/` e site parado, sem ninguém perceber, porque a tela mostra o `atualizado_em` do dado **publicado**. Por isso
+  o `deploy-pages.yml` chama a action até **3 vezes**, com 20 s e 40 s de espera (`ESPERA_2` e `ESPERA_3`, no `env` do
+  job), e **só a última tentativa derruba a rodada**; o resumo da rodada diz em que tentativa o site saiu. O **upload do
+  artefato continua sendo um só**: subir `github-pages` duas vezes na mesma rodada dá conflito de nome.
 
 ## 7. Virada de mês
 

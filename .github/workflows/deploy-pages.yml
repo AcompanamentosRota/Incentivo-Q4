@@ -1,5 +1,20 @@
 # Publica no GitHub Pages: frontend/ na raiz do site e api/ em /api (a página lê ./api/v1/...).
 # Requer: Settings > Pages > Build and deployment > Source = "GitHub Actions".
+#
+# POR QUE O DEPLOY TEM TRÊS TENTATIVAS (24/11/2026)
+# O actions/deploy-pages consulta a lista de artefatos da própria rodada UMA vez
+# (src/internal/api-client.js → getArtifactMetadata, chamado uma única vez por Deployment.create) e
+# falha na hora se o artefato "github-pages" ainda não aparecer na lista. Não há repetição em
+# nenhuma versão da action — nem na v5, cuja única melhora nesse terreno é o backoff do
+# acompanhamento do deploy já criado (check()), não da busca do artefato. As entradas `timeout` e
+# `error_count` também valem só para o check().
+# Desde 16/11/2026 essa listagem passou a vir atrasada: o upload termina com "Artifact
+# github-pages.zip successfully finalized" e, ~0,3 s depois, o artefato ainda não está na lista
+# (o "Found 1 artifact(s)" do log é o log-gerar do job de dados). Em 24/11/2026 isso derrubou 66%
+# das publicações e o site ficou uma hora atrás dos dados já commitados em api/.
+# Remédio: repetir só a chamada do deploy, com espera entre as tentativas. O upload continua sendo
+# UM só — subir "github-pages" duas vezes na mesma rodada dá conflito de nome. A última tentativa
+# não tem continue-on-error: se ela falhar, a rodada termina em vermelho.
 name: Publicar site
 
 on:
@@ -23,7 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_2.outputs.page_url || steps.deployment_3.outputs.page_url }}
+    env:
+      # espera antes de cada nova tentativa, em segundos (cobre atraso de listagem de até ~60 s)
+      ESPERA_2: "20"
+      ESPERA_3: "40"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,5 +56,44 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
+      # 1ª tentativa: é a que atende quase toda rodada, no mesmo tempo de antes
       - id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Esperar o artefato aparecer na listagem (2ª tentativa)
+        if: steps.deployment.outcome == 'failure'
+        run: sleep "$ESPERA_2"
+      - id: deployment_2
+        if: steps.deployment.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Esperar o artefato aparecer na listagem (3ª tentativa)
+        if: steps.deployment.outcome == 'failure' && steps.deployment_2.outcome == 'failure'
+        run: sleep "$ESPERA_3"
+      # última tentativa: sem continue-on-error, para a rodada falhar em vermelho se não publicar
+      - id: deployment_3
+        if: steps.deployment.outcome == 'failure' && steps.deployment_2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      # deixa no resumo da rodada em qual tentativa o site foi publicado: tentativa repetida não
+      # derruba a rodada, então sem esta linha o atraso passaria em branco
+      - name: Resumo da publicação
+        if: always()
+        env:
+          T1: ${{ steps.deployment.outcome }}
+          T2: ${{ steps.deployment_2.outcome }}
+          T3: ${{ steps.deployment_3.outcome }}
+        run: |
+          if [ "$T1" = "success" ]; then
+            echo "Site publicado na 1ª tentativa." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$T2" = "success" ]; then
+            echo "Site publicado na **2ª tentativa** (a 1ª falhou: artefato ainda fora da listagem)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$T3" = "success" ]; then
+            echo "Site publicado na **3ª tentativa** (as duas primeiras falharam)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Site NÃO publicado**: as três tentativas falharam (1ª: $T1, 2ª: $T2, 3ª: $T3)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Os dados em api/ estão commitados; só a publicação falhou. Rode \"Publicar site\" à mão (Actions > Publicar site > Run workflow) ou espere a próxima rodada." >> "$GITHUB_STEP_SUMMARY"
+          fi

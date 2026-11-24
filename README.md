@@ -39,7 +39,7 @@ Incentivo-Q4/
 │   └── tests/               testes sem rede (Datasphere falso)
 └── .github/workflows/
     ├── atualizar-dados.yml  a cada 15 min, seg-sex, 07h-18h45 (Brasília), e quando frontend/ajustes.json muda
-    ├── deploy-pages.yml     publica frontend/ + api/ no Pages
+    ├── deploy-pages.yml     publica frontend/ + api/ no Pages (deploy com até 3 tentativas)
     └── testes.yml           testes do back-end e dos painéis (Desafio Q4 e Campari Club)
 ```
 
@@ -59,6 +59,11 @@ Incentivo-Q4/
    não pontua. O modelo antigo continua sendo consultado só como rede de segurança, para comparar rota a rota.
 3. Se algo mudou, o workflow faz commit em `api/` e publica o site. Se a validação reprovar, nada é
    gravado: o site continua com a última versão boa e a execução aparece como falha (log anexado).
+   A publicação chama o `actions/deploy-pages` **até três vezes**, com 20 s e 40 s de espera entre as
+   tentativas (24/11/2026): a action consulta a lista de artefatos da rodada uma única vez e falha se o artefato
+   recém-enviado ainda não aparecer nela — atraso que, em 24/11/2026, derrubou 66% das publicações e deixou o
+   site uma hora atrás dos dados já commitados. O upload do artefato continua sendo um só, o resumo da rodada diz
+   em que tentativa o site saiu, e se as três falharem a execução termina em falha.
 4. No fechamento do mês (do dia 1 até o fim do 1º dia útil), cada execução grava também
    `api/v1/fechado/AAAAMM.json` com meta e realizado do mês que fechou, por rota, mais os totais por gerência e da
    empresa. Esse arquivo nasce em **prévia**: até o fechamento do **flash de vendas** (em torno do dia 12) os números
