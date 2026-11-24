@@ -1,7 +1,12 @@
 {
   "versao": 1,
-  "atualizado_em": "2026-11-17T10:30",
-  "regras": {},
+  "atualizado_em": "2026-11-24T17:06",
+  "regras": {
+    "gatilhoPontos": {
+      "SV": 60,
+      "RT": 20
+    }
+  },
   "pilares": {},
   "canais": {
     "I19": {
