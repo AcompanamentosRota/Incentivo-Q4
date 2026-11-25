@@ -275,6 +275,95 @@ class TestComparacaoEArquivo(unittest.TestCase):
         self.assertEqual(doc, {"missoes": [{"codigo": "241", "nome": "Traga De Volta", "realizado": 7,
                                             "rotas": {"111": 3, "112": 0}}]})
 
+# ---------------------------------------------------------------- formato da base do mês
+REPETIDA_DA_FIXTURE = "Missão Alfa;P1;9001"     # já está no CSV: repete a chave inteira
+CRUZADA = "Missão Beta;P1;9001"                 # o par P1 x 9001 numa segunda missão
+
+
+def conferir_formato(texto: str) -> list[str]:
+    """Confere o formato da base de elegíveis de um mês. É função do teste: o gerador não precisa dela.
+
+    Devolve a lista de problemas (vazia = formato bom), conferindo o que a revisão do PR confere à mão:
+    cabeçalho exato, três colunas por linha, nenhum campo em branco, nenhuma chave repetida e o mesmo par
+    cliente + produto em uma missão só. O último caso o gerador NÃO pega — a chave dele inclui a missão, e
+    por isso um par repetido em dois blocos da base de origem seria contado duas vezes.
+    """
+    problemas: list[str] = []
+    linhas = [l for l in texto.replace("\r\n", "\n").replace("\r", "\n").split("\n") if l.strip()]
+    if not linhas:
+        return ["arquivo vazio"]
+    if linhas[0] != CABECALHO:
+        problemas.append(f"cabeçalho diferente de {CABECALHO!r}")
+    vistos: set[tuple[str, str, str]] = set()
+    nomes_do_par: dict[tuple[str, str], set[str]] = {}
+    for n, linha in enumerate(linhas[1:], start=2):
+        campos = linha.split(";")
+        if len(campos) != 3:
+            problemas.append(f"linha {n}: {len(campos)} coluna(s), esperado 3")
+            continue
+        nome, produto, cliente = (c.strip() for c in campos)
+        if not (nome and produto and cliente):
+            problemas.append(f"linha {n}: campo em branco")
+            continue
+        if (chave := (nome, produto, cliente)) in vistos:
+            problemas.append(f"linha {n}: chave repetida")
+            continue
+        vistos.add(chave)
+        nomes_do_par.setdefault((produto, cliente), set()).add(nome)
+    for nomes in nomes_do_par.values():
+        if len(nomes) > 1:
+            problemas.append(f"mesmo par cliente + produto em {len(nomes)} missoes diferentes")
+    return problemas
+
+
+class TestFormatoDaBaseDoMes(unittest.TestCase):
+    """Fixtures sintéticas, sempre: a base real tem código de cliente e não entra em teste nenhum."""
+
+    def test_base_bem_formada_nao_tem_problema(self):
+        self.assertEqual(conferir_formato(CSV), [])
+
+    def test_crlf_e_linha_em_branco_no_fim_continuam_bons(self):
+        self.assertEqual(conferir_formato(CSV.replace("\n", "\r\n") + "\r\n"), [])
+
+    def test_cabecalho_diferente_e_problema(self):
+        texto = CSV.replace(CABECALHO, "missao;produto;cliente", 1)
+        self.assertTrue(any("cabeçalho" in x for x in conferir_formato(texto)))
+
+    def test_cabecalho_em_outra_ordem_e_problema(self):
+        """O gerador aceita a ordem trocada; a base publicada do mês, não: o formato é um só."""
+        texto = CSV.replace(CABECALHO, "cod_cliente;cod_produto;missao", 1)
+        self.assertTrue(any("cabeçalho" in x for x in conferir_formato(texto)))
+
+    def test_coluna_a_mais_ou_a_menos_e_problema(self):
+        self.assertTrue(any("coluna" in x for x in conferir_formato(CSV + "\nMissão Alfa;P1")))
+        self.assertTrue(any("coluna" in x for x in conferir_formato(CSV + "\nMissão Alfa;P1;9009;sobra")))
+
+    def test_campo_em_branco_e_problema(self):
+        for linha in (";P1;9009", "Missão Alfa;;9009", "Missão Alfa;P1;"):
+            with self.subTest(linha=linha):
+                self.assertTrue(any("em branco" in x for x in conferir_formato(CSV + "\n" + linha)))
+
+    def test_chave_repetida_e_problema(self):
+        problemas = conferir_formato(CSV + "\n" + REPETIDA_DA_FIXTURE)
+        self.assertTrue(any("repetida" in x for x in problemas))
+
+    def test_mesmo_par_em_duas_missoes_e_problema(self):
+        problemas = conferir_formato(CSV + "\n" + CRUZADA)
+        self.assertTrue(any("mesmo par" in x for x in problemas))
+
+    def test_par_em_duas_missoes_seria_contado_duas_vezes_pelo_gerador(self):
+        """Por que a conferência do par existe: o gerador não vê problema e conta a realização duas vezes."""
+        b = base(CSV + "\n" + CRUZADA)
+        self.assertEqual(b.ignoradas, {})                       # nada ignorado pelo gerador
+        self.assertEqual(len(b.pares), len(CSV.splitlines()))   # os 4 pares da fixture + o cruzado
+        missoes, _, _ = gm.cruzar(b, {(9001, "P1"): ("R1", False)}, ROTAS)
+        self.assertEqual(sum(m["realizado"] for m in missoes), 2)
+
+    def test_nenhuma_linha_da_fixture_tem_campo_vazio(self):
+        for linha in CSV.splitlines()[1:]:
+            with self.subTest(linha=linha):
+                self.assertEqual(len([c for c in linha.split(";") if c.strip()]), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

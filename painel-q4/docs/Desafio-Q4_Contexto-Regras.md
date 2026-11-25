@@ -1,4 +1,11 @@
-# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v4.1 (18/11/2026)
+# Desafio Q4 2026 — Regras do incentivo (Coca-Cola Bandeirantes) — v4.2 (25/11/2026)
+
+**v4.2:** entra a **troca de produto por falta na empresa** nas Missões Guiadas (decisão informada pela Karen em
+25/11/2026; seção 4) e a regra de **contagem por par distinto cliente + produto**. Quando um produto sai dos
+pilares das missões por falta no estoque, o código sai da base de elegíveis e **o realizado dele não é
+preservado**. Caso de referência: em novembro/26 o 2167 saiu e o 2897 entrou. A base de novembro foi substituída
+na mesma data (3.963 pares, 47 produtos). Nenhuma outra regra muda: faixas, pilares, meta de 10 por rota,
+gatilhos, confrontos e ranking continuam como estão, e a fonte do realizado segue sendo o cruzamento da v4.1.
 
 **v4.1:** o realizado das **Missões Guiadas** passa a sair do **cruzamento entre a base de clientes elegíveis e a
 cobertura por cliente × produto** (decisão informada pela Karen em 17/11/2026; seção 4), no lugar do relatório de
@@ -193,6 +200,13 @@ contam de novo**.
   **não pontua** — nunca se assume 100%. A base de dezembro também precisa ser publicada antes do dia 1.
 - A meta e a lista de missões ficam na **configuração** do painel (e podem ser trocadas pelo admin), nunca fixas no
   código ou na tela.
+- **Troca de produto por falta na empresa (Karen, 25/11/2026).** Quando um produto sai dos pilares das Missões
+  Guiadas por falta no estoque da empresa, o código sai da base e **o realizado dele não é preservado**: a missão
+  passa a valer só pelo produto que entrou, contado do zero. O critério é que a base reconcilie integralmente com a
+  cobertura do SAC; valor que não possa ser reproduzido a partir dela não entra. Caso de referência: em novembro/26
+  o 2167 saiu e o 2897 entrou, mesma lista de 70 clientes, e os 6 realizados e 1 online do 2167 foram descartados.
+- **Contagem.** Real e Online das missões são contados por **par distinto cliente + produto**: a base de origem
+  pode trazer o mesmo par em mais de um bloco.
 
 ## 5. Confrontos entre supervisores
 
