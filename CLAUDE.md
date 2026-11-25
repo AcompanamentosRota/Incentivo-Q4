@@ -138,7 +138,7 @@ node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js
 # testes do painel Campari Club — 285 testes (85 do motor, 200 do adaptador)
 node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js
 
-# testes do back-end — 227 testes, sem rede (Datasphere falso e simulado)
+# testes do back-end — 237 testes, sem rede (Datasphere falso e simulado)
 cd backend && python -m unittest discover -s tests -t .
 
 # Real do Total Band da API x Real do SAC (só leitura; relatório em saida/descoberta/)
@@ -203,7 +203,7 @@ Detalhes que o `--help` não deixa óbvios:
 
 ## 5. Regras que não mudam
 
-A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v4.0, 17/11/2026). Itens marcados ⚠️ lá são
+A fonte de verdade é `painel-q4/docs/Desafio-Q4_Contexto-Regras.md` (v4.2, 25/11/2026). Itens marcados ⚠️ lá são
 interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em resumo:
 
 - **Motor único:** pontos, gatilhos, confrontos, status e ranking são calculados só em `painel-q4/src/motor.js`.
@@ -232,6 +232,18 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
   em Regras > Dados e alertas — nunca se assume 100% nem zero. Rota que não aparece no arquivo fica com realizado
   nulo ("sem dados" para ela); `EVI`, `EVM` e `EVS` existem no arquivo e não no cadastro da API: são ignoradas e
   listadas no alerta. O arquivo **não filtra por data**: escolher as missões do mês é o que define o mês.
+  **Troca de produto por falta na empresa (25/11/2026, informada pela Karen; documento de regras v4.2, seção 4):**
+  quando um produto sai dos pilares das missões por falta no estoque da empresa, o código sai da base de elegíveis
+  e **o realizado dele não é preservado** — a missão passa a valer só pelo produto que entrou, contado do zero. O
+  critério é que a base reconcilie integralmente com a cobertura do SAC: valor que não se reproduza a partir dela
+  não entra. Caso de referência: em novembro/26 o **2167 saiu e o 2897 entrou**, com a mesma lista de 70 clientes,
+  e os 6 realizados e 1 online do 2167 foram descartados. Trocar o CSV **basta**: o gerador não guarda realizado
+  nenhum e o número se recompõe na rodada seguinte. Enquanto a comparação com o `AM_FAT_BND_GM_PROGRESSO_TAREFA`
+  (`missoes.COMPARAR_COM_PROGRESSO_TAREFA`) estiver ligada, uma troca de produto **faz a fonte antiga divergir**,
+  porque ela apura pela lista de produtos velha: é aviso esperado, não erro, e não se mexe no limiar nem na base
+  para fazer as duas baterem. **Contagem:** Real e Online saem de **par distinto cliente + produto** — a base de
+  origem pode trazer o mesmo par em mais de um bloco, e a chave do gerador inclui a missão, então um par repetido
+  em duas missões contaria duas vezes (é o que o teste de formato da base confere).
 - **Gatilho de volume:** % da categoria Refrigerantes ≥ 95% (consultor: mês; SV: acumulado do trimestre).
   **Gatilho de pontos:** SV 60 acumulados no trimestre; consultor **17** no mês (zera todo mês) — decisão da
   gerência de planejamento e da IM em 29/10/2026, no documento de regras desde a v3.6. O 17 é o **padrão do motor**
@@ -683,7 +695,7 @@ interpretações a confirmar: sinalize no painel, **não decida sozinho**. Em re
    mudança esperada.
 3. `node --test painel-q4/tests/motor.test.js painel-q4/tests/adapter.test.js` — 207 passando; e
    `node --test painel-campari/tests/motor.test.js painel-campari/tests/adapter.test.js` — 285 passando.
-4. `cd backend && python -m unittest discover -s tests -t .` — 227 passando.
+4. `cd backend && python -m unittest discover -s tests -t .` — 237 passando.
 5. Painel aberto (`servir.py`) sem erro novo no console.
 6. O diff **não** contém `api/v1/` nem `frontend/ajustes.json` (exceção: PR que muda de propósito a chave `campari`,
    e só ela mais o `atualizado_em`).
